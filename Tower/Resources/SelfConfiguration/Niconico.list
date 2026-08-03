@@ -1,0 +1,11 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/Niconico.yaml
+# Snapshot for Self-Configuration fb658cc85802
+DOMAIN-SUFFIX,dmc.nico
+DOMAIN-SUFFIX,nicovideo.jp
+DOMAIN-SUFFIX,nicodic.jp
+DOMAIN-SUFFIX,nicomanga.jp
+DOMAIN-SUFFIX,niconico.com
+DOMAIN-SUFFIX,nicoseiga.jp
+DOMAIN-SUFFIX,nimg.jp
+DOMAIN-SUFFIX,simg.jp
+DOMAIN-SUFFIX,socdm.com

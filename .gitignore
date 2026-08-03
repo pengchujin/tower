@@ -1,0 +1,26 @@
+.DS_Store
+
+# Xcode user state and build output
+.derived*/
+.artifacts/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.bcsymbolmap
+*.log
+
+# SwiftPM and local tooling
+.build/
+.swiftpm/
+.xcode.env.local
+
+# Signing and App Store Connect credentials must never enter Git
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+ExportOptions.plist

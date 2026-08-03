@@ -1,0 +1,11 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/Discovery%20Plus.yaml
+# Snapshot for Self-Configuration fb658cc85802
+PROCESS-NAME,com.discovery.discoveryplus.mobile
+DOMAIN-SUFFIX,content-ause1-ur-discovery1.uplynk.com
+DOMAIN-SUFFIX,disco-api.com
+DOMAIN-SUFFIX,discoveryplus.com
+DOMAIN-SUFFIX,fwmrm.net
+DOMAIN-SUFFIX,getblueshift.com
+DOMAIN-SUFFIX,litix.io
+DOMAIN-SUFFIX,mobile-collector.newrelic.com
+DOMAIN-SUFFIX,uplynk.com

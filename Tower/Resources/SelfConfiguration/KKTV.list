@@ -1,0 +1,6 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/KKTV.yaml
+# Snapshot for Self-Configuration fb658cc85802
+PROCESS-NAME,com.kktv.kktv
+DOMAIN-SUFFIX,kktv.me
+DOMAIN-SUFFIX,kktv.com.tw
+DOMAIN,kktv-theater.kk.stream

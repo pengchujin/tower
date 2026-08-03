@@ -1,0 +1,10 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/F1%20TV.yaml
+# Snapshot for Self-Configuration fb658cc85802
+DOMAIN,d2n9h2wits23hf.cloudfront.net
+DOMAIN,f1prodlive.akamaized.net
+DOMAIN,mobile-collector.newrelic.com
+DOMAIN-SUFFIX,bitmovin.com
+DOMAIN-SUFFIX,f1esports.com
+DOMAIN-SUFFIX,f1manager.com
+DOMAIN-SUFFIX,f1play.com
+DOMAIN-SUFFIX,formula1.com

@@ -1,0 +1,12 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/BBC%20iPlayer.yaml
+# Snapshot for Self-Configuration fb658cc85802
+PROCESS-NAME,bbc.iplayer.android
+DOMAIN-KEYWORD,-uk-live.akamaized.net
+DOMAIN-KEYWORD,bbcfmt
+DOMAIN-SUFFIX,bbc.co
+DOMAIN-SUFFIX,bbc.co.uk
+DOMAIN-SUFFIX,bbc.com
+DOMAIN-SUFFIX,bbcfmt.hs.llnwd.net
+DOMAIN-SUFFIX,bbci.co
+DOMAIN-SUFFIX,bbci.co.uk
+DOMAIN-SUFFIX,bidi.net.uk

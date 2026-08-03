@@ -1,0 +1,4 @@
+# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/Pandora.yaml
+# Snapshot for Self-Configuration fb658cc85802
+PROCESS-NAME,com.pandora.android
+DOMAIN-SUFFIX,pandora.com

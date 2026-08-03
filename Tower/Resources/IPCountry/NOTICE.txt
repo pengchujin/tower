@@ -1,0 +1,11 @@
+IP country data
+===============
+
+Source: sapics/ip-location-db, geo-whois-asn-country
+Version: 2.3.2026061719
+Source URL: https://github.com/sapics/ip-location-db/tree/main/geo-whois-asn-country
+License: Creative Commons Zero (CC0)
+
+The source project states that these files may be used without attribution for
+any purpose. This notice is retained to make the bundled data provenance and
+update path clear.
