@@ -32,6 +32,19 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertNil(database.countryCode(forIPAddress: "[2001:db8::1]"))
     }
 
+    func testIPv6EndpointAddsBracketsWhenCombiningHostAndPort() {
+        let node = ProxyNode(
+            kind: .trojan,
+            name: "IPv6",
+            server: "2001:db8::1",
+            port: 443,
+            password: "pw",
+            rawURI: "trojan://test"
+        )
+
+        XCTAssertEqual(node.endpoint, "[2001:db8::1]:443")
+    }
+
     // MARK: - SIP003 plugins
 
     func testShadowsocksNodeWithPluginIsRejectedRatherThanSilentlyBroken() {
@@ -60,6 +73,31 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertEqual(result.rejectedLineCount, 2)
     }
 
+    func testClashYAMLShadowsocksPluginIsRejectedAndCounted() {
+        let yaml = """
+        proxies:
+          - name: Plugin SS
+            type: ss
+            server: plugin.example.com
+            port: 8388
+            cipher: aes-256-gcm
+            password: secret
+            plugin: obfs
+            plugin-opts: { mode: http, host: www.example.com }
+          - name: Plain SS
+            type: ss
+            server: plain.example.com
+            port: 8388
+            cipher: aes-256-gcm
+            password: secret
+        """
+
+        let result = parser.parse(data: Data(yaml.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.server), ["plain.example.com"])
+        XCTAssertEqual(result.rejectedLineCount, 1)
+    }
+
     // MARK: - Duplicate query keys
 
     func testRepeatedQueryKeyDoesNotTrap() {
@@ -81,6 +119,17 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "US West 01"))?.code, "US")
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "DE-Frankfurt-02"))?.code, "DE")
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "MY Kuala 03"))?.code, "MY")
+    }
+
+    func testLowercaseCountryCodeInServerHostnameStillResolves() {
+        XCTAssertEqual(
+            NodeRegionResolver.region(for: node(name: "Premium", server: "us.example.com"))?.code,
+            "US"
+        )
+        XCTAssertEqual(
+            NodeRegionResolver.region(for: node(name: "Premium", server: "de-01.example.com"))?.code,
+            "DE"
+        )
     }
 
     func testFrankfurtCodeStaysWithGermany() {
@@ -146,11 +195,11 @@ final class ImportHardeningTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func node(name: String) -> ProxyNode {
+    private func node(name: String, server: String = "203.0.113.8") -> ProxyNode {
         ProxyNode(
             kind: .shadowsocks,
             name: name,
-            server: "203.0.113.8",
+            server: server,
             port: 443,
             password: "test",
             rawURI: "ss://test"

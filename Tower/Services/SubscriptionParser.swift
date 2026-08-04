@@ -72,8 +72,11 @@ struct SubscriptionParser {
         }
 
         if text.contains("proxies:") {
-            let nodes = parseClashYAML(text, sourceID: sourceID)
-            return .init(nodes: deduplicated(nodes), rejectedLineCount: nodes.isEmpty ? 1 : 0)
+            let parsed = parseClashYAML(text, sourceID: sourceID)
+            return .init(
+                nodes: deduplicated(parsed.nodes),
+                rejectedLineCount: parsed.rejectedLineCount
+            )
         }
 
         let candidates = text
@@ -258,9 +261,11 @@ struct SubscriptionParser {
         )
     }
 
-    private func parseClashYAML(_ text: String, sourceID: UUID?) -> [ProxyNode] {
+    private func parseClashYAML(_ text: String, sourceID: UUID?) -> ParsedContent {
         let lines = text.components(separatedBy: .newlines)
-        guard let start = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "proxies:" }) else { return [] }
+        guard let start = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "proxies:" }) else {
+            return .init(nodes: [], rejectedLineCount: 1)
+        }
 
         var dictionaries: [[String: String]] = []
         var current: [String: String] = [:]
@@ -288,13 +293,29 @@ struct SubscriptionParser {
         }
         if !current.isEmpty { dictionaries.append(current) }
 
-        return dictionaries.compactMap { dictionary in
+        var nodes: [ProxyNode] = []
+        var rejected = 0
+        for dictionary in dictionaries {
             guard let type = dictionary["type"]?.lowercased(),
                   let kind = clashKind(type),
                   let rawServer = dictionary["server"],
-                  let port = Int(dictionary["port"] ?? "") else { return nil }
+                  let port = Int(dictionary["port"] ?? "") else {
+                rejected += 1
+                continue
+            }
+
+            // Clash plugins change the Shadowsocks wire protocol. Importing
+            // one as a plain SS node creates a configuration that looks valid
+            // but cannot connect, so reject it explicitly until plugin fields
+            // can be represented by ProxyNode and every exporter.
+            if kind == .shadowsocks,
+               dictionary.keys.contains("plugin") || dictionary.keys.contains("plugin-opts") {
+                rejected += 1
+                continue
+            }
+
             let server = normalizedHost(rawServer)
-            return ProxyNode(
+            nodes.append(ProxyNode(
                 sourceID: sourceID,
                 kind: kind,
                 name: normalizedName(dictionary["name"], fallback: server),
@@ -317,8 +338,12 @@ struct SubscriptionParser {
                 obfs: dictionary["obfs"],
                 obfsParam: dictionary["obfs-param"],
                 rawURI: "clash://local/\(UUID().uuidString)"
-            )
+            ))
         }
+        return .init(
+            nodes: nodes,
+            rejectedLineCount: dictionaries.isEmpty ? 1 : rejected
+        )
     }
 
     private func parseInlineYAMLMap(_ value: String) -> [String: String] {

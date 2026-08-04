@@ -170,7 +170,12 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.rawURI = rawURI
     }
 
-    var endpoint: String { "\(server):\(port)" }
+    var endpoint: String {
+        let host = server.contains(":") && !(server.hasPrefix("[") && server.hasSuffix("]"))
+            ? "[\(server)]"
+            : server
+        return "\(host):\(port)"
+    }
     var canonicalKey: String {
         let credential = uuid ?? username ?? password ?? ""
         return "\(kind.rawValue)|\(server.lowercased())|\(port)|\(credential)"

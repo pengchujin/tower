@@ -27,19 +27,19 @@
 ### 解析
 
 - IPv6 字面量节点不再带方括号入库。此前 `URLComponents.host` 返回 `[2001:db8::1]`，导致 `inet_pton` 失败（无国家识别）、`getaddrinfo` 失败（ICMP 静默退回端口）、Clash `server` 字段非法。
-- 带 SIP003 `plugin=` 的 SS 节点改为拒绝并计数，不再伪装成可用的裸 SS 节点。**当前仍不支持 plugin，这是已知边界，不是回归。**
+- URI 和 Clash YAML 中带 SIP003 `plugin` / `plugin-opts` 的 SS 节点改为拒绝并计数，不再伪装成可用的裸 SS 节点。**当前仍不支持 plugin，这是已知边界，不是回归。**
 - 重复的 query key（如 `?sni=a&sni=b`）不再触发 `Dictionary(uniqueKeysWithValues:)` 崩溃；内联 YAML 映射同理。
 - 导入结果的跳过条数会显示在 Toast 中。
 
 ### 隐私与落盘
 
 - 导出配置和二维码 PNG 改为 `.completeFileProtection` 写入，并在各自目录中清理超过 5 分钟的旧文件。此前它们以默认保护级别无限堆积在 `tmp`，内容包含全部节点明文密码。
-- 删除 `AddSourceSheet` 在 `onAppear` 中的剪贴板读取，避免无用户手势触发系统粘贴弹窗和横幅。
+- 按既定产品要求恢复 `AddSourceSheet` 展示时的一次性剪贴板请求；只在内容可识别时填充，并用视图状态防止同一次展示重复读取。
 - 删除从未被读取的 `ImportResult.responseHeaders`，它把订阅响应头（含 `subscription-userinfo`、cookie）带进了 App 状态。
 
 ### 地区识别与性能
 
-- 与常用英文词冲突的两字母国家码（`us`、`in`、`my`、`de`、`ca` 等）改为仅在名称中大写出现时才匹配。此前 “My fast node” 判成马来西亚、“Rio de Janeiro” 判成德国。误判不只是显示错误，还会把节点放进错误的地区策略组。
+- 与常用英文词冲突的两字母国家码（`us`、`in`、`my`、`de`、`ca` 等）在节点名称中仅大写时匹配，服务器主机名的标签仍按域名规则忽略大小写。此前 “My fast node” 判成马来西亚、“Rio de Janeiro” 判成德国，而 `us.example.com` 又无法识别美国。误判或漏判都会影响地区策略组。
 - 移除法国的错误 token `frr`；`fra` 明确保留给法兰克福。
 - IP 国家解析与延迟测试统一按 8 个一批，展开大地区不再同时发起 N 个 `getaddrinfo`。
 - `RuleRepository` 的 bundle 扫描（69 个文件、约 2.1 万行）从 `init` 移到首次取用时，不再阻塞启动主线程；同一 bundle 只加载一次。
@@ -72,7 +72,7 @@
 
 ### 首页
 
-- “+”统一添加机场订阅和自有节点，提示同时覆盖订阅 URL 和节点协议链接。剪贴板只在用户点击“从剪贴板粘贴”时读取，不在弹出时自动读取。
+- “+”统一添加机场订阅和自有节点，提示同时覆盖订阅 URL 和节点协议链接。弹出时自动请求一次剪贴板并在识别成功后填充，同时保留手动粘贴按钮。
 - 顶部统计项“订阅、节点、覆盖地区、自有节点”可滚动到对应内容。
 - 订阅可展开节点，但不显示“更多节点”，展开使用透明度/布局变化，不从顶部滑入。
 - 节点行显示 IP 国家/地区 Logo、名称、协议/传输/UDP 信息和真实延迟。
@@ -250,7 +250,7 @@ xcodebuild -project Tower.xcodeproj \
 - [ ] 杀掉 App 后订阅和自有节点恢复。
 - [ ] 日志中没有订阅 URL、节点密码、UUID 或完整配置。
 - [ ] 飞行模式下仍可查看已保存内容并生成配置。
-- [ ] 打开“+”面板时不出现系统粘贴弹窗；只有点击“从剪贴板粘贴”才出现。
+- [ ] 打开“+”面板时只出现一次系统粘贴请求；支持的订阅或节点链接自动填入，不支持的文本不覆盖输入框，手动粘贴仍可用。
 - [ ] `ImportHardeningTests.testExportedConfigurationIsWrittenWithCompleteFileProtection` 在真机上不再 skip 且通过。模拟器不实现数据保护，这条只能在真机验证。
 - [ ] 分享配置或二维码后，`tmp/TowerExports` 与 `tmp/TowerQRCodes` 中的旧文件会在下次生成时清掉。
 

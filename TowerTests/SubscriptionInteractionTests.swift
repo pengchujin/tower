@@ -2,6 +2,24 @@ import XCTest
 @testable import Tower
 
 final class SubscriptionInteractionTests: XCTestCase {
+    func testAddSourceSheetRequestsClipboardWhenPresented() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/AddSourceSheet.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let presentationRequest = #"\.onAppear\s*\{\s*requestClipboardContent\(\)"#
+
+        XCTAssertNotNil(
+            source.range(of: presentationRequest, options: .regularExpression),
+            "打开添加面板时应主动请求受支持的剪贴板内容"
+        )
+        #else
+        throw XCTSkip("该测试检查开发源码中的 SwiftUI 触发器，只在模拟器构建环境运行")
+        #endif
+    }
+
     func testOverviewMetricsRouteToDedicatedScrollTargets() {
         XCTAssertEqual(SubscriptionOverviewMetric.subscriptions.scrollTarget, .subscriptions)
         XCTAssertEqual(SubscriptionOverviewMetric.nodes.scrollTarget, .nodes)

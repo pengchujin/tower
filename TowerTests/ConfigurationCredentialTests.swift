@@ -135,6 +135,23 @@ final class ConfigurationCredentialTests: XCTestCase {
         XCTAssertTrue(line.contains("obfs-host=cloud.example.com"), line)
     }
 
+    func testQuanXBracketsIPv6HostBeforeAppendingPort() {
+        let node = ProxyNode(
+            kind: .trojan,
+            name: "IPv6 Trojan",
+            server: "2001:db8::1",
+            port: 443,
+            password: "pw",
+            tls: true,
+            rawURI: "trojan://test"
+        )
+
+        let line = proxyLine(for: node, target: .quanx, containing: "2001:db8::1")
+
+        XCTAssertTrue(line.contains("trojan=[2001:db8::1]:443"), line)
+        XCTAssertFalse(line.contains("trojan=2001:db8::1:443"), line)
+    }
+
     // MARK: - Untrusted node names
 
     /// A hostile remark must not add a line to any format. Clash quotes the name

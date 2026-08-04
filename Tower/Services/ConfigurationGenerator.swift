@@ -697,7 +697,7 @@ struct ConfigurationGenerator {
     }
 
     private func quanXNode(_ node: ProxyNode) -> String {
-        var values = ["\(node.server):\(node.port)"]
+        var values = [node.endpoint]
         let prefix: String
         switch node.kind {
         case .shadowsocks:

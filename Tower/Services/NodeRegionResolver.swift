@@ -63,16 +63,21 @@ enum NodeRegionResolver {
         let combined = "\(node.name) \(node.server)"
         let lowercased = combined.lowercased()
         let separators = CharacterSet.alphanumerics.inverted
-        let tokens = Set(
-            lowercased
+        let nameTokens = Set(
+            node.name.lowercased()
                 .components(separatedBy: separators)
                 .filter { !$0.isEmpty }
         )
-        let capitalisedTokens = Set(
-            combined
+        let capitalisedNameTokens = Set(
+            node.name
                 .components(separatedBy: separators)
                 .filter { !$0.isEmpty && $0 == $0.uppercased() }
                 .map { $0.lowercased() }
+        )
+        let serverTokens = Set(
+            node.server.lowercased()
+                .components(separatedBy: separators)
+                .filter { !$0.isEmpty }
         )
 
         return definitions.first { definition in
@@ -81,9 +86,10 @@ enum NodeRegionResolver {
                 return true
             }
             return definition.tokens.contains { token in
-                caseSensitiveTokens.contains(token)
-                    ? capitalisedTokens.contains(token)
-                    : tokens.contains(token)
+                if serverTokens.contains(token) { return true }
+                return caseSensitiveTokens.contains(token)
+                    ? capitalisedNameTokens.contains(token)
+                    : nameTokens.contains(token)
             }
         }?.region
     }
