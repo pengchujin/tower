@@ -174,7 +174,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             ],
             .quanx: [
                 "static=🇭🇰 香港, 🇭🇰 香港 · 延迟优选, Hong Kong",
-                "url-latency-benchmark=🇭🇰 香港 · 延迟优选, Hong Kong, check-interval="
+                "url-latency-benchmark=🇭🇰 香港 · 延迟优选, server-tag-regex=^(?:Hong Kong)$, check-interval="
             ]
         ]
 
@@ -189,6 +189,42 @@ final class ConfigurationGeneratorTests: XCTestCase {
                 XCTAssertTrue(content.contains(declaration), "\(target.name) 地区组未同时支持默认延迟优选和手动节点")
             }
         }
+    }
+
+    func testQuanXLatencyPoliciesSelectExactNodeTagsWithServerTagRegex() throws {
+        let korea = ProxyNode(
+            kind: .shadowsocks,
+            name: "🇰🇷 South Korea (Premium)+",
+            server: "kr.example.com",
+            port: 8388,
+            cipher: "chacha20-ietf-poly1305",
+            password: "secret",
+            rawURI: "ss://korea"
+        )
+        let content = ConfigurationGenerator().generate(
+            nodes: [korea],
+            preset: RulePreset.builtIns[0],
+            target: .quanx,
+            countryCodes: [korea.id: "KR"]
+        ).content
+
+        let latencyLines = content
+            .split(separator: "\n")
+            .filter { $0.hasPrefix("url-latency-benchmark=") }
+
+        XCTAssertFalse(latencyLines.isEmpty)
+        for line in latencyLines {
+            XCTAssertTrue(line.contains(", server-tag-regex="), String(line))
+            XCTAssertFalse(line.contains(", 🇰🇷 South Korea (Premium)+,"), String(line))
+        }
+
+        let koreaLine = try XCTUnwrap(
+            latencyLines.first { $0.hasPrefix("url-latency-benchmark=🇰🇷 韩国 · 延迟优选,") }
+        )
+        XCTAssertTrue(
+            koreaLine.contains("server-tag-regex=^(?:🇰🇷 South Korea \\(Premium\\)\\+)$"),
+            String(koreaLine)
+        )
     }
 
     func testRegionGroupNamesUseChineseFlagLabels() {

@@ -655,7 +655,7 @@ struct ConfigurationGenerator {
         if names.isEmpty {
             output += "static=\(RulePolicy.auto.configurationName), direct, img-url=\(iconURL(for: .auto))\n"
         } else {
-            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
         }
         let nestedSelectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
@@ -668,7 +668,7 @@ struct ConfigurationGenerator {
         if names.isEmpty {
             output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName), img-url=\(iconURL(for: .auto))\n"
         } else {
-            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
         }
         output += "static=\(Self.directGroupName), direct, img-url=\(iconURL(for: .direct))\n"
         for policy in configurablePolicies(preset) {
@@ -683,7 +683,7 @@ struct ConfigurationGenerator {
         }
         for group in regionGroups {
             output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
-            output += "url-latency-benchmark=\(group.automaticName), \(group.nodeNames.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "url-latency-benchmark=\(group.automaticName), server-tag-regex=\(quanXServerTagRegex(group.nodeNames)), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         output += "\n[filter_local]\n"
         for assignment in preset.assignments {
@@ -1019,6 +1019,15 @@ struct ConfigurationGenerator {
             .replacingOccurrences(of: "#", with: "＃")
             .replacingOccurrences(of: ";", with: "；")
             .trimmingCharacters(in: .whitespaces)
+    }
+
+    private func quanXServerTagRegex(_ nodeNames: [String]) -> String {
+        let alternatives = nodeNames
+            .map(confName)
+            .removingDuplicates()
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+        return "^(?:\(alternatives))$"
     }
 
     private func confValue(_ value: String) -> String {

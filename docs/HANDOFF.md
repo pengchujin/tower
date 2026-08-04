@@ -130,6 +130,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - 节点选择间接包含自身。
 - 策略名称自带 Emoji，同时 UI/客户端图标字段再显示一次，造成重复。
 - 地区组只有手动选项或只有自动组，不能兼顾默认延迟优选和人工覆盖。
+- QuanX 的 `url-latency-benchmark` 直接列节点标签会报语法错误；必须输出 `server-tag-regex`，并对节点标签中的正则字符逐个转义。
 
 ## 4. 当前 TestFlight / App Store Connect 状态
 
