@@ -23,6 +23,9 @@ final class AppModel {
     private let latencyService: NodeLatencyService
     private let ipCountryLookupService: IPCountryLookupService
     private let isDemoMode: Bool
+    /// Latency probes and DNS lookups both run in small batches so expanding a
+    /// large subscription cannot flood the network stack or stall the main actor.
+    private static let resolutionBatchSize = 8
     @ObservationIgnored private var generationCache = ConfigurationCache()
     @ObservationIgnored private var countryResolutionInFlightNodeIDs: Set<UUID> = []
 
@@ -127,17 +130,26 @@ final class AppModel {
         countryResolutionInFlightNodeIDs.formUnion(candidateIDs)
         defer { countryResolutionInFlightNodeIDs.subtract(candidateIDs) }
 
+        // Each lookup can block on getaddrinfo, and every visible node row asks
+        // for its own. Without the same batching the latency probes use, opening
+        // a large region starts one DNS resolution per node at once.
         let service = ipCountryLookupService
-        await withTaskGroup(of: (UUID, String?).self) { group in
-            for node in candidates {
-                group.addTask {
-                    (node.id, await service.countryCode(forHost: node.server))
-                }
-            }
+        for start in stride(from: 0, to: candidates.count, by: Self.resolutionBatchSize) {
+            guard !Task.isCancelled else { return }
+            let end = min(start + Self.resolutionBatchSize, candidates.count)
+            let batch = Array(candidates[start ..< end])
 
-            for await (id, countryCode) in group {
-                countryResolutionCompletedNodeIDs.insert(id)
-                if let countryCode { nodeIPCountryCodes[id] = countryCode }
+            await withTaskGroup(of: (UUID, String?).self) { group in
+                for node in batch {
+                    group.addTask {
+                        (node.id, await service.countryCode(forHost: node.server))
+                    }
+                }
+
+                for await (id, countryCode) in group {
+                    countryResolutionCompletedNodeIDs.insert(id)
+                    if let countryCode { nodeIPCountryCodes[id] = countryCode }
+                }
             }
         }
     }
@@ -167,9 +179,9 @@ final class AppModel {
                 .localizedStandardCompare(NodeRegionResolver.displayName(for: $1)) == .orderedAscending
         }
 
-        for start in stride(from: 0, to: orderedNodes.count, by: 8) {
+        for start in stride(from: 0, to: orderedNodes.count, by: Self.resolutionBatchSize) {
             guard !Task.isCancelled else { return }
-            let end = min(start + 8, orderedNodes.count)
+            let end = min(start + Self.resolutionBatchSize, orderedNodes.count)
             let batch = Array(orderedNodes[start ..< end])
 
             await withTaskGroup(of: (UUID, NodeLatencyMeasurement?).self) { group in
@@ -215,7 +227,17 @@ final class AppModel {
         subscriptions.append(updated)
         nodes.append(contentsOf: result.nodes)
         persist()
-        showToast("已添加 \(result.nodes.count) 个节点", symbol: "checkmark.circle.fill")
+        showToast(importSummary("已添加", result: result), symbol: "checkmark.circle.fill")
+    }
+
+    /// Nodes the parser cannot represent faithfully — an unsupported SIP003
+    /// plugin, a malformed line — are counted rather than dropped in silence,
+    /// so the node total on screen always matches what was actually imported.
+    private func importSummary(_ prefix: String, result: ImportResult) -> String {
+        guard result.rejectedLineCount > 0 else {
+            return "\(prefix) \(result.nodes.count) 个节点"
+        }
+        return "\(prefix) \(result.nodes.count) 个节点，跳过 \(result.rejectedLineCount) 条无法识别"
     }
 
     func updateSubscription(id: UUID) async {
@@ -238,7 +260,7 @@ final class AppModel {
             subscriptions[index].lastUpdatedAt = .now
             subscriptions[index].lastError = nil
             persist()
-            showToast("已更新 \(result.nodes.count) 个节点", symbol: "arrow.triangle.2.circlepath.circle.fill")
+            showToast(importSummary("已更新", result: result), symbol: "arrow.triangle.2.circlepath.circle.fill")
         } catch {
             subscriptions[index].lastError = error.localizedDescription
             persist()

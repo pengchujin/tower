@@ -1,0 +1,228 @@
+import XCTest
+@testable import Tower
+
+/// Regression cover for the protocol branches that the 2026-08-04 review found
+/// emitting lines the target clients cannot parse.
+final class ConfigurationCredentialTests: XCTestCase {
+    private let preset = RulePreset.builtIns[0]
+
+    // MARK: - Positional credentials
+
+    func testLoonSocks5WithoutCredentialsHasNoTrailingEmptyFields() {
+        let node = ProxyNode(
+            kind: .socks5,
+            name: "Open SOCKS",
+            server: "socks.example.com",
+            port: 1080,
+            rawURI: "socks5://socks.example.com:1080"
+        )
+
+        let line = proxyLine(for: node, target: .loon, containing: "socks.example.com")
+
+        XCTAssertFalse(line.contains(",,"), "Loon 收到空的用户名/密码字段：\(line)")
+        XCTAssertTrue(line.hasSuffix("udp=true"), line)
+    }
+
+    func testSurgeKeepsUsernameSlotWhenOnlyPasswordIsKnown() {
+        let node = ProxyNode(
+            kind: .socks5,
+            name: "Password Only",
+            server: "socks.example.com",
+            port: 1080,
+            password: "s3cret",
+            rawURI: "socks5://socks.example.com:1080"
+        )
+
+        let line = proxyLine(for: node, target: .surge, containing: "socks.example.com")
+        let fields = line.components(separatedBy: " = ")[1].components(separatedBy: ", ")
+
+        // socks5, host, port, username, password — the password must not slide
+        // into the username slot when no username is configured.
+        XCTAssertEqual(fields[0], "socks5", line)
+        XCTAssertEqual(fields[3], "", line)
+        XCTAssertEqual(fields[4], "s3cret", line)
+    }
+
+    func testLoonSocks5KeepsBothFieldsWhenAuthenticated() {
+        let node = ProxyNode(
+            kind: .socks5,
+            name: "Auth SOCKS",
+            server: "socks.example.com",
+            port: 1080,
+            password: "pw",
+            username: "user",
+            rawURI: "socks5://socks.example.com:1080"
+        )
+
+        let line = proxyLine(for: node, target: .loon, containing: "socks.example.com")
+
+        XCTAssertTrue(line.contains("user,pw"), line)
+    }
+
+    // MARK: - Quantumult X fidelity
+
+    func testQuanXKeepsSkipCertificateVerificationForTrojanAndHysteria2() {
+        for kind in [ProxyKind.trojan, .hysteria2] {
+            let node = ProxyNode(
+                kind: kind,
+                name: "Self Signed",
+                server: "edge.example.com",
+                port: 443,
+                password: "pw",
+                tls: true,
+                sni: "edge.example.com",
+                skipCertificateVerification: true,
+                rawURI: "trojan://test"
+            )
+
+            let line = proxyLine(for: node, target: .quanx, containing: "edge.example.com")
+
+            XCTAssertTrue(line.contains("tls-verification=false"), "\(kind.title)：\(line)")
+        }
+    }
+
+    func testQuanXUsesNodeCipherForVMessInsteadOfAHardcodedOne() {
+        let node = ProxyNode(
+            kind: .vmess,
+            name: "AES VMess",
+            server: "vmess.example.com",
+            port: 443,
+            cipher: "aes-128-gcm",
+            uuid: "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e",
+            rawURI: "vmess://test"
+        )
+
+        let line = proxyLine(for: node, target: .quanx, containing: "vmess.example.com")
+
+        XCTAssertTrue(line.contains("method=aes-128-gcm"), line)
+    }
+
+    func testQuanXFallsBackToAnAcceptedCipherWhenNodeSaysAuto() {
+        let node = ProxyNode(
+            kind: .vmess,
+            name: "Auto VMess",
+            server: "vmess.example.com",
+            port: 443,
+            cipher: "auto",
+            uuid: "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e",
+            rawURI: "vmess://test"
+        )
+
+        let line = proxyLine(for: node, target: .quanx, containing: "vmess.example.com")
+
+        XCTAssertFalse(line.contains("method=auto"), line)
+        XCTAssertTrue(line.contains("method=chacha20-ietf-poly1305"), line)
+    }
+
+    func testQuanXKeepsShadowsocksRObfuscationParameters() {
+        let node = ProxyNode(
+            kind: .shadowsocksR,
+            name: "SSR",
+            server: "ssr.example.com",
+            port: 8388,
+            cipher: "aes-256-cfb",
+            password: "pw",
+            protocolName: "auth_aes128_md5",
+            protocolParam: "1234:abcd",
+            obfs: "tls1.2_ticket_auth",
+            obfsParam: "cloud.example.com",
+            rawURI: "ssr://test"
+        )
+
+        let line = proxyLine(for: node, target: .quanx, containing: "ssr.example.com")
+
+        XCTAssertTrue(line.contains("ssr-protocol-param=1234:abcd"), line)
+        XCTAssertTrue(line.contains("obfs-host=cloud.example.com"), line)
+    }
+
+    // MARK: - Untrusted node names
+
+    /// A hostile remark must not add a line to any format. Clash quotes the name
+    /// so `#` and `=` are inert there; the INI-style formats have no quoting, so
+    /// they additionally must not contain the injected comment or assignment.
+    func testNodeNameCannotBreakOutOfTheProxyLine() {
+        let hostileName = "HK 01\nREJECT = reject # owned"
+
+        for target in ClientTarget.allCases {
+            let hostile = generate(name: hostileName, target: target)
+            let benign = generate(name: "HK 01", target: target)
+
+            XCTAssertEqual(
+                hostile.components(separatedBy: .newlines).count,
+                benign.components(separatedBy: .newlines).count,
+                "\(target.name) 节点名换行后多出了配置行"
+            )
+
+            guard target != .clash else {
+                XCTAssertTrue(
+                    hostile.contains(#"name: "HK 01 REJECT = reject # owned""#),
+                    "Clash 应把节点名保留为单行带引号标量"
+                )
+                continue
+            }
+
+            XCTAssertFalse(hostile.contains("REJECT = reject"), "\(target.name) 允许节点名注入赋值")
+            XCTAssertFalse(hostile.contains("# owned"), "\(target.name) 允许节点名注入注释")
+        }
+    }
+
+    private func generate(name: String, target: ClientTarget) -> String {
+        let node = ProxyNode(
+            kind: .shadowsocks,
+            name: name,
+            server: "hk.example.com",
+            port: 8388,
+            cipher: "chacha20-ietf-poly1305",
+            password: "pw",
+            rawURI: "ss://test"
+        )
+        return ConfigurationGenerator().generate(nodes: [node], preset: preset, target: target).content
+    }
+
+    // MARK: - Rule types
+
+    func testUnsupportedRuleTypesAreDroppedForEveryTarget() {
+        for target in ClientTarget.allCases {
+            let content = ConfigurationGenerator().generate(
+                nodes: [],
+                preset: preset,
+                target: target
+            ).content
+
+            XCTAssertFalse(content.contains("GEOSITE"), "\(target.name) 写出了无法解析的规则类型")
+        }
+    }
+
+    func testProcessNameRulesSurviveForSurgeFamilyButNotQuanX() {
+        let surge = ConfigurationGenerator().generate(nodes: [], preset: preset, target: .surge).content
+        let quanX = ConfigurationGenerator().generate(nodes: [], preset: preset, target: .quanx).content
+
+        XCTAssertTrue(surge.contains("PROCESS-NAME"), "Surge 丢掉了快照里的 PROCESS-NAME 规则")
+        XCTAssertFalse(quanX.contains("PROCESS-NAME"), "Quantumult X 不支持 PROCESS-NAME")
+    }
+
+    // MARK: - Helpers
+
+    private func proxyLine(
+        for node: ProxyNode,
+        target: ClientTarget,
+        containing needle: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> String {
+        let content = ConfigurationGenerator().generate(
+            nodes: [node],
+            preset: preset,
+            target: target
+        ).content
+
+        guard let match = content
+            .components(separatedBy: .newlines)
+            .first(where: { $0.contains(needle) })
+        else {
+            XCTFail("\(target.name) 配置里找不到 \(needle)", file: file, line: line)
+            return ""
+        }
+        return match
+    }
+}

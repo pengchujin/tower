@@ -48,8 +48,7 @@ struct SubscriptionService {
         guard !parsed.nodes.isEmpty else { throw SubscriptionError.noSupportedNodes }
         return ImportResult(
             nodes: parsed.nodes,
-            rejectedLineCount: parsed.rejectedLineCount,
-            responseHeaders: httpResponse.allHeaderFields
+            rejectedLineCount: parsed.rejectedLineCount
         )
     }
 }
@@ -127,6 +126,11 @@ struct SubscriptionParser {
             : "Shadowsocks"
         var payload = String(fragmentSplit[0]).replacingOccurrences(of: "ss://", with: "", options: [.anchored, .caseInsensitive])
         if let queryIndex = payload.firstIndex(of: "?") {
+            let query = String(payload[payload.index(after: queryIndex)...])
+            // A SIP003 plugin changes how the node is dialled. Importing it
+            // without the plugin would produce a node that looks healthy and
+            // never connects, so it is rejected and counted instead.
+            if queryDictionary(query)["plugin"]?.isEmpty == false { return nil }
             payload = String(payload[..<queryIndex])
         }
 
@@ -223,10 +227,11 @@ struct SubscriptionParser {
             normalized = "socks5://" + normalized.dropFirst("socks://".count)
         }
         guard let components = URLComponents(string: normalized),
-              let server = components.host,
+              let rawHost = components.host,
               let port = components.port else { return nil }
+        let server = normalizedHost(rawHost)
 
-        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") })
+        let query = Dictionary((components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") }) { _, new in new }
         let fallback = "\(kind.title) · \(server)"
         let name = normalizedName(components.fragment?.removingPercentEncoding, fallback: fallback)
         let transport = query["type"] ?? query["network"] ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
@@ -286,8 +291,9 @@ struct SubscriptionParser {
         return dictionaries.compactMap { dictionary in
             guard let type = dictionary["type"]?.lowercased(),
                   let kind = clashKind(type),
-                  let server = dictionary["server"],
+                  let rawServer = dictionary["server"],
                   let port = Int(dictionary["port"] ?? "") else { return nil }
+            let server = normalizedHost(rawServer)
             return ProxyNode(
                 sourceID: sourceID,
                 kind: kind,
@@ -337,7 +343,7 @@ struct SubscriptionParser {
             current.append(character)
         }
         if !current.isEmpty { pieces.append(current) }
-        return Dictionary(uniqueKeysWithValues: pieces.compactMap(parseYAMLPair))
+        return Dictionary(pieces.compactMap(parseYAMLPair)) { _, new in new }
     }
 
     private func parseYAMLPair(_ value: String) -> (String, String)? {
@@ -366,15 +372,33 @@ struct SubscriptionParser {
         guard let components = URLComponents(string: "tcp://\(value)"),
               let host = components.host,
               let port = components.port else { return nil }
-        return (host, port)
+        return (normalizedHost(host), port)
     }
 
+    /// `URLComponents.host` keeps the brackets around an IPv6 literal. Storing
+    /// them would break `inet_pton` in the offline country database, the
+    /// `getaddrinfo` latency probe, and the generated Clash `server` field, so
+    /// the address is kept bare and re-bracketed only where a format needs it.
+    private func normalizedHost(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("["), trimmed.hasSuffix("]"), trimmed.count > 2 else {
+            return trimmed
+        }
+        return String(trimmed.dropFirst().dropLast())
+    }
+
+    // A malformed or simply repetitive query string can repeat a key. Keeping
+    // the last occurrence matches how the clients read these links; the
+    // uniquing initialiser would trap instead.
     private func queryDictionary(_ query: String) -> [String: String] {
-        Dictionary(uniqueKeysWithValues: query.split(separator: "&").compactMap { item in
-            let pair = item.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            guard pair.count == 2 else { return nil }
-            return (String(pair[0]), String(pair[1]))
-        })
+        Dictionary(
+            query.split(separator: "&").compactMap { item in
+                let pair = item.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                guard pair.count == 2 else { return nil }
+                return (String(pair[0]), String(pair[1]))
+            },
+            uniquingKeysWith: { _, new in new }
+        )
     }
 
     private func containsNodeScheme(_ value: String) -> Bool {

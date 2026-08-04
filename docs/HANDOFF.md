@@ -8,11 +8,71 @@
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
+## 1.1 2026-08-04 代码审查修复
+
+一次完整代码审查后修掉了下列问题，全部带回归测试（`ConfigurationCredentialTests`、`ImportHardeningTests`）。
+
+### 配置生成
+
+| 问题 | 影响 | 修复 |
+| --- | --- | --- |
+| Loon SOCKS5 无凭据时输出 `Socks5,host,port,,` | 无认证 SOCKS5 节点在 Loon 中不可用 | 用户名/密码成对输出或整体省略 |
+| Surge/Shadowrocket 位置参数把密码写进用户名位 | 有密码无用户名的 SOCKS5/HTTP 认证失败 | 缺用户名时补空位，保持字段对齐 |
+| QuanX 丢弃 Trojan/Hysteria 2 的 `skip-cert-verify` | 自签证书节点只在 QuanX 握手失败 | 两种协议补 `tls-verification=false` |
+| QuanX 写死 VMess `method=chacha20-poly1305` | 忽略节点实际加密方式 | 按节点 cipher 输出，`auto` 回退到受支持值 |
+| QuanX 丢弃 SSR `protocol-param` / `obfs-param` | SSR 节点参数不全 | 补 `ssr-protocol-param` 和 `obfs-host` |
+| 节点名中的换行、`#`、`;` 直接进入配置 | 机场 remark 可截断或注释掉后续配置 | `confName` 统一折行并转义；Clash 的 `yaml()` 同步折行；QuanX 的 tag 和策略成员改用 `confName` |
+| 非 QuanX 目标不校验规则类型 | 未来快照引入新类型会静默产出坏行 | 按 Surge/Loon/Shadowrocket 支持的类型白名单过滤 |
+
+### 解析
+
+- IPv6 字面量节点不再带方括号入库。此前 `URLComponents.host` 返回 `[2001:db8::1]`，导致 `inet_pton` 失败（无国家识别）、`getaddrinfo` 失败（ICMP 静默退回端口）、Clash `server` 字段非法。
+- 带 SIP003 `plugin=` 的 SS 节点改为拒绝并计数，不再伪装成可用的裸 SS 节点。**当前仍不支持 plugin，这是已知边界，不是回归。**
+- 重复的 query key（如 `?sni=a&sni=b`）不再触发 `Dictionary(uniqueKeysWithValues:)` 崩溃；内联 YAML 映射同理。
+- 导入结果的跳过条数会显示在 Toast 中。
+
+### 隐私与落盘
+
+- 导出配置和二维码 PNG 改为 `.completeFileProtection` 写入，并在各自目录中清理超过 5 分钟的旧文件。此前它们以默认保护级别无限堆积在 `tmp`，内容包含全部节点明文密码。
+- 删除 `AddSourceSheet` 在 `onAppear` 中的剪贴板读取，避免无用户手势触发系统粘贴弹窗和横幅。
+- 删除从未被读取的 `ImportResult.responseHeaders`，它把订阅响应头（含 `subscription-userinfo`、cookie）带进了 App 状态。
+
+### 地区识别与性能
+
+- 与常用英文词冲突的两字母国家码（`us`、`in`、`my`、`de`、`ca` 等）改为仅在名称中大写出现时才匹配。此前 “My fast node” 判成马来西亚、“Rio de Janeiro” 判成德国。误判不只是显示错误，还会把节点放进错误的地区策略组。
+- 移除法国的错误 token `frr`；`fra` 明确保留给法兰克福。
+- IP 国家解析与延迟测试统一按 8 个一批，展开大地区不再同时发起 N 个 `getaddrinfo`。
+- `RuleRepository` 的 bundle 扫描（69 个文件、约 2.1 万行）从 `init` 移到首次取用时，不再阻塞启动主线程；同一 bundle 只加载一次。
+- `ConfigurationPreviewFormatter.summary` 改为只遍历它保留的行。此前它把整份约 700 KB 配置切成上万个子串，只为取前 18 行，而导出页每次 body 求值都会调用一次。
+
+### 仓库
+
+- `.codex_work/` 和 `outputs/` 加入 `.gitignore`。它们此前未被追踪却留在工作区，内含与本项目无关的私人材料，一次 `git add -A` 就会提交。
+
+### 验证状态
+
+- 模拟器（iPhone 17）：86 个测试通过，1 个按平台跳过（数据保护只能在真机验证）。
+- 真机 arm64（`generic/platform=iOS`，不签名）：编译通过。
+- **真机安装未完成。** 本机 Xcode 当前没有已登录的 Apple ID：`xcodebuild -allowProvisioningUpdates` 返回
+  `error: No Accounts: Add a new account in Accounts settings.`，且 `~/Library/MobileDevice/Provisioning Profiles/` 为空。
+  `defaults read com.apple.dt.Xcode IDEProvisioningTeams` 里的 `W48CPZH393`（peng chujin 个人团队）只是过期缓存，钥匙串里的
+  `66AJAH4Q25`、`8N5HR3FDPZ` 两张开发证书也没有对应的已登录账号。
+  需要先在 Xcode ▸ Settings ▸ Accounts 登录 Apple ID（需要密码和双重验证），然后：
+
+  ```sh
+  xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Debug \
+    -destination 'id=8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF' \
+    -allowProvisioningUpdates \
+    DEVELOPMENT_TEAM=<你的 Team ID> CODE_SIGN_STYLE=Automatic build
+  ```
+
+  用免费个人团队签名时，App 在设备上 7 天后过期，首次运行还需要在“设置 ▸ 通用 ▸ VPN 与设备管理”里信任开发者证书。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页
 
-- “+”统一添加机场订阅和自有节点，弹出后尝试读取剪贴板，提示同时覆盖订阅 URL 和节点协议链接。
+- “+”统一添加机场订阅和自有节点，提示同时覆盖订阅 URL 和节点协议链接。剪贴板只在用户点击“从剪贴板粘贴”时读取，不在弹出时自动读取。
 - 顶部统计项“订阅、节点、覆盖地区、自有节点”可滚动到对应内容。
 - 订阅可展开节点，但不显示“更多节点”，展开使用透明度/布局变化，不从顶部滑入。
 - 节点行显示 IP 国家/地区 Logo、名称、协议/传输/UDP 信息和真实延迟。
@@ -190,6 +250,9 @@ xcodebuild -project Tower.xcodeproj \
 - [ ] 杀掉 App 后订阅和自有节点恢复。
 - [ ] 日志中没有订阅 URL、节点密码、UUID 或完整配置。
 - [ ] 飞行模式下仍可查看已保存内容并生成配置。
+- [ ] 打开“+”面板时不出现系统粘贴弹窗；只有点击“从剪贴板粘贴”才出现。
+- [ ] `ImportHardeningTests.testExportedConfigurationIsWrittenWithCompleteFileProtection` 在真机上不再 skip 且通过。模拟器不实现数据保护，这条只能在真机验证。
+- [ ] 分享配置或二维码后，`tmp/TowerExports` 与 `tmp/TowerQRCodes` 中的旧文件会在下次生成时清掉。
 
 ## 8. 自动测试与提交门槛
 

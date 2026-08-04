@@ -8,7 +8,6 @@ struct AddSourceSheet: View {
     @State private var sourceValue = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
-    @State private var didReadPasteboard = false
     @FocusState private var focusedField: Field?
 
     private let detector = SourceInputDetector()
@@ -85,7 +84,7 @@ struct AddSourceSheet: View {
             }
             .interactiveDismissDisabled(isSaving)
             .onAppear {
-                requestClipboardContent()
+                focusedField = .source
             }
             .onChange(of: sourceValue) {
                 errorMessage = nil
@@ -113,20 +112,9 @@ struct AddSourceSheet: View {
         return detectedKind == .subscription ? "正在读取…" : "正在添加…"
     }
 
-    private func requestClipboardContent() {
-        guard !didReadPasteboard else { return }
-        didReadPasteboard = true
-
-        let clipboardValue = UIPasteboard.general.string?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if detector.detect(clipboardValue).isSupported {
-            sourceValue = clipboardValue
-            focusedField = nil
-        } else {
-            focusedField = .source
-        }
-    }
-
+    // The clipboard is only read from an explicit tap. Reading it in onAppear
+    // triggers the system paste prompt and the "pasted from" banner without a
+    // user gesture, which is exactly the kind of silent access this app avoids.
     private func pasteFromClipboard() {
         let clipboardValue = UIPasteboard.general.string?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

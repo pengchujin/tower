@@ -49,18 +49,42 @@ enum NodeRegionResolver {
         return definitions.first(where: { $0.region.code == normalizedCode })?.region
     }
 
+    /// Two-letter codes that are also ordinary words. Matching them case
+    /// insensitively turned "My Node" into Malaysia, "Rio de Janeiro" into
+    /// Germany and "Contact us" into the United States. A wrong region is worse
+    /// than none — it also files the node under the wrong region policy group —
+    /// so these are only accepted when the name spells them in capitals, the way
+    /// a country code is actually written.
+    private static let caseSensitiveTokens: Set<String> = [
+        "us", "in", "my", "de", "ca", "au", "th", "br", "fr", "ph", "ae", "it", "no"
+    ]
+
     static func region(for node: ProxyNode) -> NodeRegion? {
-        let combined = "\(node.name) \(node.server)".lowercased()
+        let combined = "\(node.name) \(node.server)"
+        let lowercased = combined.lowercased()
+        let separators = CharacterSet.alphanumerics.inverted
         let tokens = Set(
-            combined
-                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            lowercased
+                .components(separatedBy: separators)
                 .filter { !$0.isEmpty }
+        )
+        let capitalisedTokens = Set(
+            combined
+                .components(separatedBy: separators)
+                .filter { !$0.isEmpty && $0 == $0.uppercased() }
+                .map { $0.lowercased() }
         )
 
         return definitions.first { definition in
-            definition.phrases.contains(where: combined.contains)
-                || !tokens.isDisjoint(with: definition.tokens)
-                || definition.domainSuffixes.contains(where: { node.server.lowercased().hasSuffix($0) })
+            if definition.phrases.contains(where: lowercased.contains) { return true }
+            if definition.domainSuffixes.contains(where: { node.server.lowercased().hasSuffix($0) }) {
+                return true
+            }
+            return definition.tokens.contains { token in
+                caseSensitiveTokens.contains(token)
+                    ? capitalisedTokens.contains(token)
+                    : tokens.contains(token)
+            }
         }?.region
     }
 
@@ -257,7 +281,9 @@ enum NodeRegionResolver {
         .init(
             region: .init(code: "FR", name: "法国", flag: "🇫🇷", latitude: 48.8566, longitude: 2.3522),
             phrases: ["法国", "巴黎", "france", "paris", "🇫🇷"],
-            tokens: ["fr", "frr", "par", "cdg"],
+            // France's ISO3 code "fra" is deliberately absent: node names use it
+            // far more often for Frankfurt, so it stays with Germany above.
+            tokens: ["fr", "par", "cdg"],
             domainSuffixes: [".fr"]
         ),
         .init(

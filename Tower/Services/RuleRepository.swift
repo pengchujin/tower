@@ -5,39 +5,24 @@ struct RuleRepository {
     static let sourceURL = URL(string: "https://github.com/ClashConnectRules/Self-Configuration")!
     static let sourceName = "Self-Configuration"
 
-    private let linesByPath: [String: [String]]
+    private let bundle: Bundle
 
     init(bundle: Bundle = .main) {
-        var result: [String: [String]] = [:]
-        if let root = bundle.resourceURL,
-           let enumerator = FileManager.default.enumerator(
-               at: root,
-               includingPropertiesForKeys: [.isRegularFileKey],
-               options: [.skipsHiddenFiles]
-           ) {
-            for case let url as URL in enumerator where url.pathExtension == "list" {
-                let path = url.path
-                let key: String
-                if let marker = path.range(of: "SelfConfiguration/") {
-                    key = String(path[marker.upperBound...].dropLast(".list".count))
-                } else {
-                    key = url.deletingPathExtension().lastPathComponent
-                }
-                guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
-                let lines = content
-                    .components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix(";") }
-                result[key] = lines
-                result[url.deletingPathExtension().lastPathComponent] = lines
-            }
-        }
-        linesByPath = result
+        self.bundle = bundle
+    }
+
+    /// Reading the snapshot walks the bundle and parses roughly twenty thousand
+    /// lines. Doing that in `init` put it on the main actor during launch, even
+    /// though the first tab never asks for a rule. It is now loaded once, on
+    /// first use, and shared by every repository built from the same bundle.
+    private var linesByPath: [String: [String]] {
+        RuleSnapshotCache.shared.lines(in: bundle)
     }
 
     func lines(for assignment: RuleAssignment) -> [String] {
-        linesByPath[assignment.resourcePath]
-            ?? linesByPath[assignment.resourcePath.components(separatedBy: "/").last ?? assignment.resourcePath]
+        let snapshot = linesByPath
+        return snapshot[assignment.resourcePath]
+            ?? snapshot[assignment.resourcePath.components(separatedBy: "/").last ?? assignment.resourcePath]
             ?? []
     }
 
@@ -48,5 +33,59 @@ struct RuleRepository {
 
     func count(for assignment: RuleAssignment) -> Int {
         lines(for: assignment).count
+    }
+}
+
+private final class RuleSnapshotCache: @unchecked Sendable {
+    static let shared = RuleSnapshotCache()
+
+    private let lock = NSLock()
+    private var snapshots: [String: [String: [String]]] = [:]
+
+    func lines(in bundle: Bundle) -> [String: [String]] {
+        let key = bundle.bundlePath
+        lock.lock()
+        if let cached = snapshots[key] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let loaded = Self.load(from: bundle)
+
+        lock.lock()
+        snapshots[key] = loaded
+        lock.unlock()
+        return loaded
+    }
+
+    private static func load(from bundle: Bundle) -> [String: [String]] {
+        var result: [String: [String]] = [:]
+        guard let root = bundle.resourceURL,
+              let enumerator = FileManager.default.enumerator(
+                  at: root,
+                  includingPropertiesForKeys: [.isRegularFileKey],
+                  options: [.skipsHiddenFiles]
+              ) else {
+            return result
+        }
+
+        for case let url as URL in enumerator where url.pathExtension == "list" {
+            let path = url.path
+            let key: String
+            if let marker = path.range(of: "SelfConfiguration/") {
+                key = String(path[marker.upperBound...].dropLast(".list".count))
+            } else {
+                key = url.deletingPathExtension().lastPathComponent
+            }
+            guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            let lines = content
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix(";") }
+            result[key] = lines
+            result[url.deletingPathExtension().lastPathComponent] = lines
+        }
+        return result
     }
 }

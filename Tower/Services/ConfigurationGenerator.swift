@@ -20,6 +20,17 @@ struct ConfigurationGenerator {
         RegionDefinition(code: "FR", name: "🇫🇷 法国", iconFile: "France.png")
     ]
     private static let otherRegionsName = "🌍 其他地区"
+    // Rule types Surge, Shadowrocket and Loon all accept in a [Rule] section.
+    // The bundled snapshot currently uses DOMAIN-SUFFIX, IP-CIDR, DOMAIN,
+    // IP-CIDR6, PROCESS-NAME, DOMAIN-KEYWORD and GEOIP; the rest are listed so a
+    // future snapshot does not lose valid rules.
+    private static let surgeFamilyRuleTypes: Set<String> = [
+        "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-SET", "DOMAIN-WILDCARD",
+        "IP-CIDR", "IP-CIDR6", "IP6-CIDR", "IP-ASN", "GEOIP",
+        "PROCESS-NAME", "USER-AGENT", "URL-REGEX", "RULE-SET",
+        "DEST-PORT", "SRC-IP", "SRC-PORT", "IN-PORT", "PROTOCOL", "SUBNET",
+        "AND", "OR", "NOT"
+    ]
 
     private let rules: RuleRepository
 
@@ -393,20 +404,28 @@ struct ConfigurationGenerator {
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
         case .socks5:
             components = [node.tls ? "socks5-tls" : "socks5", node.server, "\(node.port)"]
-            if let username = node.username { components.append(confValue(username)) }
-            if let password = node.password { components.append(confValue(password)) }
+            components += surgeCredentialPair(node)
             components.append("udp-relay=true")
             if node.tls { appendSurgeTLS(node, includeTLSFlag: false, to: &components) }
         case .http:
             components = [node.tls ? "https" : "http", node.server, "\(node.port)"]
-            if let username = node.username { components.append(confValue(username)) }
-            if let password = node.password { components.append(confValue(password)) }
+            components += surgeCredentialPair(node)
             if node.tls { appendSurgeTLS(node, includeTLSFlag: false, to: &components) }
         case .unknown:
             components = ["direct"]
         }
         if shadowrocket, node.kind == .vless { components.append("udp-relay=true") }
         return "\(name) = \(components.joined(separator: ", "))"
+    }
+
+    // Surge and Shadowrocket read username and password as positional fields.
+    // Emitting only one of them would move the password into the username slot,
+    // so a half-filled credential pair is written as an explicit empty username.
+    private func surgeCredentialPair(_ node: ProxyNode) -> [String] {
+        let username = node.username ?? ""
+        let password = node.password ?? ""
+        guard !username.isEmpty || !password.isEmpty else { return [] }
+        return [confValue(username), confValue(password)]
     }
 
     private func appendSurgeTransport(
@@ -570,12 +589,12 @@ struct ConfigurationGenerator {
             appendValue(node.sni, key: "tls-name", to: &values)
             values += ["udp=true", "fast-open=true"]
         case .socks5:
-            values = ["Socks5", node.server, "\(node.port)", node.username ?? "", node.password ?? ""]
+            values = ["Socks5", node.server, "\(node.port)"]
+            values += loonCredentialPair(node)
+            values.append("udp=true")
         case .http:
             values = [node.tls ? "https" : "http", node.server, "\(node.port)"]
-            if node.username != nil || node.password != nil {
-                values += [confValue(node.username ?? ""), confValue(node.password ?? "")]
-            }
+            values += loonCredentialPair(node)
             if node.tls {
                 if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
                 appendValue(node.sni, key: "tls-name", to: &values)
@@ -584,6 +603,16 @@ struct ConfigurationGenerator {
             values = ["Direct"]
         }
         return "\(name) = \(values.joined(separator: ","))"
+    }
+
+    // Loon also reads username and password positionally, so both fields are
+    // emitted together or not at all. Empty trailing fields produce a line that
+    // Loon rejects when a proxy needs no authentication.
+    private func loonCredentialPair(_ node: ProxyNode) -> [String] {
+        let username = node.username ?? ""
+        let password = node.password ?? ""
+        guard !username.isEmpty || !password.isEmpty else { return [] }
+        return [confValue(username), confValue(password)]
     }
 
     private func appendLoonTransportAndTLS(_ node: ProxyNode, to values: inout [String]) {
@@ -618,28 +647,28 @@ struct ConfigurationGenerator {
         for node in nodes { output += quanXNode(node) + "\n" }
         output += "\n[policy]\n"
         let selectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
-            .map(confValue)
+            .map(confName)
             .joined(separator: ", ")
         output += "static=\(RulePolicy.select.configurationName), \(selectValues), img-url=\(iconURL(for: .select))\n"
-        let manualValues = (names.isEmpty ? ["direct"] : names).map(confValue).joined(separator: ", ")
+        let manualValues = (names.isEmpty ? ["direct"] : names).map(confName).joined(separator: ", ")
         output += "static=\(Self.manualGroupName), \(manualValues), img-url=\(qureIconURL("Static.png"))\n"
         if names.isEmpty {
             output += "static=\(RulePolicy.auto.configurationName), direct, img-url=\(iconURL(for: .auto))\n"
         } else {
-            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \(names.map(confValue).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
         }
         let nestedSelectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
-            .map(confValue)
+            .map(confName)
             .joined(separator: ", ")
         output += "static=\(Self.nestedSelectGroupName), \(nestedSelectValues), img-url=\(iconURL(for: .select))\n"
         let nestedManualValues = (names.isEmpty ? [Self.directGroupName] : names)
-            .map(confValue)
+            .map(confName)
             .joined(separator: ", ")
         output += "static=\(Self.nestedManualGroupName), \(nestedManualValues), img-url=\(qureIconURL("Static.png"))\n"
         if names.isEmpty {
             output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName), img-url=\(iconURL(for: .auto))\n"
         } else {
-            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \(names.map(confValue).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
         }
         output += "static=\(Self.directGroupName), direct, img-url=\(iconURL(for: .direct))\n"
         for policy in configurablePolicies(preset) {
@@ -648,13 +677,13 @@ struct ConfigurationGenerator {
                 regionGroupNames: regionGroupNames,
                 reject: "reject"
             )
-                .map(confValue)
+                .map(confName)
                 .joined(separator: ", ")
             output += "static=\(policy.configurationName), \(choices), img-url=\(iconURL(for: policy))\n"
         }
         for group in regionGroups {
-            output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confValue).joined(separator: ", "))\n"
-            output += "url-latency-benchmark=\(group.automaticName), \(group.nodeNames.map(confValue).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
+            output += "url-latency-benchmark=\(group.automaticName), \(group.nodeNames.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         output += "\n[filter_local]\n"
         for assignment in preset.assignments {
@@ -677,22 +706,26 @@ struct ConfigurationGenerator {
         case .shadowsocksR:
             prefix = "shadowsocks"
             values += ["method=\(node.cipher ?? "aes-256-cfb")", "password=\(confValue(node.password ?? ""))", "ssr-protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
+            appendValue(node.protocolParam, key: "ssr-protocol-param", to: &values)
+            appendValue(node.obfsParam, key: "obfs-host", to: &values)
         case .vmess:
             prefix = "vmess"
-            values += ["method=chacha20-poly1305", "password=\(node.uuid ?? "")"]
+            values += ["method=\(quanXVMessMethod(node))", "password=\(confValue(node.uuid ?? ""))"]
             appendQuanXTransport(node, to: &values)
         case .vless:
             prefix = "vless"
-            values += ["method=none", "password=\(node.uuid ?? "")"]
+            values += ["method=none", "password=\(confValue(node.uuid ?? ""))"]
             appendQuanXTransport(node, to: &values)
         case .trojan:
             prefix = "trojan"
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
             appendValue(node.sni, key: "tls-host", to: &values)
+            appendQuanXCertificatePolicy(node, to: &values)
         case .hysteria2:
             prefix = "hysteria2"
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
             appendValue(node.sni, key: "tls-host", to: &values)
+            appendQuanXCertificatePolicy(node, to: &values)
         case .socks5:
             prefix = "socks5"
             appendValue(node.username, key: "username", to: &values)
@@ -705,7 +738,7 @@ struct ConfigurationGenerator {
         case .unknown:
             prefix = "http"
         }
-        values.append("tag=\(confValue(NodeRegionResolver.displayName(for: node)))")
+        values.append("tag=\(confName(NodeRegionResolver.displayName(for: node)))")
         return "\(prefix)=\(values.joined(separator: ", "))"
     }
 
@@ -718,7 +751,25 @@ struct ConfigurationGenerator {
             values.append("obfs=over-tls")
             appendValue(node.sni, key: "obfs-host", to: &values)
         }
+        appendQuanXCertificatePolicy(node, to: &values)
+    }
+
+    // Trojan and Hysteria 2 always negotiate TLS in Quantumult X, so they need
+    // the same certificate escape hatch that the obfs-based protocols get.
+    private func appendQuanXCertificatePolicy(_ node: ProxyNode, to values: inout [String]) {
         if node.skipCertificateVerification { values.append("tls-verification=false") }
+    }
+
+    // Quantumult X names the VMess cipher with the same method key it uses for
+    // Shadowsocks. "auto" is not one of its accepted values, so it is mapped to
+    // the AEAD cipher that its VMess implementation negotiates by default.
+    private func quanXVMessMethod(_ node: ProxyNode) -> String {
+        let accepted = ["aes-128-gcm", "chacha20-poly1305", "chacha20-ietf-poly1305", "none"]
+        guard let cipher = node.cipher?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              accepted.contains(cipher) else {
+            return "chacha20-ietf-poly1305"
+        }
+        return cipher
     }
 
     private func mappedRule(_ rule: String, policy: RulePolicy, target: ClientTarget) -> String? {
@@ -747,6 +798,11 @@ struct ConfigurationGenerator {
             default: return nil
             }
             parts[0] = mappedType
+        } else if !Self.surgeFamilyRuleTypes.contains(parts[0].uppercased()) {
+            // A future rule snapshot may introduce a type these clients cannot
+            // parse. Dropping it keeps the rest of the configuration loadable
+            // instead of shipping a line that fails at import time.
+            return nil
         }
 
         if parts.last?.lowercased() == "no-resolve" {
@@ -944,16 +1000,37 @@ struct ConfigurationGenerator {
         values.append("\(key)\(separator)\(confValue(value))")
     }
 
+    /// A raw newline inside a double-quoted YAML scalar ends the value, so it is
+    /// folded away before the quote and backslash escapes are applied.
     private func yaml(_ value: String) -> String {
-        "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+        let escaped = collapsingLineBreaks(value)
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 
+    // Node names come from subscription remarks, which are untrusted text. A
+    // newline would end the proxy line early and "#" or ";" would turn the rest
+    // of it into a comment in the Surge, Loon and Quantumult X formats.
     private func confName(_ value: String) -> String {
-        value.replacingOccurrences(of: "=", with: "-").replacingOccurrences(of: ",", with: "，")
+        collapsingLineBreaks(value)
+            .replacingOccurrences(of: "=", with: "-")
+            .replacingOccurrences(of: ",", with: "，")
+            .replacingOccurrences(of: "#", with: "＃")
+            .replacingOccurrences(of: ";", with: "；")
+            .trimmingCharacters(in: .whitespaces)
     }
 
     private func confValue(_ value: String) -> String {
-        value.replacingOccurrences(of: ",", with: "%2C").replacingOccurrences(of: "\n", with: "")
+        collapsingLineBreaks(value)
+            .replacingOccurrences(of: ",", with: "%2C")
+    }
+
+    private func collapsingLineBreaks(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
     }
 }
 

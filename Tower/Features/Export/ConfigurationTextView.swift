@@ -5,15 +5,27 @@ enum ConfigurationPreviewFormatter {
     static let summaryLineLimit = 18
     static let maximumSummaryLineLength = 480
 
+    /// Walks only as far as the lines it keeps. Splitting the whole string first
+    /// materialised every rule in a generated configuration — tens of thousands
+    /// of substrings — on each pass of the export view's body.
     static func summary(from content: String) -> String {
-        content
-            .components(separatedBy: .newlines)
-            .prefix(summaryLineLimit)
-            .map { line in
-                guard line.count > maximumSummaryLineLength else { return line }
-                return String(line.prefix(maximumSummaryLineLength)) + " …"
-            }
-            .joined(separator: "\n")
+        var lines: [String] = []
+        lines.reserveCapacity(summaryLineLimit)
+        var index = content.startIndex
+
+        while lines.count < summaryLineLimit, index < content.endIndex {
+            let remainder = content[index...]
+            let lineEnd = remainder.firstIndex(where: \.isNewline) ?? content.endIndex
+            let line = content[index ..< lineEnd]
+            lines.append(
+                line.count > maximumSummaryLineLength
+                    ? String(line.prefix(maximumSummaryLineLength)) + " …"
+                    : String(line)
+            )
+            index = lineEnd < content.endIndex ? content.index(after: lineEnd) : content.endIndex
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
 

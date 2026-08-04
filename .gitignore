@@ -19,6 +19,11 @@ xcuserdata/
 .swiftpm/
 .xcode.env.local
 
+# Agent scratch output. These have held unrelated personal documents;
+# they are not part of the source handoff and must never be committed.
+.codex_work/
+outputs/
+
 # Signing and App Store Connect credentials must never enter Git
 *.p12
 *.mobileprovision

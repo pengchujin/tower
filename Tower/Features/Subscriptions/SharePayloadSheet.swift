@@ -161,13 +161,21 @@ struct QRCodeShareArtifact: @unchecked Sendable {
 }
 
 enum QRCodeShareArtifactBuilder {
+    /// The rendered code encodes the full node link, so the PNG is as sensitive
+    /// as the link itself: it is written with complete protection into a folder
+    /// that is purged before each render instead of left in `tmp` forever.
+    static let folderName = "TowerQRCodes"
+
     static func make(value: String, id: UUID) async -> QRCodeShareArtifact? {
         await Task.detached(priority: .userInitiated) {
             guard let rendered = QRCodeRenderer.render(value) else { return nil }
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("Tower-QR-\(id.uuidString).png")
+            let folder = FileManager.default.temporaryDirectory
+                .appendingPathComponent(folderName, isDirectory: true)
             do {
-                try rendered.pngData.write(to: url, options: .atomic)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                ExportFileService().purge(in: folder)
+                let url = folder.appendingPathComponent("Tower-QR-\(id.uuidString).png")
+                try rendered.pngData.write(to: url, options: [.atomic, .completeFileProtection])
                 return QRCodeShareArtifact(image: rendered.image, fileURL: url)
             } catch {
                 return nil

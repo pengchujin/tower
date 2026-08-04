@@ -502,10 +502,12 @@ struct AppSnapshot: Codable {
     var selectedTarget: ClientTarget
 }
 
-struct ImportResult {
+/// Deliberately carries no HTTP response metadata. The subscription response
+/// headers usually include `subscription-userinfo` and session cookies, and
+/// nothing in the app consumed them.
+struct ImportResult: Sendable {
     let nodes: [ProxyNode]
     let rejectedLineCount: Int
-    let responseHeaders: [AnyHashable: Any]
 }
 
 struct GeneratedConfiguration {
