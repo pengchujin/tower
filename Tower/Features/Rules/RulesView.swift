@@ -9,21 +9,7 @@ struct RulesView: View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 RulesOverviewCard()
-
-                VStack(spacing: 12) {
-                    SectionHeading(title: "默认规则", detail: "本地快照")
-                    ForEach(RulePreset.builtIns) { preset in
-                        RulePresetCard(
-                            preset: preset,
-                            isSelected: model.selectedPresetID == preset.id,
-                            ruleCount: model.ruleCount(for: preset)
-                        ) {
-                            model.selectPreset(preset)
-                        }
-                    }
-                }
-
-                bundledSchemesSection
+                builtInSection
                 importedSchemesSection
 
                 Button {
@@ -75,24 +61,33 @@ struct RulesView: View {
         }
     }
 
-    @ViewBuilder
-    private var bundledSchemesSection: some View {
+    /// Self-Configuration and the bundled ACL4SSR schemes are all shipped with
+    /// the app, so they belong in one list even though they use different
+    /// underlying models.
+    private var builtInSection: some View {
         let schemes = model.ruleSchemes.filter(\.isBundled)
-        if !schemes.isEmpty {
-            VStack(spacing: 12) {
-                SectionHeading(title: "ACL4SSR", detail: "随 App 打包")
-                ForEach(schemes) { scheme in
-                    RuleSchemeCard(
-                        scheme: scheme,
-                        isSelected: model.selectedPresetID == scheme.id,
-                        ruleCount: model.ruleCount(for: scheme),
-                        isRefreshing: false,
-                        isReady: true,
-                        onSelect: { model.selectScheme(scheme) },
-                        onRefresh: nil,
-                        onDelete: nil
-                    )
+        return VStack(spacing: 12) {
+            SectionHeading(title: "内置规则", detail: "随 App 打包")
+            ForEach(RulePreset.builtIns) { preset in
+                RulePresetCard(
+                    preset: preset,
+                    isSelected: model.selectedPresetID == preset.id,
+                    ruleCount: model.ruleCount(for: preset)
+                ) {
+                    model.selectPreset(preset)
                 }
+            }
+            ForEach(schemes) { scheme in
+                RuleSchemeCard(
+                    scheme: scheme,
+                    isSelected: model.selectedPresetID == scheme.id,
+                    ruleCount: model.ruleCount(for: scheme),
+                    isRefreshing: false,
+                    isReady: true,
+                    onSelect: { model.selectScheme(scheme) },
+                    onRefresh: nil,
+                    onDelete: nil
+                )
             }
         }
     }
@@ -173,11 +168,85 @@ private struct RulesOverviewCard: View {
     }
 }
 
+/// The row that expands a card in place. Matches the home page: opacity and
+/// layout only, never a slide-in from the top.
+private struct RuleDisclosureRow: View {
+    let title: String
+    let isExpanded: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct RuleDetailLine: View {
+    let title: String
+    let detail: String
+    var trailing: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if let trailing {
+                Text(trailing)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct SelectionIndicator: View {
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
+                .frame(width: 25, height: 25)
+            if isSelected {
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 25, height: 25)
+                Image(systemName: "checkmark")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.top, 2)
+    }
+}
+
 private struct RulePresetCard: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let preset: RulePreset
     let isSelected: Bool
     let ruleCount: Int
     let onSelect: () -> Void
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -214,20 +283,7 @@ private struct RulePresetCard: View {
                             .foregroundStyle(.tertiary)
                     }
                     Spacer(minLength: 6)
-                    ZStack {
-                        Circle()
-                            .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
-                            .frame(width: 25, height: 25)
-                        if isSelected {
-                            Circle()
-                                .fill(Color.accentColor)
-                                .frame(width: 25, height: 25)
-                            Image(systemName: "checkmark")
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .padding(.top, 2)
+                    SelectionIndicator(isSelected: isSelected)
                 }
                 .contentShape(Rectangle())
                 .padding(16)
@@ -237,22 +293,35 @@ private struct RulePresetCard: View {
 
             Divider().padding(.leading, 72)
 
-            NavigationLink {
-                RuleDetailView(preset: preset)
-            } label: {
-                HStack {
-                    Text("查看包含的规则")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .contentShape(Rectangle())
+            RuleDisclosureRow(title: "查看包含的规则", isExpanded: isExpanded) {
+                withAnimation(expansionAnimation) { isExpanded.toggle() }
             }
-            .buttonStyle(.plain)
+            .accessibilityIdentifier("preset-detail-\(preset.id)")
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(preset.assignments) { assignment in
+                        RuleDetailLine(
+                            title: assignment.title,
+                            detail: assignment.policy.displayName,
+                            trailing: model.ruleCount(for: assignment).formatted()
+                        )
+                    }
+                    Divider()
+                    if preset.includeGeoIPCN {
+                        RuleDetailLine(title: "中国大陆 IP", detail: "GeoIP CN")
+                    }
+                    RuleDetailLine(title: "未匹配流量", detail: preset.finalPolicy.displayName)
+                    RuleDetailLine(title: "本地快照", detail: RuleRepository.sourceRevision)
+                    Link(destination: RuleRepository.sourceURL) {
+                        Label("打开 Self-Configuration 项目", systemImage: "arrow.up.right.square")
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .transition(.opacity)
+            }
         }
         .towerCard()
         .overlay {
@@ -261,65 +330,16 @@ private struct RulePresetCard: View {
                     .stroke(Color.accentColor.opacity(0.65), lineWidth: 1.5)
             }
         }
+        .sensoryFeedback(.selection, trigger: isExpanded)
     }
-}
 
-struct RuleDetailView: View {
-    @Environment(AppModel.self) private var model
-    let preset: RulePreset
-
-    var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(preset.name, systemImage: preset.symbol)
-                        .font(.title3.weight(.semibold))
-                    Text(preset.summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
-            }
-
-            Section("本地规则组") {
-                ForEach(preset.assignments) { assignment in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(assignment.title)
-                            Text(assignment.policy.displayName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(model.ruleCount(for: assignment).formatted())
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if preset.includeGeoIPCN {
-                    LabeledContent("中国大陆 IP", value: "GeoIP CN")
-                }
-                LabeledContent("未匹配流量", value: preset.finalPolicy.displayName)
-            }
-
-            Section {
-                Link(destination: RuleRepository.sourceURL) {
-                    Label("打开 Self-Configuration 项目", systemImage: "arrow.up.right.square")
-                }
-                LabeledContent("本地快照", value: RuleRepository.sourceRevision)
-            } header: {
-                Text("来源与许可")
-            } footer: {
-                Text("规则结构来自 Self-Configuration；它引用的规则提供者已固定版本并随 App 打包，运行时读取本地快照。")
-            }
-        }
-        .navigationTitle("规则详情")
-        .navigationBarTitleDisplayMode(.inline)
+    private var expansionAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
     }
 }
 
 private struct RuleSchemeCard: View {
-    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let scheme: RuleScheme
     let isSelected: Bool
     let ruleCount: Int
@@ -328,6 +348,7 @@ private struct RuleSchemeCard: View {
     let onSelect: () -> Void
     let onRefresh: (() -> Void)?
     let onDelete: (() -> Void)?
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -359,20 +380,7 @@ private struct RuleSchemeCard: View {
                         }
                     }
                     Spacer(minLength: 6)
-                    ZStack {
-                        Circle()
-                            .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
-                            .frame(width: 25, height: 25)
-                        if isSelected {
-                            Circle()
-                                .fill(Color.accentColor)
-                                .frame(width: 25, height: 25)
-                            Image(systemName: "checkmark")
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .padding(.top, 2)
+                    SelectionIndicator(isSelected: isSelected)
                 }
                 .contentShape(Rectangle())
                 .padding(16)
@@ -383,22 +391,10 @@ private struct RuleSchemeCard: View {
             Divider().padding(.leading, 72)
 
             HStack(spacing: 0) {
-                NavigationLink {
-                    RuleSchemeDetailView(scheme: scheme)
-                } label: {
-                    HStack {
-                        Text("查看策略组")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                    }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
+                RuleDisclosureRow(title: "查看策略组", isExpanded: isExpanded) {
+                    withAnimation(expansionAnimation) { isExpanded.toggle() }
                 }
-                .buttonStyle(.plain)
+                .accessibilityIdentifier("scheme-detail-\(scheme.id)")
 
                 if let onRefresh {
                     Divider().frame(height: 22)
@@ -418,6 +414,33 @@ private struct RuleSchemeCard: View {
                     .accessibilityLabel("刷新 \(scheme.name)")
                 }
             }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(scheme.groups, id: \.name) { group in
+                        RuleDetailLine(title: group.name, detail: description(of: group))
+                    }
+                    Divider()
+                    RuleDetailLine(title: "规则列表", detail: "\(scheme.remoteRulesetURLs.count) 个")
+                    if let updatedAt = scheme.updatedAt {
+                        RuleDetailLine(
+                            title: "更新时间",
+                            detail: updatedAt.formatted(date: .abbreviated, time: .shortened)
+                        )
+                    }
+                    Text(
+                        scheme.isBundled
+                            ? "这份方案随 App 打包，完全离线可用。"
+                            : "规则列表已下载到本机，生成配置时不再联网。"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .transition(.opacity)
+            }
         }
         .towerCard()
         .overlay {
@@ -426,6 +449,7 @@ private struct RuleSchemeCard: View {
                     .stroke(Color.accentColor.opacity(0.65), lineWidth: 1.5)
             }
         }
+        .sensoryFeedback(.selection, trigger: isExpanded)
         .contextMenu {
             if let onRefresh {
                 Button(action: onRefresh) {
@@ -439,56 +463,9 @@ private struct RuleSchemeCard: View {
             }
         }
     }
-}
 
-struct RuleSchemeDetailView: View {
-    let scheme: RuleScheme
-
-    var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(scheme.name, systemImage: "square.stack.3d.down.right.fill")
-                        .font(.title3.weight(.semibold))
-                    Text(scheme.summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
-            }
-
-            Section("策略组") {
-                ForEach(scheme.groups, id: \.name) { group in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(group.name)
-                        Text(description(of: group))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Section {
-                if let source = scheme.sourceURLString {
-                    LabeledContent("来源", value: source)
-                        .lineLimit(3)
-                }
-                if let updatedAt = scheme.updatedAt {
-                    LabeledContent("更新时间", value: updatedAt.formatted(date: .abbreviated, time: .shortened))
-                }
-                LabeledContent("规则列表", value: "\(scheme.remoteRulesetURLs.count) 个")
-            } header: {
-                Text("来源")
-            } footer: {
-                Text(
-                    scheme.isBundled
-                        ? "这份方案随 App 打包，完全离线可用。"
-                        : "规则列表已下载到本机，生成配置时不再联网。"
-                )
-            }
-        }
-        .navigationTitle("规则详情")
-        .navigationBarTitleDisplayMode(.inline)
+    private var expansionAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
     }
 
     private func description(of group: RuleSchemeGroup) -> String {
