@@ -491,6 +491,7 @@ private struct NodeRegionLogo: View {
         case .vmess, .vless: .indigo
         case .trojan: .red
         case .hysteria2: .orange
+        case .anytls: .mint
         case .socks5: .teal
         case .http: .cyan
         case .unknown: .secondary

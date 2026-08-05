@@ -63,6 +63,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
     case vless
     case trojan
     case hysteria2
+    case anytls
     case socks5
     case http
     case unknown
@@ -77,6 +78,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .vless: "VLESS"
         case .trojan: "Trojan"
         case .hysteria2: "Hysteria 2"
+        case .anytls: "AnyTLS"
         case .socks5: "SOCKS5"
         case .http: "HTTP"
         case .unknown: "未知协议"
@@ -89,6 +91,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .vmess, .vless: "point.3.filled.connected.trianglepath.dotted"
         case .trojan: "shield.lefthalf.filled"
         case .hysteria2: "hare.fill"
+        case .anytls: "lock.shield.fill"
         case .socks5, .http: "network"
         case .unknown: "questionmark.circle.fill"
         }
@@ -189,7 +192,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
             parts.append(transportDisplayName)
         }
 
-        if tls, ![.trojan, .hysteria2, .http].contains(kind), !parts.contains("TLS") {
+        if tls, ![.trojan, .hysteria2, .anytls, .http].contains(kind), !parts.contains("TLS") {
             parts.append("TLS")
         }
 
@@ -207,6 +210,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         case .vless: "VLESS"
         case .trojan: "TROJAN"
         case .hysteria2: "HYSTERIA 2"
+        case .anytls: "ANYTLS"
         case .socks5: "SOCKS5"
         case .http: tls ? "HTTPS" : "HTTP"
         case .unknown: "未知协议"
@@ -489,13 +493,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .clash:
             kind != .unknown
         case .surge:
-            [.shadowsocks, .vmess, .trojan, .hysteria2, .socks5, .http].contains(kind)
+            [.shadowsocks, .vmess, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
         case .shadowrocket:
             kind != .unknown
         case .loon:
-            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .socks5, .http].contains(kind)
+            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
         case .quanx:
-            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .socks5, .http].contains(kind)
+            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
         }
     }
 }

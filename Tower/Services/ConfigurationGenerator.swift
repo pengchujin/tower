@@ -539,6 +539,13 @@ struct ConfigurationGenerator {
         case .hysteria2:
             values += ["    password: \(yaml(node.password ?? ""))", "    skip-cert-verify: \(node.skipCertificateVerification)"]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+        case .anytls:
+            values += [
+                "    password: \(yaml(node.password ?? ""))",
+                "    skip-cert-verify: \(node.skipCertificateVerification)",
+                "    udp: true"
+            ]
+            if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
         case .socks5, .http:
             if let username = node.username, !username.isEmpty { values.append("    username: \(yaml(username))") }
             if let password = node.password, !password.isEmpty { values.append("    password: \(yaml(password))") }
@@ -739,6 +746,10 @@ struct ConfigurationGenerator {
         case .hysteria2:
             components = ["hysteria2", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+        case .anytls:
+            components = ["anytls", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
+            appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+            components.append("udp-relay=true")
         case .socks5:
             components = [node.tls ? "socks5-tls" : "socks5", node.server, "\(node.port)"]
             components += surgeCredentialPair(node)
@@ -932,6 +943,11 @@ struct ConfigurationGenerator {
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
             appendValue(node.sni, key: "tls-name", to: &values)
             values += ["udp=true", "fast-open=true"]
+        case .anytls:
+            values = ["anytls", node.server, "\(node.port)", "\"\(confValue(node.password ?? ""))\""]
+            if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
+            appendValue(node.sni, key: "tls-name", to: &values)
+            values.append("udp=true")
         case .socks5:
             values = ["Socks5", node.server, "\(node.port)"]
             values += loonCredentialPair(node)
@@ -1075,6 +1091,12 @@ struct ConfigurationGenerator {
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
             appendValue(node.sni, key: "tls-host", to: &values)
             appendQuanXCertificatePolicy(node, to: &values)
+        case .anytls:
+            prefix = "anytls"
+            values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
+            appendValue(node.sni, key: "tls-host", to: &values)
+            appendQuanXCertificatePolicy(node, to: &values)
+            values.append("udp-relay=true")
         case .socks5:
             prefix = "socks5"
             appendValue(node.username, key: "username", to: &values)

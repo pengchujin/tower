@@ -39,7 +39,7 @@ struct ProxyNodeShareLinkGenerator {
         case .shadowsocks: shadowsocksLink(for: node) ?? original
         case .shadowsocksR: shadowsocksRLink(for: node) ?? original
         case .vmess: vmessLink(for: node) ?? original
-        case .vless, .trojan, .hysteria2, .socks5, .http:
+        case .vless, .trojan, .hysteria2, .anytls, .socks5, .http:
             standardLink(for: node) ?? original
         case .unknown: original
         }
@@ -50,7 +50,7 @@ struct ProxyNodeShareLinkGenerator {
         guard !lowercased.hasPrefix("clash://local/") else { return false }
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "socks5://", "socks://", "http://", "https://"
+            "hysteria2://", "hy2://", "anytls://", "socks5://", "socks://", "http://", "https://"
         ].contains(where: lowercased.hasPrefix)
     }
 
@@ -120,6 +120,7 @@ struct ProxyNodeShareLinkGenerator {
         case .vless: "vless"
         case .trojan: "trojan"
         case .hysteria2: "hysteria2"
+        case .anytls: "anytls"
         case .socks5: "socks5"
         case .http: node.tls ? "https" : "http"
         default: nil
@@ -131,7 +132,7 @@ struct ProxyNodeShareLinkGenerator {
         switch node.kind {
         case .vless:
             components.user = node.uuid
-        case .trojan, .hysteria2:
+        case .trojan, .hysteria2, .anytls:
             components.user = node.password
         case .socks5, .http:
             components.user = node.username
@@ -144,7 +145,7 @@ struct ProxyNodeShareLinkGenerator {
         if let transport = node.transport, !transport.isEmpty {
             queryItems.append(URLQueryItem(name: "type", value: transport))
         }
-        if node.tls && ![.trojan, .hysteria2, .http].contains(node.kind) {
+        if node.tls && ![.trojan, .hysteria2, .anytls, .http].contains(node.kind) {
             queryItems.append(URLQueryItem(name: "security", value: "tls"))
         }
         if let sni = node.sni, !sni.isEmpty {

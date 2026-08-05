@@ -110,6 +110,7 @@ struct SubscriptionParser {
         if lowercased.hasPrefix("vmess://") { return parseVMess(value, sourceID: sourceID) }
         if lowercased.hasPrefix("vless://") { return parseStandardURL(value, kind: .vless, sourceID: sourceID) }
         if lowercased.hasPrefix("trojan://") { return parseStandardURL(value, kind: .trojan, sourceID: sourceID) }
+        if lowercased.hasPrefix("anytls://") { return parseStandardURL(value, kind: .anytls, sourceID: sourceID) }
         if lowercased.hasPrefix("hysteria2://") || lowercased.hasPrefix("hy2://") {
             return parseStandardURL(value, kind: .hysteria2, sourceID: sourceID)
         }
@@ -283,11 +284,11 @@ struct SubscriptionParser {
             name: name,
             server: server,
             port: port,
-            password: [.trojan, .hysteria2].contains(kind) ? credential : components.password?.removingPercentEncoding,
+            password: [.trojan, .hysteria2, .anytls].contains(kind) ? credential : components.password?.removingPercentEncoding,
             uuid: [.vmess, .vless].contains(kind) ? credential : nil,
             username: [.socks5, .http].contains(kind) ? credential : nil,
             transport: transport,
-            tls: kind == .trojan || kind == .hysteria2 || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
+            tls: kind == .trojan || kind == .hysteria2 || kind == .anytls || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
             hostHeader: query["host"],
             path: query["path"],
@@ -472,7 +473,7 @@ struct SubscriptionParser {
         let lowercased = value.lowercased()
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "socks5://", "socks://", "http://", "https://"
+            "hysteria2://", "hy2://", "anytls://", "socks5://", "socks://", "http://", "https://"
         ]
             .contains(where: lowercased.contains)
     }

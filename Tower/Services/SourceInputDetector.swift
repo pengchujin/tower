@@ -20,7 +20,7 @@ struct SourceInputDetector {
         let lowercased = value.lowercased()
         let explicitNodeSchemes = [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "socks5://", "socks://"
+            "hysteria2://", "hy2://", "anytls://", "socks5://", "socks://"
         ]
         if explicitNodeSchemes.contains(where: lowercased.hasPrefix),
            let node = parser.parseURI(value) {
