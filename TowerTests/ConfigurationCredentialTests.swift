@@ -196,6 +196,35 @@ final class ConfigurationCredentialTests: XCTestCase {
         return ConfigurationGenerator().generate(nodes: [node], preset: preset, target: target).content
     }
 
+    // MARK: - Quantumult X module list
+
+    func testQuanXConfigurationDeclaresEveryRequiredModule() {
+        let node = ProxyNode(
+            kind: .shadowsocks,
+            name: "HK 01",
+            server: "hk.example.com",
+            port: 8388,
+            cipher: "chacha20-ietf-poly1305",
+            password: "pw",
+            rawURI: "ss://test"
+        )
+        let content = ConfigurationGenerator().generate(
+            nodes: [node],
+            preset: preset,
+            target: .quanx
+        ).content
+
+        // Quantumult X refuses a complete configuration that omits any module,
+        // reporting 配置文件缺少模块 [server_remote].
+        for module in [
+            "general", "dns", "policy", "server_local", "server_remote",
+            "filter_local", "filter_remote", "rewrite_local", "rewrite_remote",
+            "task_local", "http_backend", "mitm"
+        ] {
+            XCTAssertTrue(content.contains("[\(module)]"), "QuanX 配置缺少模块 [\(module)]")
+        }
+    }
+
     // MARK: - Rule types
 
     func testUnsupportedRuleTypesAreDroppedForEveryTarget() {

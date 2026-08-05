@@ -391,6 +391,7 @@ struct ConfigurationGenerator {
         }
         output += "\n[filter_local]\n"
         output += schemeRules(scheme, target: .quanx, schemes: schemes)
+        output += quanXTrailingSections()
         return output
     }
 
@@ -1017,6 +1018,7 @@ struct ConfigurationGenerator {
         }
         if preset.includeGeoIPCN { output += "geoip, cn, direct\n" }
         output += "final, \(quanXPolicyName(preset.finalPolicy))\n"
+        output += quanXTrailingSections()
         return output
     }
 
@@ -1087,6 +1089,23 @@ struct ConfigurationGenerator {
     // Quantumult X names the VMess cipher with the same method key it uses for
     // Shadowsocks. "auto" is not one of its accepted values, so it is mapped to
     // the AEAD cipher that its VMess implementation negotiates by default.
+    /// Quantumult X validates a complete configuration against its full module
+    /// list on import and refuses the file when one is missing — it reported
+    /// `配置文件缺少模块 [server_remote]`. Tower has nothing to put in the remote
+    /// and rewrite modules, so they are emitted empty rather than omitted.
+    private func quanXTrailingSections() -> String {
+        let empty = [
+            "server_remote",
+            "filter_remote",
+            "rewrite_local",
+            "rewrite_remote",
+            "task_local",
+            "http_backend",
+            "mitm"
+        ]
+        return empty.map { "\n[\($0)]\n" }.joined()
+    }
+
     private func quanXVMessMethod(_ node: ProxyNode) -> String {
         let accepted = ["aes-128-gcm", "chacha20-poly1305", "chacha20-ietf-poly1305", "none"]
         guard let cipher = node.cipher?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),

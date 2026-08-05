@@ -219,6 +219,23 @@ final class RuleSchemeTests: XCTestCase {
         XCTAssertTrue(line.contains("server-tag-regex="), line)
     }
 
+    func testImportedSchemeAlsoDeclaresEveryQuanXModule() throws {
+        let scheme = try parse()
+        let content = ConfigurationGenerator().generate(
+            nodes: nodes,
+            scheme: scheme,
+            target: .quanx
+        ).content
+
+        for module in [
+            "general", "dns", "policy", "server_local", "server_remote",
+            "filter_local", "filter_remote", "rewrite_local", "rewrite_remote",
+            "task_local", "http_backend", "mitm"
+        ] {
+            XCTAssertTrue(content.contains("[\(module)]"), "导入方案的 QuanX 配置缺少模块 [\(module)]")
+        }
+    }
+
     func testFinalRuleIsEmittedInEachDialect() throws {
         let scheme = try parse()
         let expected: [ClientTarget: String] = [
