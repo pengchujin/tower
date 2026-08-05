@@ -105,6 +105,9 @@ struct SubscriptionParser {
     func parseURI(_ rawValue: String, sourceID: UUID? = nil) -> ProxyNode? {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let lowercased = value.lowercased()
+        // Snell has no URI form at all. It is shared as the Surge proxy line it
+        // is written as, so that line is what Tower accepts.
+        if let snell = parseSnellLine(value, sourceID: sourceID) { return snell }
         if lowercased.hasPrefix("ss://") { return parseShadowsocks(value, sourceID: sourceID) }
         if lowercased.hasPrefix("ssr://") { return parseShadowsocksR(value, sourceID: sourceID) }
         if lowercased.hasPrefix("vmess://") { return parseVMess(value, sourceID: sourceID) }
@@ -259,6 +262,50 @@ struct SubscriptionParser {
             alpn: stringValue(json["alpn"]),
             skipCertificateVerification: boolValue(json["allowInsecure"]),
             alterID: intValue(json["aid"]),
+            rawURI: raw
+        )
+    }
+
+    /// A Surge proxy line: `名称 = snell, 主机, 端口, psk=…, version=4, obfs=http`.
+    ///
+    /// Positional fields come first, then `key=value` options in any order.
+    private func parseSnellLine(_ raw: String, sourceID: UUID?) -> ProxyNode? {
+        guard let separator = raw.firstIndex(of: "=") else { return nil }
+        let name = String(raw[..<separator]).trimmingCharacters(in: .whitespaces)
+        let body = String(raw[raw.index(after: separator)...])
+        let fields = body.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard !name.isEmpty,
+              fields.first?.lowercased() == "snell",
+              fields.count >= 3,
+              let port = Int(fields[2]) else { return nil }
+
+        let server = normalizedHost(fields[1])
+        guard !server.isEmpty else { return nil }
+
+        var options: [String: String] = [:]
+        for field in fields.dropFirst(3) {
+            guard let equals = field.firstIndex(of: "=") else { continue }
+            let key = String(field[..<equals]).trimmingCharacters(in: .whitespaces).lowercased()
+            let value = String(field[field.index(after: equals)...])
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            options[key] = value
+        }
+        guard let psk = options["psk"], !psk.isEmpty else { return nil }
+
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .snell,
+            name: name,
+            server: server,
+            port: port,
+            password: psk,
+            hostHeader: options["obfs-host"],
+            obfs: options["obfs"],
+            obfsParam: options["obfs-host"],
+            version: Int(options["version"] ?? ""),
             rawURI: raw
         )
     }

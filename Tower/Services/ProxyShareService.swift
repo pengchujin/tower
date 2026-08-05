@@ -41,6 +41,9 @@ struct ProxyNodeShareLinkGenerator {
         case .vmess: vmessLink(for: node) ?? original
         case .vless, .trojan, .hysteria2, .anytls, .socks5, .http:
             standardLink(for: node) ?? original
+        // Snell has no URI form; the Surge proxy line it arrived as is the
+        // only thing another client can consume.
+        case .snell: original
         case .unknown: original
         }
     }

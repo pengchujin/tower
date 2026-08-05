@@ -27,6 +27,13 @@ struct SourceInputDetector {
             return .node(node.kind)
         }
 
+        // Snell is shared as a Surge proxy line rather than a URI, so it is
+        // recognised by that shape instead of by a scheme prefix.
+        if lowercased.contains("=") , lowercased.contains("snell"),
+           let node = parser.parseURI(value), node.kind == .snell {
+            return .node(.snell)
+        }
+
         guard let components = URLComponents(string: value),
               let scheme = components.scheme?.lowercased(),
               components.host != nil else {

@@ -504,6 +504,7 @@ private struct NodeRegionLogo: View {
         case .trojan: .red
         case .hysteria2: .orange
         case .anytls: .mint
+        case .snell: .brown
         case .socks5: .teal
         case .http: .cyan
         case .unknown: .secondary

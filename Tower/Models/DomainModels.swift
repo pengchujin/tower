@@ -64,6 +64,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
     case trojan
     case hysteria2
     case anytls
+    case snell
     case socks5
     case http
     case unknown
@@ -79,6 +80,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .trojan: "Trojan"
         case .hysteria2: "Hysteria 2"
         case .anytls: "AnyTLS"
+        case .snell: "Snell"
         case .socks5: "SOCKS5"
         case .http: "HTTP"
         case .unknown: "未知协议"
@@ -92,6 +94,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .trojan: "shield.lefthalf.filled"
         case .hysteria2: "hare.fill"
         case .anytls: "lock.shield.fill"
+        case .snell: "shell.fill"
         case .socks5, .http: "network"
         case .unknown: "questionmark.circle.fill"
         }
@@ -121,6 +124,9 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var protocolParam: String?
     var obfs: String?
     var obfsParam: String?
+    /// Snell's protocol version. It decides both what a client accepts and
+    /// whether the node can carry UDP.
+    var version: Int?
     var rawURI: String
 
     init(
@@ -146,6 +152,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         protocolParam: String? = nil,
         obfs: String? = nil,
         obfsParam: String? = nil,
+        version: Int? = nil,
         rawURI: String
     ) {
         self.id = id
@@ -170,6 +177,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.protocolParam = protocolParam
         self.obfs = obfs
         self.obfsParam = obfsParam
+        self.version = version
         self.rawURI = rawURI
     }
 
@@ -211,6 +219,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         case .trojan: "TROJAN"
         case .hysteria2: "HYSTERIA 2"
         case .anytls: "ANYTLS"
+        case .snell: version.map { "SNELL V\($0)" } ?? "SNELL"
         case .socks5: "SOCKS5"
         case .http: tls ? "HTTPS" : "HTTP"
         case .unknown: "未知协议"
@@ -252,6 +261,8 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     private var supportsUDP: Bool {
         switch kind {
         case .http, .unknown: false
+        // Snell only carries UDP from version 3 onwards.
+        case .snell: (version ?? 4) >= 3
         default: true
         }
     }
@@ -493,7 +504,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .clash:
             kind != .unknown
         case .surge:
-            [.shadowsocks, .vmess, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
+            [.shadowsocks, .vmess, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
         case .shadowrocket:
             kind != .unknown
         case .loon:

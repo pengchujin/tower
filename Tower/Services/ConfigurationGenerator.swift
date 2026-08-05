@@ -118,7 +118,11 @@ struct ConfigurationGenerator {
         to target: ClientTarget,
         excluding excludedKinds: Set<ProxyKind>
     ) -> Bool {
-        target.supports(node.kind) && !excludedKinds.contains(node.kind)
+        guard target.supports(node.kind), !excludedKinds.contains(node.kind) else { return false }
+        // Clash and Stash implement Snell only up to version 3, so a v4+ node
+        // is skipped there rather than written as a proxy they would reject.
+        if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
+        return true
     }
 
     private struct ResolvedSchemeGroup {
@@ -559,6 +563,18 @@ struct ConfigurationGenerator {
                 "    udp: true"
             ]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+        case .snell:
+            values.append("    psk: \(yaml(node.password ?? ""))")
+            if let version = node.version { values.append("    version: \(version)") }
+            // Snell only carries UDP from version 3 onwards.
+            if (node.version ?? 4) >= 3 { values.append("    udp: true") }
+            if let mode = node.obfs, !mode.isEmpty, mode.lowercased() != "none" {
+                values.append("    obfs-opts:")
+                values.append("      mode: \(yaml(mode))")
+                if let host = node.obfsParam, !host.isEmpty {
+                    values.append("      host: \(yaml(host))")
+                }
+            }
         case .socks5, .http:
             if let username = node.username, !username.isEmpty { values.append("    username: \(yaml(username))") }
             if let password = node.password, !password.isEmpty { values.append("    password: \(yaml(password))") }
@@ -763,6 +779,14 @@ struct ConfigurationGenerator {
             components = ["anytls", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
             components.append("udp-relay=true")
+        case .snell:
+            components = ["snell", node.server, "\(node.port)", "psk=\(confValue(node.password ?? ""))"]
+            if let version = node.version { components.append("version=\(version)") }
+            if let mode = node.obfs, !mode.isEmpty, mode.lowercased() != "none" {
+                components.append("obfs=\(mode)")
+                appendValue(node.obfsParam, key: "obfs-host", to: &components)
+            }
+            if (node.version ?? 4) >= 3 { components.append("udp-relay=true") }
         case .socks5:
             components = [node.tls ? "socks5-tls" : "socks5", node.server, "\(node.port)"]
             components += surgeCredentialPair(node)
@@ -972,7 +996,9 @@ struct ConfigurationGenerator {
                 if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
                 appendValue(node.sni, key: "tls-name", to: &values)
             }
-        case .unknown:
+        // Loon implements neither, and writes(_:to:excluding:) filters them
+        // out before generation, so this branch is defensive only.
+        case .snell, .unknown:
             values = ["Direct"]
         }
         return "\(name) = \(values.joined(separator: ","))"
@@ -1119,7 +1145,9 @@ struct ConfigurationGenerator {
             appendValue(node.username, key: "username", to: &values)
             appendValue(node.password, key: "password", to: &values)
             if node.tls { values.append("over-tls=true") }
-        case .unknown:
+        // Quantumult X implements neither, and writes(_:to:excluding:)
+        // filters them out before generation, so this is defensive only.
+        case .snell, .unknown:
             prefix = "http"
         }
         values.append("tag=\(confName(NodeRegionResolver.displayName(for: node)))")
