@@ -528,7 +528,7 @@ private struct ImportRuleSchemeSheet: View {
                 } header: {
                     Text("规则配置地址")
                 } footer: {
-                    Text("支持 subconverter 的远程配置（`.ini`），例如 ACL4SSR 提供的地址。塔台会下载配置和它引用的规则列表并保存在本机。")
+                    Text("支持 subconverter 的远程配置（`.ini`），例如 ACL4SSR 提供的地址。塔台会下载配置和它引用的规则列表并保存在本机。粘贴 GitHub、Gitee 的网页地址也可以，会自动转成文件本身的地址。")
                 }
 
                 Section("名称（可选）") {

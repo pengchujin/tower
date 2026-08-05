@@ -132,6 +132,45 @@ final class RuleSchemeTests: XCTestCase {
         XCTAssertGreaterThan(repository.count(for: apple), 0, "Self-Configuration 的 Apple 规则被覆盖了")
     }
 
+    // MARK: - Source URL handling
+
+    func testGitHubPageURLIsRewrittenToTheRawFile() {
+        let entered = URL(string: "https://github.com/ACL4SSR/ACL4SSR/blob/master/Clash/config/ACL4SSR_NoApple.ini")!
+
+        XCTAssertEqual(
+            RuleSchemeImportService.rawFileURL(for: entered).absoluteString,
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_NoApple.ini"
+        )
+    }
+
+    func testGiteeAndGitLabPageURLsAreRewritten() {
+        let gitee = URL(string: "https://gitee.com/owner/repo/blob/master/rule.ini")!
+        let gitlab = URL(string: "https://gitlab.com/owner/repo/-/blob/main/rule.ini")!
+
+        XCTAssertEqual(
+            RuleSchemeImportService.rawFileURL(for: gitee).absoluteString,
+            "https://gitee.com/owner/repo/raw/master/rule.ini"
+        )
+        XCTAssertEqual(
+            RuleSchemeImportService.rawFileURL(for: gitlab).absoluteString,
+            "https://gitlab.com/owner/repo/-/raw/main/rule.ini"
+        )
+    }
+
+    func testAlreadyRawURLIsLeftAlone() {
+        let raw = URL(string: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/x.ini")!
+
+        XCTAssertEqual(RuleSchemeImportService.rawFileURL(for: raw), raw)
+    }
+
+    func testHTMLPayloadIsRecognisedAsAWebPage() {
+        let html = Data("<!DOCTYPE html>\n<html lang=\"en\">".utf8)
+        let config = Data("[custom]\nruleset=A,[]FINAL".utf8)
+
+        XCTAssertTrue(RuleSchemeImportService.looksLikeWebPage(html))
+        XCTAssertFalse(RuleSchemeImportService.looksLikeWebPage(config))
+    }
+
     // MARK: - Generation
 
     func testEveryTargetReproducesImportedGroups() throws {

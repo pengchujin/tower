@@ -7,6 +7,7 @@ enum RuleImportError: LocalizedError, Equatable {
     case httpStatus(Int)
     case emptyBody
     case noRulesetsDownloaded
+    case receivedWebPage
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,7 @@ enum RuleImportError: LocalizedError, Equatable {
         case .httpStatus(let status): "服务器返回 HTTP \(status)"
         case .emptyBody: "规则内容为空"
         case .noRulesetsDownloaded: "配置里引用的规则列表都没有下载成功"
+        case .receivedWebPage: "这个地址返回的是网页，不是配置文件。请使用规则文件本身的地址。"
         }
     }
 }
@@ -43,14 +45,21 @@ struct RuleSchemeImportService {
 
     func importScheme(from urlString: String, name: String) async throws -> RuleImportResult {
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmed), url.host != nil else {
+        guard let entered = URL(string: trimmed), entered.host != nil else {
             throw RuleImportError.invalidURL
         }
-        guard url.scheme?.lowercased() == "https" else {
+        guard entered.scheme?.lowercased() == "https" else {
             throw RuleImportError.insecureURL
         }
+        // People naturally copy the page URL out of the browser address bar.
+        // That address serves HTML, so it is rewritten to the raw file instead
+        // of failing with a confusing "no policy groups" error.
+        let url = Self.rawFileURL(for: entered)
 
         let payload = try await fetch(url)
+        guard !Self.looksLikeWebPage(payload) else {
+            throw RuleImportError.receivedWebPage
+        }
         let resolvedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let scheme = try parser.parse(
             data: payload,
@@ -106,6 +115,54 @@ struct RuleSchemeImportService {
         } catch {
             return false
         }
+    }
+
+    /// Rewrites the browser-facing URL of a hosted file to the address that
+    /// serves its raw bytes. Anything unrecognised is returned unchanged.
+    static func rawFileURL(for url: URL) -> URL {
+        let text = url.absoluteString
+        guard let host = url.host?.lowercased() else { return url }
+
+        if host == "github.com" || host == "www.github.com" {
+            // https://github.com/<owner>/<repo>/blob/<ref>/<path>
+            //   -> https://raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>
+            for marker in ["/blob/", "/raw/"] {
+                if let range = text.range(of: marker) {
+                    let prefix = text[text.startIndex ..< range.lowerBound]
+                    let repoPath = prefix.replacingOccurrences(
+                        of: "https://www.github.com/",
+                        with: ""
+                    ).replacingOccurrences(of: "https://github.com/", with: "")
+                    let tail = text[range.upperBound...]
+                    if let rewritten = URL(string: "https://raw.githubusercontent.com/\(repoPath)/\(tail)") {
+                        return rewritten
+                    }
+                }
+            }
+            return url
+        }
+
+        // GitLab and Gitee both serve raw bytes from the same path with
+        // "blob" swapped for "raw".
+        if host.hasSuffix("gitlab.com"), let range = text.range(of: "/-/blob/") {
+            let rewritten = text.replacingCharacters(in: range, with: "/-/raw/")
+            return URL(string: rewritten) ?? url
+        }
+        if host.hasSuffix("gitee.com"), let range = text.range(of: "/blob/") {
+            let rewritten = text.replacingCharacters(in: range, with: "/raw/")
+            return URL(string: rewritten) ?? url
+        }
+
+        return url
+    }
+
+    /// A hosted page returns HTML rather than the config, which would otherwise
+    /// surface as a parse error that says nothing about the real mistake.
+    static func looksLikeWebPage(_ data: Data) -> Bool {
+        guard let head = String(data: data.prefix(1_024), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() else { return false }
+        return head.hasPrefix("<!doctype html") || head.hasPrefix("<html")
     }
 
     private func fetch(_ url: URL) async throws -> Data {
