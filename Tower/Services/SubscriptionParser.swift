@@ -231,12 +231,16 @@ struct SubscriptionParser {
 
     private func parseVMess(_ raw: String, sourceID: UUID?) -> ProxyNode? {
         let encoded = String(raw.dropFirst("vmess://".count))
-        guard let decoded = decodeBase64String(encoded),
+        guard let decoded = decodeBase64String(encoded.split(separator: "?", maxSplits: 1).first.map(String.init) ?? encoded),
               let data = decoded.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let server = stringValue(json["add"]),
               let port = intValue(json["port"]),
-              let uuid = stringValue(json["id"]) else { return nil }
+              let uuid = stringValue(json["id"]) else {
+            // Not the base64-JSON form. Shadowrocket and friends instead encode
+            // `method:uuid@host:port` and hang the rest off a query string.
+            return parseLegacyVMess(raw, sourceID: sourceID)
+        }
 
         let tlsValue = stringValue(json["tls"])?.lowercased()
         return ProxyNode(
@@ -255,6 +259,70 @@ struct SubscriptionParser {
             alpn: stringValue(json["alpn"]),
             skipCertificateVerification: boolValue(json["allowInsecure"]),
             alterID: intValue(json["aid"]),
+            rawURI: raw
+        )
+    }
+
+    /// `vmess://base64(method:uuid@host:port)?remarks=…&obfs=…&tls=1`.
+    ///
+    /// Only the endpoint is base64; the options stay readable in the query, and
+    /// the transport is named `obfs` rather than `net`.
+    private func parseLegacyVMess(_ raw: String, sourceID: UUID?) -> ProxyNode? {
+        var body = String(raw.dropFirst("vmess://".count))
+        if let fragment = body.firstIndex(of: "#") { body = String(body[..<fragment]) }
+
+        let parts = body.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        guard let decoded = decodeBase64String(String(parts[0])) else { return nil }
+        let query = parts.count > 1 ? queryDictionary(String(parts[1])) : [:]
+
+        guard let atIndex = decoded.lastIndex(of: "@") else { return nil }
+        let auth = String(decoded[..<atIndex])
+        guard let address = parseEndpoint(String(decoded[decoded.index(after: atIndex)...])) else {
+            return nil
+        }
+
+        // The credential half is `method:uuid`; a bare uuid is also accepted.
+        let cipher: String
+        let uuid: String
+        if let separator = auth.firstIndex(of: ":") {
+            cipher = String(auth[..<separator])
+            uuid = String(auth[auth.index(after: separator)...])
+        } else {
+            cipher = "auto"
+            uuid = auth
+        }
+        guard !uuid.isEmpty else { return nil }
+
+        let obfs = query["obfs"]?.removingPercentEncoding?.lowercased()
+        let transport: String? = switch obfs {
+        case "websocket", "ws": "ws"
+        case "http": "http"
+        case "grpc": "grpc"
+        case "none", "": nil
+        default: obfs
+        }
+        let name = query["remarks"]?.removingPercentEncoding
+            ?? raw.split(separator: "#", maxSplits: 1).dropFirst().first
+                .map(String.init)?.removingPercentEncoding
+
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .vmess,
+            name: normalizedName(name, fallback: address.host),
+            server: address.host,
+            port: address.port,
+            cipher: cipher.isEmpty ? "auto" : cipher,
+            uuid: uuid,
+            transport: transport,
+            tls: ["1", "true", "tls"].contains(query["tls"]?.lowercased() ?? ""),
+            sni: query["peer"]?.removingPercentEncoding ?? query["sni"]?.removingPercentEncoding,
+            hostHeader: query["obfsParam"]?.removingPercentEncoding
+                ?? query["host"]?.removingPercentEncoding,
+            path: query["path"]?.removingPercentEncoding,
+            skipCertificateVerification: ["1", "true"].contains(
+                query["allowInsecure"]?.lowercased() ?? query["tls-verification"]?.lowercased() ?? ""
+            ),
+            alterID: Int(query["alterId"] ?? query["alterid"] ?? ""),
             rawURI: raw
         )
     }

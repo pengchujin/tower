@@ -44,7 +44,7 @@ struct AddSourceSheet: View {
                 } header: {
                     Text("链接")
                 } footer: {
-                    Text("支持 HTTPS 订阅链接，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、SOCKS5、HTTP(S) 自有节点。")
+                    Text("支持 HTTPS 订阅链接，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 自有节点。")
                 }
 
                 Section("名称（可选）") {
