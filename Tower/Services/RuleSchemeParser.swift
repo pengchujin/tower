@@ -55,6 +55,20 @@ struct RuleSchemeParser {
         sourceURLString: String? = nil,
         isBundled: Bool = false
     ) throws -> RuleScheme {
+        // A complete Surge configuration carries the same information in
+        // [Proxy Group] and [Rule] that a subconverter config puts in
+        // custom_proxy_group= and ruleset=, so both are accepted.
+        if !text.contains("custom_proxy_group="), text.contains("[Proxy Group]") {
+            return try parseSurgeConfiguration(
+                text: text,
+                id: id,
+                name: name,
+                summary: summary,
+                sourceURLString: sourceURLString,
+                isBundled: isBundled
+            )
+        }
+
         var groups: [RuleSchemeGroup] = []
         var rulesets: [RuleSchemeRuleset] = []
 
@@ -92,6 +106,170 @@ struct RuleSchemeParser {
         let prefix = "\(key)="
         guard line.hasPrefix(prefix) else { return nil }
         return String(line.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+    }
+
+    // MARK: - Surge configuration
+
+    /// Reads `[Proxy Group]` and `[Rule]` out of a complete Surge config.
+    ///
+    /// The other sections are deliberately ignored: `[Proxy]` holds nodes,
+    /// which arrive through subscriptions instead, and `[URL Rewrite]`,
+    /// `[Script]`, `[MITM]` and `[Host]` have no equivalent in Tower's model.
+    private func parseSurgeConfiguration(
+        text: String,
+        id: String,
+        name: String,
+        summary: String,
+        sourceURLString: String?,
+        isBundled: Bool
+    ) throws -> RuleScheme {
+        var section = ""
+        var groupLines: [(name: String, kind: RuleSchemeGroup.Kind, fields: [String])] = []
+        var ruleLines: [String] = []
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), !line.hasPrefix(";"), !line.hasPrefix("//") else {
+                continue
+            }
+            if line.hasPrefix("[") {
+                section = line.lowercased()
+                continue
+            }
+
+            switch section {
+            case "[proxy group]":
+                if let group = parseSurgeGroupLine(line) { groupLines.append(group) }
+            case "[rule]":
+                ruleLines.append(line)
+            default:
+                continue
+            }
+        }
+
+        guard !groupLines.isEmpty else { throw RuleSchemeParseError.noGroups }
+
+        // Members are resolved only once every group name is known: a bare name
+        // is a sibling group if one exists by that name, otherwise it names a
+        // node literally rather than describing a pattern.
+        let groupNames = Set(groupLines.map(\.name))
+        let groups = groupLines.map { entry -> RuleSchemeGroup in
+            var members: [RuleSchemeGroupMember] = []
+            var testURLString: String?
+            var interval: Int?
+            var tolerance: Int?
+
+            for field in entry.fields {
+                if let separator = field.firstIndex(of: "=") {
+                    let key = String(field[..<separator]).trimmingCharacters(in: .whitespaces).lowercased()
+                    let value = String(field[field.index(after: separator)...])
+                        .trimmingCharacters(in: .whitespaces)
+                    switch key {
+                    case "url": testURLString = value
+                    case "interval": interval = Int(value)
+                    case "tolerance": tolerance = Int(value)
+                    default: break
+                    }
+                    continue
+                }
+
+                if groupNames.contains(field) || field.uppercased() == "DIRECT" || field.uppercased() == "REJECT" {
+                    members.append(.reference(field))
+                } else {
+                    // Tower may rename a node when it writes the configuration,
+                    // so the literal name becomes an anchored pattern that the
+                    // generator matches against both the original remark and
+                    // the name it will emit.
+                    members.append(.nodePattern("^\(NSRegularExpression.escapedPattern(for: field))$"))
+                }
+            }
+
+            return RuleSchemeGroup(
+                name: entry.name,
+                kind: entry.kind,
+                members: members,
+                testURLString: testURLString,
+                interval: interval,
+                tolerance: tolerance
+            )
+        }.filter { !$0.members.isEmpty }
+
+        let rulesets = ruleLines.compactMap(parseSurgeRuleLine)
+        guard !rulesets.isEmpty else { throw RuleSchemeParseError.noRulesets }
+
+        return RuleScheme(
+            id: id,
+            name: name,
+            summary: summary,
+            sourceURLString: sourceURLString,
+            groups: groups,
+            rulesets: rulesets,
+            updatedAt: .now,
+            isBundled: isBundled
+        )
+    }
+
+    /// `名称 = select,成员,…` or `名称 = url-test,成员,…,url=…,interval=…`.
+    private func parseSurgeGroupLine(
+        _ line: String
+    ) -> (name: String, kind: RuleSchemeGroup.Kind, fields: [String])? {
+        guard let separator = line.firstIndex(of: "=") else { return nil }
+        let name = String(line[..<separator]).trimmingCharacters(in: .whitespaces)
+        let body = String(line[line.index(after: separator)...])
+        let parts = body.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard !name.isEmpty, let rawKind = parts.first?.lowercased() else { return nil }
+
+        let kind: RuleSchemeGroup.Kind
+        switch rawKind {
+        case "select": kind = .select
+        case "url-test", "fallback", "load-balance": kind = .urlTest
+        default: return nil
+        }
+        return (name, kind, Array(parts.dropFirst()).filter { !$0.isEmpty })
+    }
+
+    /// `RULE-SET,<url>,<策略>[,参数]`, `FINAL,<策略>` or an inline rule such as
+    /// `DOMAIN,example.com,<策略>`.
+    private func parseSurgeRuleLine(_ line: String) -> RuleSchemeRuleset? {
+        let parts = line.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard parts.count >= 2 else { return nil }
+        let type = parts[0].uppercased()
+
+        // Logical rules nest comma-separated conditions inside parentheses, so
+        // they cannot be split this way and have no equivalent outside Surge.
+        guard !["AND", "OR", "NOT"].contains(type) else { return nil }
+
+        if type == "FINAL" {
+            return RuleSchemeRuleset(groupName: parts[1], resource: .inline("FINAL"))
+        }
+
+        if type == "RULE-SET" {
+            guard parts.count >= 3,
+                  let url = URL(string: parts[1]),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http" else { return nil }
+            return RuleSchemeRuleset(groupName: parts[2], resource: .remote(url))
+        }
+
+        // Everything else ends with the policy, optionally followed by flags
+        // such as no-resolve which belong to the rule rather than the policy.
+        var fields = parts
+        var trailing: [String] = []
+        while let last = fields.last,
+              last.lowercased() == "no-resolve" || last.contains("=") {
+            trailing.insert(last, at: 0)
+            fields.removeLast()
+        }
+        guard fields.count >= 3 else { return nil }
+
+        let policy = fields.removeLast()
+        let rule = (fields + trailing.filter { $0.lowercased() == "no-resolve" })
+            .joined(separator: ",")
+        return RuleSchemeRuleset(groupName: policy, resource: .inline(rule))
     }
 
     /// Splits on the first comma only: an inline rule such as `[]GEOIP,CN`
