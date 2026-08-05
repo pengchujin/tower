@@ -47,9 +47,21 @@ final class ImportHardeningTests: XCTestCase {
 
     // MARK: - SIP003 plugins
 
-    func testShadowsocksNodeWithPluginIsRejectedRatherThanSilentlyBroken() {
+    /// simple-obfs used to be rejected along with every other plugin, which
+    /// emptied whole subscriptions that use it. It is expressible in all five
+    /// formats, so it is imported; see ShadowsocksObfsTests for the details.
+    func testShadowsocksSimpleObfsPluginIsImported() {
         let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388"
             + "?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dwww.bing.com#HK"
+
+        let node = parser.parseURI(uri)
+
+        XCTAssertEqual(node?.obfs, "http")
+        XCTAssertEqual(node?.obfsParam, "www.bing.com")
+    }
+
+    func testShadowsocksNodeWithUnsupportedPluginIsStillRejected() {
+        let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388?plugin=v2ray-plugin%3Bmode%3Dwebsocket#HK"
 
         XCTAssertNil(parser.parseURI(uri))
     }
@@ -73,17 +85,25 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertEqual(result.rejectedLineCount, 2)
     }
 
-    func testClashYAMLShadowsocksPluginIsRejectedAndCounted() {
+    func testClashYAMLCarriesSimpleObfsAndStillRejectsOtherPlugins() {
         let yaml = """
         proxies:
-          - name: Plugin SS
+          - name: Obfs SS
             type: ss
-            server: plugin.example.com
+            server: obfs.example.com
             port: 8388
             cipher: aes-256-gcm
             password: secret
             plugin: obfs
             plugin-opts: { mode: http, host: www.example.com }
+          - name: V2Ray SS
+            type: ss
+            server: v2ray.example.com
+            port: 8388
+            cipher: aes-256-gcm
+            password: secret
+            plugin: v2ray-plugin
+            plugin-opts: { mode: websocket }
           - name: Plain SS
             type: ss
             server: plain.example.com
@@ -94,8 +114,9 @@ final class ImportHardeningTests: XCTestCase {
 
         let result = parser.parse(data: Data(yaml.utf8))
 
-        XCTAssertEqual(result.nodes.map(\.server), ["plain.example.com"])
-        XCTAssertEqual(result.rejectedLineCount, 1)
+        XCTAssertEqual(result.nodes.map(\.server), ["obfs.example.com", "plain.example.com"])
+        XCTAssertEqual(result.rejectedLineCount, 1, "只有 v2ray-plugin 该被拒")
+        XCTAssertEqual(result.nodes.first?.obfsParam, "www.example.com")
     }
 
     // MARK: - Duplicate query keys

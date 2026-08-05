@@ -128,12 +128,20 @@ struct SubscriptionParser {
             ? String(fragmentSplit[1]).removingPercentEncoding ?? String(fragmentSplit[1])
             : "Shadowsocks"
         var payload = String(fragmentSplit[0]).replacingOccurrences(of: "ss://", with: "", options: [.anchored, .caseInsensitive])
+        var obfsMode: String?
+        var obfsHost: String?
         if let queryIndex = payload.firstIndex(of: "?") {
             let query = String(payload[payload.index(after: queryIndex)...])
-            // A SIP003 plugin changes how the node is dialled. Importing it
-            // without the plugin would produce a node that looks healthy and
-            // never connects, so it is rejected and counted instead.
-            if queryDictionary(query)["plugin"]?.isEmpty == false { return nil }
+            // A SIP003 plugin changes how the node is dialled. simple-obfs is
+            // carried over because every target format can express it; any
+            // other plugin would import as a node that looks healthy and never
+            // connects, so it is rejected and counted instead.
+            if let plugin = queryDictionary(query)["plugin"]?.removingPercentEncoding,
+               !plugin.isEmpty {
+                guard let options = simpleObfsOptions(from: plugin) else { return nil }
+                obfsMode = options.mode
+                obfsHost = options.host
+            }
             payload = String(payload[..<queryIndex])
         }
 
@@ -163,8 +171,36 @@ struct SubscriptionParser {
             port: address.port,
             cipher: method,
             password: password,
+            obfs: obfsMode,
+            obfsParam: obfsHost,
             rawURI: raw
         )
+    }
+
+    /// Reads a SIP003 plugin string such as
+    /// `obfs-local;obfs=http;obfs-host=www.example.com`.
+    /// Returns nil for plugins Tower cannot reproduce faithfully.
+    private func simpleObfsOptions(from plugin: String) -> (mode: String, host: String?)? {
+        let parts = plugin.split(separator: ";").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard let name = parts.first?.lowercased(),
+              ["obfs", "obfs-local", "simple-obfs"].contains(name) else { return nil }
+
+        var mode = "http"
+        var host: String?
+        for part in parts.dropFirst() {
+            let pair = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard pair.count == 2 else { continue }
+            let key = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+            let value = pair[1].trimmingCharacters(in: .whitespaces)
+            if key == "obfs" || key == "mode" {
+                mode = value
+            } else if key == "obfs-host" || key == "host" {
+                host = value
+            }
+        }
+        return (mode, host)
     }
 
     private func parseShadowsocksR(_ raw: String, sourceID: UUID?) -> ProxyNode? {
@@ -304,14 +340,20 @@ struct SubscriptionParser {
                 continue
             }
 
-            // Clash plugins change the Shadowsocks wire protocol. Importing
-            // one as a plain SS node creates a configuration that looks valid
-            // but cannot connect, so reject it explicitly until plugin fields
-            // can be represented by ProxyNode and every exporter.
-            if kind == .shadowsocks,
-               dictionary.keys.contains("plugin") || dictionary.keys.contains("plugin-opts") {
-                rejected += 1
-                continue
+            // A SIP003 plugin changes how the node is dialled. simple-obfs is
+            // expressible in all five target formats and is carried over;
+            // anything else would import as a node that looks healthy and never
+            // connects, so it is rejected and counted instead.
+            var obfsMode = dictionary["obfs"]
+            var obfsHost = dictionary["obfs-param"]
+            if kind == .shadowsocks, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
+                guard plugin == "obfs" || plugin == "obfs-local" || plugin == "simple-obfs" else {
+                    rejected += 1
+                    continue
+                }
+                let options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
+                obfsMode = options["mode"] ?? "http"
+                obfsHost = options["host"]
             }
 
             let server = normalizedHost(rawServer)
@@ -335,8 +377,8 @@ struct SubscriptionParser {
                 alterID: Int(dictionary["alterid"] ?? dictionary["alter-id"] ?? ""),
                 protocolName: dictionary["protocol"],
                 protocolParam: dictionary["protocol-param"],
-                obfs: dictionary["obfs"],
-                obfsParam: dictionary["obfs-param"],
+                obfs: obfsMode,
+                obfsParam: obfsHost,
                 rawURI: "clash://local/\(UUID().uuidString)"
             ))
         }

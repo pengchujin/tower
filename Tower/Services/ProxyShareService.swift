@@ -57,7 +57,19 @@ struct ProxyNodeShareLinkGenerator {
     private func shadowsocksLink(for node: ProxyNode) -> String? {
         guard let cipher = node.cipher, let password = node.password else { return nil }
         let auth = base64URL(Data("\(cipher):\(password)".utf8))
-        return "ss://\(auth)@\(formattedHost(node.server)):\(node.port)#\(fragment(node.name))"
+        var link = "ss://\(auth)@\(formattedHost(node.server)):\(node.port)"
+
+        // Dropping the plugin would hand out a link that looks fine and cannot
+        // connect, which is exactly what the importer refuses to accept.
+        if let mode = node.obfs?.lowercased(), ["http", "tls"].contains(mode) {
+            var plugin = "obfs-local;obfs=\(mode)"
+            if let host = node.obfsParam, !host.isEmpty { plugin += ";obfs-host=\(host)" }
+            let encoded = plugin.addingPercentEncoding(
+                withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            ) ?? plugin
+            link += "?plugin=\(encoded)"
+        }
+        return link + "#\(fragment(node.name))"
     }
 
     private func shadowsocksRLink(for node: ProxyNode) -> String? {

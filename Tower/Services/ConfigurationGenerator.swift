@@ -505,6 +505,14 @@ struct ConfigurationGenerator {
         switch node.kind {
         case .shadowsocks:
             values += ["    cipher: \(yaml(node.cipher ?? "aes-256-gcm"))", "    password: \(yaml(node.password ?? ""))", "    udp: true"]
+            if let mode = simpleObfsMode(node) {
+                values.append("    plugin: obfs")
+                values.append("    plugin-opts:")
+                values.append("      mode: \(yaml(mode))")
+                if let host = node.obfsParam, !host.isEmpty {
+                    values.append("      host: \(yaml(host))")
+                }
+            }
         case .shadowsocksR:
             values += [
                 "    cipher: \(yaml(node.cipher ?? "aes-256-cfb"))",
@@ -701,6 +709,10 @@ struct ConfigurationGenerator {
         switch node.kind {
         case .shadowsocks:
             components = ["ss", node.server, "\(node.port)", "encrypt-method=\(node.cipher ?? "aes-256-gcm")", "password=\(confValue(node.password ?? ""))", "udp-relay=true"]
+            if let mode = simpleObfsMode(node) {
+                components.append("obfs=\(mode)")
+                appendValue(node.obfsParam, key: "obfs-host", to: &components)
+            }
         case .shadowsocksR:
             components = ["ssr", node.server, "\(node.port)", "encrypt-method=\(node.cipher ?? "aes-256-cfb")", "password=\(confValue(node.password ?? ""))", "protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
             appendValue(node.protocolParam, key: "protocol-param", to: &components)
@@ -873,7 +885,14 @@ struct ConfigurationGenerator {
         var values: [String]
         switch node.kind {
         case .shadowsocks:
-            values = ["Shadowsocks", node.server, "\(node.port)", node.cipher ?? "aes-256-gcm", confValue(node.password ?? ""), "udp=true"]
+            values = ["Shadowsocks", node.server, "\(node.port)", node.cipher ?? "aes-256-gcm", confValue(node.password ?? "")]
+            if let mode = simpleObfsMode(node) {
+                // Loon names the simple-obfs mode obfs-name; plain "obfs" is
+                // the ShadowsocksR field and means something else there.
+                values.append("obfs-name=\(mode)")
+                appendValue(node.obfsParam, key: "obfs-host", to: &values)
+            }
+            values.append("udp=true")
         case .shadowsocksR:
             values = ["ShadowsocksR", node.server, "\(node.port)", node.cipher ?? "aes-256-cfb", confValue(node.password ?? ""), "protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
             appendValue(node.protocolParam, key: "protocol-param", to: &values)
@@ -1029,6 +1048,10 @@ struct ConfigurationGenerator {
         case .shadowsocks:
             prefix = "shadowsocks"
             values += ["method=\(node.cipher ?? "aes-256-gcm")", "password=\(confValue(node.password ?? ""))", "udp-relay=true"]
+            if let mode = simpleObfsMode(node) {
+                values.append("obfs=\(mode)")
+                appendValue(node.obfsParam, key: "obfs-host", to: &values)
+            }
         case .shadowsocksR:
             prefix = "shadowsocks"
             values += ["method=\(node.cipher ?? "aes-256-cfb")", "password=\(confValue(node.password ?? ""))", "ssr-protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
@@ -1104,6 +1127,17 @@ struct ConfigurationGenerator {
             "mitm"
         ]
         return empty.map { "\n[\($0)]\n" }.joined()
+    }
+
+    /// The simple-obfs mode of a Shadowsocks node, or nil when it carries no
+    /// plugin. `obfs`/`obfsParam` hold the ShadowsocksR obfuscation for SSR
+    /// nodes, so this is scoped to plain Shadowsocks, where the same fields
+    /// carry the SIP003 plugin's mode and host.
+    private func simpleObfsMode(_ node: ProxyNode) -> String? {
+        guard node.kind == .shadowsocks,
+              let mode = node.obfs?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              ["http", "tls"].contains(mode) else { return nil }
+        return mode
     }
 
     private func quanXVMessMethod(_ node: ProxyNode) -> String {
