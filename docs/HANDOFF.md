@@ -103,6 +103,46 @@ xcrun devicectl device install app --device <devicectl 设备标识> \
 这是正式开发团队签名，不是免费个人团队：不会 7 天过期，也不需要在设备上手动信任证书。
 手动签名（`CODE_SIGN_STYLE=Manual` + `PROVISIONING_PROFILE_SPECIFIER`）会被拒绝，因为这份描述文件是 Xcode 托管的，必须用自动签名。
 
+## 1.3 开源发布（2026-08-05）
+
+仓库已公开：**https://github.com/pengchujin/tower**，默认分支 `main`，MIT 许可。
+
+### 发布前做过的脱敏
+
+以下标识信息已从全部文档中替换为占位符。**新增文档时不要再把它们写回去**，需要时用占位符加口头说明：
+
+| 占位符 | 原本是什么 |
+| --- | --- |
+| `<设备 UDID>` | 测试 iPhone 的硬件 UDID，永久标识 |
+| `<devicectl 设备标识>` | `xcrun devicectl` 用的设备 identifier |
+| `<TEAM_ID>` | Apple 开发者团队 ID |
+| `<描述文件 UUID>` | 开发描述文件 UUID |
+| `<Delivery UUID>` | Apple 上传回执 UUID |
+| `<App Store Connect App ID>` | App Store Connect 的 App ID |
+| `<构建机地址>` | 局域网构建机 IP |
+
+git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA 从未入库；`.codex_work/` 和 `outputs/` 里的私人材料也从未被提交（它们只是留在工作区，现已在 `.gitignore` 中）。
+
+### 许可结构
+
+源码 MIT，但 `Tower/Resources/` 下的第三方数据**不适用 MIT**，各自保留原条款：
+
+| 资源 | 上游许可证 | 义务 |
+| --- | --- | --- |
+| ACL4SSR 规则 | CC BY-SA 4.0 | 署名 + 衍生作品相同方式共享 |
+| Self-Configuration 规则 | **上游未声明** | 默认保留所有权利 |
+| IP 国家库 | CC0 1.0 | 无 |
+
+相关文件：根目录 `LICENSE`、`THIRD-PARTY-NOTICES.md`，以及三个资源目录各自的 NOTICE。
+
+`LICENSE` 末尾写明了「本许可仅覆盖源码」。这会让 GitHub 把许可证识别成 `Other` 而不是 `MIT`，**这是有意为之**：混合许可的项目把边界写进 LICENSE 正文，比让人看到 MIT 徽章后误以为整个仓库可随意取用更稳妥。不要为了拿徽章去掉这段说明。
+
+### 待处理的法律风险
+
+**Self-Configuration 上游没有任何许可证**，按著作权默认规则即「保留所有权利」，严格说本项目没有再分发授权。当前缓解措施是完整署名，并在 README 和 NOTICE 里声明：上游作者提 issue 即立即移除。
+
+若需要移除，改动不大——规则导入功能（`RuleSchemeImportService`）已经具备运行时按需下载的能力，把这套快照从仓库删掉、改成首次使用时下载即可，代价是内置预设不再离线可用。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页
@@ -175,17 +215,33 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - App Store Connect App ID：`<App Store Connect App ID>`。
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
-- 版本/构建：`1.0 (1)`。
 - 签名 Team ID：`<TEAM_ID>`。
-- Release Archive 和上传流程成功结束。
+- 已上传并完成 Processing 的构建：`1.0 (1)`，2026-08-03 归档于远程 Mac。
 
-### 接手后立即确认
+### 代码里的版本与已上传的版本不一致
 
-1. App Store Connect 中 build 1 是否已经结束 Processing，是否有邮件或页面警告。
-2. “App 加密文稿”选择是否已经保存。按当前代码，应选择“不属于上述的任意一种算法”：App 没有 CryptoKit、CommonCrypto、SecKey 或自研算法，只通过 Apple 系统框架访问 HTTPS；Base64 只是编码。
-3. 下个 build 在生成的 Info.plist 中加入 `ITSAppUsesNonExemptEncryption = NO`，减少重复询问；提交前仍要按当时功能重新判断。
-4. TestFlight 的测试信息、联系邮箱、Beta App 描述和内部测试组是否完整。
-5. 若要外部测试，补齐 Beta App Review 信息和登录说明；本 App 当前不需要账户。
+工程当前是 **`1.0 (2)`**：`CURRENT_PROJECT_VERSION` 已递增，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。
+
+但**没有任何机器用这份代码归档过**。两台 Mac 都查过，只有 2026-08-03 那份 build 1 的归档。也就是说：
+
+- TestFlight 里能看到的包仍然是 build 1，不含 2026-08-04 的审查修复，也不含规则导入和 ACL4SSR 功能。
+- build 1 的 Info.plist 没有 `ITSAppUsesNonExemptEncryption`，出口合规处于未回答状态。
+
+### 内部测试可见、外部测试不可见的原因
+
+外部测试要求出口合规已回答，内部测试不要求。build 1 因此只出现在内部测试的构建列表里，在外部群组的构建选择器中被隐藏，且界面不会说明原因。
+
+两条路：
+
+1. 在 App Store Connect 的构建版本旁手动回答一次出口合规，build 1 立刻可用于外部测试（但功能停留在 8-03）。
+2. 打一个真正的 build 2（推荐）。代码已就绪，`ITSAppUsesNonExemptEncryption` 会自动带上，不会再被问。
+
+### 外部测试还需要补的材料
+
+- **App 隐私**问卷必须完成，否则构建在外部群组里不可选。塔台不收集任何数据，如实勾选即可。
+- TestFlight **测试信息**：Beta App 描述、需要测试的内容、反馈邮箱、联系人。
+- 外部测试需要经过 **Beta App Review**，内部测试不需要。
+- 审核时容易被问用途。建议在「需要测试的内容」里写明：本 App 只在本机把订阅转换成各客户端配置文件，不含 VPN 或代理功能，不接管流量，不上传用户数据。
 
 ## 5. 远程 Mac 归档说明
 
@@ -197,7 +253,32 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
 
-SSH 非交互归档曾因钥匙串上下文返回 `errSecInternalComponent`。成功方式是在交互 SSH 会话中手动解锁 login keychain，然后在同一会话执行归档。不要把钥匙串密码放进脚本、Shell 历史或 Git。
+### 非交互 SSH 归档为什么一定失败
+
+2026-08-05 重新验证过，根因已定位，**不要再从远程 SSH 尝试归档**：
+
+```
+$ launchctl managername
+Background          ← SSH 会话在 Background 域，不在 GUI 的 Aqua 会话
+$ security show-keychain-info ~/Library/Keychains/login.keychain-db
+User interaction is not allowed.
+```
+
+即使该用户有 GUI 登录、钥匙串已解锁，SSH 会话仍属于不同的 launchd 域，codesign 拿不到钥匙串上下文，归档必然以 `errSecInternalComponent` 失败。
+
+两个绕过办法都需要凭据，因而只能由人操作：`security unlock-keychain` 要钥匙串密码，`launchctl asuser` 要 root（该机未配置免密 sudo）。
+
+**可行做法**：在那台机器自己的终端窗口里先 `security unlock-keychain ~/Library/Keychains/login.keychain-db`，再在**同一会话**执行归档；或者直接用 Xcode 图形界面 Product ▸ Archive ▸ Distribute App，GUI 本身就在 Aqua 会话里，最省事。
+
+不要把钥匙串密码放进脚本、Shell 历史或 Git。
+
+### 归档用开发证书签名是正常的
+
+曾误判「机器上没有 Apple Distribution 证书 ⇒ 无法上传 App Store」。**这是错的。**
+
+2026-08-03 那份成功上传的归档，实际签名就是 `Apple Development: …`。归档阶段用开发证书签名属正常流程，**分发签名发生在 Distribute / `-exportArchive` 这一步**，Xcode 会重新签名，分发证书可以由 Apple 云端托管、本地钥匙串不留私钥。
+
+所以排查上传问题时，不要以 `security find-identity` 里没有 Distribution 证书作为判据。
 
 归档命令基线：
 

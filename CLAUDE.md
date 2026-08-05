@@ -33,6 +33,8 @@
 14. 导入的规则方案（`RuleScheme`）按来源文件声明的策略组原样还原，地区组用节点名正则；内置 Self-Configuration 预设继续用离线 IP 国家库分组。不要把两套机制混在一起。
 15. `Tower/Resources/ACL4SSR/` 下所有资源必须保留 `ACL4SSR_` 前缀。Xcode 把资源拍平到 bundle 根目录，两套规则都含 `Apple.list`、`Microsoft.list`、`Telegram.list` 和 `manifest.json`，去掉前缀会互相覆盖；`RuleRepository` 也依赖这个前缀跳过它们。
 16. 只有用户主动导入或刷新规则链接时才允许联网取规则；内置快照任何情况下都不联网。规则地址只接受 HTTPS。
+17. **本仓库是公开的**（https://github.com/pengchujin/tower）。设备 UDID、团队 ID、描述文件 UUID、App Store Connect App ID、构建机地址、个人邮箱一律不写进任何文件，需要时用 `<设备 UDID>` 这类占位符。提交前先检查新增文档有没有把这些写回去。
+18. `Tower/Resources/` 下的第三方数据不适用源码的 MIT 许可。新增或更新打包资源时，必须同步更新 `THIRD-PARTY-NOTICES.md` 和对应目录的 NOTICE，注明来源、固定版本和许可证。`LICENSE` 里「仅覆盖源码」那段说明不要删除，即使 GitHub 因此把许可证识别成 `Other`。
 
 ## 常用命令
 
