@@ -19,6 +19,8 @@
 - 展开地球或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
 - 读取常见 Base64 节点订阅和 Clash YAML，包括仅含 HTTP(S)/SOCKS 的 Base64 列表与 Clash 嵌套 WebSocket 选项
 - 内置 Self-Configuration：覆盖 AI、YouTube、全球流媒体、Telegram、Google、Apple、Microsoft、国内外流量与广告过滤
+- 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
+- 输入链接导入 subconverter 远程配置（`.ini`），下载到本机后离线使用，可刷新或删除
 - 生成 Surge / Clash / Shadowrocket / Loon / QuanX 完整配置
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
 - Surge、Clash、Shadowrocket、Loon 支持点击主按钮后通过 URL Scheme 一键打开并导入
@@ -28,6 +30,8 @@
 ## 隐私设计
 
 转换、规则匹配和 IP 国家查询全部在设备上完成。App 不调用第三方订阅转换或 IP 地理位置服务，也不会上传用户节点。域名节点只通过系统 DNS 解析地址，随后查询 App 内置的离线数据库。
+
+规则联网的边界：内置的 Self-Configuration 和三个 ACL4SSR 快照随 App 打包，**完全离线**；只有你主动「导入规则链接」或刷新已导入方案时才会联网下载，下载内容保存在本机，之后生成配置不再联网。
 
 写入磁盘的三类文件都使用 iOS 完整文件保护：Application Support 中的订阅快照、分享用的临时配置文件，以及分享用的临时二维码 PNG。后两类还会在再次生成时清理超过 5 分钟的旧文件，不会在 `tmp` 中长期堆积明文凭据。
 
@@ -41,9 +45,21 @@ Quantumult X 官方公开的 URL Scheme 只能添加或替换远程资源，没�
 
 ## 规则来源
 
-规则结构来自 [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration)，配置版本 `fb658cc85802`。模板引用的规则提供者已固定到明确版本并转换为本地 `.list` 快照，来源、版本、规则数量与 SHA-256 记录在 `Tower/Resources/SelfConfiguration/manifest.json`，App 运行时不会联网下载规则。
+规则结构来自 [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration)，配置版本 `fb658cc85802`。模板引用的规则提供者已固定到明确版本并转换为本地 `.list` 快照，来源、版本、规则数量与 SHA-256 记录在 `Tower/Resources/SelfConfiguration/manifest.json`，使用这套规则时运行时不联网。
 
 需要更新快照时运行 `python3 Scripts/update_self_configuration_rules.py`。脚本会读取固定版本的 Self-Configuration 模板，下载其声明的规则提供者并原子替换本地资源。
+
+### ACL4SSR
+
+[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，固定在 `ACL4SSR/ACL4SSR` 的 `06ff293e` 版本，资源位于 `Tower/Resources/ACL4SSR/`，来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。更新用 `python3 Scripts/update_acl4ssr_rules.py`。
+
+这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。内置 Self-Configuration 预设仍使用离线 IP 国家库分组，两套机制互不干扰。
+
+ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Telegram.list`，而 Xcode 会把资源拍平到 bundle 根目录，所以 ACL4SSR 的全部资源都带 `ACL4SSR_` 前缀。**不要移除这个前缀**，否则两套规则会互相覆盖。
+
+### 导入自己的规则
+
+规则页的「导入规则链接」支持 subconverter 的远程配置（`.ini`）。塔台只接受 HTTPS 地址，会下载配置和它引用的全部规则列表并保存到本机（完整文件保护），之后生成配置不再联网。已导入的方案可以随时刷新或删除。
 
 ## IP 国家库
 

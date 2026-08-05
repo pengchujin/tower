@@ -505,6 +505,24 @@ struct AppSnapshot: Codable {
     var nodes: [ProxyNode]
     var selectedPresetID: String
     var selectedTarget: ClientTarget
+    /// Optional so snapshots written before rule import still decode. The
+    /// synthesised decoder does not fall back to default values for missing
+    /// keys, so this must stay optional rather than default to an empty array.
+    var importedSchemes: [RuleScheme]?
+
+    init(
+        subscriptions: [SubscriptionSource],
+        nodes: [ProxyNode],
+        selectedPresetID: String,
+        selectedTarget: ClientTarget,
+        importedSchemes: [RuleScheme]? = nil
+    ) {
+        self.subscriptions = subscriptions
+        self.nodes = nodes
+        self.selectedPresetID = selectedPresetID
+        self.selectedTarget = selectedTarget
+        self.importedSchemes = importedSchemes
+    }
 }
 
 /// Deliberately carries no HTTP response metadata. The subscription response

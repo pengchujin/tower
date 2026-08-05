@@ -15,10 +15,18 @@ final class AppModel {
     var nodeIPCountryCodes: [UUID: String] = [:]
     var countryResolutionCompletedNodeIDs: Set<UUID> = []
     var toast: ToastMessage?
+    /// Schemes the user imported by URL. The bundled ACL4SSR ones live in the
+    /// app bundle and are added by `ruleSchemes`.
+    var importedSchemes: [RuleScheme] = []
+    var importingSchemeIDs: Set<String> = []
+    var isImportingScheme = false
 
     private let persistence: PersistenceStore
     private let subscriptionService: SubscriptionService
     private let ruleRepository: RuleRepository
+    private let schemeRepository: RuleSchemeRepository
+    private let schemeImportService: RuleSchemeImportService
+    private let downloadStore: RuleDownloadStore
     private let exportService: ExportFileService
     private let latencyService: NodeLatencyService
     private let ipCountryLookupService: IPCountryLookupService
@@ -33,6 +41,9 @@ final class AppModel {
         persistence: PersistenceStore = PersistenceStore(),
         subscriptionService: SubscriptionService = SubscriptionService(),
         ruleRepository: RuleRepository = RuleRepository(),
+        schemeRepository: RuleSchemeRepository? = nil,
+        schemeImportService: RuleSchemeImportService? = nil,
+        downloadStore: RuleDownloadStore = RuleDownloadStore(),
         exportService: ExportFileService = ExportFileService(),
         latencyService: NodeLatencyService = NodeLatencyService(),
         ipCountryLookupService: IPCountryLookupService = IPCountryLookupService(),
@@ -41,6 +52,11 @@ final class AppModel {
         self.persistence = persistence
         self.subscriptionService = subscriptionService
         self.ruleRepository = ruleRepository
+        self.downloadStore = downloadStore
+        // The repository resolves imported rule lists through the same store the
+        // importer writes to, so a scheme keeps working offline after import.
+        self.schemeRepository = schemeRepository ?? RuleSchemeRepository(downloadStore: downloadStore)
+        self.schemeImportService = schemeImportService ?? RuleSchemeImportService(store: downloadStore)
         self.exportService = exportService
         self.latencyService = latencyService
         self.ipCountryLookupService = ipCountryLookupService
@@ -55,9 +71,8 @@ final class AppModel {
         } else if let snapshot = try? persistence.load() {
             subscriptions = snapshot.subscriptions
             nodes = snapshot.nodes
-            selectedPresetID = RulePreset.builtIns.contains(where: { $0.id == snapshot.selectedPresetID })
-                ? snapshot.selectedPresetID
-                : RulePreset.builtIns[0].id
+            importedSchemes = snapshot.importedSchemes ?? []
+            selectedPresetID = snapshot.selectedPresetID
             selectedTarget = snapshot.selectedTarget
         } else {
             subscriptions = []
@@ -81,6 +96,83 @@ final class AppModel {
 
     var selectedPreset: RulePreset {
         RulePreset.builtIns.first(where: { $0.id == selectedPresetID }) ?? RulePreset.builtIns[0]
+    }
+
+    /// Bundled ACL4SSR schemes first, then whatever the user imported.
+    var ruleSchemes: [RuleScheme] {
+        schemeRepository.bundledSchemes() + importedSchemes
+    }
+
+    /// The imported scheme in use, or nil when a built-in preset is selected.
+    /// A stale id — a deleted scheme — resolves to nil and falls back to the
+    /// built-in preset rather than leaving the app with no rules.
+    var selectedScheme: RuleScheme? {
+        ruleSchemes.first { $0.id == selectedPresetID }
+    }
+
+    func ruleCount(for scheme: RuleScheme) -> Int {
+        scheme.rulesets.reduce(0) { $0 + schemeRepository.lines(for: $1.resource).count }
+    }
+
+    /// True once every list a scheme references is available locally.
+    func isSchemeReady(_ scheme: RuleScheme) -> Bool {
+        if scheme.isBundled { return true }
+        return scheme.remoteRulesetURLs.allSatisfy(downloadStore.hasCachedRules)
+    }
+
+    func selectScheme(_ scheme: RuleScheme) {
+        selectedPresetID = scheme.id
+        persist()
+    }
+
+    func importScheme(name: String, urlString: String) async throws {
+        guard !isImportingScheme else { return }
+        isImportingScheme = true
+        defer { isImportingScheme = false }
+
+        let result = try await schemeImportService.importScheme(from: urlString, name: name)
+        importedSchemes.append(result.scheme)
+        selectedPresetID = result.scheme.id
+        persist()
+
+        if result.failedRulesetCount > 0 {
+            showToast(
+                "已导入 \(result.scheme.groups.count) 个策略组，\(result.failedRulesetCount) 个规则列表下载失败",
+                symbol: "exclamationmark.triangle.fill"
+            )
+        } else {
+            showToast("已导入 \(result.scheme.groups.count) 个策略组", symbol: "checkmark.circle.fill")
+        }
+    }
+
+    /// Re-downloads the rule lists a scheme references. Bundled schemes read
+    /// from the app bundle and have nothing to refresh.
+    func refreshScheme(_ scheme: RuleScheme) async {
+        guard !scheme.isBundled, !importingSchemeIDs.contains(scheme.id) else { return }
+        importingSchemeIDs.insert(scheme.id)
+        defer { importingSchemeIDs.remove(scheme.id) }
+
+        let failed = await schemeImportService.refreshRulesets(for: scheme)
+        if let index = importedSchemes.firstIndex(where: { $0.id == scheme.id }) {
+            importedSchemes[index].updatedAt = .now
+            persist()
+        }
+
+        if failed > 0 {
+            showToast("\(failed) 个规则列表刷新失败", symbol: "exclamationmark.triangle.fill")
+        } else {
+            showToast("规则已更新", symbol: "arrow.triangle.2.circlepath.circle.fill")
+        }
+    }
+
+    func deleteScheme(_ scheme: RuleScheme) {
+        guard !scheme.isBundled else { return }
+        importedSchemes.removeAll { $0.id == scheme.id }
+        downloadStore.removeRules(for: scheme.remoteRulesetURLs)
+        if selectedPresetID == scheme.id {
+            selectedPresetID = RulePreset.builtIns[0].id
+        }
+        persist()
     }
 
     var enabledNodes: [ProxyNode] {
@@ -326,19 +418,32 @@ final class AppModel {
             .sorted()
             .joined(separator: "|")
             .hashValue
+        let scheme = selectedScheme
         let key = GenerationCacheKey(
             target: resolvedTarget,
-            presetID: selectedPreset.id,
+            presetID: scheme?.id ?? selectedPreset.id,
             nodesHash: currentNodes.hashValue,
             countryCodesHash: countryCodesHash
         )
         if let cached = generationCache[key] { return cached }
-        let generated = ConfigurationGenerator(rules: ruleRepository).generate(
-            nodes: currentNodes,
-            preset: selectedPreset,
-            target: resolvedTarget,
-            countryCodes: currentCountryCodes
-        )
+
+        let generator = ConfigurationGenerator(rules: ruleRepository)
+        let generated: GeneratedConfiguration
+        if let scheme {
+            generated = generator.generate(
+                nodes: currentNodes,
+                scheme: scheme,
+                target: resolvedTarget,
+                schemes: schemeRepository
+            )
+        } else {
+            generated = generator.generate(
+                nodes: currentNodes,
+                preset: selectedPreset,
+                target: resolvedTarget,
+                countryCodes: currentCountryCodes
+            )
+        }
         generationCache[key] = generated
         return generated
     }
@@ -364,7 +469,8 @@ final class AppModel {
                     subscriptions: subscriptions,
                     nodes: nodes,
                     selectedPresetID: selectedPresetID,
-                    selectedTarget: selectedTarget
+                    selectedTarget: selectedTarget,
+                    importedSchemes: importedSchemes
                 )
             )
         } catch {

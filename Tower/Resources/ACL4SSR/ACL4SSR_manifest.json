@@ -1,0 +1,188 @@
+{
+  "configs": {
+    "acl4ssr-default": {
+      "file": "ACL4SSR_Online.ini",
+      "name": "ACL4SSR 默认",
+      "sha256": "a527ca12369e664527695383076e62939d19c77b9ceb6a421b3a5e2c8a56e45e",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/config/ACL4SSR_Online.ini",
+      "summary": "去广告、自动测速，含国外媒体、电报、微软和苹果分流。"
+    },
+    "acl4ssr-full": {
+      "file": "ACL4SSR_Online_Full.ini",
+      "name": "ACL4SSR 全分组",
+      "sha256": "7223fef51d55326067100bca55b4ee00111ad584d1128ce425faa667a56208ab",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/config/ACL4SSR_Online_Full.ini",
+      "summary": "最完整的分组：流媒体、AI、游戏、音乐，并按节点名分出地区组。"
+    },
+    "acl4ssr-mini": {
+      "file": "ACL4SSR_Online_Mini.ini",
+      "name": "ACL4SSR 精简",
+      "sha256": "be0f1009a437ee66d3f9d358ca9706a83ca325f87fe195b0c83bda5c3491d4b4",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/config/ACL4SSR_Online_Mini.ini",
+      "summary": "只保留节点选择、自动选择、直连与拦截，策略组最少。"
+    }
+  },
+  "revision": "06ff293e02565adceef9aa92321efa2603f68f32",
+  "rulesets": {
+    "ACL4SSR_Apple.list": {
+      "ruleCount": 29,
+      "sha256": "7b2e60cd0bf3c4bfb1369890d39cc3783bdfcb016089b78acee0ff6f0d4e51c5",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Apple.list"
+    },
+    "ACL4SSR_BanAD.list": {
+      "ruleCount": 588,
+      "sha256": "27a5f6d018d428409d8da5d9f390a46298d505ae4941bb8172f052055abe7262",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/BanAD.list"
+    },
+    "ACL4SSR_BanProgramAD.list": {
+      "ruleCount": 1016,
+      "sha256": "35cefd7a4c01d2efa9b4c7928e21caa348f78a3f60b46d7d850f1e3334a5a766",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/BanProgramAD.list"
+    },
+    "ACL4SSR_Bing.list": {
+      "ruleCount": 3,
+      "sha256": "b847948e128a0fc882e602c576f87334f7ebd67bbf4e6e3d25e93e28a5b1aeba",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Bing.list"
+    },
+    "ACL4SSR_ChinaCompanyIp.list": {
+      "ruleCount": 208,
+      "sha256": "cbc63e3daee0c0467558394ce0cfdd342f28e6c0f903bc4b35b6a5f06279d160",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ChinaCompanyIp.list"
+    },
+    "ACL4SSR_ChinaDomain.list": {
+      "ruleCount": 635,
+      "sha256": "362edd1f605742b360eaf138f151d7eea96cc17f20ef12da73acbfb80c350e08",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ChinaDomain.list"
+    },
+    "ACL4SSR_ChinaMedia.list": {
+      "ruleCount": 38,
+      "sha256": "69c437c641bbbea0001f33ecf6e8a6333a72f53d537b19ac9fd564d6927a2b21",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ChinaMedia.list"
+    },
+    "ACL4SSR_Download.list": {
+      "ruleCount": 22,
+      "sha256": "62b72d16b8f2bcbc80eb2c7af35dc03b31c4d82e732af6d227c2a311f04bdadc",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Download.list"
+    },
+    "ACL4SSR_GoogleCN.list": {
+      "ruleCount": 29,
+      "sha256": "00ffcc16d0eb1898cba4f9c2cc2ce76a8f70bef7a03aea436dad79982b77c8ca",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/GoogleCN.list"
+    },
+    "ACL4SSR_LocalAreaNetwork.list": {
+      "ruleCount": 37,
+      "sha256": "0789504d97d8f5b14513c529c61c06f4f862c5cfd20f7cb30bbcd38357e54468",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/LocalAreaNetwork.list"
+    },
+    "ACL4SSR_Microsoft.list": {
+      "ruleCount": 79,
+      "sha256": "b502566c1b86d5512111bd4a2bb5d808eda4e36aad3009a3ca05da354c09449e",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Microsoft.list"
+    },
+    "ACL4SSR_OneDrive.list": {
+      "ruleCount": 17,
+      "sha256": "798fe9b6ed2920a7caa5b75eb44a2e41e464878ff87b38ec962cc2ec13d8be3c",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/OneDrive.list"
+    },
+    "ACL4SSR_ProxyGFWlist.list": {
+      "ruleCount": 6986,
+      "sha256": "72d5f97cb3adedd7ef632962effda4aa3b9953da20427cd6050d55d1184de5ea",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ProxyGFWlist.list"
+    },
+    "ACL4SSR_ProxyLite.list": {
+      "ruleCount": 430,
+      "sha256": "3792437f9641479c671ed57e4d3aa81505c5f7dc5d9087fdeabe76551ecda671",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ProxyLite.list"
+    },
+    "ACL4SSR_ProxyMedia.list": {
+      "ruleCount": 372,
+      "sha256": "fe886c6f537c0214446018f3f64291db8d500c58877d180d2a21a78c19c499e1",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/ProxyMedia.list"
+    },
+    "ACL4SSR_Ruleset_AI.list": {
+      "ruleCount": 49,
+      "sha256": "63e70895ac8c04c3b28965dc0b4ba9ceb3a1313a66b49487ed96005debc97e1e",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/AI.list"
+    },
+    "ACL4SSR_Ruleset_Bahamut.list": {
+      "ruleCount": 5,
+      "sha256": "5c2b875abd3cec4d11612af639163a9b9f68c5828ad42793e7f21bc50f75169c",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Bahamut.list"
+    },
+    "ACL4SSR_Ruleset_Bilibili.list": {
+      "ruleCount": 20,
+      "sha256": "3d111a3c69cb332cdec9c6283acbc9e0c17a62cc25abf43a3390e1667c6861dc",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Bilibili.list"
+    },
+    "ACL4SSR_Ruleset_BilibiliHMT.list": {
+      "ruleCount": 21,
+      "sha256": "074d94bc66219f7a229a0ddc7150e3befb088b4fbbe3312dc3f95456b2fef96c",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/BilibiliHMT.list"
+    },
+    "ACL4SSR_Ruleset_Epic.list": {
+      "ruleCount": 6,
+      "sha256": "b0288addbceed03366cc793b4254168fe9e6e7c9fa54875026fb772adb5ba31d",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Epic.list"
+    },
+    "ACL4SSR_Ruleset_GoogleFCM.list": {
+      "ruleCount": 44,
+      "sha256": "f115f84bef66a5aa931fd20f23d6914cdfdfe3d07795d65549d578b91a0f0c48",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/GoogleFCM.list"
+    },
+    "ACL4SSR_Ruleset_NetEaseMusic.list": {
+      "ruleCount": 37,
+      "sha256": "8254e2518082103b7b3f88063562cefc3e04350b74aa411aad0ee4a66e8a9338",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/NetEaseMusic.list"
+    },
+    "ACL4SSR_Ruleset_Netflix.list": {
+      "ruleCount": 40,
+      "sha256": "eb09e16b5aa228230e5770bfc04f2eb25261454a0b2e16f05fd3e9d2ab5202b5",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Netflix.list"
+    },
+    "ACL4SSR_Ruleset_Nintendo.list": {
+      "ruleCount": 15,
+      "sha256": "9c87d2656c1b1e74494f3f9acc72a0fbb4170d3915f533f78775bd2a20b7e7d4",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Nintendo.list"
+    },
+    "ACL4SSR_Ruleset_OpenAi.list": {
+      "ruleCount": 17,
+      "sha256": "c4f839e4dda6cb96e4373349c72b4e5f848b8ae03564c0d0eae0873955310129",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/OpenAi.list"
+    },
+    "ACL4SSR_Ruleset_Origin.list": {
+      "ruleCount": 7,
+      "sha256": "f8629e362757a0437696b8df896f4fee0d24c8bca166a076a2b8fa9c179542ff",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Origin.list"
+    },
+    "ACL4SSR_Ruleset_Sony.list": {
+      "ruleCount": 5,
+      "sha256": "26cf715208bc562ba8d8e8d55c880336b5d6662b44b71418978e159148c776cb",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Sony.list"
+    },
+    "ACL4SSR_Ruleset_Steam.list": {
+      "ruleCount": 18,
+      "sha256": "0abad0ae490ec9b7bf0cf880f83c5229949b14cc5df448c00a0516225a16b011",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/Steam.list"
+    },
+    "ACL4SSR_Ruleset_SteamCN.list": {
+      "ruleCount": 16,
+      "sha256": "bf135f78199fbadcb663a047d70eb59ec81bead3a04cfe050036e2921c2ea607",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/SteamCN.list"
+    },
+    "ACL4SSR_Ruleset_YouTube.list": {
+      "ruleCount": 14,
+      "sha256": "5e9d81d4615d993fb899d11f761ff5272465bf11e52233c656c3c3e4ab9cd800",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Ruleset/YouTube.list"
+    },
+    "ACL4SSR_Telegram.list": {
+      "ruleCount": 13,
+      "sha256": "483f613b31a1c054ddfffa6584b449f4447944ea58b8c1fc06b67eb13c09db89",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/Telegram.list"
+    },
+    "ACL4SSR_UnBan.list": {
+      "ruleCount": 31,
+      "sha256": "016837560f1f0eeb576f81600c95b547bd82e27ba27a175a3b5010de9bd18ffa",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/06ff293e02565adceef9aa92321efa2603f68f32/Clash/UnBan.list"
+    }
+  }
+}

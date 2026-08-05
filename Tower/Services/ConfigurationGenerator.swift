@@ -72,6 +72,330 @@ struct ConfigurationGenerator {
         )
     }
 
+    // MARK: - Imported schemes
+
+    /// Generates from an imported scheme, reproducing the groups the source
+    /// file declared instead of Tower's built-in policy layout.
+    func generate(
+        nodes: [ProxyNode],
+        scheme: RuleScheme,
+        target: ClientTarget,
+        schemes: RuleSchemeRepository = RuleSchemeRepository()
+    ) -> GeneratedConfiguration {
+        let supported = uniquedNames(
+            nodes.filter { target.supports($0.kind) },
+            reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
+        )
+        let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
+        let content: String
+        switch target {
+        case .clash:
+            content = clashScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+        case .surge, .shadowrocket:
+            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, schemes: schemes)
+        case .loon:
+            content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+        case .quanx:
+            content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+        }
+
+        return GeneratedConfiguration(
+            target: target,
+            content: content,
+            supportedNodeCount: supported.count,
+            skippedNodeCount: nodes.count - supported.count,
+            ruleCount: ruleCount(for: scheme, schemes: schemes)
+        )
+    }
+
+    private struct ResolvedSchemeGroup {
+        let name: String
+        let kind: RuleSchemeGroup.Kind
+        /// Group references and node names, in the order the source declared.
+        let members: [String]
+        /// Only the node names, needed for the Quantumult X tag regex.
+        let nodeNames: [String]
+        let testURL: String
+        let interval: Int
+        let tolerance: Int
+    }
+
+    private func resolveGroups(
+        scheme: RuleScheme,
+        nodes: [ProxyNode],
+        target: ClientTarget
+    ) -> [ResolvedSchemeGroup] {
+        let groupNames = Set(scheme.groups.map(\.name))
+        let displayNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
+
+        return scheme.groups.map { group in
+            var members: [String] = []
+            var nodeNames: [String] = []
+
+            for member in group.members {
+                switch member {
+                case .reference(let name):
+                    // DIRECT and REJECT are spelled differently per client; any
+                    // other reference points at a sibling group.
+                    if groupNames.contains(name) {
+                        members.append(name)
+                    } else {
+                        members.append(builtinPolicyName(name, target: target))
+                    }
+                case .nodePattern(let pattern):
+                    let matches = matchingNodeNames(pattern, nodes: nodes, displayNames: displayNames)
+                    members.append(contentsOf: matches)
+                    nodeNames.append(contentsOf: matches)
+                }
+            }
+
+            // A group whose regex matched nothing would be empty and rejected by
+            // every client, so it falls back to a direct connection.
+            if members.isEmpty {
+                members = [builtinPolicyName("DIRECT", target: target)]
+            }
+
+            return ResolvedSchemeGroup(
+                name: group.name,
+                kind: nodeNames.isEmpty && group.kind == .urlTest ? .select : group.kind,
+                members: members.removingDuplicates(),
+                nodeNames: nodeNames.removingDuplicates(),
+                testURL: group.testURLString ?? "http://www.gstatic.com/generate_204",
+                interval: group.interval ?? 300,
+                tolerance: group.tolerance ?? 50
+            )
+        }
+    }
+
+    /// Matches the source regex against both the original remark and the name
+    /// Tower will actually write, since Tower may prepend a flag or add a
+    /// de-duplication suffix.
+    private func matchingNodeNames(
+        _ pattern: String,
+        nodes: [ProxyNode],
+        displayNames: [String]
+    ) -> [String] {
+        if pattern == ".*" { return displayNames }
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+
+        return zip(nodes, displayNames).compactMap { node, displayName in
+            let candidates = [displayName, node.name]
+            let matched = candidates.contains { candidate in
+                let range = NSRange(candidate.startIndex..., in: candidate)
+                return expression.firstMatch(in: candidate, options: [], range: range) != nil
+            }
+            return matched ? displayName : nil
+        }
+    }
+
+    private func builtinPolicyName(_ name: String, target: ClientTarget) -> String {
+        switch name.uppercased() {
+        case "DIRECT": target == .quanx ? "direct" : "DIRECT"
+        case "REJECT": target == .quanx ? "reject" : "REJECT"
+        default: name
+        }
+    }
+
+    private func ruleCount(for scheme: RuleScheme, schemes: RuleSchemeRepository) -> Int {
+        scheme.rulesets.reduce(0) { $0 + schemes.lines(for: $1.resource).count }
+    }
+
+    /// Emits every ruleset in declaration order. `FINAL` is special: it is the
+    /// catch-all each format spells differently and must come last.
+    private func schemeRules(
+        _ scheme: RuleScheme,
+        target: ClientTarget,
+        schemes: RuleSchemeRepository,
+        indent: String = ""
+    ) -> String {
+        var output = ""
+        var finalGroup: String?
+
+        for ruleset in scheme.rulesets {
+            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
+                finalGroup = ruleset.groupName
+                continue
+            }
+            for line in schemes.lines(for: ruleset.resource) {
+                if let mapped = mappedRule(line, policyName: ruleset.groupName, target: target) {
+                    output += "\(indent)\(mapped)\n"
+                }
+            }
+        }
+
+        guard let finalGroup else { return output }
+        switch target {
+        case .clash: output += "\(indent)MATCH,\(finalGroup)\n"
+        case .quanx: output += "\(indent)final, \(finalGroup)\n"
+        default: output += "\(indent)FINAL,\(finalGroup)\n"
+        }
+        return output
+    }
+
+    private func schemeHeader(_ scheme: RuleScheme, target: ClientTarget) -> String {
+        let origin = scheme.sourceURLString ?? (scheme.isBundled ? "随 App 打包的快照" : "导入")
+        return """
+        # Generated locally by 塔台 for \(target.name)
+        # Rules: \(scheme.name) (\(origin))
+        # Subscription credentials never leave this device.
+
+        """
+    }
+
+    private func clashScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var output = schemeHeader(scheme, target: .clash)
+        output += """
+        mixed-port: 7890
+        allow-lan: false
+        mode: rule
+        log-level: warning
+        ipv6: true
+
+        proxies:
+        """
+        output += "\n"
+        output += nodes.isEmpty ? "  []\n" : nodes.map(clashNode).joined(separator: "\n") + "\n"
+        output += "\nproxy-groups:\n"
+        for group in groups {
+            switch group.kind {
+            case .select:
+                output += clashSelectGroup(name: group.name, nodeNames: group.members, iconURL: "")
+            case .urlTest:
+                var block = "  - name: \(yaml(group.name))\n"
+                block += "    type: url-test\n"
+                block += "    url: \(group.testURL)\n"
+                block += "    interval: \(group.interval)\n"
+                block += "    tolerance: \(group.tolerance)\n"
+                block += "    proxies:\n"
+                for member in group.members { block += "      - \(yaml(member))\n" }
+                output += block
+            }
+        }
+        output += "\nrules:\n"
+        output += schemeRules(scheme, target: .clash, schemes: schemes, indent: "  - ")
+        return output
+    }
+
+    private func surgeLikeScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        target: ClientTarget,
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var output = schemeHeader(scheme, target: target)
+        output += """
+        [General]
+        loglevel = notify
+        ipv6 = true
+        dns-server = system, 223.5.5.5, 1.1.1.1
+        skip-proxy = 127.0.0.1, localhost, *.local
+        test-timeout = 5
+
+        [Proxy]
+        """
+        output += "\n"
+        for node in nodes {
+            output += surgeNode(node, shadowrocket: target == .shadowrocket) + "\n"
+        }
+        output += "\n[Proxy Group]\n"
+        for group in groups {
+            switch group.kind {
+            case .select:
+                output += surgeSelect(name: group.name, values: group.members, iconURL: "")
+            case .urlTest:
+                let members = group.members.map(confName).joined(separator: ", ")
+                output += "\(confName(group.name)) = url-test, \(members), url=\(group.testURL)"
+                output += ", interval=\(group.interval), tolerance=\(group.tolerance)\n"
+            }
+        }
+        output += "\n[Rule]\n"
+        output += schemeRules(scheme, target: target, schemes: schemes)
+        return output
+    }
+
+    private func loonScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var output = schemeHeader(scheme, target: .loon)
+        output += """
+        [General]
+        ipv6 = true
+        dns-server = system, 223.5.5.5, 1.1.1.1
+
+        [Proxy]
+        """
+        output += "\n"
+        for node in nodes { output += loonNode(node) + "\n" }
+        output += "\n[Proxy Group]\n"
+        for group in groups {
+            let members = group.members.map(confName).joined(separator: ",")
+            switch group.kind {
+            case .select:
+                output += "\(confName(group.name)) = select,\(members)\n"
+            case .urlTest:
+                output += "\(confName(group.name)) = url-test,\(members)"
+                output += ",url=\(group.testURL),interval=\(group.interval),tolerance=\(group.tolerance)\n"
+            }
+        }
+        output += "\n[Rule]\n"
+        output += schemeRules(scheme, target: .loon, schemes: schemes)
+        return output
+    }
+
+    private func quanXScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var output = schemeHeader(scheme, target: .quanx)
+        output += """
+        [general]
+        server_check_url = http://www.gstatic.com/generate_204
+        server_check_timeout = 5000
+
+        [dns]
+        no-system
+        server = 223.5.5.5
+        server = 1.1.1.1
+
+        [server_local]
+        """
+        output += "\n"
+        for node in nodes { output += quanXNode(node) + "\n" }
+        output += "\n[policy]\n"
+        for group in groups {
+            switch group.kind {
+            case .select:
+                let members = group.members.map(confName).joined(separator: ", ")
+                output += "static=\(confName(group.name)), \(members)\n"
+            case .urlTest:
+                // Latency policies select nodes by tag regex, never by listing
+                // tags the way `static` does.
+                output += "url-latency-benchmark=\(confName(group.name))"
+                output += ", server-tag-regex=\(quanXServerTagRegex(group.nodeNames))"
+                output += ", check-interval=\(group.interval), alive-checking=false"
+                output += ", tolerance=\(group.tolerance)\n"
+            }
+        }
+        output += "\n[filter_local]\n"
+        output += schemeRules(scheme, target: .quanx, schemes: schemes)
+        return output
+    }
+
+    // MARK: - Built-in presets
+
     private func clash(
         nodes: [ProxyNode],
         preset: RulePreset,
@@ -773,17 +1097,22 @@ struct ConfigurationGenerator {
     }
 
     private func mappedRule(_ rule: String, policy: RulePolicy, target: ClientTarget) -> String? {
-        var parts = rule.split(separator: ",", omittingEmptySubsequences: false).map {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        guard parts.count >= 2 else { return nil }
-
         let policyName: String
         switch target {
         case .clash: policyName = clashPolicyName(policy)
         case .quanx: policyName = quanXPolicyName(policy)
         default: policyName = surgePolicyName(policy)
         }
+        return mappedRule(rule, policyName: policyName, target: target)
+    }
+
+    /// Shared by the built-in presets and by imported schemes, whose policy
+    /// names come from the imported file rather than from `RulePolicy`.
+    private func mappedRule(_ rule: String, policyName: String, target: ClientTarget) -> String? {
+        var parts = rule.split(separator: ",", omittingEmptySubsequences: false).map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard parts.count >= 2 else { return nil }
 
         if target == .quanx {
             let mappedType: String

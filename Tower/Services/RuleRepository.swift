@@ -71,6 +71,13 @@ private final class RuleSnapshotCache: @unchecked Sendable {
         }
 
         for case let url as URL in enumerator where url.pathExtension == "list" {
+            // Xcode flattens resources into the bundle root, so the ACL4SSR
+            // snapshots share this namespace. They are served by
+            // RuleSchemeRepository and must not land in the
+            // Self-Configuration lookup table.
+            guard !url.lastPathComponent.hasPrefix(RuleSchemeRepository.resourcePrefix) else {
+                continue
+            }
             let path = url.path
             let key: String
             if let marker = path.range(of: "SelfConfiguration/") {

@@ -49,24 +49,59 @@
 
 - `.codex_work/` 和 `outputs/` 加入 `.gitignore`。它们此前未被追踪却留在工作区，内含与本项目无关的私人材料，一次 `git add -A` 就会提交。
 
+## 1.2 规则导入与 ACL4SSR
+
+规则页新增两项能力：内置 ACL4SSR 的默认／精简／全分组三套规则，以及输入链接导入 subconverter 远程配置。
+
+### 与内置预设的区别
+
+ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚举是两套东西，因此新增了 `RuleScheme` 这条并行路径：
+
+| | 内置 Self-Configuration | 导入的 `RuleScheme` |
+| --- | --- | --- |
+| 策略组 | 固定枚举，写死在 Swift | 按 ini 声明还原（精简 5／默认 11／全分组 29 组）|
+| 地区分组 | 离线 IP 国家库 | 配置里的节点名正则 |
+| 联网 | 从不 | 仅导入和刷新时 |
+
+两套机制互不干扰，不要合并。
+
+### 关键实现
+
+- `RuleSchemeParser` 解析 `ruleset=` 和 `custom_proxy_group=`。`ruleset` 只按第一个逗号切分，因为内联规则 `[]GEOIP,CN` 自带逗号；组成员以 `[]` 开头是引用，否则是节点名正则；末尾 `300,,50` 是时序字段，靠“含逗号且只有数字和逗号”与节点正则区分。
+- `ConfigurationGenerator.generate(nodes:scheme:target:schemes:)` 是动态组输出路径，复用原有的节点输出和 `confName` 转义。正则匹配同时试节点原名和塔台改名后的显示名，因为塔台可能加国旗前缀或去重后缀。匹配不到节点的组会回落到 DIRECT，避免输出空组被客户端拒绝。
+- QuanX 的 `url-latency-benchmark` 仍走 `server-tag-regex`（第 13 条约束）。
+- 导入只接受 HTTPS；规则列表按 6 个一批下载，存到 Application Support 并用完整文件保护；删除方案会一并清掉它下载的列表。
+- `AppSnapshot.importedSchemes` 是 Optional——Swift 合成的解码器不会对缺失键套用默认值，改成非可选会让旧存档解不出来。
+
+### 资源命名（不要改）
+
+`Tower/Resources/ACL4SSR/` 下所有文件带 `ACL4SSR_` 前缀。Xcode 把资源拍平到 bundle 根目录，而两套规则都含 `Apple.list`、`Microsoft.list`、`Telegram.list` 和 `manifest.json`，去掉前缀会互相覆盖。`RuleRepository` 也靠这个前缀跳过它们。
+
 ### 验证状态
 
-- 模拟器（iPhone 17）：86 个测试通过，1 个按平台跳过（数据保护只能在真机验证）。
-- 真机 arm64（`generic/platform=iOS`，不签名）：编译通过。
-- **真机安装未完成。** 本机 Xcode 当前没有已登录的 Apple ID：`xcodebuild -allowProvisioningUpdates` 返回
-  `error: No Accounts: Add a new account in Accounts settings.`，且 `~/Library/MobileDevice/Provisioning Profiles/` 为空。
-  `defaults read com.apple.dt.Xcode IDEProvisioningTeams` 里的 `W48CPZH393`（peng chujin 个人团队）只是过期缓存，钥匙串里的
-  `66AJAH4Q25`、`8N5HR3FDPZ` 两张开发证书也没有对应的已登录账号。
-  需要先在 Xcode ▸ Settings ▸ Accounts 登录 Apple ID（需要密码和双重验证），然后：
+- 模拟器（iPhone 17）：105 个测试通过，1 个按平台跳过（数据保护只能在真机验证）。
+- 真机 iPhone 17 Pro：已签名安装并启动成功。
 
-  ```sh
-  xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Debug \
-    -destination 'id=8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF' \
-    -allowProvisioningUpdates \
-    DEVELOPMENT_TEAM=<你的 Team ID> CODE_SIGN_STYLE=Automatic build
-  ```
+### 真机安装
 
-  用免费个人团队签名时，App 在设备上 7 天后过期，首次运行还需要在“设置 ▸ 通用 ▸ VPN 与设备管理”里信任开发者证书。
+不需要登录 Apple ID。`.derived-data-device` 里留有一份仍然有效的开发描述文件，已装到
+`~/Library/MobileDevice/Provisioning Profiles/2f187452-7d9f-435f-9e0c-e94f9aba3020.mobileprovision`：
+
+- `iOS Team Provisioning Profile: *`，团队 `G63LDXL9QJ`，通配 App ID，有效期到 2027-07-29
+- 授权设备 UDID `00008150-0016504E1407801C`，即这台 iPhone 17 Pro
+- 钥匙串里 `Apple Development: chujin peng` 证书的 `OU` 正是 `G63LDXL9QJ`，私钥齐全
+
+```sh
+xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Debug \
+  -destination 'id=8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF' \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=G63LDXL9QJ build
+
+xcrun devicectl device install app --device 8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF \
+  <DerivedData>/Build/Products/Debug-iphoneos/Tower.app
+```
+
+这是正式开发团队签名，不是免费个人团队：不会 7 天过期，也不需要在设备上手动信任证书。
+手动签名（`CODE_SIGN_STYLE=Manual` + `PROVISIONING_PROFILE_SPECIFIER`）会被拒绝，因为这份描述文件是 Xcode 托管的，必须用自动签名。
 
 ## 2. 产品目标与确定的交互
 
