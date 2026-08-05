@@ -316,6 +316,19 @@ private struct SubscriptionCard: View {
                 )
                 .labelsHidden()
             }
+            // Scoped to the header. On the whole card a long press anywhere —
+            // including a node row in the expanded list — lifted the entire
+            // subscription into the preview, which read as the card turning
+            // into a delete affordance.
+            .contextMenu {
+                Button(action: onRefresh) { Label("更新订阅", systemImage: "arrow.triangle.2.circlepath") }
+                Button {
+                    sharePayload = SharePayloadFactory.subscription(source)
+                } label: {
+                    Label("分享订阅", systemImage: "square.and.arrow.up")
+                }
+                Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
+            }
 
             HStack {
                 Button {
@@ -384,15 +397,6 @@ private struct SubscriptionCard: View {
         }
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
-        }
-        .contextMenu {
-            Button(action: onRefresh) { Label("更新订阅", systemImage: "arrow.triangle.2.circlepath") }
-            Button {
-                sharePayload = SharePayloadFactory.subscription(source)
-            } label: {
-                Label("分享订阅", systemImage: "square.and.arrow.up")
-            }
-            Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
         }
     }
 

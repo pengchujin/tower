@@ -9,6 +9,7 @@ struct NodeGlobeOverview: View {
     @AppStorage("nodeGlobeMapKitStyle") private var selectedMapStyleRawValue = NodeGlobeMapStyle.hybrid.rawValue
     @AppStorage("nodeGlobeMapKitStyleVersion") private var mapStyleVersion = 0
     @State private var selectedRegionCode: String?
+    @State private var didSelectInitialRegion = false
     @State private var cameraRevision = 0
     @State private var camera: MapCameraPosition = .camera(
         MapCamera(
@@ -40,7 +41,10 @@ struct NodeGlobeOverview: View {
                 selectedMapStyleRawValue = NodeGlobeMapStyle.hybrid.rawValue
                 mapStyleVersion = 1
             }
-            if selectedRegionCode == nil {
+            // Only the first appearance picks a region. Re-selecting here would
+            // undo a deliberate collapse whenever the view comes back on screen.
+            if !didSelectInitialRegion {
+                didSelectInitialRegion = true
                 selectedRegionCode = clusters.first?.id
             }
         }
@@ -51,8 +55,10 @@ struct NodeGlobeOverview: View {
             await model.resolveIPCountries(for: nodes)
         }
         .onChange(of: clusters.map(\.id)) { _, clusterIDs in
-            if let selectedRegionCode, clusterIDs.contains(selectedRegionCode) { return }
-            selectedRegionCode = clusterIDs.first
+            // A collapsed list stays collapsed; only a selection that no longer
+            // exists is cleared.
+            guard let selectedRegionCode, !clusterIDs.contains(selectedRegionCode) else { return }
+            self.selectedRegionCode = nil
         }
     }
 
@@ -71,7 +77,11 @@ struct NodeGlobeOverview: View {
                                    isVisible(point, in: geometry.size) {
                                     Button {
                                         withAnimation(expansionAnimation) {
-                                            selectedRegionCode = cluster.id
+                                            // Tapping the selected pin again
+                                            // collapses its node list.
+                                            selectedRegionCode = selectedRegionCode == cluster.id
+                                                ? nil
+                                                : cluster.id
                                         }
                                     } label: {
                                         NodeRegionPin(
@@ -206,8 +216,10 @@ struct NodeGlobeOverview: View {
         }
     }
 
+    /// Nil means the list is collapsed, so there is no fallback to the first
+    /// cluster: that would make a second tap on a pin appear to do nothing.
     private var selectedCluster: NodeRegionCluster? {
-        clusters.first(where: { $0.id == selectedRegionCode }) ?? clusters.first
+        clusters.first { $0.id == selectedRegionCode }
     }
 
     private var clusters: [NodeRegionCluster] {
