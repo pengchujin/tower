@@ -80,3 +80,19 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 - 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。
 - Quantumult X 是否直接出现在分享列表中，取决于其声明的文件类型；未出现时可先存到“文件”再从客户端导入。
 - 当前未连接安装了 Surge、Shadowrocket、Loon、Quantumult X 的真机做最终接收测试；生成格式与兼容跳过逻辑已有自动测试。
+
+## 许可证
+
+源码以 [MIT](LICENSE) 发布。
+
+`Tower/Resources/` 下随 App 打包的规则列表和 IP 数据库来自第三方，**保留各自原有条款，不适用 MIT**：
+
+| 资源 | 来源 | 许可证 |
+| --- | --- | --- |
+| ACL4SSR 规则 | [ACL4SSR/ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) | CC BY-SA 4.0 |
+| Self-Configuration 规则 | [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration) | 上游未声明 |
+| IP 国家库 | [sapics/ip-location-db](https://github.com/sapics/ip-location-db) | CC0 1.0 |
+
+详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。若你是上述规则的作者且希望移除，请提 issue，我会立即删除对应资源并改为运行时按需下载。
+
+塔台只在本机把订阅转换成各客户端的配置文件，**不含 VPN 或代理功能，不接管任何流量**。

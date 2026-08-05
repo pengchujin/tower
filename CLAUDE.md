@@ -11,7 +11,7 @@
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
 - Bundle ID：`com.jzb.tower`；当前版本：`1.0 (1)`。
-- App Store Connect App ID：`6797458927`。
+- App Store Connect App ID：`<App Store Connect App ID>`。
 - 规则快照和 IP 国家库都随 App 打包，运行时不依赖远程转换服务。
 - `DEVELOPMENT_TEAM` 故意没有写死在工程里；本地运行时由 Xcode 或命令行覆盖。
 

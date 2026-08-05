@@ -1,0 +1,24 @@
+ACL4SSR rules
+=============
+
+Source:      ACL4SSR/ACL4SSR
+Source URL:  https://github.com/ACL4SSR/ACL4SSR
+Revision:    06ff293e02565adceef9aa92321efa2603f68f32
+License:     CC BY-SA 4.0
+             https://creativecommons.org/licenses/by-sa/4.0/
+
+Bundled here: the ACL4SSR_Online, ACL4SSR_Online_Mini and ACL4SSR_Online_Full
+remote configs, plus every .list rule file they reference.
+
+Modifications: none to the rule contents. Every file carries an "ACL4SSR_"
+prefix because Xcode flattens resources into the bundle root, where these
+would otherwise collide with the Self-Configuration snapshot. The configs'
+"master" URLs were rewritten to the pinned revision above so the snapshot is
+reproducible.
+
+Sources, rule counts and SHA-256 digests: ACL4SSR_manifest.json
+Regenerate with: python3 Scripts/update_acl4ssr_rules.py
+
+These rule files remain under CC BY-SA 4.0 and are not covered by the MIT
+license that applies to this project's source code. See THIRD-PARTY-NOTICES.md
+in the repository root.

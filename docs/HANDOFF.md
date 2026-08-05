@@ -4,7 +4,7 @@
 
 塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、MapKit 地球、ICMP/端口测速、本地 Self-Configuration 规则、五种客户端配置生成、配置预览及导入/分享。
 
-当前代码版本为 `1.0 (1)`，Bundle ID 为 `com.jzb.tower`。已在远程 Mac 使用 Apple Development/Distribution 环境完成 Release Archive，并上传到 App Store Connect。上传完成时 Apple 返回的 Delivery UUID 为 `596f07bc-00b8-4d69-a80b-192088b52aaf`；当时构建处于 Processing，接手后应以 App Store Connect 页面为准重新确认最终状态。
+当前代码版本为 `1.0 (1)`，Bundle ID 为 `com.jzb.tower`。已在远程 Mac 使用 Apple Development/Distribution 环境完成 Release Archive，并上传到 App Store Connect。上传完成时 Apple 返回的 Delivery UUID 为 `<Delivery UUID>`；当时构建处于 Processing，接手后应以 App Store Connect 页面为准重新确认最终状态。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -85,18 +85,18 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 ### 真机安装
 
 不需要登录 Apple ID。`.derived-data-device` 里留有一份仍然有效的开发描述文件，已装到
-`~/Library/MobileDevice/Provisioning Profiles/2f187452-7d9f-435f-9e0c-e94f9aba3020.mobileprovision`：
+`~/Library/MobileDevice/Provisioning Profiles/<描述文件 UUID>.mobileprovision`：
 
-- `iOS Team Provisioning Profile: *`，团队 `G63LDXL9QJ`，通配 App ID，有效期到 2027-07-29
-- 授权设备 UDID `00008150-0016504E1407801C`，即这台 iPhone 17 Pro
-- 钥匙串里 `Apple Development: chujin peng` 证书的 `OU` 正是 `G63LDXL9QJ`，私钥齐全
+- `iOS Team Provisioning Profile: *`，团队 `<TEAM_ID>`，通配 App ID，有效期到 2027-07-29
+- 授权设备 UDID `<设备 UDID>`，即这台 iPhone 17 Pro
+- 钥匙串里 `Apple Development: chujin peng` 证书的 `OU` 正是 `<TEAM_ID>`，私钥齐全
 
 ```sh
 xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Debug \
-  -destination 'id=8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF' \
-  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=G63LDXL9QJ build
+  -destination 'id=<devicectl 设备标识>' \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=<TEAM_ID> build
 
-xcrun devicectl device install app --device 8671A0D2-F376-5DAB-92AD-6BB1E0C6ABCF \
+xcrun devicectl device install app --device <devicectl 设备标识> \
   <DerivedData>/Build/Products/Debug-iphoneos/Tower.app
 ```
 
@@ -172,11 +172,11 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 ### 已确认
 
 - App 名称：塔台。
-- App Store Connect App ID：`6797458927`。
+- App Store Connect App ID：`<App Store Connect App ID>`。
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 版本/构建：`1.0 (1)`。
-- 签名 Team ID：`G63LDXL9QJ`。
+- 签名 Team ID：`<TEAM_ID>`。
 - Release Archive 和上传流程成功结束。
 
 ### 接手后立即确认
@@ -189,7 +189,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 
 ## 5. 远程 Mac 归档说明
 
-远程构建机位于同一局域网，主机为 `jzb@192.168.1.214`，已经登录 Apple 开发者账号。凭据和登录密码不写入仓库，也不应发给接手模型保存。
+远程构建机位于同一局域网，主机为 `jzb@<构建机地址>`，已经登录 Apple 开发者账号。凭据和登录密码不写入仓库，也不应发给接手模型保存。
 
 该机器的默认 `xcode-select` 曾指向 Command Line Tools，构建命令需要显式指定：
 
@@ -208,12 +208,12 @@ xcodebuild -project Tower.xcodeproj \
   -destination 'generic/platform=iOS' \
   -archivePath build/Tower-1.0-1.xcarchive \
   -allowProvisioningUpdates \
-  DEVELOPMENT_TEAM=G63LDXL9QJ \
+  DEVELOPMENT_TEAM=<TEAM_ID> \
   CODE_SIGN_STYLE=Automatic \
   archive
 ```
 
-导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `G63LDXL9QJ`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
+导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
 每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`，不要重复上传 build 1。
 
