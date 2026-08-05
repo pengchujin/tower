@@ -513,19 +513,25 @@ struct AppSnapshot: Codable {
     /// synthesised decoder does not fall back to default values for missing
     /// keys, so this must stay optional rather than default to an empty array.
     var importedSchemes: [RuleScheme]?
+    /// Protocols the user chose not to write, keyed by client raw value. Stored
+    /// as plain strings because a dictionary with a non-String key encodes as a
+    /// flat array, which is awkward to read in state.json.
+    var excludedKinds: [String: [String]]?
 
     init(
         subscriptions: [SubscriptionSource],
         nodes: [ProxyNode],
         selectedPresetID: String,
         selectedTarget: ClientTarget,
-        importedSchemes: [RuleScheme]? = nil
+        importedSchemes: [RuleScheme]? = nil,
+        excludedKinds: [String: [String]]? = nil
     ) {
         self.subscriptions = subscriptions
         self.nodes = nodes
         self.selectedPresetID = selectedPresetID
         self.selectedTarget = selectedTarget
         self.importedSchemes = importedSchemes
+        self.excludedKinds = excludedKinds
     }
 }
 

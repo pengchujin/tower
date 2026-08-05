@@ -42,10 +42,11 @@ struct ConfigurationGenerator {
         nodes: [ProxyNode],
         preset: RulePreset,
         target: ClientTarget,
-        countryCodes: [UUID: String] = [:]
+        countryCodes: [UUID: String] = [:],
+        excludedKinds: Set<ProxyKind> = []
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
-            nodes.filter { target.supports($0.kind) },
+            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: reservedProxyNames(for: preset)
         )
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
@@ -80,10 +81,11 @@ struct ConfigurationGenerator {
         nodes: [ProxyNode],
         scheme: RuleScheme,
         target: ClientTarget,
-        schemes: RuleSchemeRepository = RuleSchemeRepository()
+        schemes: RuleSchemeRepository = RuleSchemeRepository(),
+        excludedKinds: Set<ProxyKind> = []
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
-            nodes.filter { target.supports($0.kind) },
+            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
@@ -106,6 +108,17 @@ struct ConfigurationGenerator {
             skippedNodeCount: nodes.count - supported.count,
             ruleCount: ruleCount(for: scheme, schemes: schemes)
         )
+    }
+
+    /// A node reaches the configuration when the client can express it and the
+    /// user has not excluded that protocol. Excluded nodes stay in the input so
+    /// they are reported as skipped rather than vanishing from the counts.
+    private func writes(
+        _ node: ProxyNode,
+        to target: ClientTarget,
+        excluding excludedKinds: Set<ProxyKind>
+    ) -> Bool {
+        target.supports(node.kind) && !excludedKinds.contains(node.kind)
     }
 
     private struct ResolvedSchemeGroup {

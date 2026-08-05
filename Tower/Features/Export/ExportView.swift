@@ -13,6 +13,7 @@ struct ExportView: View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 ClientPicker()
+                ProtocolFilter()
                 ConversionSummary(configuration: configuration)
                 ImportPrivacyNote(target: model.selectedTarget)
                 ConfigurationPreview(configuration: configuration)
@@ -182,6 +183,57 @@ private struct ClientAppIcon: View {
     }
 }
 
+/// A client can support a protocol the user's licence does not cover — Surge
+/// needs a paid tier for AnyTLS — and Tower cannot detect that, so the choice
+/// is offered per client and only for protocols the nodes actually contain.
+private struct ProtocolFilter: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let kinds = model.filterableKinds(for: model.selectedTarget)
+        if kinds.count > 1 {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeading(title: "协议筛选", detail: "只影响 \(model.selectedTarget.name)")
+                VStack(spacing: 0) {
+                    ForEach(Array(kinds.enumerated()), id: \.element.kind) { index, entry in
+                        if index > 0 { Divider().padding(.leading, 16) }
+                        Toggle(isOn: binding(for: entry.kind)) {
+                            HStack(spacing: 10) {
+                                Image(systemName: entry.kind.symbol)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.accentColor)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.kind.title)
+                                        .font(.subheadline.weight(.medium))
+                                    Text("\(entry.count) 个节点")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .accessibilityIdentifier("filter-\(entry.kind.rawValue)")
+                    }
+                }
+                .towerCard()
+                Text("关掉的协议不会写进 \(model.selectedTarget.name) 的配置，并计入“已跳过”。其他客户端不受影响。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func binding(for kind: ProxyKind) -> Binding<Bool> {
+        Binding(
+            get: { !model.isExcluded(kind, for: model.selectedTarget) },
+            set: { model.setExcluded(!$0, kind: kind, for: model.selectedTarget) }
+        )
+    }
+}
+
 private struct ConversionSummary: View {
     @Environment(AppModel.self) private var model
     let configuration: GeneratedConfiguration
@@ -209,9 +261,12 @@ private struct ConversionSummary: View {
                 MetricPill(value: "\(configuration.skippedNodeCount)", label: "已跳过")
             }
             if configuration.skippedNodeCount > 0 {
-                Label("目标客户端不支持的协议不会写入配置，原节点仍保留在塔台中。", systemImage: "info.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                Label(
+                    "目标客户端不支持、或你在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。",
+                    systemImage: "info.circle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
             }
         }
         .padding(20)

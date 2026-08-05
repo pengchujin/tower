@@ -20,6 +20,10 @@ final class AppModel {
     var importedSchemes: [RuleScheme] = []
     var importingSchemeIDs: Set<String> = []
     var isImportingScheme = false
+    /// Protocols the user chose not to write, per client. A client may support
+    /// a protocol while the user's licence does not — Surge needs a paid tier
+    /// for AnyTLS — and Tower cannot detect that, so it is a manual choice.
+    var excludedKinds: [ClientTarget: Set<ProxyKind>] = [:]
 
     private let persistence: PersistenceStore
     private let subscriptionService: SubscriptionService
@@ -72,6 +76,7 @@ final class AppModel {
             subscriptions = snapshot.subscriptions
             nodes = snapshot.nodes
             importedSchemes = snapshot.importedSchemes ?? []
+            excludedKinds = Self.decodeExcludedKinds(snapshot.excludedKinds)
             selectedPresetID = snapshot.selectedPresetID
             selectedTarget = snapshot.selectedTarget
         } else {
@@ -296,6 +301,48 @@ final class AppModel {
         }
     }
 
+    func isExcluded(_ kind: ProxyKind, for target: ClientTarget) -> Bool {
+        excludedKinds[target]?.contains(kind) ?? false
+    }
+
+    func setExcluded(_ excluded: Bool, kind: ProxyKind, for target: ClientTarget) {
+        var kinds = excludedKinds[target] ?? []
+        if excluded { kinds.insert(kind) } else { kinds.remove(kind) }
+        excludedKinds[target] = kinds.isEmpty ? nil : kinds
+        persist()
+    }
+
+    /// Protocols present in the enabled nodes that the client could write, with
+    /// how many nodes each covers. Only these are worth offering as a choice.
+    func filterableKinds(for target: ClientTarget) -> [(kind: ProxyKind, count: Int)] {
+        var counts: [ProxyKind: Int] = [:]
+        for node in enabledNodes where target.supports(node.kind) {
+            counts[node.kind, default: 0] += 1
+        }
+        return counts
+            .map { (kind: $0.key, count: $0.value) }
+            .sorted { $0.count == $1.count ? $0.kind.title < $1.kind.title : $0.count > $1.count }
+    }
+
+    private static func decodeExcludedKinds(_ stored: [String: [String]]?) -> [ClientTarget: Set<ProxyKind>] {
+        guard let stored else { return [:] }
+        var result: [ClientTarget: Set<ProxyKind>] = [:]
+        for (rawTarget, rawKinds) in stored {
+            guard let target = ClientTarget(rawValue: rawTarget) else { continue }
+            let kinds = Set(rawKinds.compactMap(ProxyKind.init(rawValue:)))
+            if !kinds.isEmpty { result[target] = kinds }
+        }
+        return result
+    }
+
+    private static func encodeExcludedKinds(_ kinds: [ClientTarget: Set<ProxyKind>]) -> [String: [String]]? {
+        guard !kinds.isEmpty else { return nil }
+        return kinds.reduce(into: [String: [String]]()) { result, entry in
+            guard !entry.value.isEmpty else { return }
+            result[entry.key.rawValue] = entry.value.map(\.rawValue).sorted()
+        }
+    }
+
     func ruleCount(for preset: RulePreset) -> Int {
         ruleRepository.count(for: preset)
     }
@@ -419,11 +466,15 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue
         let scheme = selectedScheme
+        let excluded = excludedKinds[resolvedTarget] ?? []
         let key = GenerationCacheKey(
             target: resolvedTarget,
             presetID: scheme?.id ?? selectedPreset.id,
             nodesHash: currentNodes.hashValue,
-            countryCodesHash: countryCodesHash
+            countryCodesHash: countryCodesHash,
+            // Without this, toggling a protocol would keep serving the cached
+            // configuration for that client.
+            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
         )
         if let cached = generationCache[key] { return cached }
 
@@ -434,14 +485,16 @@ final class AppModel {
                 nodes: currentNodes,
                 scheme: scheme,
                 target: resolvedTarget,
-                schemes: schemeRepository
+                schemes: schemeRepository,
+                excludedKinds: excluded
             )
         } else {
             generated = generator.generate(
                 nodes: currentNodes,
                 preset: selectedPreset,
                 target: resolvedTarget,
-                countryCodes: currentCountryCodes
+                countryCodes: currentCountryCodes,
+                excludedKinds: excluded
             )
         }
         generationCache[key] = generated
@@ -470,7 +523,8 @@ final class AppModel {
                     nodes: nodes,
                     selectedPresetID: selectedPresetID,
                     selectedTarget: selectedTarget,
-                    importedSchemes: importedSchemes
+                    importedSchemes: importedSchemes,
+                    excludedKinds: Self.encodeExcludedKinds(excludedKinds)
                 )
             )
         } catch {
@@ -534,6 +588,21 @@ struct GenerationCacheKey: Hashable {
     let presetID: String
     let nodesHash: Int
     let countryCodesHash: Int
+    let excludedHash: Int
+
+    init(
+        target: ClientTarget,
+        presetID: String,
+        nodesHash: Int,
+        countryCodesHash: Int,
+        excludedHash: Int = 0
+    ) {
+        self.target = target
+        self.presetID = presetID
+        self.nodesHash = nodesHash
+        self.countryCodesHash = countryCodesHash
+        self.excludedHash = excludedHash
+    }
 
     fileprivate var signature: GenerationCacheSignature {
         GenerationCacheSignature(
