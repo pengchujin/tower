@@ -38,9 +38,7 @@ enum NodeRegionResolver {
         // "UK" is what everyone writes; "GB" is what ISO says.
         if normalizedCode == "UK" { normalizedCode = "GB" }
 
-        if let curated = definitions.first(where: { $0.region.code == normalizedCode })?.region {
-            return curated
-        }
+        if let curated = curatedRegions[normalizedCode] { return curated }
         guard let entry = countryTable[normalizedCode] else { return nil }
         return NodeRegion(
             code: normalizedCode,
@@ -136,13 +134,54 @@ enum NodeRegionResolver {
     }
 
     static func nameRegion(for name: String) -> NodeRegion? {
-        if let code = flaggedCountryCode(in: name), let region = region(countryCode: code) {
-            return region
+        resolutionCache.value(for: name) {
+            if let code = flaggedCountryCode(in: name), let region = region(countryCode: code) {
+                return region
+            }
+            return matchedCode(in: name).flatMap(region(countryCode:))
         }
-        return matchedCode(in: name).flatMap(region(countryCode:))
     }
 
+    /// Resolutions already worked out, because the answer only depends on the
+    /// string and SwiftUI asks for the same node's country many times per
+    /// redraw — once for the flag, again for the title, again for each
+    /// accessibility label.
+    private static let resolutionCache = RegionCache()
+
+    final class RegionCache: @unchecked Sendable {
+        private var storage: [String: NodeRegion?] = [:]
+        private let lock = NSLock()
+
+        func value(for key: String, compute: () -> NodeRegion?) -> NodeRegion? {
+            lock.lock()
+            if let cached = storage[key] {
+                lock.unlock()
+                return cached
+            }
+            lock.unlock()
+
+            let resolved = compute()
+
+            lock.lock()
+            // A subscription is a few hundred names; the cap is only here so a
+            // long-lived process cannot grow this without bound.
+            if storage.count > 8_000 { storage.removeAll(keepingCapacity: true) }
+            storage[key] = resolved
+            lock.unlock()
+            return resolved
+        }
+    }
+
+    private static let curatedRegions: [String: NodeRegion] =
+        Dictionary(definitions.map { ($0.region.code, $0.region) }, uniquingKeysWith: { first, _ in first })
+
+    private static let serverCache = RegionCache()
+
     private static func serverRegion(for server: String) -> NodeRegion? {
+        serverCache.value(for: server) { uncachedServerRegion(for: server) }
+    }
+
+    private static func uncachedServerRegion(for server: String) -> NodeRegion? {
         let host = server.lowercased()
         if let definition = definitions.first(where: { definition in
             definition.domainSuffixes.contains { host.hasSuffix($0) }
@@ -166,71 +205,123 @@ enum NodeRegionResolver {
     /// Longest wins so "United States Minor Outlying Islands" is not read as
     /// the United States, and curated entries win ties so the twenty countries
     /// Tower knows best keep their hand-checked behaviour.
+    ///
+    /// Roughly two thousand spellings can name a country, and this runs for
+    /// every node on screen, several times per row, on every redraw. So none
+    /// of them are scanned: the text is tokenised once and the tokens are
+    /// looked up, which turns the work into a handful of dictionary hits
+    /// regardless of how many countries the table knows.
     private static func matchedCode(in text: String, allowCodes: Bool = true) -> String? {
-        let lowercased = text.lowercased()
-        let padded = " \(normalizedLookupText(text)) "
-        let capitals = allowCodes
-            ? Set(
-                text.components(separatedBy: CharacterSet.alphanumerics.inverted)
-                    .filter { !$0.isEmpty && $0 == $0.uppercased() }
-            )
-            : []
+        var best: Match?
 
-        var best: (length: Int, curated: Bool, code: String)?
-        for phrase in phraseIndex {
-            let matches: Bool
-            switch phrase.form {
-            case .capitalisedCode:
-                matches = capitals.contains(phrase.text)
-            case .cjk:
-                matches = lowercased.contains(phrase.text)
-            case .words:
-                matches = padded.contains(" \(phrase.text) ")
+        func consider(_ candidate: Match) {
+            guard let current = best else { best = candidate; return }
+            if candidate.length > current.length { best = candidate; return }
+            if candidate.length == current.length && candidate.isCurated && !current.isCurated {
+                best = candidate
             }
-            guard matches else { continue }
-
-            let length = phrase.text.count
-            if let current = best,
-               length < current.length || (length == current.length && current.curated) {
-                continue
-            }
-            best = (length, phrase.isCurated, phrase.code)
         }
+
+        let tokens = normalizedTokens(text)
+        for index in tokens.indices {
+            let token = tokens[index]
+            for match in wordIndex[token] ?? [] { consider(match) }
+            for candidate in multiWordIndex[token] ?? []
+            where tokens[index...].starts(with: candidate.words) {
+                consider(candidate.match)
+            }
+        }
+
+        if allowCodes {
+            for token in text.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            where !token.isEmpty && token == token.uppercased() {
+                if let match = codeIndex[token] { consider(match) }
+            }
+        }
+
+        // Chinese and other unspaced scripts cannot be tokenised, so they are
+        // bucketed by first character and only the buckets the text actually
+        // opens with are examined.
+        if text.unicodeScalars.contains(where: { $0.value > 0x2FFF }) {
+            let characters = Array(text.lowercased())
+            for index in characters.indices {
+                for candidate in unspacedIndex[characters[index]] ?? []
+                where characters[index...].starts(with: candidate.characters) {
+                    consider(candidate.match)
+                }
+            }
+        }
+
         return best?.code
+    }
+
+    private struct Match {
+        let code: String
+        let length: Int
+        let isCurated: Bool
     }
 
     private enum PhraseForm {
         /// Latin text, matched on whole words.
         case words
         /// Chinese and other scripts that do not separate words.
-        case cjk
+        case unspaced
         /// A country code, only trusted when the name shouts it.
         case capitalisedCode
     }
 
-    private struct Phrase {
-        let text: String
-        let code: String
-        let form: PhraseForm
-        let isCurated: Bool
-    }
+    /// Single-word Latin spellings, keyed by the word.
+    private static let wordIndex: [String: [Match]] = builtIndexes.words
+    /// Multi-word Latin spellings, keyed by their FIRST word so only phrases
+    /// the text could actually start are compared.
+    private static let multiWordIndex: [String: [(words: [String], match: Match)]] = builtIndexes.multiWord
+    /// Unspaced-script spellings, keyed by their first character.
+    private static let unspacedIndex: [Character: [(characters: [Character], match: Match)]] = builtIndexes.unspaced
+    /// Country codes, keyed by their capitalised form.
+    private static let codeIndex: [String: Match] = builtIndexes.codes
 
-    /// Everything that can name a country, flattened once at first use.
-    private static let phraseIndex: [Phrase] = {
-        var result: [Phrase] = []
+    private typealias Indexes = (
+        words: [String: [Match]],
+        multiWord: [String: [(words: [String], match: Match)]],
+        unspaced: [Character: [(characters: [Character], match: Match)]],
+        codes: [String: Match]
+    )
+
+    /// Everything that can name a country, indexed once at first use.
+    private static let builtIndexes: Indexes = {
+        var words: [String: [Match]] = [:]
+        var multiWord: [String: [(words: [String], match: Match)]] = [:]
+        var unspaced: [Character: [(characters: [Character], match: Match)]] = [:]
+        var codes: [String: Match] = [:]
 
         func add(_ text: String, code: String, form: PhraseForm, curated: Bool) {
-            let cleaned = form == .capitalisedCode ? text.uppercased() : normalized(text, form: form)
-            guard !cleaned.isEmpty else { return }
-            result.append(Phrase(text: cleaned, code: code, form: form, isCurated: curated))
-        }
-
-        func normalized(_ text: String, form: PhraseForm) -> String {
-            form == .cjk ? text.lowercased() : normalizedLookupText(text)
+            switch form {
+            case .capitalisedCode:
+                let key = text.uppercased()
+                guard !key.isEmpty else { return }
+                let match = Match(code: code, length: key.count, isCurated: curated)
+                // A curated code outranks a generated one for the same spelling.
+                if let existing = codes[key], existing.isCurated, !curated { return }
+                codes[key] = match
+            case .unspaced:
+                let characters = Array(text.lowercased())
+                guard let first = characters.first else { return }
+                let match = Match(code: code, length: characters.count, isCurated: curated)
+                unspaced[first, default: []].append((characters, match))
+            case .words:
+                let tokens = normalizedTokens(text)
+                guard let first = tokens.first else { return }
+                let match = Match(code: code, length: text.count, isCurated: curated)
+                if tokens.count == 1 {
+                    words[first, default: []].append(match)
+                } else {
+                    multiWord[first, default: []].append((tokens, match))
+                }
+            }
         }
 
         func form(of text: String) -> PhraseForm {
-            text.unicodeScalars.contains { $0.value > 0x2FFF } ? .cjk : .words
+            text.unicodeScalars.contains { $0.value > 0x2FFF } ? .unspaced : .words
         }
 
         for definition in definitions {
@@ -267,7 +358,7 @@ enum NodeRegionResolver {
             }
         }
 
-        return result
+        return (words, multiWord, unspaced, codes)
     }()
 
     private static func isRegionalFlagString(_ value: String) -> Bool {
@@ -361,12 +452,15 @@ enum NodeRegionResolver {
     }
 
     private static func normalizedLookupText(_ value: String) -> String {
+        normalizedTokens(value).joined(separator: " ")
+    }
+
+    private static func normalizedTokens(_ value: String) -> [String] {
         value
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
             .lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
-            .joined(separator: " ")
     }
 
     private static func containsCountryPhrase(_ phrase: String, in searchableText: String) -> Bool {

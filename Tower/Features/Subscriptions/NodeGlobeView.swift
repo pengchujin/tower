@@ -135,7 +135,9 @@ private struct SelectedRegionNodes: View {
     let onCollapse: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Lazy for the same reason the subscription list is: a popular region
+        // can hold a hundred nodes and only a few are ever on screen.
+        LazyVStack(alignment: .leading, spacing: 10) {
             // The heading collapses the list, matching a second tap on the map
             // marker. Without it the only way back was to find the dot again.
             Button(action: onCollapse) {

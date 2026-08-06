@@ -106,7 +106,7 @@ struct SubscriptionsView: View {
     @ViewBuilder
     private var localNodesSection: some View {
         if !model.localNodes.isEmpty {
-            VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
                 SectionHeading(title: "自有节点", detail: "\(model.localNodes.count) 个")
                 ForEach(model.localNodes) { node in
                     LocalNodeCard(node: node) {
@@ -367,7 +367,10 @@ private struct SubscriptionCard: View {
             .foregroundStyle(.secondary)
 
             if isExpanded {
-                VStack(spacing: 8) {
+                // Lazy, not a plain VStack: a large airport expands to several
+                // hundred rows, and building them all to show ten is what made
+                // expanding a big subscription stutter.
+                LazyVStack(spacing: 8) {
                     ForEach(sourceNodes) { node in
                         ExpandableNodeRow(node: node)
                     }
