@@ -10,8 +10,8 @@ Natural Earth places all of its raster and vector map data in the
 public domain, so no attribution is required. It is recorded here
 anyway so the snapshot can be traced and regenerated.
 
-Grid:   200 x 90, equirectangular
-Bounds: longitude -180..180, latitude -60.0..84.0
-SHA256: 9a5b6c21c0977699685333eb1b6d9767e622b4fd13e3f51458e2051c8e1db30b
+Grid:   220 x 124, mercator
+Bounds: longitude -128.0..168.0, latitude -52.0..72.0
+SHA256: 0d84c3311eb9f3ceb0976fa97d2d5220ccba387f5db5239b10a678d194b0e8d3
 
 Regenerate with: python3 Scripts/update_world_dot_map.py

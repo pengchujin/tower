@@ -32,9 +32,6 @@ struct NodeGlobeOverview: View {
                 selectedRegionCode = clusters.first?.id
             }
         }
-        .task(id: latencyTaskID) {
-            await model.testLatencies(nodes)
-        }
         .task(id: ipCountryTaskID) {
             await model.resolveIPCountries(for: nodes)
         }
@@ -48,27 +45,14 @@ struct NodeGlobeOverview: View {
 
     private var map: some View {
         ZStack(alignment: .topTrailing) {
-            WorldDotMapView(markers: markers) { entry in
-                if let cluster = clusters.first(where: { $0.id == entry.id }) {
-                    Button {
-                        withAnimation(expansionAnimation) {
-                            // Tapping the selected marker again collapses its
-                            // node list.
-                            selectedRegionCode = selectedRegionCode == cluster.id ? nil : cluster.id
-                        }
-                    } label: {
-                        NodeRegionPin(
-                            cluster: cluster,
-                            bestLatency: bestLatency(in: cluster),
-                            isSelected: selectedRegionCode == cluster.id
-                        )
-                    }
-                    .buttonStyle(ResponsivePressButtonStyle())
-                    .accessibilityLabel("\(cluster.region.name)，\(cluster.nodes.count) 个节点")
+            WorldDotMapView(markers: markers) { id in
+                withAnimation(expansionAnimation) {
+                    // Tapping the selected marker again collapses its node list.
+                    selectedRegionCode = selectedRegionCode == id ? nil : id
                 }
             }
-            .padding(.vertical, 10)
-            .frame(height: 260)
+            // No inset: the map is meant to reach the card's edges.
+            .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
             .towerCard()
 
             Button {
@@ -89,8 +73,11 @@ struct NodeGlobeOverview: View {
         clusters.map {
             WorldDotMarker(
                 id: $0.id,
+                title: $0.region.name,
                 latitude: $0.region.latitude,
-                longitude: $0.region.longitude
+                longitude: $0.region.longitude,
+                weight: $0.nodes.count,
+                isSelected: selectedRegionCode == $0.id
             )
         }
     }
@@ -98,8 +85,10 @@ struct NodeGlobeOverview: View {
     @ViewBuilder
     private var regionDetail: some View {
         if let cluster = selectedCluster {
-            SelectedRegionNodes(cluster: cluster)
-                .id(cluster.id)
+            SelectedRegionNodes(cluster: cluster) {
+                withAnimation(expansionAnimation) { selectedRegionCode = nil }
+            }
+            .id(cluster.id)
         } else if clusters.isEmpty {
             ContentUnavailableView(
                 "还不能定位节点",
@@ -134,85 +123,46 @@ struct NodeGlobeOverview: View {
         reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.36, dampingFraction: 1)
     }
 
-    private var latencyTaskID: String {
-        "\(nodes.map(\.id).hashValue)"
-    }
-
     private var ipCountryTaskID: String {
         "\(nodes.map { "\($0.id):\($0.server)" }.hashValue)"
     }
 
-    private func bestLatency(in cluster: NodeRegionCluster) -> NodeLatencyMeasurement? {
-        cluster.nodes
-            .compactMap { model.nodeLatencies[$0.id] }
-            .filter { $0.milliseconds != nil }
-            .min { ($0.milliseconds ?? .max) < ($1.milliseconds ?? .max) }
-    }
-
-    private func isVisible(_ point: CGPoint, in size: CGSize) -> Bool {
-        point.x >= 20 && point.x <= size.width - 20
-            && point.y >= 20 && point.y <= size.height - 20
-    }
-}
-
-private struct NodeRegionPin: View {
-    let cluster: NodeRegionCluster
-    let bestLatency: NodeLatencyMeasurement?
-    let isSelected: Bool
-
-    var body: some View {
-        HStack(spacing: 7) {
-            RegionFlagEmoji(region: cluster.region, size: 20)
-                .frame(width: 30, height: 30)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(cluster.region.name)
-                    .font(.caption2.weight(.semibold))
-                HStack(spacing: 3) {
-                    Text("\(cluster.nodes.count) 个")
-                    if let milliseconds = bestLatency?.milliseconds {
-                        Text("· \(milliseconds)ms")
-                            .foregroundStyle(latencyColor(milliseconds: milliseconds))
-                    }
-                }
-                .font(.caption2.weight(.bold))
-            }
-        }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .stroke(isSelected ? Color.accentColor : .white.opacity(0.45), lineWidth: isSelected ? 2 : 0.7)
-        }
-        .shadow(color: .black.opacity(0.22), radius: 7, y: 3)
-    }
 }
 
 private struct SelectedRegionNodes: View {
     @Environment(AppModel.self) private var model
     let cluster: NodeRegionCluster
+    let onCollapse: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                RegionFlagEmoji(region: cluster.region, size: 25)
-                    .frame(width: 31, height: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(cluster.region.name)
-                        .font(.headline)
-                    Text("\(cluster.nodes.count) 个节点")
-                        .font(.caption)
+            // The heading collapses the list, matching a second tap on the map
+            // marker. Without it the only way back was to find the dot again.
+            Button(action: onCollapse) {
+                HStack {
+                    RegionFlagEmoji(region: cluster.region, size: 25)
+                        .frame(width: 31, height: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(cluster.region.name)
+                            .font(.headline)
+                        Text("\(cluster.nodes.count) 个节点")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let value = bestLatency {
+                        Label("\(value) ms", systemImage: "speedometer")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(latencyColor(milliseconds: value))
+                    }
+                    Image(systemName: "chevron.up")
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                if let value = bestLatency {
-                    Label("\(value) ms", systemImage: "speedometer")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(latencyColor(milliseconds: value))
-                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .accessibilityLabel("收起 \(cluster.region.name) 的节点")
 
             ForEach(cluster.nodes) { node in
                 ExpandableNodeRow(node: node)

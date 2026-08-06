@@ -391,10 +391,6 @@ private struct SubscriptionCard: View {
         .padding(16)
         .towerCard()
         .sensoryFeedback(.selection, trigger: isExpanded)
-        .task(id: latencyTaskID) {
-            guard isExpanded else { return }
-            await model.testLatencies(sourceNodes)
-        }
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
         }
@@ -404,9 +400,6 @@ private struct SubscriptionCard: View {
         reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
     }
 
-    private var latencyTaskID: String {
-        "\(isExpanded)-\(sourceNodes.map(\.id).hashValue)"
-    }
 }
 
 private struct LocalNodeCard: View {

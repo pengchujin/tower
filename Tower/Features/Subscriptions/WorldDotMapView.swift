@@ -12,23 +12,43 @@ struct WorldDotGrid {
     let land: [Bool]
 
     /// Must match the bounds the generator wrote.
-    static let minimumLatitude = -60.0
-    static let maximumLatitude = 84.0
+    static let minimumLatitude = -52.0
+    static let maximumLatitude = 72.0
+    /// Cropped from the full range: the eastern and western Pacific are empty
+    /// and only left blank margins down both sides of the card.
+    static let minimumLongitude = -128.0
+    static let maximumLongitude = 168.0
 
     static let shared: WorldDotGrid = load() ?? WorldDotGrid(columns: 0, rows: 0, land: [])
 
     var isEmpty: Bool { columns == 0 || rows == 0 }
+
+    /// Width over height of the land grid itself, before any label margin.
+    var aspectRatio: CGFloat {
+        isEmpty ? 2 : CGFloat(columns) / CGFloat(rows)
+    }
 
     func isLand(column: Int, row: Int) -> Bool {
         guard column >= 0, column < columns, row >= 0, row < rows else { return false }
         return land[row * columns + column]
     }
 
-    /// Equirectangular projection into unit space, clamped to the drawn band.
+    /// Web-mercator vertical coordinate, the projection the grid was built with.
+    static func mercatorY(_ latitude: Double) -> Double {
+        let clamped = min(max(latitude, -85), 85)
+        return log(tan(.pi / 4 + clamped * .pi / 360))
+    }
+
+    /// Mercator projection into unit space, clamped to the drawn band.
+    ///
+    /// Mercator rather than equirectangular because it is both the familiar web
+    /// map shape and a much taller one, which suits a card that was reading as
+    /// a squashed letterbox.
     static func unitPoint(latitude: Double, longitude: Double) -> CGPoint {
-        let x = (longitude + 180) / 360
-        let span = maximumLatitude - minimumLatitude
-        let y = (maximumLatitude - latitude) / span
+        let x = (longitude - minimumLongitude) / (maximumLongitude - minimumLongitude)
+        let top = mercatorY(maximumLatitude)
+        let bottom = mercatorY(minimumLatitude)
+        let y = (top - mercatorY(latitude)) / (top - bottom)
         return CGPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
     }
 
@@ -65,7 +85,6 @@ struct WorldDotGrid {
             for character in line.prefix(columns) {
                 cells.append(character == "#")
             }
-            // Tolerate a short final row rather than losing the whole grid.
             if line.count < columns {
                 cells.append(contentsOf: Array(repeating: false, count: columns - line.count))
             }
@@ -76,17 +95,32 @@ struct WorldDotGrid {
     }
 }
 
+struct WorldDotMarker: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let latitude: Double
+    let longitude: Double
+    /// Higher wins when two labels would overlap.
+    let weight: Int
+    let isSelected: Bool
+}
+
 /// A flat dot-matrix world map. Replaces the MapKit globe, which was heavy to
 /// render and offered far more interaction than a node overview needs.
-struct WorldDotMapView<Marker: View>: View {
+struct WorldDotMapView: View {
     let markers: [WorldDotMarker]
-    @ViewBuilder let marker: (WorldDotMarker) -> Marker
+    let onSelect: (String) -> Void
 
     private let grid = WorldDotGrid.shared
 
     var body: some View {
         GeometryReader { geometry in
             let layout = Layout(size: geometry.size, grid: grid)
+            let placements = LabelPlanner.plan(
+                markers: markers,
+                layout: layout,
+                bounds: CGRect(origin: .zero, size: geometry.size)
+            )
 
             ZStack(alignment: .topLeading) {
                 Canvas { context, _ in
@@ -112,16 +146,49 @@ struct WorldDotMapView<Marker: View>: View {
                 .drawingGroup()
 
                 ForEach(markers) { entry in
-                    marker(entry)
-                        .position(layout.position(for: entry))
+                    let placement = placements[entry.id]
+                    Button {
+                        onSelect(entry.id)
+                    } label: {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(
+                                width: entry.isSelected ? 13 : 9,
+                                height: entry.isSelected ? 13 : 9
+                            )
+                            .overlay {
+                                Circle()
+                                    .stroke(Color.green.opacity(0.3), lineWidth: entry.isSelected ? 5 : 0)
+                                    .padding(-3)
+                            }
+                            // A generous hit area: the dot itself is far smaller
+                            // than a comfortable target.
+                            .frame(width: 34, height: 34)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(ResponsivePressButtonStyle())
+                    .position(layout.position(for: entry))
+                    .accessibilityLabel(entry.title)
+
+                    if let placement {
+                        Text(entry.title)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(entry.isSelected ? Color.green : .secondary)
+                            .fixedSize()
+                            .allowsHitTesting(false)
+                            .position(placement)
+                    }
                 }
             }
         }
+        // Exactly the grid's own ratio, so width and height are constrained at
+        // the same time and neither direction is left with a blank band.
+        .aspectRatio(grid.aspectRatio, contentMode: .fit)
     }
 
     /// Keeps the grid's aspect ratio and centres it, so the dots stay round and
     /// the markers land on the same cells the map drew.
-    private struct Layout {
+    struct Layout {
         let origin: CGPoint
         let cell: CGFloat
         let grid: WorldDotGrid
@@ -133,6 +200,8 @@ struct WorldDotMapView<Marker: View>: View {
                 cell = 0
                 return
             }
+            // No reserved band: the grid fills the card edge to edge, and a
+            // label that cannot sit above its dot is placed below instead.
             let cellSize = min(size.width / CGFloat(grid.columns), size.height / CGFloat(grid.rows))
             cell = cellSize
             origin = CGPoint(
@@ -151,20 +220,76 @@ struct WorldDotMapView<Marker: View>: View {
         }
 
         func position(for entry: WorldDotMarker) -> CGPoint {
-            let unit = WorldDotGrid.unitPoint(
-                latitude: entry.latitude,
-                longitude: entry.longitude
-            )
+            let unit = WorldDotGrid.unitPoint(latitude: entry.latitude, longitude: entry.longitude)
             return CGPoint(
                 x: origin.x + unit.x * cell * CGFloat(grid.columns),
                 y: origin.y + unit.y * cell * CGFloat(grid.rows)
             )
         }
     }
-}
 
-struct WorldDotMarker: Identifiable {
-    let id: String
-    let latitude: Double
-    let longitude: Double
+    /// Places labels around their dots, dropping the ones that cannot fit.
+    ///
+    /// East and Southeast Asia put a dozen regions within a few dots of each
+    /// other, so labels stacked on top of one another and became unreadable.
+    /// Heavier markers — more nodes — claim their spot first, and a label that
+    /// still collides is left out rather than drawn over its neighbour.
+    ///
+    /// Only labels are treated as obstacles. A label may therefore sit over a
+    /// neighbouring dot, which is the accepted trade for keeping every label
+    /// beside the dot it names.
+    enum LabelPlanner {
+        /// Roughly one em per CJK character, which is what these names are.
+        private static let characterWidth: CGFloat = 10.5
+        private static let labelHeight: CGFloat = 13
+
+        static func plan(
+            markers: [WorldDotMarker],
+            layout: Layout,
+            bounds: CGRect
+        ) -> [String: CGPoint] {
+            var placed: [CGRect] = []
+            var result: [String: CGPoint] = [:]
+
+            // Selected first so its label never loses to a neighbour, then by
+            // node count.
+            let ordered = markers.sorted {
+                $0.isSelected != $1.isSelected ? $0.isSelected : $0.weight > $1.weight
+            }
+
+            for marker in ordered {
+                let anchor = layout.position(for: marker)
+                let size = CGSize(
+                    width: CGFloat(marker.title.count) * characterWidth,
+                    height: labelHeight
+                )
+                // Kept close to the dot on purpose. Avoiding the dots as well
+                // needed far more candidate positions, which pushed labels so
+                // far from their own dot that the pairing stopped reading.
+                let candidates = [
+                    CGPoint(x: anchor.x, y: anchor.y - 13),
+                    CGPoint(x: anchor.x, y: anchor.y + 13),
+                    CGPoint(x: anchor.x + size.width / 2 + 10, y: anchor.y),
+                    CGPoint(x: anchor.x - size.width / 2 - 10, y: anchor.y)
+                ]
+
+                for candidate in candidates {
+                    let rect = CGRect(
+                        x: candidate.x - size.width / 2,
+                        y: candidate.y - size.height / 2,
+                        width: size.width,
+                        height: size.height
+                    )
+                    guard bounds.contains(rect) else { continue }
+                    guard !placed.contains(where: { $0.intersects(rect.insetBy(dx: -2, dy: -1)) }) else {
+                        continue
+                    }
+                    placed.append(rect)
+                    result[marker.id] = candidate
+                    break
+                }
+            }
+            return result
+        }
+    }
 }
