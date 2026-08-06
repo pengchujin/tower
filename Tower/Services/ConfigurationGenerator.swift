@@ -1272,7 +1272,9 @@ struct ConfigurationGenerator {
         var otherNodeNames: [String] = []
 
         for node in nodes {
-            let rawCode = countryCodes[node.id] ?? NodeRegionResolver.countryCode(for: node)
+            // Same order the UI shows: the airport's own name first, the IP
+            // database only for names that say nothing about where they are.
+            let rawCode = NodeRegionResolver.countryCode(for: node) ?? countryCodes[node.id]
             let normalizedCode = rawCode?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .uppercased()

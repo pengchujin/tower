@@ -238,12 +238,10 @@ struct ExpandableNodeRow: View {
                 VStack(alignment: .leading, spacing: 9) {
                     NodeDetailLine(label: "协议", value: node.protocolSummary)
                     NodeDetailLine(label: "服务器", value: node.endpoint)
-                    if let countryCode = model.ipCountryCode(for: node) {
-                        NodeCountryDetailLine(label: "IP 地区", countryCode: countryCode)
-                    } else if let countryCode = NodeRegionResolver.countryCode(for: node) {
+                    if let countryCode = NodeRegionResolver.countryCode(for: node) {
                         NodeCountryDetailLine(label: "名称地区", countryCode: countryCode)
-                    } else if let region = NodeRegionResolver.region(for: node) {
-                        NodeRegionDetailLine(region: region)
+                    } else if let countryCode = model.ipCountryCode(for: node) {
+                        NodeCountryDetailLine(label: "IP 地区", countryCode: countryCode)
                     }
                     if let measurement = model.nodeLatencies[node.id] {
                         NodeDetailLine(
@@ -295,15 +293,11 @@ private struct NodeRegionLogo: View {
 
     var body: some View {
         ZStack {
-            Circle()
-                .fill(Color.primary.opacity(0.055))
-            Circle()
-                .stroke(.white.opacity(0.5), lineWidth: 0.75)
-
-            if let countryCode = model.ipCountryCode(for: node)
-                ?? NodeRegionResolver.countryCode(for: node) {
-                CountryFlagEmoji(countryCode: countryCode, size: 25)
-                    .frame(width: 32, height: 27)
+            // The node's own name decides the flag; the IP database only
+            // answers for names that say nothing about where they are.
+            if let countryCode = NodeRegionResolver.countryCode(for: node)
+                ?? model.ipCountryCode(for: node) {
+                CountryFlagEmoji(countryCode: countryCode, size: 27)
             } else {
                 Image(systemName: node.kind.symbol)
                     .font(.headline.weight(.semibold))
@@ -313,6 +307,9 @@ private struct NodeRegionLogo: View {
         .frame(width: 42, height: 42)
         .accessibilityHidden(true)
         .task(id: node.server) {
+            // A name that already answers makes the lookup pointless work, and
+            // for domain nodes that lookup costs a DNS resolution.
+            guard NodeRegionResolver.countryCode(for: node) == nil else { return }
             await model.resolveIPCountry(for: node)
         }
     }
@@ -385,76 +382,17 @@ private struct CountryFlagEmoji: View {
     let countryCode: String
     let size: CGFloat
 
-    @ViewBuilder
     var body: some View {
-        if countryCode.uppercased() == "TW" {
-            TaiwanFlagEmoji()
-                .frame(width: size * 1.32, height: size * 0.88)
-                .accessibilityLabel(countryName)
-        } else {
-            Text(flag)
-                .font(.system(size: size))
-                .accessibilityLabel(countryName)
-        }
+        // Every region draws as its plain regional-indicator pair. iOS ships no
+        // glyph for a few of them, Taiwan included, so those render as the two
+        // letters instead — which is still the country, just not as a picture.
+        Text(NodeRegionResolver.flagEmoji(for: countryCode))
+            .font(.system(size: size))
+            .accessibilityLabel(countryName)
     }
 
     private var countryName: String {
         Locale.autoupdatingCurrent.localizedString(forRegionCode: countryCode) ?? countryCode
-    }
-
-    private var flag: String {
-        countryCode.uppercased().unicodeScalars.compactMap { scalar in
-            UnicodeScalar(127_397 + scalar.value).map(String.init)
-        }.joined()
-    }
-}
-
-private struct TaiwanFlagEmoji: View {
-    var body: some View {
-        Canvas { context, size in
-            let bounds = CGRect(origin: .zero, size: size)
-            let cornerRadius = min(size.width, size.height) * 0.14
-            let flag = Path(roundedRect: bounds, cornerRadius: cornerRadius)
-            context.clip(to: flag)
-            context.fill(flag, with: .color(Color(red: 0.94, green: 0.06, blue: 0.08)))
-
-            let canton = CGRect(x: 0, y: 0, width: size.width / 2, height: size.height / 2)
-            context.fill(Path(canton), with: .color(Color(red: 0.02, green: 0.19, blue: 0.49)))
-
-            let center = CGPoint(x: canton.midX, y: canton.midY)
-            let outerRadius = min(canton.width, canton.height) * 0.42
-            let innerRadius = outerRadius * 0.56
-            for ray in 0..<12 {
-                let angle = -Double.pi / 2 + Double(ray) * Double.pi / 6
-                var path = Path()
-                path.move(to: point(center: center, radius: outerRadius, angle: angle))
-                path.addLine(to: point(center: center, radius: innerRadius, angle: angle + Double.pi / 24))
-                path.addLine(to: point(center: center, radius: innerRadius, angle: angle - Double.pi / 24))
-                path.closeSubpath()
-                context.fill(path, with: .color(.white))
-            }
-
-            let sunRadius = outerRadius * 0.46
-            let sun = Path(ellipseIn: CGRect(
-                x: center.x - sunRadius,
-                y: center.y - sunRadius,
-                width: sunRadius * 2,
-                height: sunRadius * 2
-            ))
-            context.fill(sun, with: .color(.white))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .stroke(.white.opacity(0.45), lineWidth: 0.5)
-        }
-        .shadow(color: .black.opacity(0.16), radius: 1, y: 0.5)
-    }
-
-    private func point(center: CGPoint, radius: CGFloat, angle: Double) -> CGPoint {
-        CGPoint(
-            x: center.x + radius * CGFloat(cos(angle)),
-            y: center.y + radius * CGFloat(sin(angle))
-        )
     }
 }
 

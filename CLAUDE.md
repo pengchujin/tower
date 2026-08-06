@@ -10,7 +10,7 @@
 
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
-- Bundle ID：`com.jzb.tower`；当前版本：`1.0 (1)`。
+- Bundle ID：`com.jzb.tower`。
 - App Store Connect App ID：`<App Store Connect App ID>`。
 - 规则快照和 IP 国家库都随 App 打包，运行时不依赖远程转换服务。
 - `DEVELOPMENT_TEAM` 故意没有写死在工程里；本地运行时由 Xcode 或命令行覆盖。
@@ -35,7 +35,9 @@
 16. 只有用户主动导入或刷新规则链接时才允许联网取规则；内置快照任何情况下都不联网。规则地址只接受 HTTPS。
 17. **本仓库是公开的**（https://github.com/pengchujin/tower）。设备 UDID、团队 ID、描述文件 UUID、App Store Connect App ID、构建机地址、个人邮箱一律不写进任何文件，需要时用 `<设备 UDID>` 这类占位符。提交前先检查新增文档有没有把这些写回去。
 18. 套餐流量按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表里的公告行取值。**节点始终以订阅原地址的返回体为准**：机场的 `flag=clash` 转换器会丢掉它表达不了的协议（实测有机场因此少 12 个 AnyTLS 节点），所以 `flag=clash` 只在缺结构化配额时补发一次、且只读响应头，不用它的返回体。
-19. `Tower/Resources/` 下的第三方数据不适用源码的 MIT 许可。新增或更新打包资源时，必须同步更新 `THIRD-PARTY-NOTICES.md` 和对应目录的 NOTICE，注明来源、固定版本和许可证。`LICENSE` 里「仅覆盖源码」那段说明不要删除，即使 GitHub 因此把许可证识别成 `Other`。
+19. 节点地区**先按节点名判断**（国旗 Emoji → 中英文国名/别名/城市 → 大写国家代码），名字看不出来才查内置离线 IP 库；策略分组和界面用同一个顺序，不要让两边给出不同的国家。国家表由 `Scripts/update_country_table.py` 生成到 `Tower/Services/CountryTable.swift`，不要手改。
+20. 国旗一律用 Emoji 正常渲染，不要为个别地区自绘图形；iOS 没有字形的（例如 TW）就显示成两个字母，这是系统行为。列表里国旗外面不加圆形底。
+21. `Tower/Resources/` 下的第三方数据不适用源码的 MIT 许可。新增或更新打包资源时，必须同步更新 `THIRD-PARTY-NOTICES.md` 和对应目录的 NOTICE，注明来源、固定版本和许可证。`LICENSE` 里「仅覆盖源码」那段说明不要删除，即使 GitHub 因此把许可证识别成 `Other`。
 
 ## 常用命令
 
@@ -74,12 +76,4 @@ python3 Scripts/update_ip_country_db.py --help
 - 不提交 `.artifacts`、DerivedData、归档、IPA、证书、描述文件、App Store Connect API Key 或任何密码。
 - 加密合规：当前实现没有自研或非标准加密，只通过 Apple 系统网络栈使用 HTTPS。下个版本建议在生成的 Info.plist 中加入 `ITSAppUsesNonExemptEncryption = NO`，并重新核对 App Store Connect 的问题。
 
-## 当前最需要真机复核的区域
-
-- 导出页展开完整配置是否仍会闪退。
-- 五个目标客户端横向切换和配置预览的动画是否流畅。
-- 首页节点/订阅分享 Sheet 的首次弹出是否卡顿。
-- Surge、Stash、Shadowrocket、Loon 实际接收一键导入；Quantumult X 文件分享接收。
-- 地区策略组默认延迟优选、手动选择和图标在各客户端中的实际表现。
-
-详细任务与发布信息见 `docs/HANDOFF.md`。
+真机回归清单、待办任务与发布信息见 `docs/HANDOFF.md`。

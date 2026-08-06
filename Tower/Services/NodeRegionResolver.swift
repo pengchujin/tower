@@ -28,25 +28,46 @@ struct RepairedNodeName: Equatable {
 
 enum NodeRegionResolver {
     static func countryCode(for node: ProxyNode) -> String? {
-        if let code = region(for: node)?.code {
-            return code
-        }
-
-        let searchableText = normalizedLookupText("\(node.name) \(node.server)")
-        guard !searchableText.isEmpty else { return nil }
-
-        return isoCountryNames.first { entry in
-            entry.phrases.contains { phrase in
-                containsCountryPhrase(phrase, in: searchableText)
-            }
-        }?.code
+        region(for: node)?.code
     }
 
     static func region(countryCode: String) -> NodeRegion? {
-        let normalizedCode = countryCode
+        var normalizedCode = countryCode
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
-        return definitions.first(where: { $0.region.code == normalizedCode })?.region
+        // "UK" is what everyone writes; "GB" is what ISO says.
+        if normalizedCode == "UK" { normalizedCode = "GB" }
+
+        if let curated = definitions.first(where: { $0.region.code == normalizedCode })?.region {
+            return curated
+        }
+        guard let entry = countryTable[normalizedCode] else { return nil }
+        return NodeRegion(
+            code: normalizedCode,
+            name: entry.chineseName,
+            flag: flagEmoji(for: normalizedCode),
+            latitude: entry.latitude,
+            longitude: entry.longitude
+        )
+    }
+
+    /// The regional-indicator pair an airport prefixed the name with, if any.
+    ///
+    /// This beats every other signal: the airport stated the country outright,
+    /// in a form that cannot be confused with a word in the name.
+    static func flaggedCountryCode(in name: String) -> String? {
+        let indicators = name.unicodeScalars.filter { (0x1F1E6...0x1F1FF).contains(Int($0.value)) }
+        guard indicators.count >= 2 else { return nil }
+        let letters = indicators.prefix(2).map { scalar in
+            Character(UnicodeScalar(scalar.value - 0x1F1E6 + 65)!)
+        }
+        return String(letters)
+    }
+
+    static func flagEmoji(for countryCode: String) -> String {
+        countryCode.uppercased().unicodeScalars.compactMap { scalar in
+            UnicodeScalar(127_397 + scalar.value).map(String.init)
+        }.joined()
     }
 
     /// Two-letter codes that are also ordinary words. Matching them case
@@ -59,39 +80,199 @@ enum NodeRegionResolver {
         "us", "in", "my", "de", "ca", "au", "th", "br", "fr", "ph", "ae", "it", "no"
     ]
 
-    static func region(for node: ProxyNode) -> NodeRegion? {
-        let combined = "\(node.name) \(node.server)"
-        let lowercased = combined.lowercased()
-        let separators = CharacterSet.alphanumerics.inverted
-        let nameTokens = Set(
-            node.name.lowercased()
-                .components(separatedBy: separators)
-                .filter { !$0.isEmpty }
-        )
-        let capitalisedNameTokens = Set(
-            node.name
-                .components(separatedBy: separators)
-                .filter { !$0.isEmpty && $0 == $0.uppercased() }
-                .map { $0.lowercased() }
-        )
-        let serverTokens = Set(
-            node.server.lowercased()
-                .components(separatedBy: separators)
-                .filter { !$0.isEmpty }
-        )
+    /// Codes that mean something else in a node name.
+    ///
+    /// SS is Shadowsocks far more often than South Sudan, and WS is WebSocket
+    /// rather than Samoa. Every airport writes these in capitals, so the
+    /// capitals rule alone does not separate them.
+    private static let reservedTokens: Set<String> = [
+        "SS", "SSR", "WS", "TLS", "TCP", "UDP", "QUIC", "KCP", "GRPC",
+        "IPLC", "IEPL", "BGP", "CDN", "NAT", "VPN", "API", "DNS", "MUX",
+        // Byte units. "129.29 GB" is a quota, not Great Britain — the United
+        // Kingdom still answers to UK, GBR and its spelled-out names.
+        "KB", "MB", "GB", "TB"
+    ]
 
-        return definitions.first { definition in
-            if definition.phrases.contains(where: lowercased.contains) { return true }
-            if definition.domainSuffixes.contains(where: { node.server.lowercased().hasSuffix($0) }) {
-                return true
+    /// Cities airports name nodes after instead of the country.
+    ///
+    /// Without these a node called "Johannesburg | 01" or "伊斯坦布尔" matches
+    /// nothing at all, which is what the flag column showed.
+    private static let cities: [String: String] = [
+        "johannesburg": "ZA", "约翰内斯堡": "ZA", "cape town": "ZA", "开普敦": "ZA",
+        "istanbul": "TR", "伊斯坦布尔": "TR", "伊斯坦堡": "TR", "ankara": "TR",
+        "warsaw": "PL", "华沙": "PL", "prague": "CZ", "布拉格": "CZ",
+        "vienna": "AT", "维也纳": "AT", "zurich": "CH", "苏黎世": "CH",
+        "geneva": "CH", "日内瓦": "CH", "brussels": "BE", "布鲁塞尔": "BE",
+        "madrid": "ES", "马德里": "ES", "barcelona": "ES", "巴塞罗那": "ES",
+        "milan": "IT", "米兰": "IT", "rome": "IT", "罗马": "IT",
+        "lisbon": "PT", "里斯本": "PT", "athens": "GR", "雅典": "GR",
+        "stockholm": "SE", "斯德哥尔摩": "SE", "oslo": "NO", "奥斯陆": "NO",
+        "helsinki": "FI", "赫尔辛基": "FI", "copenhagen": "DK", "哥本哈根": "DK",
+        "dublin": "IE", "都柏林": "IE", "reykjavik": "IS", "雷克雅未克": "IS",
+        "bucharest": "RO", "布加勒斯特": "RO", "sofia": "BG", "索菲亚": "BG",
+        "budapest": "HU", "布达佩斯": "HU", "kyiv": "UA", "kiev": "UA", "基辅": "UA",
+        "buenos aires": "AR", "布宜诺斯艾利斯": "AR", "santiago": "CL", "圣地亚哥": "CL",
+        "lima": "PE", "利马": "PE", "bogota": "CO", "波哥大": "CO",
+        "mexico city": "MX", "墨西哥城": "MX", "cairo": "EG", "开罗": "EG",
+        "lagos": "NG", "拉各斯": "NG", "nairobi": "KE", "内罗毕": "KE",
+        "casablanca": "MA", "卡萨布兰卡": "MA", "tel aviv": "IL", "特拉维夫": "IL",
+        "riyadh": "SA", "利雅得": "SA", "doha": "QA", "多哈": "QA",
+        "karachi": "PK", "卡拉奇": "PK", "dhaka": "BD", "达卡": "BD",
+        "colombo": "LK", "科伦坡": "LK", "kathmandu": "NP", "加德满都": "NP",
+        "almaty": "KZ", "阿拉木图": "KZ", "tashkent": "UZ", "塔什干": "UZ",
+        "auckland": "NZ", "奥克兰": "NZ", "wellington": "NZ", "惠灵顿": "NZ",
+        "jakarta": "ID", "雅加达": "ID", "phnom penh": "KH", "金边": "KH",
+        "yangon": "MM", "仰光": "MM", "vientiane": "LA", "万象": "LA",
+        "ulaanbaatar": "MN", "乌兰巴托": "MN"
+    ]
+
+    /// Where a node is, decided from what it is called.
+    ///
+    /// The name comes first because the airport wrote it and it is what the
+    /// user reads; the hostname is consulted only when the name says nothing.
+    /// The IP database is a further fallback still, applied by the caller.
+    static func region(for node: ProxyNode) -> NodeRegion? {
+        nameRegion(for: node.name) ?? serverRegion(for: node.server)
+    }
+
+    static func nameRegion(for name: String) -> NodeRegion? {
+        if let code = flaggedCountryCode(in: name), let region = region(countryCode: code) {
+            return region
+        }
+        return matchedCode(in: name).flatMap(region(countryCode:))
+    }
+
+    private static func serverRegion(for server: String) -> NodeRegion? {
+        let host = server.lowercased()
+        if let definition = definitions.first(where: { definition in
+            definition.domainSuffixes.contains { host.hasSuffix($0) }
+        }) {
+            return definition.region
+        }
+
+        let tokens = Set(
+            host.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+        )
+        if let definition = definitions.first(where: { !$0.tokens.isDisjoint(with: tokens) }) {
+            return definition.region
+        }
+        // Hostnames are all lowercase, so the capitals rule cannot apply to
+        // them; only spelled-out names are safe to read out of a hostname.
+        return matchedCode(in: server, allowCodes: false).flatMap(region(countryCode:))
+    }
+
+    /// The country a piece of text names, preferring the longest match.
+    ///
+    /// Longest wins so "United States Minor Outlying Islands" is not read as
+    /// the United States, and curated entries win ties so the twenty countries
+    /// Tower knows best keep their hand-checked behaviour.
+    private static func matchedCode(in text: String, allowCodes: Bool = true) -> String? {
+        let lowercased = text.lowercased()
+        let padded = " \(normalizedLookupText(text)) "
+        let capitals = allowCodes
+            ? Set(
+                text.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    .filter { !$0.isEmpty && $0 == $0.uppercased() }
+            )
+            : []
+
+        var best: (length: Int, curated: Bool, code: String)?
+        for phrase in phraseIndex {
+            let matches: Bool
+            switch phrase.form {
+            case .capitalisedCode:
+                matches = capitals.contains(phrase.text)
+            case .cjk:
+                matches = lowercased.contains(phrase.text)
+            case .words:
+                matches = padded.contains(" \(phrase.text) ")
             }
-            return definition.tokens.contains { token in
-                if serverTokens.contains(token) { return true }
-                return caseSensitiveTokens.contains(token)
-                    ? capitalisedNameTokens.contains(token)
-                    : nameTokens.contains(token)
+            guard matches else { continue }
+
+            let length = phrase.text.count
+            if let current = best,
+               length < current.length || (length == current.length && current.curated) {
+                continue
             }
-        }?.region
+            best = (length, phrase.isCurated, phrase.code)
+        }
+        return best?.code
+    }
+
+    private enum PhraseForm {
+        /// Latin text, matched on whole words.
+        case words
+        /// Chinese and other scripts that do not separate words.
+        case cjk
+        /// A country code, only trusted when the name shouts it.
+        case capitalisedCode
+    }
+
+    private struct Phrase {
+        let text: String
+        let code: String
+        let form: PhraseForm
+        let isCurated: Bool
+    }
+
+    /// Everything that can name a country, flattened once at first use.
+    private static let phraseIndex: [Phrase] = {
+        var result: [Phrase] = []
+
+        func add(_ text: String, code: String, form: PhraseForm, curated: Bool) {
+            let cleaned = form == .capitalisedCode ? text.uppercased() : normalized(text, form: form)
+            guard !cleaned.isEmpty else { return }
+            result.append(Phrase(text: cleaned, code: code, form: form, isCurated: curated))
+        }
+
+        func normalized(_ text: String, form: PhraseForm) -> String {
+            form == .cjk ? text.lowercased() : normalizedLookupText(text)
+        }
+
+        func form(of text: String) -> PhraseForm {
+            text.unicodeScalars.contains { $0.value > 0x2FFF } ? .cjk : .words
+        }
+
+        for definition in definitions {
+            for phrase in definition.phrases where !isRegionalFlagString(phrase) {
+                add(phrase, code: definition.region.code, form: form(of: phrase), curated: true)
+            }
+            for token in definition.tokens {
+                // Airport codes like HKG read fine in any case; the two-letter
+                // ones are ordinary words and need the capitals.
+                let form: PhraseForm = caseSensitiveTokens.contains(token) ? .capitalisedCode : .words
+                add(token, code: definition.region.code, form: form, curated: true)
+            }
+        }
+
+        for (code, entry) in countryTable {
+            for name in entry.names {
+                add(name, code: code, form: form(of: name), curated: false)
+            }
+            for isoCode in entry.codes where !reservedTokens.contains(isoCode) {
+                add(isoCode, code: code, form: .capitalisedCode, curated: false)
+            }
+            if !reservedTokens.contains(code) {
+                add(code, code: code, form: .capitalisedCode, curated: false)
+            }
+        }
+
+        for (city, code) in cities {
+            add(city, code: code, form: form(of: city), curated: false)
+        }
+
+        for entry in isoCountryNames {
+            for phrase in entry.phrases {
+                add(phrase, code: entry.code, form: form(of: phrase), curated: false)
+            }
+        }
+
+        return result
+    }()
+
+    private static func isRegionalFlagString(_ value: String) -> Bool {
+        value.unicodeScalars.allSatisfy { (0x1F1E6...0x1F1FF).contains(Int($0.value)) }
+            && !value.isEmpty
     }
 
     static func displayName(for node: ProxyNode) -> String {
@@ -160,11 +341,12 @@ enum NodeRegionResolver {
         nodes.filter { resolvedRegion(for: $0, countryCode: countryCodes[$0.id]) == nil }
     }
 
-    private static func resolvedRegion(for node: ProxyNode, countryCode: String?) -> NodeRegion? {
-        if let countryCode, let ipRegion = region(countryCode: countryCode) {
-            return ipRegion
-        }
-        return region(for: node)
+    /// The name the airport chose comes first; the IP database only answers
+    /// for nodes whose name gives nothing away.
+    static func resolvedRegion(for node: ProxyNode, countryCode: String?) -> NodeRegion? {
+        if let region = region(for: node) { return region }
+        guard let countryCode else { return nil }
+        return region(countryCode: countryCode)
     }
 
     private static func isRegionalFlag(_ character: Character) -> Bool {
@@ -256,13 +438,13 @@ enum NodeRegionResolver {
         ),
         .init(
             region: .init(code: "KR", name: "韩国", flag: "🇰🇷", latitude: 37.5665, longitude: 126.9780),
-            phrases: ["韩国", "首尔", "南韩", "korea", "seoul", "🇰🇷"],
+            phrases: ["韩国", "首尔", "南韩", "korea", "south korea", "seoul", "🇰🇷"],
             tokens: ["kr", "kor", "sel", "icn"],
             domainSuffixes: [".kr"]
         ),
         .init(
             region: .init(code: "US", name: "美国", flag: "🇺🇸", latitude: 37.0902, longitude: -95.7129),
-            phrases: ["美国", "洛杉矶", "硅谷", "西雅图", "纽约", "united states", "los angeles", "san jose", "new york", "🇺🇸"],
+            phrases: ["美国", "洛杉矶", "硅谷", "西雅图", "纽约", "united states", "united states of america", "america", "los angeles", "san jose", "new york", "🇺🇸"],
             tokens: ["us", "usa", "lax", "sfo", "sjc", "sea", "nyc"],
             domainSuffixes: [".us"]
         ),
@@ -274,7 +456,7 @@ enum NodeRegionResolver {
         ),
         .init(
             region: .init(code: "GB", name: "英国", flag: "🇬🇧", latitude: 51.5074, longitude: -0.1278),
-            phrases: ["英国", "伦敦", "united kingdom", "london", "🇬🇧"],
+            phrases: ["英国", "伦敦", "英格兰", "苏格兰", "united kingdom", "great britain", "britain", "england", "scotland", "wales", "london", "🇬🇧"],
             tokens: ["uk", "gbr", "lon", "lhr"],
             domainSuffixes: [".uk"]
         ),
@@ -294,7 +476,7 @@ enum NodeRegionResolver {
         ),
         .init(
             region: .init(code: "NL", name: "荷兰", flag: "🇳🇱", latitude: 52.3676, longitude: 4.9041),
-            phrases: ["荷兰", "阿姆斯特丹", "netherlands", "amsterdam", "🇳🇱"],
+            phrases: ["荷兰", "阿姆斯特丹", "netherlands", "holland", "amsterdam", "🇳🇱"],
             tokens: ["nl", "nld", "ams"],
             domainSuffixes: [".nl"]
         ),

@@ -64,16 +64,49 @@ final class NodeRegionResolverTests: XCTestCase {
         XCTAssertEqual(NodeRegionResolver.unlocatedNodes(in: nodes).count, 1)
     }
 
-    func testIPCountryOverridesMisleadingNodeNameWhenClustering() {
-        let misleading = node(name: "Tokyo Premium", server: "198.51.100.8")
+    func testNodeNameOutranksTheIPDatabaseWhenClustering() {
+        // The airport named the node; that is what the user reads and what the
+        // policy group should agree with, even when the exit IP is elsewhere.
+        let named = node(name: "Tokyo Premium", server: "198.51.100.8")
         let clusters = NodeRegionResolver.clusters(
-            for: [misleading],
-            countryCodes: [misleading.id: "US"]
+            for: [named],
+            countryCodes: [named.id: "US"]
         )
 
-        XCTAssertNil(clusters.first(where: { $0.region.code == "JP" }))
-        XCTAssertEqual(clusters.first?.region.code, "US")
+        XCTAssertEqual(clusters.first?.region.code, "JP")
         XCTAssertEqual(NodeRegionResolver.region(countryCode: " us ")?.name, "美国")
+    }
+
+    func testIPDatabaseAnswersForNamesThatSayNothing() {
+        let anonymous = node(name: "Premium 07", server: "198.51.100.8")
+        let clusters = NodeRegionResolver.clusters(
+            for: [anonymous],
+            countryCodes: [anonymous.id: "US"]
+        )
+
+        XCTAssertEqual(clusters.first?.region.code, "US")
+    }
+
+    func testCountriesOutsideTheCuratedListStillResolveAndCanBePlaced() {
+        // Every country in the table carries a label point, so a Turkey node is
+        // not just named — it can be drawn on the map like any other.
+        for (name, expected) in ["Turkey | 01": "TR", "Johannesburg | 01": "ZA", "Poland 02": "PL"] {
+            let region = NodeRegionResolver.region(for: node(name: name))
+            XCTAssertEqual(region?.code, expected, name)
+            XCTAssertNotNil(region?.coordinate, name)
+        }
+    }
+
+    func testProtocolAbbreviationsAreNotReadAsCountries() {
+        // SS is Shadowsocks, WS is WebSocket, GB is gigabytes.
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "SS 中转", server: "203.0.113.8")))
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "WS TLS 01", server: "203.0.113.8")))
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "100 GB 套餐", server: "203.0.113.8")))
+    }
+
+    func testFlagPrefixDecidesTheCountryOutright() {
+        XCTAssertEqual(NodeRegionResolver.region(for: node(name: "🇹🇷 01"))?.code, "TR")
+        XCTAssertEqual(NodeRegionResolver.region(for: node(name: "🇿🇦 Node"))?.code, "ZA")
     }
 
     func testRecognizesISORegionNamesForFlagFallback() {
