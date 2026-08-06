@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 enum AppTab: String, CaseIterable, Identifiable {
@@ -350,6 +351,42 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var canonicalKey: String {
         let credential = uuid ?? username ?? password ?? ""
         return "\(kind.rawValue)|\(server.lowercased())|\(port)|\(credential)"
+    }
+
+    /// The VMess/VLESS id in the form every client accepts.
+    ///
+    /// Xray lets the id be any string shorter than 32 bytes and derives a v5
+    /// UUID from it — SHA-1 over the nil namespace followed by the text — so
+    /// airports do publish ids like `abcd1234`. Clash and Stash refuse anything
+    /// that is not a UUID (`invalid UUID length: 8`) and will not load the file
+    /// at all, so the same derivation is done here. The server compares against
+    /// exactly this value, so the node still connects.
+    var exportableUUID: String? {
+        guard let uuid else { return nil }
+        return ProxyNode.normalizedProxyID(uuid)
+    }
+
+    static func normalizedProxyID(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if UUID(uuidString: trimmed) != nil { return trimmed }
+        // Xray's own bound: 32 bytes or more is treated as a malformed UUID
+        // rather than a name, and there is nothing faithful to emit for it.
+        guard trimmed.utf8.count < 32 else { return nil }
+        return derivedUUID(from: trimmed)
+    }
+
+    private static func derivedUUID(from text: String) -> String {
+        var hasher = Insecure.SHA1()
+        hasher.update(data: Data(repeating: 0, count: 16))
+        hasher.update(data: Data(text.utf8))
+        var bytes = Array(hasher.finalize().prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | (5 << 4)
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        )).uuidString.lowercased()
     }
     var isLocal: Bool { sourceID == nil }
 

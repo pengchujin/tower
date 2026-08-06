@@ -119,6 +119,10 @@ struct ConfigurationGenerator {
         excluding excludedKinds: Set<ProxyKind>
     ) -> Bool {
         guard target.supports(node.kind), !excludedKinds.contains(node.kind) else { return false }
+        // An id that is neither a UUID nor short enough for Xray's name mapping
+        // has no faithful form; writing it blank would look fine and never
+        // connect.
+        if [.vmess, .vless].contains(node.kind), node.exportableUUID == nil { return false }
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
@@ -541,14 +545,14 @@ struct ConfigurationGenerator {
             if let value = node.obfsParam, !value.isEmpty { values.append("    obfs-param: \(yaml(value))") }
         case .vmess:
             values += [
-                "    uuid: \(yaml(node.uuid ?? ""))",
+                "    uuid: \(yaml(node.exportableUUID ?? ""))",
                 "    alterId: \(node.alterID ?? 0)",
                 "    cipher: \(yaml(node.cipher ?? "auto"))",
                 "    udp: true"
             ]
             appendClashTransport(node, to: &values)
         case .vless:
-            values += ["    uuid: \(yaml(node.uuid ?? ""))", "    udp: true"]
+            values += ["    uuid: \(yaml(node.exportableUUID ?? ""))", "    udp: true"]
             appendClashTransport(node, to: &values)
         case .trojan:
             values += ["    password: \(yaml(node.password ?? ""))", "    udp: true"]
@@ -758,7 +762,7 @@ struct ConfigurationGenerator {
                 "vmess",
                 node.server,
                 "\(node.port)",
-                "username=\(node.uuid ?? "")",
+                "username=\(node.exportableUUID ?? "")",
                 "vmess-aead=\((node.alterID ?? 0) == 0)"
             ]
             if let cipher = node.cipher,
@@ -767,7 +771,7 @@ struct ConfigurationGenerator {
             }
             appendSurgeTransport(node, includeTLSFlag: true, to: &components)
         case .vless:
-            components = ["vless", node.server, "\(node.port)", "username=\(node.uuid ?? "")"]
+            components = ["vless", node.server, "\(node.port)", "username=\(node.exportableUUID ?? "")"]
             appendSurgeTransport(node, includeTLSFlag: true, to: &components)
         case .trojan:
             components = ["trojan", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
@@ -952,7 +956,7 @@ struct ConfigurationGenerator {
                 node.server,
                 "\(node.port)",
                 node.cipher ?? "auto",
-                confValue(node.uuid ?? ""),
+                confValue(node.exportableUUID ?? ""),
                 "transport=\(node.transport ?? "tcp")",
                 "alterId=\(node.alterID ?? 0)"
             ]
@@ -962,7 +966,7 @@ struct ConfigurationGenerator {
                 "VLESS",
                 node.server,
                 "\(node.port)",
-                confValue(node.uuid ?? ""),
+                confValue(node.exportableUUID ?? ""),
                 "transport=\(node.transport ?? "tcp")"
             ]
             appendLoonTransportAndTLS(node, to: &values)
@@ -1114,11 +1118,11 @@ struct ConfigurationGenerator {
             appendValue(node.obfsParam, key: "obfs-host", to: &values)
         case .vmess:
             prefix = "vmess"
-            values += ["method=\(quanXVMessMethod(node))", "password=\(confValue(node.uuid ?? ""))"]
+            values += ["method=\(quanXVMessMethod(node))", "password=\(confValue(node.exportableUUID ?? ""))"]
             appendQuanXTransport(node, to: &values)
         case .vless:
             prefix = "vless"
-            values += ["method=none", "password=\(confValue(node.uuid ?? ""))"]
+            values += ["method=none", "password=\(confValue(node.exportableUUID ?? ""))"]
             appendQuanXTransport(node, to: &values)
         case .trojan:
             prefix = "trojan"
