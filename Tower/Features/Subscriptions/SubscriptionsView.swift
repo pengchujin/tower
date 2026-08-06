@@ -315,6 +315,8 @@ private struct SubscriptionCard: View {
                     )
                 )
                 .labelsHidden()
+                .toggleStyle(CheckmarkToggleStyle())
+                .accessibilityLabel("启用 \(source.name)")
             }
             // Scoped to the header. On the whole card a long press anywhere —
             // including a node row in the expanded list — lifted the entire

@@ -218,27 +218,6 @@ private struct RuleDetailLine: View {
     }
 }
 
-private struct SelectionIndicator: View {
-    let isSelected: Bool
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
-                .frame(width: 25, height: 25)
-            if isSelected {
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: 25, height: 25)
-                Image(systemName: "checkmark")
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding(.top, 2)
-    }
-}
-
 private struct RulePresetCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

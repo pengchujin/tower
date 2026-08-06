@@ -143,3 +143,51 @@ struct ToastView: View {
             .padding(.horizontal)
     }
 }
+
+/// The round checkmark the rule list marks its selection with.
+///
+/// Shared so the subscription list can use the same mark: both are "this one
+/// counts" choices, and a switch beside a checkmark read as two unrelated
+/// controls doing the same job.
+struct SelectionIndicator: View {
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
+                .frame(width: 25, height: 25)
+            if isSelected {
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 25, height: 25)
+                Image(systemName: "checkmark")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.top, 2)
+    }
+}
+
+/// Draws a `Toggle` as that same checkmark.
+///
+/// A style rather than a plain Button so VoiceOver still announces the control
+/// as a switch that is on or off — a subscription really is an independent
+/// on/off, unlike the rule list where picking one deselects the rest.
+///
+/// A custom style owns its own accessibility, and the style cannot turn the
+/// configuration's label view into the `Text` that `accessibilityLabel` wants,
+/// so callers name the control themselves.
+struct CheckmarkToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            SelectionIndicator(isSelected: configuration.isOn)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .accessibilityAddTraits(.isToggle)
+    }
+}
