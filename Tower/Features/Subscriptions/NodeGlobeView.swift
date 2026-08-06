@@ -44,29 +44,15 @@ struct NodeGlobeOverview: View {
     }
 
     private var map: some View {
-        ZStack(alignment: .topTrailing) {
-            WorldDotMapView(markers: markers) { id in
-                withAnimation(expansionAnimation) {
-                    // Tapping the selected marker again collapses its node list.
-                    selectedRegionCode = selectedRegionCode == id ? nil : id
-                }
+        WorldDotMapView(markers: markers) { id in
+            withAnimation(expansionAnimation) {
+                // Tapping the selected marker again collapses its node list.
+                selectedRegionCode = selectedRegionCode == id ? nil : id
             }
-            // No inset: the map is meant to reach the card's edges.
-            .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
-            .towerCard()
-
-            Button {
-                Task { await model.testLatencies(nodes, force: true) }
-            } label: {
-                Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.caption.weight(.semibold))
-                    .frame(width: 34, height: 34)
-                    .background(.regularMaterial, in: Circle())
-            }
-            .buttonStyle(ResponsivePressButtonStyle())
-            .accessibilityLabel("重新测试全部节点延迟")
-            .padding(12)
         }
+        // No inset: the map is meant to reach the card's edges.
+        .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
+        .towerCard()
     }
 
     private var markers: [WorldDotMarker] {
