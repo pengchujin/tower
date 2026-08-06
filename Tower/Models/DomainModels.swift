@@ -32,6 +32,8 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
     var createdAt: Date
     var lastUpdatedAt: Date?
     var lastError: String?
+    /// Plan usage reported by the airport, when it reports any.
+    var usage: SubscriptionUsage?
 
     init(
         id: UUID = UUID(),
@@ -40,7 +42,8 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
         isEnabled: Bool = true,
         createdAt: Date = .now,
         lastUpdatedAt: Date? = nil,
-        lastError: String? = nil
+        lastError: String? = nil,
+        usage: SubscriptionUsage? = nil
     ) {
         self.id = id
         self.name = name
@@ -49,10 +52,76 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.lastUpdatedAt = lastUpdatedAt
         self.lastError = lastError
+        self.usage = usage
     }
 
     var safeHost: String {
         URL(string: urlString)?.host ?? "私密订阅"
+    }
+}
+
+/// How much of an airport's plan is left.
+///
+/// Airports report this two different ways and Tower reads both: the
+/// `subscription-userinfo` response header, which is structured, and plain
+/// lines smuggled into the node list as fake entries, which are not.
+struct SubscriptionUsage: Codable, Hashable, Sendable {
+    var uploadBytes: Int64?
+    var downloadBytes: Int64?
+    var totalBytes: Int64?
+    var expiresAt: Date?
+    /// Text the airport wrote into the node list, kept verbatim because it is
+    /// free-form and often says more than the header does.
+    var notices: [String] = []
+
+    var isEmpty: Bool {
+        totalBytes == nil && expiresAt == nil && notices.isEmpty
+    }
+
+    var usedBytes: Int64? {
+        guard uploadBytes != nil || downloadBytes != nil else { return nil }
+        return (uploadBytes ?? 0) + (downloadBytes ?? 0)
+    }
+
+    var remainingBytes: Int64? {
+        guard let totalBytes, let usedBytes else { return nil }
+        return max(totalBytes - usedBytes, 0)
+    }
+
+    /// 0…1 for a progress bar, nil when the airport gave no total.
+    var usedFraction: Double? {
+        guard let totalBytes, totalBytes > 0, let usedBytes else { return nil }
+        return min(Double(usedBytes) / Double(totalBytes), 1)
+    }
+
+    /// Parses `upload=1; download=2; total=3; expire=1735660800`.
+    ///
+    /// Every field is optional: airports omit whichever they do not track, and
+    /// a header carrying only `expire` is still worth showing.
+    static func parse(header: String) -> SubscriptionUsage? {
+        var usage = SubscriptionUsage()
+        var matched = false
+
+        for pair in header.split(separator: ";") {
+            let parts = pair.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let key = parts[0].trimmingCharacters(in: .whitespaces).lowercased()
+            let raw = parts[1].trimmingCharacters(in: .whitespaces)
+            // Some airports send a float for byte counts.
+            guard let value = Double(raw) else { continue }
+
+            switch key {
+            case "upload": usage.uploadBytes = Int64(value); matched = true
+            case "download": usage.downloadBytes = Int64(value); matched = true
+            case "total": usage.totalBytes = Int64(value); matched = true
+            case "expire":
+                // A zero expiry means "never", not 1970.
+                if value > 0 { usage.expiresAt = Date(timeIntervalSince1970: value) }
+                matched = true
+            default: break
+            }
+        }
+        return matched ? usage : nil
     }
 }
 
@@ -552,6 +621,7 @@ struct AppSnapshot: Codable {
 struct ImportResult: Sendable {
     let nodes: [ProxyNode]
     let rejectedLineCount: Int
+    var usage: SubscriptionUsage?
 }
 
 struct GeneratedConfiguration {

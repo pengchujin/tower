@@ -330,6 +330,10 @@ private struct SubscriptionCard: View {
                 Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
             }
 
+            if let usage = source.usage, !usage.isEmpty {
+                SubscriptionUsageRow(usage: usage)
+            }
+
             HStack {
                 Button {
                     withAnimation(expansionAnimation) {
@@ -413,5 +417,52 @@ private struct LocalNodeCard: View {
         .contextMenu {
             Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
         }
+    }
+}
+
+
+/// Plan usage as the airport reports it.
+///
+/// Some airports send a `subscription-userinfo` header, which gives byte counts
+/// worth a progress bar. Others only write sentences into the node list, which
+/// are shown verbatim because they are all there is.
+private struct SubscriptionUsageRow: View {
+    let usage: SubscriptionUsage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let fraction = usage.usedFraction {
+                ProgressView(value: fraction)
+                    .tint(fraction > 0.9 ? .orange : Color.accentColor)
+            }
+            if let summary {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(usage.notices, id: \.self) { notice in
+                Text(notice)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var summary: String? {
+        var parts: [String] = []
+        if let used = usage.usedBytes, let total = usage.totalBytes {
+            parts.append("已用 \(format(used)) / \(format(total))")
+        } else if let remaining = usage.remainingBytes {
+            parts.append("剩余 \(format(remaining))")
+        }
+        if let expiresAt = usage.expiresAt {
+            parts.append("到期 \(expiresAt.formatted(date: .numeric, time: .omitted))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func format(_ bytes: Int64) -> String {
+        bytes.formatted(.byteCount(style: .binary))
     }
 }

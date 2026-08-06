@@ -363,6 +363,7 @@ final class AppModel {
         let result = try await subscriptionService.fetch(source)
         var updated = source
         updated.lastUpdatedAt = .now
+        updated.usage = result.usage
         subscriptions.append(updated)
         nodes.append(contentsOf: result.nodes)
         persist()
@@ -398,6 +399,7 @@ final class AppModel {
             nodes.append(contentsOf: result.nodes)
             subscriptions[index].lastUpdatedAt = .now
             subscriptions[index].lastError = nil
+            subscriptions[index].usage = result.usage
             persist()
             showToast(importSummary("已更新", result: result), symbol: "arrow.triangle.2.circlepath.circle.fill")
         } catch {

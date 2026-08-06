@@ -46,9 +46,17 @@ struct SubscriptionService {
 
         let parsed = parser.parse(data: data, sourceID: source.id)
         guard !parsed.nodes.isEmpty else { throw SubscriptionError.noSupportedNodes }
+
+        // Only this one header is read. Keeping the whole response would drag
+        // cookies and other session state into app state for no reason.
+        var usage = (httpResponse.value(forHTTPHeaderField: "subscription-userinfo"))
+            .flatMap(SubscriptionUsage.parse(header:)) ?? SubscriptionUsage()
+        usage.notices = parsed.notices
+
         return ImportResult(
             nodes: parsed.nodes,
-            rejectedLineCount: parsed.rejectedLineCount
+            rejectedLineCount: parsed.rejectedLineCount,
+            usage: usage.isEmpty ? nil : usage
         )
     }
 }
@@ -57,6 +65,28 @@ struct SubscriptionParser {
     struct ParsedContent {
         let nodes: [ProxyNode]
         let rejectedLineCount: Int
+        /// Airport announcements smuggled into the node list — remaining
+        /// traffic, expiry and the like.
+        var notices: [String] = []
+    }
+
+    /// Names that are an announcement rather than a node.
+    ///
+    /// Several airports publish quota and expiry as extra entries whose only
+    /// real content is the name. Importing them yields nodes that cannot
+    /// connect and inflates the node count, so they become subscription
+    /// metadata instead. The list is deliberately narrow: a real node is not
+    /// called 剩余流量 or 套餐到期, but it may well be called 香港 IEPL 专线.
+    private static let noticeKeywords = [
+        "剩余流量", "已用流量", "总流量", "流量重置", "距离下次重置", "重置剩余",
+        "套餐到期", "到期时间", "过期时间", "有效期至", "账户余额",
+        "官网", "续费", "客服", "邮箱", "订阅地址", "机场地址",
+        "expire", "expires", "traffic", "remaining", "reset"
+    ]
+
+    static func isNotice(_ name: String) -> Bool {
+        let text = name.lowercased()
+        return noticeKeywords.contains { text.contains($0.lowercased()) }
     }
 
     func parse(data: Data, sourceID: UUID? = nil) -> ParsedContent {
@@ -74,8 +104,9 @@ struct SubscriptionParser {
         if text.contains("proxies:") {
             let parsed = parseClashYAML(text, sourceID: sourceID)
             return .init(
-                nodes: deduplicated(parsed.nodes),
-                rejectedLineCount: parsed.rejectedLineCount
+                nodes: deduplicated(parsed.nodes.filter { !Self.isNotice($0.name) }),
+                rejectedLineCount: parsed.rejectedLineCount,
+                notices: parsed.nodes.filter { Self.isNotice($0.name) }.map(\.name)
             )
         }
 
@@ -99,7 +130,13 @@ struct SubscriptionParser {
                 rejected += 1
             }
         }
-        return .init(nodes: deduplicated(nodes), rejectedLineCount: rejected)
+        let notices = nodes.filter { Self.isNotice($0.name) }.map(\.name)
+        let real = nodes.filter { !Self.isNotice($0.name) }
+        return .init(
+            nodes: deduplicated(real),
+            rejectedLineCount: rejected,
+            notices: notices
+        )
     }
 
     func parseURI(_ rawValue: String, sourceID: UUID? = nil) -> ProxyNode? {
