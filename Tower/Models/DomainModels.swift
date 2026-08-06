@@ -366,6 +366,19 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         return ProxyNode.normalizedProxyID(uuid)
     }
 
+    /// The transport path in the form a client will accept.
+    ///
+    /// WebSocket and HTTP/2 paths are HTTP request paths, so they have to be
+    /// absolute, but airports do publish them without the leading slash. Xray's
+    /// own server prepends one before matching (`GetNormalizedPath`), so doing
+    /// the same here is what the node was always going to send on the wire.
+    /// Clash and Shadowrocket quietly normalise it; Surge rejects the whole
+    /// profile with "字段 `ws-path` 的值无效".
+    var exportablePath: String? {
+        guard let path, !path.isEmpty else { return nil }
+        return path.hasPrefix("/") ? path : "/" + path
+    }
+
     static func normalizedProxyID(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }

@@ -597,7 +597,7 @@ struct ConfigurationGenerator {
             values.append("    network: \(yaml(transport))")
             if transport == "ws" {
                 values.append("    ws-opts:")
-                values.append("      path: \(yaml(node.path ?? "/"))")
+                values.append("      path: \(yaml(node.exportablePath ?? "/"))")
                 if let host = node.hostHeader, !host.isEmpty {
                     values.append("      headers:")
                     values.append("        Host: \(yaml(host))")
@@ -825,7 +825,7 @@ struct ConfigurationGenerator {
         appendSurgeTLS(node, includeTLSFlag: includeTLSFlag, to: &values)
         if node.transport == "ws" {
             values.append("ws=true")
-            appendValue(node.path ?? "/", key: "ws-path", to: &values)
+            appendValue(node.exportablePath ?? "/", key: "ws-path", to: &values)
             if let host = node.hostHeader, !host.isEmpty { values.append("ws-headers=Host:\(confValue(host))") }
         }
     }
@@ -973,7 +973,7 @@ struct ConfigurationGenerator {
         case .trojan:
             values = ["trojan", node.server, "\(node.port)", confValue(node.password ?? "")]
             appendValue(node.transport, key: "transport", to: &values)
-            appendValue(node.path, key: "path", to: &values)
+            appendValue(node.exportablePath, key: "path", to: &values)
             appendValue(node.hostHeader, key: "host", to: &values)
             appendValue(node.alpn, key: "alpn", to: &values)
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
@@ -1019,7 +1019,7 @@ struct ConfigurationGenerator {
     }
 
     private func appendLoonTransportAndTLS(_ node: ProxyNode, to values: inout [String]) {
-        appendValue(node.path, key: "path", to: &values)
+        appendValue(node.exportablePath, key: "path", to: &values)
         appendValue(node.hostHeader, key: "host", to: &values)
         values.append("over-tls=\(node.tls)")
         appendValue(node.sni, key: "tls-name", to: &values)
@@ -1162,7 +1162,7 @@ struct ConfigurationGenerator {
         if node.transport == "ws" {
             values.append("obfs=\(node.tls ? "wss" : "ws")")
             appendValue(node.hostHeader ?? node.sni, key: "obfs-host", to: &values)
-            appendValue(node.path ?? "/", key: "obfs-uri", to: &values)
+            appendValue(node.exportablePath ?? "/", key: "obfs-uri", to: &values)
         } else if node.tls {
             values.append("obfs=over-tls")
             appendValue(node.sni, key: "obfs-host", to: &values)

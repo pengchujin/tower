@@ -78,3 +78,53 @@ final class ProxyIDNormalizationTests: XCTestCase {
         XCTAssertFalse(output.content.contains("uuid: \"\""))
     }
 }
+
+/// WebSocket and HTTP/2 paths are HTTP request paths and must be absolute.
+/// Airports publish them without the leading slash; Surge rejects the whole
+/// profile for it, while Xray's server normalises the same way Tower now does.
+final class TransportPathNormalizationTests: XCTestCase {
+    private let generator = ConfigurationGenerator()
+
+    private func node(path: String?) -> ProxyNode {
+        ProxyNode(
+            kind: .vmess, name: "HK 01", server: "1.2.3.4", port: 443,
+            cipher: "auto", uuid: "b831381d-6324-4d53-ad4f-8cda48b30811",
+            transport: "ws", tls: true, hostHeader: "example.com",
+            path: path, rawURI: "vmess://x"
+        )
+    }
+
+    func testAbsolutePathIsUntouched() {
+        XCTAssertEqual(node(path: "/already/absolute").exportablePath, "/already/absolute")
+    }
+
+    func testMissingLeadingSlashIsAdded() {
+        XCTAssertEqual(node(path: "1c503beb-vm").exportablePath, "/1c503beb-vm")
+    }
+
+    func testEmptyPathStaysUnset() {
+        XCTAssertNil(node(path: "").exportablePath)
+        XCTAssertNil(node(path: nil).exportablePath)
+    }
+
+    func testSurgeNeverWritesARelativeWebsocketPath() {
+        let content = generator.generate(
+            nodes: [node(path: "1c503beb-vm")], preset: RulePreset.builtIns[0], target: .surge
+        ).content
+
+        XCTAssertTrue(content.contains("ws-path=/1c503beb-vm"), content)
+        XCTAssertFalse(content.contains("ws-path=1c503beb-vm"))
+    }
+
+    func testEveryTargetWritesAnAbsolutePath() {
+        for target in ClientTarget.allCases where target.supports(.vmess) {
+            let content = generator.generate(
+                nodes: [node(path: "1c503beb-vm")], preset: RulePreset.builtIns[0], target: target
+            ).content
+            XCTAssertTrue(content.contains("/1c503beb-vm"), "\(target.name) 少了前导斜杠")
+            // The bare form must not survive anywhere in the file.
+            XCTAssertFalse(content.contains("=1c503beb-vm"), "\(target.name) 仍写出了相对路径")
+            XCTAssertFalse(content.contains(": \"1c503beb-vm\""), "\(target.name) 仍写出了相对路径")
+        }
+    }
+}
