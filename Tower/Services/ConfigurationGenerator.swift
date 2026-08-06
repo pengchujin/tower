@@ -1129,11 +1129,6 @@ struct ConfigurationGenerator {
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
             appendValue(node.sni, key: "tls-host", to: &values)
             appendQuanXCertificatePolicy(node, to: &values)
-        case .hysteria2:
-            prefix = "hysteria2"
-            values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
-            appendValue(node.sni, key: "tls-host", to: &values)
-            appendQuanXCertificatePolicy(node, to: &values)
         case .anytls:
             prefix = "anytls"
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
@@ -1149,9 +1144,9 @@ struct ConfigurationGenerator {
             appendValue(node.username, key: "username", to: &values)
             appendValue(node.password, key: "password", to: &values)
             if node.tls { values.append("over-tls=true") }
-        // Quantumult X implements neither, and writes(_:to:excluding:)
+        // Quantumult X implements none of these, and writes(_:to:excluding:)
         // filters them out before generation, so this is defensive only.
-        case .snell, .unknown:
+        case .hysteria2, .snell, .unknown:
             prefix = "http"
         }
         values.append("tag=\(confName(NodeRegionResolver.displayName(for: node)))")

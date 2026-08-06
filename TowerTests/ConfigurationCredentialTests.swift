@@ -61,8 +61,12 @@ final class ConfigurationCredentialTests: XCTestCase {
 
     // MARK: - Quantumult X fidelity
 
-    func testQuanXKeepsSkipCertificateVerificationForTrojanAndHysteria2() {
-        for kind in [ProxyKind.trojan, .hysteria2] {
+    // Hysteria 2 used to be in this list. Quantumult X has no `hysteria2=`
+    // server type, so those nodes are skipped there now and the certificate
+    // question never comes up; every client that does support it is covered by
+    // QuanXHysteria2Tests instead.
+    func testQuanXKeepsSkipCertificateVerificationForTrojan() {
+        for kind in [ProxyKind.trojan] {
             let node = ProxyNode(
                 kind: kind,
                 name: "Self Signed",

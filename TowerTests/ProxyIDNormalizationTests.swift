@@ -193,3 +193,61 @@ final class QuanXCertificatePolicyTests: XCTestCase {
         }
     }
 }
+
+/// Quantumult X has no `hysteria2=` server type. Its sample.conf documents
+/// ss2022, REALITY, vless-flow and AnyTLS but no Hysteria at all, and writing
+/// the line fails the entire import with "配置文件语法错误, line 159".
+final class QuanXHysteria2Tests: XCTestCase {
+    private let generator = ConfigurationGenerator()
+
+    private var hysteria2: ProxyNode {
+        ProxyNode(
+            kind: .hysteria2, name: "TW 01", server: "vpn.example.com", port: 443,
+            password: "pw", tls: true, sni: "vpn.example.com",
+            skipCertificateVerification: true, rawURI: "hysteria2://x"
+        )
+    }
+
+    func testQuanXDoesNotClaimToSupportIt() {
+        XCTAssertFalse(ClientTarget.quanx.supports(.hysteria2))
+    }
+
+    func testItIsSkippedAndCountedRatherThanWritten() {
+        let output = generator.generate(
+            nodes: [hysteria2], preset: RulePreset.builtIns[0], target: .quanx
+        )
+
+        XCTAssertEqual(output.supportedNodeCount, 0)
+        XCTAssertEqual(output.skippedNodeCount, 1)
+        XCTAssertFalse(output.content.contains("hysteria2="), output.content)
+    }
+
+    func testOtherNodesStillExportAlongsideIt() {
+        let trojan = ProxyNode(
+            kind: .trojan, name: "HK 01", server: "hk.example.com", port: 443,
+            password: "pw", tls: true, rawURI: "trojan://x"
+        )
+
+        let output = generator.generate(
+            nodes: [hysteria2, trojan], preset: RulePreset.builtIns[0], target: .quanx
+        )
+
+        XCTAssertEqual(output.supportedNodeCount, 1)
+        XCTAssertEqual(output.skippedNodeCount, 1)
+        XCTAssertTrue(output.content.contains("trojan="), output.content)
+    }
+
+    func testTheClientsThatDoSupportItAreUnaffected() {
+        for target in [ClientTarget.clash, .surge, .shadowrocket, .loon] {
+            XCTAssertTrue(target.supports(.hysteria2), target.name)
+            let output = generator.generate(
+                nodes: [hysteria2], preset: RulePreset.builtIns[0], target: target
+            )
+            XCTAssertEqual(output.supportedNodeCount, 1, target.name)
+        }
+    }
+
+    func testQuanXStillSupportsAnyTLSWhichItsSampleDoesDocument() {
+        XCTAssertTrue(ClientTarget.quanx.supports(.anytls))
+    }
+}

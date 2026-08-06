@@ -720,7 +720,11 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .loon:
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
         case .quanx:
-            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
+            // No Hysteria 2: Quantumult X has no `hysteria2=` server type, and
+            // writing one fails the whole import with "配置文件语法错误". Its
+            // sample.conf documents ss2022, REALITY, vless-flow and AnyTLS but
+            // no Hysteria at all.
+            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .anytls, .socks5, .http].contains(kind)
         }
     }
 }
