@@ -57,6 +57,85 @@ final class SubscriptionUsageTests: XCTestCase {
         XCTAssertNil(SubscriptionUsage.parse(header: ""))
     }
 
+    // MARK: - STATUS line
+
+    func testParsesShadowrocketStyleStatusLine() throws {
+        let usage = try XCTUnwrap(
+            SubscriptionUsage.parse(
+                statusLine: "STATUS=🚀↑:20.02GB,↓:97.73GB,TOT:220GB💡EXPIRES:2026-08-09"
+            )
+        )
+
+        XCTAssertEqual(usage.uploadBytes, Int64(20.02 * 1_073_741_824))
+        XCTAssertEqual(usage.downloadBytes, Int64(97.73 * 1_073_741_824))
+        XCTAssertEqual(usage.totalBytes, 220 * 1_073_741_824)
+        XCTAssertEqual(
+            usage.expiresAt,
+            DateComponents(calendar: .init(identifier: .gregorian), timeZone: TimeZone(identifier: "UTC"),
+                           year: 2026, month: 8, day: 9).date
+        )
+    }
+
+    func testStatusLineUnitsOtherThanGigabytes() throws {
+        let usage = try XCTUnwrap(SubscriptionUsage.parse(statusLine: "STATUS=↑:500MB,↓:1.5TB,TOT:2TB"))
+
+        XCTAssertEqual(usage.uploadBytes, 500 * 1_048_576)
+        XCTAssertEqual(usage.totalBytes, 2 * 1_099_511_627_776)
+    }
+
+    func testStatusLineWithoutExpiryStillParses() throws {
+        let usage = try XCTUnwrap(SubscriptionUsage.parse(statusLine: "STATUS=🚀↑:1GB,↓:2GB,TOT:10GB"))
+
+        XCTAssertNil(usage.expiresAt)
+        XCTAssertEqual(usage.usedBytes, 3 * 1_073_741_824)
+    }
+
+    func testOrdinaryTextIsNotAStatusLine() {
+        XCTAssertNil(SubscriptionUsage.parse(statusLine: "剩余流量：101.69 GB"))
+        XCTAssertNil(SubscriptionUsage.parse(statusLine: "香港 IEPL 专线 1"))
+    }
+
+    func testStatusLineInTheNodeListIsQuotaNotAFailedNode() {
+        let list = [
+            "STATUS=🚀↑:20.02GB,↓:97.73GB,TOT:220GB💡EXPIRES:2026-08-09",
+            "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388#%E9%A6%99%E6%B8%AF%2001"
+        ].joined(separator: "\n")
+
+        let result = parser.parse(data: Data(list.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.name), ["香港 01"])
+        XCTAssertEqual(result.rejectedLineCount, 0, "STATUS 行不是解析失败")
+        XCTAssertEqual(result.status?.totalBytes, 220 * 1_073_741_824)
+    }
+
+    // MARK: - Duplicate suppression
+
+    func testNoticesRepeatingStructuredDataAreHidden() {
+        let usage = SubscriptionUsage(
+            totalBytes: 100,
+            expiresAt: Date(timeIntervalSince1970: 1_735_660_800),
+            notices: ["Traffic: 220GB", "套餐到期：2026-08-09", "官网：example.com"]
+        )
+
+        XCTAssertEqual(usage.distinctNotices, ["官网：example.com"])
+    }
+
+    func testNoticesSurviveWhenThereIsNoStructuredDataToRepeat() {
+        let usage = SubscriptionUsage(notices: ["剩余流量：101.69 GB", "套餐到期：2026-08-09"])
+
+        XCTAssertEqual(usage.distinctNotices, usage.notices)
+    }
+
+    func testResetCountdownSurvivesAnExpiryDate() {
+        // The reset day and the expiry day are different facts.
+        let usage = SubscriptionUsage(
+            expiresAt: Date(timeIntervalSince1970: 1_735_660_800),
+            notices: ["距离下次重置剩余：3 天"]
+        )
+
+        XCTAssertEqual(usage.distinctNotices, ["距离下次重置剩余：3 天"])
+    }
+
     // MARK: - Notices in the node list
 
     func testAnnouncementEntriesBecomeNoticesNotNodes() {
@@ -91,6 +170,21 @@ final class SubscriptionUsageTests: XCTestCase {
         ] {
             XCTAssertTrue(SubscriptionParser.isNotice(name), name)
         }
+    }
+
+    func testAnnouncementsParkedOnAPublicResolverAreExcludedWhateverTheySay() {
+        // One airport advertises its own client this way. The pitch matches no
+        // keyword, but nothing real listens on 8.8.8.8:8.
+        let yaml = """
+        proxies:
+          - {name: 香港 01, server: hk.example.com, port: 8388, type: ss, cipher: aes-128-gcm, password: pw}
+          - {name: ！！！强烈推荐使用官方客户端！！！, server: 8.8.8.8, port: 8, type: ss, cipher: aes-128-gcm, password: pw}
+        """
+
+        let result = parser.parse(data: Data(yaml.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.name), ["香港 01"])
+        XCTAssertEqual(result.notices, ["！！！强烈推荐使用官方客户端！！！"])
     }
 
     func testClashYAMLAnnouncementsAreAlsoExcluded() {

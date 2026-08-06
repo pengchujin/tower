@@ -62,9 +62,10 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
 
 /// How much of an airport's plan is left.
 ///
-/// Airports report this two different ways and Tower reads both: the
-/// `subscription-userinfo` response header, which is structured, and plain
-/// lines smuggled into the node list as fake entries, which are not.
+/// Airports report this three different ways and Tower reads all of them: the
+/// `subscription-userinfo` response header, a `STATUS=` line at the head of the
+/// node list, and plain sentences smuggled into the list as fake entries. Which
+/// one arrives varies by airport and, on at least one panel, by request.
 struct SubscriptionUsage: Codable, Hashable, Sendable {
     var uploadBytes: Int64?
     var downloadBytes: Int64?
@@ -77,6 +78,31 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
     var isEmpty: Bool {
         totalBytes == nil && expiresAt == nil && notices.isEmpty
     }
+
+    /// Whether the plan is known in numbers rather than only in prose.
+    /// Free-form notices are worth showing but cannot drive a progress bar.
+    var hasPlanDetail: Bool {
+        totalBytes != nil || expiresAt != nil
+    }
+
+    /// Notices that are worth showing beside the structured summary.
+    ///
+    /// Airports that send the header often *also* write the same numbers into
+    /// the node list, so showing both prints the plan twice — once formatted by
+    /// Tower and once in the airport's own wording. A notice is dropped only
+    /// when the structured data already covers that exact fact; a reset
+    /// countdown survives an expiry date because they are different dates.
+    var distinctNotices: [String] {
+        notices.filter { notice in
+            let text = notice.lowercased()
+            if totalBytes != nil, Self.trafficWords.contains(where: text.contains) { return false }
+            if expiresAt != nil, Self.expiryWords.contains(where: text.contains) { return false }
+            return true
+        }
+    }
+
+    private static let trafficWords = ["流量", "traffic", "余额", "balance", "↑:", "↓:", "tot:"]
+    private static let expiryWords = ["到期", "过期", "有效期至", "expire"]
 
     var usedBytes: Int64? {
         guard uploadBytes != nil || downloadBytes != nil else { return nil }
@@ -122,6 +148,68 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
             }
         }
         return matched ? usage : nil
+    }
+
+    /// Parses `STATUS=🚀↑:20.02GB,↓:97.73GB,TOT:220GB💡EXPIRES:2026-08-09`.
+    ///
+    /// Some panels prepend this line to the node list instead of sending the
+    /// header. It is human-formatted rather than specified, so parsing stays
+    /// tolerant: every field is optional and unknown decoration is skipped.
+    static func parse(statusLine: String) -> SubscriptionUsage? {
+        let text = statusLine.hasPrefix(statusPrefix)
+            ? String(statusLine.dropFirst(statusPrefix.count))
+            : statusLine
+        var usage = SubscriptionUsage()
+        var matched = false
+
+        if let value = bytes(after: "↑:", in: text) { usage.uploadBytes = value; matched = true }
+        if let value = bytes(after: "↓:", in: text) { usage.downloadBytes = value; matched = true }
+        if let value = bytes(after: "TOT:", in: text) { usage.totalBytes = value; matched = true }
+        if let date = day(after: "EXPIRES:", in: text) { usage.expiresAt = date; matched = true }
+
+        return matched ? usage : nil
+    }
+
+    static let statusPrefix = "STATUS="
+
+    private static let unitMultipliers: [String: Double] = [
+        "": 1, "b": 1,
+        "k": 1024, "kb": 1024,
+        "m": 1_048_576, "mb": 1_048_576,
+        "g": 1_073_741_824, "gb": 1_073_741_824,
+        "t": 1_099_511_627_776, "tb": 1_099_511_627_776
+    ]
+
+    /// Reads `20.02GB` out of whatever follows `marker`.
+    private static func bytes(after marker: String, in text: String) -> Int64? {
+        guard let range = text.range(of: marker) else { return nil }
+        var digits = ""
+        var unit = ""
+        for character in text[range.upperBound...] {
+            if character.isNumber || character == "." {
+                // Digits after the unit belong to the next field.
+                if !unit.isEmpty { break }
+                digits.append(character)
+            } else if character.isLetter {
+                unit.append(character)
+                if unit.count == 2 { break }
+            } else {
+                break
+            }
+        }
+        guard let value = Double(digits), let multiplier = unitMultipliers[unit.lowercased()] else {
+            return nil
+        }
+        return Int64(value * multiplier)
+    }
+
+    private static func day(after marker: String, in text: String) -> Date? {
+        guard let range = text.range(of: marker) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: String(text[range.upperBound...].prefix(10)))
     }
 }
 

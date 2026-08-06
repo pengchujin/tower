@@ -440,7 +440,9 @@ private struct SubscriptionUsageRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ForEach(usage.notices, id: \.self) { notice in
+            // Airports that send structured quota often repeat it in their own
+            // wording; only what the summary above does not already say.
+            ForEach(usage.distinctNotices, id: \.self) { notice in
                 Text(notice)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -457,7 +459,7 @@ private struct SubscriptionUsageRow: View {
             parts.append("剩余 \(format(remaining))")
         }
         if let expiresAt = usage.expiresAt {
-            parts.append("到期 \(expiresAt.formatted(date: .numeric, time: .omitted))")
+            parts.append("到期 \(expiresAt.formatted(.iso8601.year().month().day().dateSeparator(.dash)))")
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

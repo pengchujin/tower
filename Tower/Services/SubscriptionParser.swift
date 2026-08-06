@@ -31,9 +31,57 @@ struct SubscriptionService {
             throw SubscriptionError.insecureURL
         }
 
+        var result = try await load(url, source: source)
+
+        // The node list is authoritative for nodes; only the quota may be
+        // missing from it. Airports that answer `flag=clash` send a
+        // `subscription-userinfo` header, so a second request fills the gap —
+        // but its body is not used, because the panel's Clash converter drops
+        // whatever it cannot express. One real airport returns 43 of its 55
+        // nodes that way, silently losing every AnyTLS entry.
+        if result.usage?.hasPlanDetail != true, let probe = Self.quotaProbe(for: url) {
+            if let usage = try? await quota(at: probe) {
+                var merged = usage
+                merged.notices = result.usage?.notices ?? []
+                result.usage = merged
+            }
+        }
+        return result
+    }
+
+    /// The same subscription asked for in Clash's dialect, purely to read the
+    /// quota header. `nil` when the caller already pinned a flag themselves.
+    private static func quotaProbe(for url: URL) -> URL? {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        let existing = components.queryItems ?? []
+        guard !existing.contains(where: { $0.name.lowercased() == "flag" }) else { return nil }
+        components.queryItems = existing + [URLQueryItem(name: "flag", value: "clash")]
+        return components.url
+    }
+
+    private func quota(at url: URL) async throws -> SubscriptionUsage {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode),
+              let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo"),
+              let usage = SubscriptionUsage.parse(header: header) else {
+            throw SubscriptionError.badResponse
+        }
+        return usage
+    }
+
+    private static let userAgent = "Tower/1.0 (iOS; local subscription converter)"
+
+    private func load(_ url: URL, source: SubscriptionSource) async throws -> ImportResult {
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
-        request.setValue("Tower/1.0 (iOS; local subscription converter)", forHTTPHeaderField: "User-Agent")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -49,8 +97,9 @@ struct SubscriptionService {
 
         // Only this one header is read. Keeping the whole response would drag
         // cookies and other session state into app state for no reason.
-        var usage = (httpResponse.value(forHTTPHeaderField: "subscription-userinfo"))
-            .flatMap(SubscriptionUsage.parse(header:)) ?? SubscriptionUsage()
+        let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo")
+            .flatMap(SubscriptionUsage.parse(header:))
+        var usage = header ?? parsed.status ?? SubscriptionUsage()
         usage.notices = parsed.notices
 
         return ImportResult(
@@ -68,6 +117,9 @@ struct SubscriptionParser {
         /// Airport announcements smuggled into the node list — remaining
         /// traffic, expiry and the like.
         var notices: [String] = []
+        /// Quota read from a `STATUS=` line at the head of the list, for the
+        /// panels that put it there instead of in the response header.
+        var status: SubscriptionUsage?
     }
 
     /// Names that are an announcement rather than a node.
@@ -84,9 +136,23 @@ struct SubscriptionParser {
         "expire", "expires", "traffic", "remaining", "reset"
     ]
 
+    /// Hosts an airport parks its announcement entries on so they look like
+    /// nodes. No real proxy runs on a public resolver.
+    private static let placeholderHosts: Set<String> = [
+        "8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "223.5.5.5",
+        "127.0.0.1", "0.0.0.0", "localhost", "example.com"
+    ]
+
     static func isNotice(_ name: String) -> Bool {
         let text = name.lowercased()
         return noticeKeywords.contains { text.contains($0.lowercased()) }
+    }
+
+    /// Announcements the keyword list misses still give themselves away by
+    /// where they point: one airport advertises its client this way, with the
+    /// pitch as the name and `8.8.8.8:8` as the endpoint.
+    static func isNotice(_ node: ProxyNode) -> Bool {
+        isNotice(node.name) || placeholderHosts.contains(node.server.lowercased())
     }
 
     func parse(data: Data, sourceID: UUID? = nil) -> ParsedContent {
@@ -103,10 +169,12 @@ struct SubscriptionParser {
 
         if text.contains("proxies:") {
             let parsed = parseClashYAML(text, sourceID: sourceID)
+            let notices = parsed.nodes.filter { Self.isNotice($0) }.map(\.name)
             return .init(
-                nodes: deduplicated(parsed.nodes.filter { !Self.isNotice($0.name) }),
+                nodes: deduplicated(parsed.nodes.filter { !Self.isNotice($0) }),
                 rejectedLineCount: parsed.rejectedLineCount,
-                notices: parsed.nodes.filter { Self.isNotice($0.name) }.map(\.name)
+                notices: notices,
+                status: notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
             )
         }
 
@@ -123,19 +191,27 @@ struct SubscriptionParser {
 
         var nodes: [ProxyNode] = []
         var rejected = 0
+        var status: SubscriptionUsage?
         for candidate in candidates {
+            // Not a node and not a failure: some panels lead with the quota.
+            if candidate.hasPrefix(SubscriptionUsage.statusPrefix) {
+                status = status ?? SubscriptionUsage.parse(statusLine: candidate)
+                continue
+            }
             if let node = parseURI(candidate, sourceID: sourceID) {
                 nodes.append(node)
             } else {
                 rejected += 1
             }
         }
-        let notices = nodes.filter { Self.isNotice($0.name) }.map(\.name)
-        let real = nodes.filter { !Self.isNotice($0.name) }
+        let notices = nodes.filter { Self.isNotice($0) }.map(\.name)
+        let real = nodes.filter { !Self.isNotice($0) }
         return .init(
             nodes: deduplicated(real),
             rejectedLineCount: rejected,
-            notices: notices
+            notices: notices,
+            // Other panels write the same line in as a node remark.
+            status: status ?? notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
         )
     }
 
