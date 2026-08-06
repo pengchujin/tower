@@ -1167,7 +1167,11 @@ struct ConfigurationGenerator {
             values.append("obfs=over-tls")
             appendValue(node.sni, key: "obfs-host", to: &values)
         }
-        appendQuanXCertificatePolicy(node, to: &values)
+        // Only once a TLS layer exists is there a certificate to skip checking.
+        // A plain `ws` or bare TCP node has none, and an airport can still ship
+        // one flagged insecure — Quantumult X rejects the whole file over the
+        // stray key: "配置文件语法错误, line 119".
+        if node.tls { appendQuanXCertificatePolicy(node, to: &values) }
     }
 
     // Trojan and Hysteria 2 always negotiate TLS in Quantumult X, so they need

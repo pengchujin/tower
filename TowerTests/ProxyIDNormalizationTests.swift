@@ -128,3 +128,68 @@ final class TransportPathNormalizationTests: XCTestCase {
         }
     }
 }
+
+/// Quantumult X only accepts `tls-verification` alongside a declared TLS layer.
+/// Airports do ship nodes with no TLS that still carry an insecure flag, and
+/// the stray key rejects the entire profile.
+final class QuanXCertificatePolicyTests: XCTestCase {
+    private let generator = ConfigurationGenerator()
+
+    private func node(tls: Bool, transport: String?) -> ProxyNode {
+        ProxyNode(
+            kind: .vless, name: "IR 01", server: "fn.example.com", port: 2090,
+            uuid: "b831381d-6324-4d53-ad4f-8cda48b30811",
+            transport: transport, tls: tls,
+            path: transport == "ws" ? "/x" : nil,
+            skipCertificateVerification: true, rawURI: "vless://x"
+        )
+    }
+
+    private func line(_ node: ProxyNode) -> String {
+        let content = generator.generate(
+            nodes: [node], preset: RulePreset.builtIns[0], target: .quanx
+        ).content
+        return content.split(separator: "\n").first { $0.hasPrefix("vless=") }.map(String.init) ?? ""
+    }
+
+    func testPlainNodeDropsTheCertificateKeyItCannotUse() {
+        let output = line(node(tls: false, transport: nil))
+
+        XCTAssertFalse(output.contains("tls-verification"), output)
+        XCTAssertFalse(output.contains("obfs="), output)
+    }
+
+    func testPlainWebsocketAlsoDropsIt() {
+        let output = line(node(tls: false, transport: "ws"))
+
+        XCTAssertTrue(output.contains("obfs=ws"), output)
+        XCTAssertFalse(output.contains("tls-verification"), output)
+    }
+
+    func testSecureNodesKeepIt() {
+        let overTLS = line(node(tls: true, transport: nil))
+        XCTAssertTrue(overTLS.contains("obfs=over-tls"), overTLS)
+        XCTAssertTrue(overTLS.contains("tls-verification=false"), overTLS)
+
+        let secureWebsocket = line(node(tls: true, transport: "ws"))
+        XCTAssertTrue(secureWebsocket.contains("obfs=wss"), secureWebsocket)
+        XCTAssertTrue(secureWebsocket.contains("tls-verification=false"), secureWebsocket)
+    }
+
+    func testNoQuanXLineEverCarriesTheKeyWithoutObfs() {
+        let nodes = [
+            node(tls: false, transport: nil), node(tls: false, transport: "ws"),
+            node(tls: true, transport: nil), node(tls: true, transport: "ws")
+        ].enumerated().map { index, node in
+            var renamed = node
+            renamed.name = "Node \(index)"
+            return renamed
+        }
+
+        let content = generator.generate(nodes: nodes, preset: RulePreset.builtIns[0], target: .quanx).content
+
+        for line in content.split(separator: "\n") where line.contains("tls-verification") {
+            XCTAssertTrue(line.contains("obfs="), "缺少 obfs 却写了 tls-verification：\(line)")
+        }
+    }
+}
