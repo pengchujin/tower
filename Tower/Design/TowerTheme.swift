@@ -189,5 +189,8 @@ struct CheckmarkToggleStyle: ToggleStyle {
         }
         .buttonStyle(ResponsivePressButtonStyle())
         .accessibilityAddTraits(.isToggle)
+        // Every other choice in the app taps back — the tab bar, the rule
+        // list, the client picker. This one was the exception.
+        .sensoryFeedback(.selection, trigger: configuration.isOn)
     }
 }
