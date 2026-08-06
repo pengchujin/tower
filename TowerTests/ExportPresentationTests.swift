@@ -26,12 +26,19 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertTrue(textView.textContainer.widthTracksTextView)
     }
 
-    func testEveryClientTargetUsesBundledAppStoreIcon() {
+    /// A declared asset must actually be bundled, and a client with no artwork
+    /// must fall back to a symbol that exists — a missing asset renders as a
+    /// blank square, which reads as breakage rather than as "we ship no icon".
+    func testEveryClientTargetResolvesToSomethingDrawable() {
         for target in ClientTarget.allCases {
-            XCTAssertNotNil(
-                UIImage(named: target.appIconAssetName),
-                "\(target.name) 缺少本地 App Store 图标"
-            )
+            if let asset = target.appIconAssetName {
+                XCTAssertNotNil(UIImage(named: asset), "\(target.name) 声明了图标却没有打包")
+            } else {
+                XCTAssertNotNil(
+                    UIImage(systemName: target.symbol),
+                    "\(target.name) 没有图标，回退的 SF Symbol 也不存在"
+                )
+            }
         }
     }
 

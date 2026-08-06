@@ -652,6 +652,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case shadowrocket
     case loon
     case quanx
+    case singbox
+    case hiddify
 
     var id: String { rawValue }
 
@@ -662,6 +664,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "Shadowrocket"
         case .loon: "Loon"
         case .quanx: "QuanX"
+        case .singbox: "sing-box"
+        case .hiddify: "Hiddify"
         }
     }
 
@@ -672,6 +676,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "本地配置"
         case .loon: "完整配置"
         case .quanx: "Quantumult X"
+        case .singbox: "sing-box JSON"
+        case .hiddify: "sing-box 内核"
         }
     }
 
@@ -682,25 +688,45 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "paperplane.circle.fill"
         case .loon: "moon.stars.circle.fill"
         case .quanx: "q.circle.fill"
+        case .singbox: "shippingbox.circle.fill"
+        case .hiddify: "eye.slash.circle.fill"
         }
     }
 
-    var appIconAssetName: String {
+    /// `nil` when no artwork is bundled, so the picker falls back to `symbol`
+    /// rather than drawing the blank that a missing asset renders as.
+    var appIconAssetName: String? {
         switch self {
         case .surge: "ClientSurge"
         case .clash: "ClientStash"
         case .shadowrocket: "ClientShadowrocket"
         case .loon: "ClientLoon"
         case .quanx: "ClientQuantumultX"
+        case .singbox, .hiddify: nil
         }
     }
 
+    /// sing-box and Hiddify share a generator: Hiddify is a Flutter shell over
+    /// hiddify-core, which is sing-box, so it reads the same document.
+    var usesSingBoxFormat: Bool {
+        self == .singbox || self == .hiddify
+    }
+
     var fileExtension: String {
-        self == .clash ? "yaml" : "conf"
+        switch self {
+        case .clash: "yaml"
+        case .singbox, .hiddify: "json"
+        default: "conf"
+        }
     }
 
     var supportsDirectConfigurationImport: Bool {
-        self != .quanx
+        // Quantumult X has no import scheme, and neither sing-box nor Hiddify
+        // documents one, so those go through the system share sheet.
+        switch self {
+        case .quanx, .singbox, .hiddify: false
+        default: true
+        }
     }
 
     var primaryImportTitle: String {
@@ -725,6 +751,10 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // sample.conf documents ss2022, REALITY, vless-flow and AnyTLS but
             // no Hysteria at all.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .anytls, .socks5, .http].contains(kind)
+        case .singbox, .hiddify:
+            // Snell is accepted here but only from v4 up, which is the inverse
+            // of Clash's ceiling of v3; writes(_:to:excluding:) applies that.
+            kind != .unknown
         }
     }
 }

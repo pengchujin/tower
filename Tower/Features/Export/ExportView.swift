@@ -167,11 +167,24 @@ private struct ClientAppIcon: View {
     let size: CGFloat
 
     var body: some View {
-        Image(target.appIconAssetName)
-            .resizable()
-            .interpolation(.high)
-            .antialiased(true)
-            .scaledToFill()
+        // Clients with no bundled artwork fall back to their symbol. A missing
+        // asset renders as a blank square, which reads as a broken icon rather
+        // than as an icon we simply do not ship.
+        Group {
+            if let asset = target.appIconAssetName {
+                Image(asset)
+                    .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
+                    .scaledToFill()
+            } else {
+                Image(systemName: target.symbol)
+                    .font(.system(size: size * 0.52))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: size, height: size)
+                    .background(Color.accentColor.opacity(0.12))
+            }
+        }
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
             .overlay {

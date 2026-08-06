@@ -62,6 +62,8 @@ struct ConfigurationGenerator {
             content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .quanx:
             content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
+        case .singbox, .hiddify:
+            content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
         }
 
         return GeneratedConfiguration(
@@ -99,6 +101,8 @@ struct ConfigurationGenerator {
             content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         case .quanx:
             content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+        case .singbox, .hiddify:
+            content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         }
 
         return GeneratedConfiguration(
@@ -126,10 +130,13 @@ struct ConfigurationGenerator {
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
+        // sing-box's ceiling runs the other way: its Snell starts at v4 and it
+        // rejects anything older, so v1–v3 cannot be written there.
+        if node.kind == .snell, target.usesSingBoxFormat, (node.version ?? 4) < 4 { return false }
         return true
     }
 
-    private struct ResolvedSchemeGroup {
+    struct ResolvedSchemeGroup {
         let name: String
         let kind: RuleSchemeGroup.Kind
         /// Group references and node names, in the order the source declared.
@@ -1199,7 +1206,7 @@ struct ConfigurationGenerator {
     /// plugin. `obfs`/`obfsParam` hold the ShadowsocksR obfuscation for SSR
     /// nodes, so this is scoped to plain Shadowsocks, where the same fields
     /// carry the SIP003 plugin's mode and host.
-    private func simpleObfsMode(_ node: ProxyNode) -> String? {
+    func simpleObfsMode(_ node: ProxyNode) -> String? {
         guard node.kind == .shadowsocks,
               let mode = node.obfs?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
               ["http", "tls"].contains(mode) else { return nil }
@@ -1499,7 +1506,7 @@ private struct RegionDefinition {
     let iconFile: String
 }
 
-private struct RegionStrategyGroup {
+struct RegionStrategyGroup {
     let name: String
     let nodeNames: [String]
     let iconURL: String
@@ -1511,5 +1518,418 @@ private extension Array where Element: Hashable {
     func removingDuplicates() -> [Element] {
         var seen = Set<Element>()
         return filter { seen.insert($0).inserted }
+    }
+}
+
+// MARK: - sing-box
+
+/// sing-box speaks JSON, and Hiddify is a Flutter shell over hiddify-core,
+/// which is sing-box — so one document serves both.
+///
+/// The tree is built as Foundation objects and handed to `JSONSerialization`
+/// rather than assembled as text. Node names are airport-controlled and the
+/// serialiser escapes them for us, which is the same reason `confName` and
+/// `yaml()` exist for the other formats.
+extension ConfigurationGenerator {
+    struct SingBoxGroup {
+        let tag: String
+        let isAutomatic: Bool
+        let members: [String]
+    }
+
+    func singBox(
+        nodes: [ProxyNode],
+        preset: RulePreset,
+        regionGroups: [RegionStrategyGroup]
+    ) -> String {
+        let nodeTags = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let regionGroupNames = regionGroups.map(\.name)
+
+        var groups: [SingBoxGroup] = [
+            .init(
+                tag: RulePolicy.select.configurationName,
+                isAutomatic: false,
+                members: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
+            ),
+            .init(tag: RulePolicy.auto.configurationName, isAutomatic: true, members: nodeTags),
+            .init(
+                tag: Self.manualGroupName,
+                isAutomatic: false,
+                members: nodeTags.isEmpty ? [Self.singBoxDirectTag] : nodeTags
+            ),
+            // The four aliases every policy group points at. Clash declares
+            // them as hidden groups; sing-box has no hidden flag but still
+            // needs them to exist, or it refuses to start on the dangling
+            // reference that policyChoices hands out.
+            .init(
+                tag: Self.nestedSelectGroupName,
+                isAutomatic: false,
+                members: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
+            ),
+            .init(tag: Self.nestedAutoGroupName, isAutomatic: true, members: nodeTags),
+            .init(
+                tag: Self.nestedManualGroupName,
+                isAutomatic: false,
+                members: nodeTags.isEmpty ? [Self.singBoxDirectTag] : nodeTags
+            ),
+            .init(tag: Self.directGroupName, isAutomatic: false, members: [Self.singBoxDirectTag])
+        ]
+        for policy in configurablePolicies(preset) where !Self.singBoxRejectingPolicies.contains(policy) {
+            groups.append(.init(
+                tag: policy.configurationName,
+                isAutomatic: false,
+                members: policyChoices(
+                    policy,
+                    regionGroupNames: regionGroupNames,
+                    reject: Self.singBoxRejectTag
+                )
+            ))
+        }
+        for group in regionGroups {
+            groups.append(.init(
+                tag: group.name,
+                isAutomatic: false,
+                members: [group.automaticName] + group.nodeNames
+            ))
+            groups.append(.init(tag: group.automaticName, isAutomatic: true, members: group.nodeNames))
+        }
+
+        var outbounds: [[String: Any]] = groups.map { group in
+            var outbound: [String: Any] = [
+                "tag": group.tag,
+                "type": group.isAutomatic ? "urltest" : "selector",
+                // A group with nothing in it still has to resolve somewhere, or
+                // sing-box refuses to start on a dangling reference.
+                "outbounds": group.members.isEmpty ? [Self.singBoxDirectTag] : group.members
+            ]
+            if group.isAutomatic {
+                outbound["url"] = "https://www.gstatic.com/generate_204"
+                outbound["interval"] = "300s"
+                outbound["tolerance"] = 50
+            }
+            return outbound
+        }
+        outbounds += nodes.compactMap(singBoxOutbound)
+        outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
+
+        let configuration: [String: Any] = [
+            "log": ["level": "warn", "timestamp": true],
+            "dns": [
+                "servers": [
+                    ["tag": "remote", "address": "https://1.1.1.1/dns-query", "detour": RulePolicy.select.configurationName],
+                    ["tag": "local", "address": "https://223.5.5.5/dns-query", "detour": Self.singBoxDirectTag]
+                ],
+                "final": "local",
+                "strategy": "prefer_ipv4"
+            ],
+            "inbounds": [[
+                "type": "tun",
+                "tag": "tun-in",
+                "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+                "auto_route": true,
+                "strict_route": true,
+                "stack": "mixed"
+            ]],
+            "outbounds": outbounds,
+            "route": [
+                "rules": singBoxRules(preset: preset),
+                "final": preset.finalPolicy.configurationName,
+                "auto_detect_interface": true
+            ],
+            "experimental": [
+                "cache_file": ["enabled": true, "store_fakeip": false]
+            ]
+        ]
+
+        guard let data = try? JSONSerialization.data(
+            withJSONObject: configuration,
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        ), let text = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return text + "\n"
+    }
+
+    static let singBoxDirectTag = "DIRECT"
+    static let singBoxRejectTag = "REJECT"
+
+    /// Policies whose whole point is to drop traffic.
+    ///
+    /// The other clients express these as a group the user can flip between
+    /// REJECT and DIRECT. sing-box cannot: from 1.11 rejection is a route
+    /// action and there is no outbound for a selector to point at. So the
+    /// rules carry `action: reject` directly and no group is emitted — which
+    /// is what the group defaulted to anyway.
+    static let singBoxRejectingPolicies: Set<RulePolicy> = [.reject, .foreignAds]
+
+    /// Route rules, grouped by destination.
+    ///
+    /// sing-box takes arrays per rule, so every domain heading for the same
+    /// policy collapses into one entry instead of one line each — an ACL4SSR
+    /// snapshot is twenty thousand rules and the per-line form is unreadable
+    /// and slow to parse.
+    private func singBoxRules(preset: RulePreset) -> [[String: Any]] {
+        var ordered: [String] = []
+        var byPolicy: [String: [String: [String]]] = [:]
+
+        for assignment in preset.assignments {
+            let policyName = Self.singBoxRejectingPolicies.contains(assignment.policy)
+                ? Self.singBoxRejectTag
+                : assignment.policy.configurationName
+            for rule in rules.lines(for: assignment) {
+                let parts = rule.split(separator: ",", omittingEmptySubsequences: false)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                guard parts.count >= 2, let field = Self.singBoxRuleFields[parts[0].uppercased()] else {
+                    continue
+                }
+                let value = parts[1]
+                guard !value.isEmpty else { continue }
+                if byPolicy[policyName] == nil {
+                    byPolicy[policyName] = [:]
+                    ordered.append(policyName)
+                }
+                byPolicy[policyName]?[field, default: []].append(value)
+            }
+        }
+
+        var result: [[String: Any]] = []
+        for policyName in ordered {
+            guard let fields = byPolicy[policyName], !fields.isEmpty else { continue }
+            var rule: [String: Any] = [:]
+            for (field, values) in fields.sorted(by: { $0.key < $1.key }) {
+                rule[field] = values.removingDuplicates()
+            }
+            // 1.11 deprecated the block outbound; rejection is a rule action now.
+            if policyName == Self.singBoxRejectTag {
+                rule["action"] = "reject"
+            } else {
+                rule["outbound"] = policyName
+            }
+            result.append(rule)
+        }
+        if preset.includeGeoIPCN {
+            result.append(["ip_is_private": true, "outbound": Self.singBoxDirectTag])
+        }
+        return result
+    }
+
+    private static let singBoxRuleFields: [String: String] = [
+        "DOMAIN": "domain",
+        "DOMAIN-SUFFIX": "domain_suffix",
+        "DOMAIN-KEYWORD": "domain_keyword",
+        "IP-CIDR": "ip_cidr",
+        "IP-CIDR6": "ip_cidr",
+        "IP6-CIDR": "ip_cidr",
+        "PROCESS-NAME": "process_name"
+    ]
+}
+
+extension ConfigurationGenerator {
+    /// One outbound object, shaped the way sing-box's own schema documents and
+    /// Sub-Store's producer emits.
+    func singBoxOutbound(_ node: ProxyNode) -> [String: Any]? {
+        var outbound: [String: Any] = [
+            "tag": NodeRegionResolver.displayName(for: node),
+            "server": node.server,
+            "server_port": node.port
+        ]
+
+        switch node.kind {
+        case .shadowsocks:
+            outbound["type"] = "shadowsocks"
+            outbound["method"] = node.cipher ?? "aes-256-gcm"
+            outbound["password"] = node.password ?? ""
+            if let mode = simpleObfsMode(node) {
+                outbound["plugin"] = "obfs-local"
+                var options = ["obfs=\(mode)"]
+                if let host = node.obfsParam, !host.isEmpty { options.append("obfs-host=\(host)") }
+                outbound["plugin_opts"] = options.joined(separator: ";")
+            }
+        case .shadowsocksR:
+            outbound["type"] = "shadowsocksr"
+            outbound["method"] = node.cipher ?? "aes-256-cfb"
+            outbound["password"] = node.password ?? ""
+            outbound["protocol"] = node.protocolName ?? "origin"
+            if let param = node.protocolParam { outbound["protocol_param"] = param }
+            outbound["obfs"] = node.obfs ?? "plain"
+            if let param = node.obfsParam { outbound["obfs_param"] = param }
+        case .vmess:
+            outbound["type"] = "vmess"
+            outbound["uuid"] = node.exportableUUID ?? ""
+            outbound["security"] = singBoxVMessSecurity(node)
+            outbound["alter_id"] = 0
+        case .vless:
+            outbound["type"] = "vless"
+            outbound["uuid"] = node.exportableUUID ?? ""
+        case .trojan:
+            outbound["type"] = "trojan"
+            outbound["password"] = node.password ?? ""
+        case .hysteria2:
+            outbound["type"] = "hysteria2"
+            outbound["password"] = node.password ?? ""
+        case .anytls:
+            outbound["type"] = "anytls"
+            outbound["password"] = node.password ?? ""
+        case .snell:
+            outbound["type"] = "snell"
+            outbound["psk"] = node.password ?? ""
+            // writes(_:to:excluding:) already dropped anything below v4, which
+            // is where sing-box's Snell support starts.
+            outbound["version"] = node.version ?? 4
+        case .socks5:
+            outbound["type"] = "socks"
+            outbound["version"] = "5"
+            if let user = node.username, !user.isEmpty { outbound["username"] = user }
+            if let password = node.password, !password.isEmpty { outbound["password"] = password }
+        case .http:
+            outbound["type"] = "http"
+            if let user = node.username, !user.isEmpty { outbound["username"] = user }
+            if let password = node.password, !password.isEmpty { outbound["password"] = password }
+        case .unknown:
+            return nil
+        }
+
+        if let tls = singBoxTLS(node) { outbound["tls"] = tls }
+        if let transport = singBoxTransport(node) { outbound["transport"] = transport }
+        return outbound
+    }
+
+    /// Trojan, Hysteria 2 and AnyTLS are TLS by definition, so they carry the
+    /// block whether or not the node bothered to say `tls=1`.
+    private func singBoxTLS(_ node: ProxyNode) -> [String: Any]? {
+        let alwaysSecure: Set<ProxyKind> = [.trojan, .hysteria2, .anytls]
+        guard node.tls || alwaysSecure.contains(node.kind) else { return nil }
+
+        var tls: [String: Any] = [
+            "enabled": true,
+            "server_name": node.sni ?? node.hostHeader ?? node.server,
+            "insecure": node.skipCertificateVerification
+        ]
+        if let alpn = node.alpn, !alpn.isEmpty {
+            tls["alpn"] = alpn.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+        return tls
+    }
+
+    private func singBoxTransport(_ node: ProxyNode) -> [String: Any]? {
+        guard let transport = node.transport, !transport.isEmpty, transport != "tcp" else { return nil }
+        switch transport {
+        case "ws":
+            var websocket: [String: Any] = ["type": "ws"]
+            if let path = node.exportablePath { websocket["path"] = path }
+            if let host = node.hostHeader, !host.isEmpty { websocket["headers"] = ["Host": host] }
+            return websocket
+        case "grpc":
+            var grpc: [String: Any] = ["type": "grpc"]
+            if let service = node.path, !service.isEmpty {
+                grpc["service_name"] = service.hasPrefix("/") ? String(service.dropFirst()) : service
+            }
+            return grpc
+        case "h2", "http":
+            var http: [String: Any] = ["type": "http"]
+            if let path = node.exportablePath { http["path"] = path }
+            if let host = node.hostHeader, !host.isEmpty { http["host"] = [host] }
+            return http
+        default:
+            return nil
+        }
+    }
+
+    /// sing-box rejects `auto`; it wants a concrete cipher.
+    private func singBoxVMessSecurity(_ node: ProxyNode) -> String {
+        let accepted: Set<String> = [
+            "auto", "none", "zero", "aes-128-gcm", "chacha20-poly1305", "aes-128-ctr"
+        ]
+        let cipher = node.cipher?.lowercased() ?? ""
+        guard accepted.contains(cipher), cipher != "auto" else { return "auto" }
+        return cipher
+    }
+}
+
+extension ConfigurationGenerator {
+    /// The imported-scheme path, reproducing the groups the source file
+    /// declared instead of Tower's own policy layout — same contract as the
+    /// other clients, expressed as sing-box selectors and urltests.
+    func singBoxScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var outbounds: [[String: Any]] = groups.map { group in
+            var outbound: [String: Any] = [
+                "tag": group.name,
+                "type": group.kind == .urlTest ? "urltest" : "selector",
+                "outbounds": group.members.isEmpty ? [Self.singBoxDirectTag] : group.members
+            ]
+            if group.kind == .urlTest {
+                outbound["url"] = group.testURL
+                outbound["interval"] = "\(group.interval)s"
+                outbound["tolerance"] = group.tolerance
+            }
+            return outbound
+        }
+        outbounds += nodes.compactMap(singBoxOutbound)
+        outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
+
+        var rules: [[String: Any]] = []
+        var finalGroup = groups.first?.name ?? Self.singBoxDirectTag
+        var ordered: [String] = []
+        var byGroup: [String: [String: [String]]] = [:]
+
+        for ruleset in scheme.rulesets {
+            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
+                finalGroup = ruleset.groupName
+                continue
+            }
+            for line in schemes.lines(for: ruleset.resource) {
+                let parts = line.split(separator: ",", omittingEmptySubsequences: false)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                guard parts.count >= 2,
+                      let field = Self.singBoxRuleFields[parts[0].uppercased()],
+                      !parts[1].isEmpty else { continue }
+                if byGroup[ruleset.groupName] == nil {
+                    byGroup[ruleset.groupName] = [:]
+                    ordered.append(ruleset.groupName)
+                }
+                byGroup[ruleset.groupName]?[field, default: []].append(parts[1])
+            }
+        }
+        for groupName in ordered {
+            guard let fields = byGroup[groupName], !fields.isEmpty else { continue }
+            var rule: [String: Any] = [:]
+            for (field, values) in fields.sorted(by: { $0.key < $1.key }) {
+                rule[field] = values.removingDuplicates()
+            }
+            if groupName.uppercased() == "REJECT" {
+                rule["action"] = "reject"
+            } else {
+                rule["outbound"] = groupName
+            }
+            rules.append(rule)
+        }
+
+        let configuration: [String: Any] = [
+            "log": ["level": "warn", "timestamp": true],
+            "inbounds": [[
+                "type": "tun",
+                "tag": "tun-in",
+                "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+                "auto_route": true,
+                "strict_route": true,
+                "stack": "mixed"
+            ]],
+            "outbounds": outbounds,
+            "route": ["rules": rules, "final": finalGroup, "auto_detect_interface": true],
+            "experimental": ["cache_file": ["enabled": true, "store_fakeip": false]]
+        ]
+
+        guard let data = try? JSONSerialization.data(
+            withJSONObject: configuration,
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        ), let text = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return text + "\n"
     }
 }

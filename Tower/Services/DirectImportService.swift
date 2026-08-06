@@ -38,7 +38,9 @@ struct ClientImportURLBuilder {
             value = "shadowrocket://config/add/\(configurationURL.absoluteString)"
         case .loon:
             value = "loon://import?sub=\(encodedURL)"
-        case .quanx:
+        // Quantumult X publishes no install scheme, and neither sing-box nor
+        // Hiddify documents one; those reach the client through the share sheet.
+        case .quanx, .singbox, .hiddify:
             throw DirectImportError.unsupportedTarget(target)
         }
 

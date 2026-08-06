@@ -35,9 +35,18 @@ final class ConfigurationGeneratorTests: XCTestCase {
             let result = generator.generate(nodes: nodes, preset: preset, target: target)
             XCTAssertGreaterThan(result.content.count, 200, target.name)
             XCTAssertTrue(result.content.contains("Hong Kong"), target.name)
-            XCTAssertTrue(result.content.contains("Generated locally by 塔台"), target.name)
             XCTAssertEqual(result.target, target)
             XCTAssertEqual(result.skippedNodeCount, 0, target.name)
+            // JSON has no comment syntax and sing-box rejects unknown keys, so
+            // the provenance header only exists in the text formats.
+            if target.usesSingBoxFormat {
+                XCTAssertNoThrow(
+                    try JSONSerialization.jsonObject(with: Data(result.content.utf8)),
+                    "\(target.name) 输出不是合法 JSON"
+                )
+            } else {
+                XCTAssertTrue(result.content.contains("Generated locally by 塔台"), target.name)
+            }
         }
     }
 
@@ -107,8 +116,25 @@ final class ConfigurationGeneratorTests: XCTestCase {
 
         for target in ClientTarget.allCases {
             let content = generator.generate(nodes: nodes, preset: preset, target: target).content
-            XCTAssertTrue(content.contains(expectations[target, default: "missing"]), "\(target.name) 嵌套策略缺少匹配 Emoji")
             XCTAssertTrue(content.contains("🎯 直接连接"), "\(target.name) 未将 DIRECT 显示为中文")
+            // The sing-box document is serialised, so it is checked by shape
+            // rather than by a formatting-sensitive substring.
+            guard !target.usesSingBoxFormat else {
+                let object = try? JSONSerialization.jsonObject(with: Data(content.utf8))
+                let config = object as? [String: Any]
+                let outbounds = config?["outbounds"] as? [[String: Any]] ?? []
+                let group = outbounds.first { $0["tag"] as? String == "AI服务" }
+                // The text formats are checked with a prefix match, so this
+                // checks the same three leading members rather than the whole
+                // list, which also carries the region groups and direct.
+                XCTAssertEqual(
+                    (group?["outbounds"] as? [String])?.prefix(3).map { $0 },
+                    ["🚀 节点选择", "♻️ 自动选择", "🎛️ 手动切换"],
+                    "\(target.name) 嵌套策略成员不对"
+                )
+                continue
+            }
+            XCTAssertTrue(content.contains(expectations[target, default: "missing"]), "\(target.name) 嵌套策略缺少匹配 Emoji")
         }
     }
 

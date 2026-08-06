@@ -174,6 +174,18 @@ final class ConfigurationCredentialTests: XCTestCase {
                 "\(target.name) 节点名换行后多出了配置行"
             )
 
+            // A serialised format cannot be injected by construction: the
+            // escaping is the encoder's job, so the check is that no extra
+            // outbound appeared rather than that the text is absent.
+            guard !target.usesSingBoxFormat else {
+                let object = try? JSONSerialization.jsonObject(with: Data(hostile.utf8))
+                let outbounds = (object as? [String: Any])?["outbounds"] as? [[String: Any]] ?? []
+                XCTAssertFalse(
+                    outbounds.contains { ($0["tag"] as? String) == "REJECT = reject # owned" },
+                    "\(target.name) 节点名注入出了新出站"
+                )
+                continue
+            }
             guard target != .clash else {
                 XCTAssertTrue(
                     hostile.contains(#"name: "HK 01 REJECT = reject # owned""#),
