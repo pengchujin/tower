@@ -251,7 +251,10 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .trojan: "shield.lefthalf.filled"
         case .hysteria2: "hare.fill"
         case .anytls: "lock.shield.fill"
-        case .snell: "shell.fill"
+        // Snell is Surge's own protocol, so this echoes the rounded-square app
+        // icon it ships under, with an S for the name. Not Surge's actual mark:
+        // that is their trademark and this repository is public and MIT.
+        case .snell: "s.square.fill"
         case .socks5, .http: "network"
         case .unknown: "questionmark.circle.fill"
         }
