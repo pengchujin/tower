@@ -39,6 +39,16 @@
 - **更新脚本**：`Scripts/update_ip_country_db.py`
 - **说明文件**：`Tower/Resources/IPCountry/NOTICE.txt`
 
+## 世界地图点阵
+
+- **来源**：[Natural Earth](https://www.naturalearthdata.com)，`ne_110m_land`
+- **本地路径**：`Tower/Resources/WorldMap/`
+- **许可证**：**公共领域**（Natural Earth 明确放弃所有权利，无需署名）
+- **更新脚本**：`Scripts/update_world_dot_map.py`
+- **说明文件**：`Tower/Resources/WorldMap/WorldMap-NOTICE.txt`
+
+首页地图不是 MapKit，而是把陆地多边形栅格化成等距圆柱投影的点阵文本位图，运行时只读这一个文件、不做图像解码。虽然公共领域无需署名，仍记录来源与版本以便追溯和重新生成。
+
 ## 策略组图标
 
 生成的配置中引用了以下图标集的远程地址（图标本身不随 App 打包，由客户端按需加载）：

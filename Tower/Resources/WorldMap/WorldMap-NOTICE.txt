@@ -1,0 +1,17 @@
+World land outlines
+===================
+
+Source:     Natural Earth, ne_110m_land
+Source URL: https://www.naturalearthdata.com
+Revision:   master
+License:    Public domain
+
+Natural Earth places all of its raster and vector map data in the
+public domain, so no attribution is required. It is recorded here
+anyway so the snapshot can be traced and regenerated.
+
+Grid:   200 x 90, equirectangular
+Bounds: longitude -180..180, latitude -60.0..84.0
+SHA256: 9a5b6c21c0977699685333eb1b6d9767e622b4fd13e3f51458e2051c8e1db30b
+
+Regenerate with: python3 Scripts/update_world_dot_map.py

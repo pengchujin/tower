@@ -11,12 +11,11 @@
 ## 当前能力
 
 - 添加、启用、更新和删除 HTTPS 订阅
-- 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、SOCKS5 自有节点
+- 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5 自有节点；Snell 粘贴 Surge 配置行添加
 - 首页节点与订阅都可展开查看地址、协议、地区和测试方式
 - 节点行使用服务器 IP 的离线国家识别结果显示地区 Logo，并列出协议、传输、TLS 与 UDP 能力
-- 首页直接使用 MapKit 嵌入可旋转、缩放和调整视角的圆形地球，优先按服务器 IP 的离线国家结果聚合节点，并显示 Apple 地图中的国家、城市与边界标注；IP 暂不可解析时才参考节点名称
-- 地球支持“地图标注、简洁、深空、蓝色星球、卫星原色”五种样式；默认使用带位置名称的地图标注样式并记住本机选择
-- 展开地球或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
+- 首页使用自绘的点阵世界地图，优先按服务器 IP 的离线国家结果聚合节点；IP 暂不可解析时才参考节点名称
+- 展开地图或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
 - 读取常见 Base64 节点订阅和 Clash YAML，包括仅含 HTTP(S)/SOCKS 的 Base64 列表与 Clash 嵌套 WebSocket 选项
 - 内置 Self-Configuration：覆盖 AI、YouTube、全球流媒体、Telegram、Google、Apple、Microsoft、国内外流量与广告过滤
 - 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
@@ -75,7 +74,8 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 
 ## 已知边界
 
-- 不支持 Shadowsocks 的 SIP003 插件（`obfs-local`、`v2ray-plugin` 等）。带 `plugin=` 的节点会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
+- Shadowsocks 的 SIP003 插件只支持 simple-obfs（`obfs`/`obfs-local`）。`v2ray-plugin` 等其余插件会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
+- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
 - 机场厂商自定义的非标准节点字段可能需要增加兼容适配。
 - 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。
 - Quantumult X 是否直接出现在分享列表中，取决于其声明的文件类型；未出现时可先存到“文件”再从客户端导入。

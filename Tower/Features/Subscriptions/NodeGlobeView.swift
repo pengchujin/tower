@@ -1,4 +1,4 @@
-import MapKit
+import CoreLocation
 import SwiftUI
 
 struct NodeGlobeOverview: View {
@@ -6,19 +6,8 @@ struct NodeGlobeOverview: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let nodes: [ProxyNode]
 
-    @AppStorage("nodeGlobeMapKitStyle") private var selectedMapStyleRawValue = NodeGlobeMapStyle.hybrid.rawValue
-    @AppStorage("nodeGlobeMapKitStyleVersion") private var mapStyleVersion = 0
     @State private var selectedRegionCode: String?
     @State private var didSelectInitialRegion = false
-    @State private var cameraRevision = 0
-    @State private var camera: MapCameraPosition = .camera(
-        MapCamera(
-            centerCoordinate: CLLocationCoordinate2D(latitude: 20, longitude: 115),
-            distance: 21_000_000,
-            heading: 0,
-            pitch: 0
-        )
-    )
 
     init(nodes: [ProxyNode]) {
         self.nodes = nodes
@@ -26,7 +15,7 @@ struct NodeGlobeOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            globe
+            map
                 .id(SubscriptionScrollTarget.regions)
                 .accessibilityIdentifier("regions-section")
             regionDetail
@@ -35,12 +24,7 @@ struct NodeGlobeOverview: View {
                 .accessibilityIdentifier("nodes-section")
         }
         .sensoryFeedback(.selection, trigger: selectedRegionCode)
-        .sensoryFeedback(.selection, trigger: selectedMapStyleRawValue)
         .onAppear {
-            if mapStyleVersion < 1 {
-                selectedMapStyleRawValue = NodeGlobeMapStyle.hybrid.rawValue
-                mapStyleVersion = 1
-            }
             // Only the first appearance picks a region. Re-selecting here would
             // undo a deliberate collapse whenever the view comes back on screen.
             if !didSelectInitialRegion {
@@ -62,137 +46,53 @@ struct NodeGlobeOverview: View {
         }
     }
 
-    private var globe: some View {
+    private var map: some View {
         ZStack(alignment: .topTrailing) {
-            // MapKit hides native annotations at the full-globe distance on
-            // iOS 27. Project our pins through MapProxy so they stay visible
-            // and continue to follow the globe while it rotates or zooms.
-            MapReader { proxy in
-                styledMap
-                    .overlay {
-                        GeometryReader { geometry in
-                            let _ = cameraRevision
-                            ForEach(clusters) { cluster in
-                                if let point = proxy.convert(cluster.region.coordinate, to: .local),
-                                   isVisible(point, in: geometry.size) {
-                                    Button {
-                                        withAnimation(expansionAnimation) {
-                                            // Tapping the selected pin again
-                                            // collapses its node list.
-                                            selectedRegionCode = selectedRegionCode == cluster.id
-                                                ? nil
-                                                : cluster.id
-                                        }
-                                    } label: {
-                                        NodeRegionPin(
-                                            cluster: cluster,
-                                            bestLatency: bestLatency(in: cluster),
-                                            isSelected: selectedRegionCode == cluster.id
-                                        )
-                                    }
-                                    .buttonStyle(ResponsivePressButtonStyle())
-                                    .position(point)
-                                    .accessibilityLabel("\(cluster.region.name)，\(cluster.nodes.count) 个节点")
-                                }
-                            }
+            WorldDotMapView(markers: markers) { entry in
+                if let cluster = clusters.first(where: { $0.id == entry.id }) {
+                    Button {
+                        withAnimation(expansionAnimation) {
+                            // Tapping the selected marker again collapses its
+                            // node list.
+                            selectedRegionCode = selectedRegionCode == cluster.id ? nil : cluster.id
                         }
+                    } label: {
+                        NodeRegionPin(
+                            cluster: cluster,
+                            bestLatency: bestLatency(in: cluster),
+                            isSelected: selectedRegionCode == cluster.id
+                        )
                     }
-            }
-            .frame(height: 330)
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .stroke(.white.opacity(0.32), lineWidth: 0.75)
-            }
-
-            HStack(alignment: .top) {
-                Menu {
-                    Picker("地球样式", selection: mapStyleSelection) {
-                        ForEach(NodeGlobeMapStyle.allCases) { style in
-                            Label(style.title, systemImage: style.symbol)
-                                .tag(style)
-                        }
-                    }
-                } label: {
-                    Label(selectedMapStyle.title, systemImage: selectedMapStyle.symbol)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: Capsule())
+                    .buttonStyle(ResponsivePressButtonStyle())
+                    .accessibilityLabel("\(cluster.region.name)，\(cluster.nodes.count) 个节点")
                 }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .accessibilityLabel("地球样式，当前为\(selectedMapStyle.title)")
-
-                Spacer()
-
-                Button {
-                    Task { await model.testLatencies(nodes, force: true) }
-                } label: {
-                    Image(systemName: "gauge.with.dots.needle.67percent")
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 34, height: 34)
-                        .background(.regularMaterial, in: Circle())
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .accessibilityLabel("重新测试全部节点延迟")
             }
+            .padding(.vertical, 10)
+            .frame(height: 260)
+            .towerCard()
+
+            Button {
+                Task { await model.testLatencies(nodes, force: true) }
+            } label: {
+                Image(systemName: "gauge.with.dots.needle.67percent")
+                    .font(.caption.weight(.semibold))
+                    .frame(width: 34, height: 34)
+                    .background(.regularMaterial, in: Circle())
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .accessibilityLabel("重新测试全部节点延迟")
             .padding(12)
         }
     }
 
-    private var interactiveMap: some View {
-        Map(position: $camera, interactionModes: [.pan, .pitch, .rotate, .zoom])
-            .mapControlVisibility(.hidden)
-            .onMapCameraChange(frequency: .continuous) { _ in
-                cameraRevision &+= 1
-            }
-    }
-
-    @ViewBuilder
-    private var styledMap: some View {
-        switch selectedMapStyle {
-        case .clean:
-            interactiveMap
-                .mapStyle(.imagery(elevation: .realistic))
-                .saturation(0.52)
-                .contrast(0.9)
-                .brightness(-0.035)
-        case .deepSpace:
-            interactiveMap
-                .mapStyle(.imagery(elevation: .realistic))
-                .saturation(0.24)
-                .contrast(1.28)
-                .brightness(-0.16)
-                .colorMultiply(Color(red: 0.78, green: 0.86, blue: 1))
-        case .bluePlanet:
-            interactiveMap
-                .mapStyle(.imagery(elevation: .realistic))
-                .saturation(0.2)
-                .contrast(1.05)
-                .brightness(-0.06)
-                .colorMultiply(Color(red: 0.38, green: 0.72, blue: 1))
-        case .satellite:
-            interactiveMap.mapStyle(.imagery(elevation: .realistic))
-        case .hybrid:
-            interactiveMap.mapStyle(
-                .hybrid(
-                    elevation: .realistic,
-                    pointsOfInterest: .all,
-                    showsTraffic: false
-                )
+    private var markers: [WorldDotMarker] {
+        clusters.map {
+            WorldDotMarker(
+                id: $0.id,
+                latitude: $0.region.latitude,
+                longitude: $0.region.longitude
             )
         }
-    }
-
-    private var selectedMapStyle: NodeGlobeMapStyle {
-        NodeGlobeMapStyle(rawValue: selectedMapStyleRawValue) ?? .hybrid
-    }
-
-    private var mapStyleSelection: Binding<NodeGlobeMapStyle> {
-        Binding(
-            get: { selectedMapStyle },
-            set: { selectedMapStyleRawValue = $0.rawValue }
-        )
     }
 
     @ViewBuilder
@@ -252,36 +152,6 @@ struct NodeGlobeOverview: View {
     private func isVisible(_ point: CGPoint, in size: CGSize) -> Bool {
         point.x >= 20 && point.x <= size.width - 20
             && point.y >= 20 && point.y <= size.height - 20
-    }
-}
-
-private enum NodeGlobeMapStyle: String, CaseIterable, Identifiable {
-    case hybrid
-    case clean
-    case deepSpace
-    case bluePlanet
-    case satellite
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .hybrid: "地图标注"
-        case .clean: "简洁"
-        case .deepSpace: "深空"
-        case .bluePlanet: "蓝色星球"
-        case .satellite: "卫星原色"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .hybrid: "map.fill"
-        case .clean: "globe"
-        case .deepSpace: "sparkles"
-        case .bluePlanet: "globe.americas.fill"
-        case .satellite: "globe.asia.australia.fill"
-        }
     }
 }
 
