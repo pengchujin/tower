@@ -62,7 +62,7 @@ struct ConfigurationGenerator {
             content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .quanx:
             content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
-        case .singbox, .hiddify:
+        case .hiddify:
             content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .egern:
             content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
@@ -103,7 +103,7 @@ struct ConfigurationGenerator {
             content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         case .quanx:
             content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
-        case .singbox, .hiddify:
+        case .hiddify:
             content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         case .egern:
             content = egernScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)

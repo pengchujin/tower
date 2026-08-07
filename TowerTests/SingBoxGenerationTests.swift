@@ -35,23 +35,21 @@ final class SingBoxGenerationTests: XCTestCase {
     // MARK: - Document shape
 
     func testOutputIsValidJSON() throws {
-        let config = try json(.singbox, nodes: [node(.shadowsocks)])
+        let config = try json(.hiddify, nodes: [node(.shadowsocks)])
 
         XCTAssertNotNil(config["outbounds"])
         XCTAssertNotNil(config["route"])
         XCTAssertNotNil(config["inbounds"])
     }
 
-    func testHiddifyGetsTheIdenticalDocument() {
-        let nodes = [node(.shadowsocks), node(.trojan, name: "JP 01")]
-        let singbox = generator.generate(nodes: nodes, preset: preset, target: .singbox).content
-        let hiddify = generator.generate(nodes: nodes, preset: preset, target: .hiddify).content
-
-        XCTAssertEqual(singbox, hiddify, "Hiddify 跑的就是 sing-box 内核，文档应当一致")
+    func testHiddifyIsTheOnlyTargetOnThisFormat() {
+        // sing-box ships no App Store client of its own, so the format is
+        // offered only under the app that actually runs it.
+        XCTAssertEqual(ClientTarget.allCases.filter(\.usesSingBoxFormat), [.hiddify])
     }
 
     func testRejectIsARuleActionNotABlockOutbound() throws {
-        let config = try json(.singbox, nodes: [node(.shadowsocks)])
+        let config = try json(.hiddify, nodes: [node(.shadowsocks)])
         let route = try XCTUnwrap(config["route"] as? [String: Any])
         let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
@@ -67,7 +65,7 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testEveryGroupReferenceResolvesToSomething() throws {
-        let config = try json(.singbox, nodes: [node(.shadowsocks), node(.trojan, name: "JP 01")])
+        let config = try json(.hiddify, nodes: [node(.shadowsocks), node(.trojan, name: "JP 01")])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
         let tags = Set(outbounds.compactMap { $0["tag"] as? String })
 
@@ -83,7 +81,7 @@ final class SingBoxGenerationTests: XCTestCase {
     func testEmptyGroupStillResolves() throws {
         // sing-box refuses to start on a dangling reference, so a group with no
         // members has to point somewhere.
-        let config = try json(.singbox, nodes: [])
+        let config = try json(.hiddify, nodes: [])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         for outbound in outbounds {
@@ -103,7 +101,7 @@ final class SingBoxGenerationTests: XCTestCase {
         ]
 
         for (kind, type) in expected {
-            let config = try json(.singbox, nodes: [node(kind)])
+            let config = try json(.hiddify, nodes: [node(kind)])
             let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
             XCTAssertTrue(
                 outbounds.contains { $0["type"] as? String == type },
@@ -113,7 +111,7 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testWebsocketBecomesATransportBlock() throws {
-        let config = try json(.singbox, nodes: [node(.vmess, transport: "ws")])
+        let config = try json(.hiddify, nodes: [node(.vmess, transport: "ws")])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
         let vmess = try XCTUnwrap(outbounds.first { $0["type"] as? String == "vmess" })
         let transport = try XCTUnwrap(vmess["transport"] as? [String: Any])
@@ -123,7 +121,7 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testTLSCarriesServerNameAndInsecureFlag() throws {
-        let config = try json(.singbox, nodes: [node(.trojan)])
+        let config = try json(.hiddify, nodes: [node(.trojan)])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
         let trojan = try XCTUnwrap(outbounds.first { $0["type"] as? String == "trojan" })
         let tls = try XCTUnwrap(trojan["tls"] as? [String: Any])
@@ -134,7 +132,7 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testVMessNeverWritesAutoAsAConcreteCipher() throws {
-        let config = try json(.singbox, nodes: [node(.vmess)])
+        let config = try json(.hiddify, nodes: [node(.vmess)])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
         let vmess = try XCTUnwrap(outbounds.first { $0["type"] as? String == "vmess" })
 
@@ -147,7 +145,7 @@ final class SingBoxGenerationTests: XCTestCase {
     func testSnellBelowV4IsSkipped() {
         // sing-box's Snell starts at v4; Clash's stops at v3.
         let output = generator.generate(
-            nodes: [node(.snell, version: 3)], preset: preset, target: .singbox
+            nodes: [node(.snell, version: 3)], preset: preset, target: .hiddify
         )
 
         XCTAssertEqual(output.supportedNodeCount, 0)
@@ -155,7 +153,7 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testSnellV4IsWritten() throws {
-        let config = try json(.singbox, nodes: [node(.snell, version: 4)])
+        let config = try json(.hiddify, nodes: [node(.snell, version: 4)])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
         let snell = try XCTUnwrap(outbounds.first { $0["type"] as? String == "snell" })
 
@@ -167,16 +165,16 @@ final class SingBoxGenerationTests: XCTestCase {
         let v4 = node(.snell, version: 4)
 
         XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .clash).supportedNodeCount, 1)
-        XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .singbox).supportedNodeCount, 0)
+        XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .hiddify).supportedNodeCount, 0)
         XCTAssertEqual(generator.generate(nodes: [v4], preset: preset, target: .clash).supportedNodeCount, 0)
-        XCTAssertEqual(generator.generate(nodes: [v4], preset: preset, target: .singbox).supportedNodeCount, 1)
+        XCTAssertEqual(generator.generate(nodes: [v4], preset: preset, target: .hiddify).supportedNodeCount, 1)
     }
 
     // MARK: - Untrusted names
 
     func testHostileNodeNameCannotBreakTheDocument() throws {
         let hostile = node(.shadowsocks, name: "HK\n\"},{\"tag\":\"pwned\",\"type\":\"direct\"},{\"x\":\"")
-        let config = try json(.singbox, nodes: [hostile])
+        let config = try json(.hiddify, nodes: [hostile])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         // Serialising rather than string-building is what makes this safe.

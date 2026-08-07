@@ -67,6 +67,22 @@
 
 ---
 
+## 客户端 App 图标
+
+导出页用各客户端的 App Store 图标标识目标，随 App 打包在 `Tower/Assets.xcassets/Client*.imageset/`：
+
+| 资源 | 客户端 | 权利人 |
+| --- | --- | --- |
+| `ClientSurge` | Surge | Nanjing Yiwo Information Technology |
+| `ClientStash` | Stash | Rocket Team |
+| `ClientShadowrocket` | Shadowrocket | Shadow Launch Technology Limited |
+| `ClientLoon` | Loon | Lin Zhang |
+| `ClientQuantumultX` | Quantumult X | Cross Utility |
+| `ClientHiddify` | Hiddify Proxy & VPN | Holistic Resilience |
+| `ClientEgern` | Egern | BYTE CROSSING LTD |
+
+这些图标是各自权利人的商标，**不适用本项目的 MIT 许可**。塔台仅将其用于在导出目标列表里指代对应客户端（指称性使用），不表示任何关联、赞助或背书，也不分发这些客户端软件本身。图标取自 Apple 的公开 iTunes Search API 返回的 artwork 地址。权利人如有异议可提 issue，将立即移除并改用 SF Symbol 占位。
+
 ## 客户端配置格式
 
-塔台生成 Surge、Clash/Stash、Shadowrocket、Loon、Quantumult X 五种配置。这些格式的规范归各自客户端的开发者所有，本项目仅按其公开文档生成配置文件，不包含、不修改、不分发任何客户端软件。
+塔台生成 Surge、Clash/Stash、Shadowrocket、Loon、Quantumult X、Hiddify（sing-box）和 Egern 七种配置。这些格式的规范归各自客户端的开发者所有，本项目仅按其公开文档生成配置文件，不包含、不修改、不分发任何客户端软件。

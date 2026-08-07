@@ -652,7 +652,6 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case shadowrocket
     case loon
     case quanx
-    case singbox
     case hiddify
     case egern
 
@@ -665,7 +664,6 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "Shadowrocket"
         case .loon: "Loon"
         case .quanx: "QuanX"
-        case .singbox: "sing-box"
         case .hiddify: "Hiddify"
         case .egern: "Egern"
         }
@@ -678,7 +676,6 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "本地配置"
         case .loon: "完整配置"
         case .quanx: "Quantumult X"
-        case .singbox: "sing-box JSON"
         case .hiddify: "sing-box 内核"
         case .egern: "Egern YAML"
         }
@@ -691,14 +688,14 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "paperplane.circle.fill"
         case .loon: "moon.stars.circle.fill"
         case .quanx: "q.circle.fill"
-        case .singbox: "shippingbox.circle.fill"
         case .hiddify: "eye.slash.circle.fill"
         case .egern: "e.circle.fill"
         }
     }
 
-    /// `nil` when no artwork is bundled, so the picker falls back to `symbol`
-    /// rather than drawing the blank that a missing asset renders as.
+    /// Every client bundles its App Store artwork. Kept optional so a future
+    /// target without one falls back to `symbol` rather than drawing the blank
+    /// that a missing asset renders as.
     var appIconAssetName: String? {
         switch self {
         case .surge: "ClientSurge"
@@ -706,20 +703,22 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "ClientShadowrocket"
         case .loon: "ClientLoon"
         case .quanx: "ClientQuantumultX"
-        case .singbox, .hiddify, .egern: nil
+        case .hiddify: "ClientHiddify"
+        case .egern: "ClientEgern"
         }
     }
 
-    /// sing-box and Hiddify share a generator: Hiddify is a Flutter shell over
-    /// hiddify-core, which is sing-box, so it reads the same document.
+    /// Hiddify is a Flutter shell over hiddify-core, which is sing-box, so it
+    /// reads a sing-box document. sing-box ships no App Store client of its
+    /// own, so the format is offered only under the app that actually runs it.
     var usesSingBoxFormat: Bool {
-        self == .singbox || self == .hiddify
+        self == .hiddify
     }
 
     var fileExtension: String {
         switch self {
         case .clash, .egern: "yaml"
-        case .singbox, .hiddify: "json"
+        case .hiddify: "json"
         default: "conf"
         }
     }
@@ -728,7 +727,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         // Quantumult X has no import scheme, and neither sing-box nor Hiddify
         // documents one, so those go through the system share sheet.
         switch self {
-        case .quanx, .singbox, .hiddify, .egern: false
+        case .quanx, .hiddify, .egern: false
         default: true
         }
     }
@@ -755,7 +754,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // sample.conf documents ss2022, REALITY, vless-flow and AnyTLS but
             // no Hysteria at all.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .anytls, .socks5, .http].contains(kind)
-        case .singbox, .hiddify:
+        case .hiddify:
             // Snell is accepted here but only from v4 up, which is the inverse
             // of Clash's ceiling of v3; writes(_:to:excluding:) applies that.
             kind != .unknown
