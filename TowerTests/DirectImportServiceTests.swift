@@ -109,3 +109,27 @@ extension DirectImportServiceTests {
         XCTAssertEqual(withoutScheme, [.quanx])
     }
 }
+
+/// The served file has to look like what the client expects. Hiddify was being
+/// handed a sing-box JSON document named `tower.conf` as text/plain.
+extension DirectImportServiceTests {
+    func testServedFileMatchesTheTargetFormat() {
+        let expected: [ClientTarget: (String, String)] = [
+            .clash: ("tower.yaml", "application/yaml"),
+            .egern: ("tower.yaml", "application/yaml"),
+            .hiddify: ("tower.json", "application/json"),
+            .surge: ("tower.conf", "text/plain")
+        ]
+
+        for (target, (name, type)) in expected {
+            let configuration = GeneratedConfiguration(
+                target: target, content: "x", supportedNodeCount: 1,
+                skippedNodeCount: 0, ruleCount: 0
+            )
+            let server = LocalConfigurationServer(configuration: configuration)
+
+            XCTAssertEqual(server.servedFileName, name, target.name)
+            XCTAssertTrue(server.servedContentType.hasPrefix(type), "\(target.name): \(server.servedContentType)")
+        }
+    }
+}

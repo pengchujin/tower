@@ -129,16 +129,24 @@ final class LocalConfigurationServer: @unchecked Sendable {
     private let body: Data
     private let fileName: String
     private let contentType: String
+
+    /// Exposed for tests: the name and type the client will see.
+    var servedFileName: String { fileName }
+    var servedContentType: String { contentType }
     private let token = UUID().uuidString.lowercased()
     private var listener: NWListener?
     private var didResumeStart = false
 
     init(configuration: GeneratedConfiguration) {
         body = Data(configuration.content.utf8)
-        fileName = configuration.target == .clash ? "tower.yaml" : "tower.conf"
-        contentType = configuration.target == .clash
-            ? "application/yaml; charset=utf-8"
-            : "text/plain; charset=utf-8"
+        // Both derived from the target rather than special-casing one client:
+        // Hiddify was being handed JSON named `tower.conf` as text/plain.
+        fileName = "tower.\(configuration.target.fileExtension)"
+        contentType = switch configuration.target.fileExtension {
+        case "yaml": "application/yaml; charset=utf-8"
+        case "json": "application/json; charset=utf-8"
+        default: "text/plain; charset=utf-8"
+        }
     }
 
     func start() async throws -> URL {

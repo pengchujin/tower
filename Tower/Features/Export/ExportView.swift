@@ -41,9 +41,11 @@ struct ExportView: View {
                 .presentationDetents([.medium, .large])
         }
         .sensoryFeedback(.selection, trigger: model.selectedTarget)
-        .onDisappear {
-            directImportService.stop()
-        }
+        // Deliberately no .onDisappear teardown. Handing the link to another
+        // app backgrounds Tower, and SwiftUI may call onDisappear when it does
+        // — which killed the server before the client had fetched. Hiddify
+        // reported it as `Connection refused`. The 45-second timer and the
+        // background-task expiry handler already bound the lifetime.
     }
 
     private func export() {
