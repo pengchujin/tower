@@ -1,10 +1,10 @@
-# 塔台开发交接（2026-08-03）
+# 塔台开发交接（2026-08-07）
 
 ## 1. 当前结论
 
-塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、MapKit 地球、ICMP/端口测速、本地 Self-Configuration 规则、五种客户端配置生成、配置预览及导入/分享。
+塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、本地 Self-Configuration 规则、六种客户端配置生成、配置预览及导入/分享。
 
-当前代码版本为 `1.0 (1)`，Bundle ID 为 `com.jzb.tower`。已在远程 Mac 使用 Apple Development/Distribution 环境完成 Release Archive，并上传到 App Store Connect。上传完成时 Apple 返回的 Delivery UUID 为 `<Delivery UUID>`；当时构建处于 Processing，接手后应以 App Store Connect 页面为准重新确认最终状态。
+当前代码版本为 `1.0 (3)`，Bundle ID 为 `com.jzb.tower`，已归档并上传到 TestFlight。归档在开发者本机完成；分发签名和上传走 Xcode Organizer，因为 SSH 会话拿不到钥匙串私钥（见 §4）。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -143,6 +143,48 @@ git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA
 
 若需要移除，改动不大——规则导入功能（`RuleSchemeImportService`）已经具备运行时按需下载的能力，把这套快照从仓库删掉、改成首次使用时下载即可，代价是内置预设不再离线可用。
 
+## 1.4 2026-08-07 导出兼容性与地区识别
+
+### 各客户端拒绝配置的四个原因
+
+真机逐个导入时发现的，共同点是机场只按自己服务端的宽松标准发字段，各客户端严格程度不同。**一行不合法整份配置就拒绝加载**，所以每个都会连累其余几百个节点。
+
+- **Stash：`invalid UUID length: 8`**。Xray 允许 VMess/VLESS 的 id 是任意短于 32 字节的字符串，并用 SHA-1 对「全零命名空间 + 文本」导出 v5 UUID；Clash 系没有这套映射。生成时做同样的推导（`ProxyNode.exportableUUID`），写进去的正是服务端比对的值，所以节点是真能连的。32 字节以上又不是 UUID 的没有忠实表达，跳过并计入已跳过。
+- **Surge：`ws-path` 的值无效**。WebSocket 路径就是 HTTP 请求路径，必须绝对。Xray 的 `GetNormalizedPath` 自己也会补斜杠，所以补上等于还原本来就该发的路径。五处写路径的地方统一走 `ProxyNode.exportablePath`。
+- **QuanX：语法错误（无 TLS 却有 `tls-verification`）**。该键只在声明了 TLS 层时合法。机场会发「没开 TLS 但带 allowInsecure」的节点，改成只在 `node.tls` 为真时写。Trojan/Hysteria 2 在 QuanX 里恒为 TLS，那三个调用点保持无条件。
+- **QuanX：语法错误（`hysteria2=`）**。QuanX 根本没有这个服务器类型——其 `sample.conf` 记录了 ss2022、REALITY、vless-flow、AnyTLS 却没有任何 Hysteria。已从支持矩阵移除，改为跳过并计数。AnyTLS 保留，`sample.conf` 里确有 `anytls=`。
+
+### 地区识别改为名称优先
+
+顺序：国旗 Emoji → 中英文国名/别名/城市 → 大写国家代码 → 域名 → 内置离线 IP 库。策略分组和界面用同一个顺序。
+
+国家表从手写的 20 个扩到 187 个，由 `Scripts/update_country_table.py` 从 Natural Earth 生成到 `Tower/Services/CountryTable.swift`（含名称、别名、标注坐标），香港/新加坡/澳门等 110m 精度略掉的小地区在脚本里补齐。之前只有那 20 个有坐标，别的连地图都上不去。
+
+三字母代码只在名字里大写时才认——`AND` 是安道尔、`ARE` 是阿联酋、`CAN` 是加拿大，不加限制会把「Hong Kong and Tokyo」判成安道尔。`SS`/`WS` 和 `GB/MB/TB` 直接拉黑：在节点名里它们是 Shadowsocks、WebSocket 和流量单位。
+
+### 性能：一次列表渲染 3754ms → 5.5ms
+
+上一版的匹配每次都线性扫约 2100 条拼写，且每次比较新建一个字符串；视图每行要问 5 次（国旗、标题、3 个无障碍标签）。500 个节点即一次重绘数百万次字符串操作。
+
+改为索引：单词和国家代码走字典，多词国名按首词分桶，中文名按首字分桶（纯英文名根本不会碰到中文表），再加一层按名字/主机名的记忆化。另外订阅展开和地图选中地区两个列表原本是普通 `VStack`，为显示十行会把几百行全建出来，改成 `LazyVStack`。
+
+导出页也量过：`configuration()` 有缓存，命中时 500 节点仅 0.5ms，不是瓶颈，没动。
+
+### 新增 Hiddify 导出
+
+Hiddify 是 Flutter 外壳 + `hiddify-core`（sing-box 内核），吃 sing-box JSON。sing-box 自身在 App Store 没有独立客户端，所以格式以实际运行它的 App 命名。
+
+JSON 用 `JSONSerialization` 构建而非拼字符串——节点名是机场可控的不可信输入，交给编码器转义。几个格式决定：拒绝从 1.11 起是路由动作（`action: reject`），选择器没有可指的出站，所以拦截类策略不生成组、规则直接带动作；Clash 的四个隐藏别名组在 sing-box 里没有 hidden 概念但仍需存在，否则悬空引用导致起不来；sing-box 的 Snell 只支持 v4 以上，与 Clash 的 v3 上限正好相反。
+
+Egern 暂未做：顶层键已知（`proxies`/`policy_groups`/`rules`），三段都是单键映射的列表，但完整验证未完成。
+
+### 其他
+
+- 首页机场开关改用规则页那个圆形对勾（`CheckmarkToggleStyle`），并补上选择震动。
+- Snell 的图标之前写的是 `shell.fill`，SF Symbols 里没有这个符号——`Image(systemName:)` 遇到未知名字既不崩溃也不报错，只画空白。改为 `s.square.fill`，并加测试断言所有符号确实存在。
+- 地图右上角的整体测速按钮已移除；逐节点测速仍在展开后的节点详情里。
+- 订阅套餐流量：按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表公告行取值。节点始终以订阅原地址返回体为准，`flag=clash` 只在缺结构化配额时补发一次且只读响应头——机场的 Clash 转换器会丢掉它表达不了的协议（实测少 12 个 AnyTLS 节点）。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页
@@ -152,7 +194,7 @@ git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA
 - 订阅可展开节点，但不显示“更多节点”，展开使用透明度/布局变化，不从顶部滑入。
 - 节点行显示 IP 国家/地区 Logo、名称、协议/传输/UDP 信息和真实延迟。
 - 订阅和单节点都可以分享；单节点导出协议链接和二维码。
-- 页面直接嵌入圆形 MapKit 地球，显示带 Emoji 的节点标注，不单独设置“地球”标签页。
+- 页面直接嵌入自绘的点阵世界地图（`WorldDotMapView`，不用 MapKit），显示带 Emoji 的节点标注，不单独设置“地球”标签页。
 
 ### 规则页
 
@@ -216,7 +258,23 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 已上传并完成 Processing 的构建：`1.0 (1)`，2026-08-03 归档于远程 Mac。
+- 已上传的构建：`1.0 (3)`（2026-08-07），含本文 §1.4 的全部修复。此前为 `1.0 (1)`（2026-08-03）。
+
+### 归档只能在图形会话里做
+
+SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私钥，必然报 `errSecInternalComponent`。解锁钥匙串要密码、切到 Aqua 会话要 sudo，都不能由自动化代劳。
+
+所以归档必须在那台机器**自己的终端窗口**里跑，且三条命令要在同一个会话里连续执行：
+
+```sh
+security unlock-keychain ~/Library/Keychains/login.keychain-db
+
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-N.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=<TEAM_ID> CODE_SIGN_STYLE=Automatic archive
+
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-N.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
+```
+
+`DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`UploadOptions-TestFlight.plist` 是 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
 ### 代码里的版本与已上传的版本不一致
 
@@ -341,7 +399,7 @@ xcodebuild -project Tower.xcodeproj \
 - [ ] 四个统计项跳到正确位置。
 - [ ] 订阅展开没有从顶部滑入或列表勾选漂移。
 - [ ] 节点国旗与服务器 IP 匹配，失败时回退合理。
-- [ ] 地球为圆形 globe，国家/城市标注和节点 Emoji 正常。
+- [ ] 点阵地图铺满卡片，国家/地区标注不重叠，节点 Emoji 正常。
 - [ ] ICMP 与“端口”回退标识准确。
 - [ ] 节点和订阅分享、二维码、协议链接可用。
 
@@ -384,7 +442,7 @@ xcodebuild -project Tower.xcodeproj \
   test
 ```
 
-配置生成器修改需要额外人工打开五种输出，检查：
+配置生成器修改需要额外人工打开六种输出，检查：
 
 - 所有组引用存在且无环。
 - 地区组只含对应节点，空地区不产生死组。

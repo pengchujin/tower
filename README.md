@@ -1,6 +1,6 @@
 # 塔台
 
-塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，使用 Self-Configuration 分流规则，并生成 Surge、Clash、Shadowrocket、Loon、Quantumult X 配置。
+塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，使用 Self-Configuration 分流规则，并生成 Surge、Clash、Shadowrocket、Loon、Quantumult X 和 Hiddify 配置。
 
 ## 开发交接
 
@@ -20,11 +20,11 @@
 - 内置 Self-Configuration：覆盖 AI、YouTube、全球流媒体、Telegram、Google、Apple、Microsoft、国内外流量与广告过滤
 - 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
 - 输入链接导入 subconverter 远程配置（`.ini`），下载到本机后离线使用，可刷新或删除
-- 生成 Surge / Clash / Shadowrocket / Loon / QuanX 完整配置
+- 生成 Surge / Clash / Shadowrocket / Loon / QuanX / Hiddify 完整配置
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
 - Surge、Clash、Shadowrocket、Loon 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
-- Quantumult X 通过系统分享接收本地 `.conf` 文件
+- Quantumult X 和 Hiddify 通过系统分享接收本地配置文件
 
 ## 隐私设计
 
@@ -70,12 +70,13 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 2. 选择 iOS 17 或更新版本的模拟器/设备。
 3. 运行 `Tower` Scheme。
 
-测试覆盖订阅解析、Clash YAML 嵌套字段、IP 优先国家地区聚合、网络延迟链路、本地规则资源、一键导入 Scheme，以及五种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
+测试覆盖订阅解析、Clash YAML 嵌套字段、IP 优先国家地区聚合、网络延迟链路、本地规则资源、一键导入 Scheme，以及六种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
 
 ## 已知边界
 
 - Shadowsocks 的 SIP003 插件只支持 simple-obfs（`obfs`/`obfs-local`）。`v2ray-plugin` 等其余插件会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
-- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
+- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，Hiddify（sing-box）反过来只支持 v4 以上，Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
+- Hiddify 运行的是 sing-box 内核，因此导出的是 sing-box JSON；sing-box 自身在 App Store 没有独立客户端，所以这个格式以实际运行它的 App 命名。
 - 机场厂商自定义的非标准节点字段可能需要增加兼容适配。
 - 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。
 - Quantumult X 是否直接出现在分享列表中，取决于其声明的文件类型；未出现时可先存到“文件”再从客户端导入。
