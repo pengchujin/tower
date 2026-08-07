@@ -40,7 +40,7 @@
 
 Surge、Clash、Shadowrocket 和 Loon 的配置导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
 
-Quantumult X 官方公开的 URL Scheme 只能添加或替换远程资源，没有完整本地配置导入接口。塔台对 QuanX 保留系统文件分享，避免只导入节点却遗漏策略组和本地规则。
+Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md) 只能添加或替换远程资源（`server_remote` / `filter_remote` / `rewrite_remote`），策略组不在其中，因此没有完整本地配置导入接口。塔台对 QuanX 保留系统文件分享，避免导入一份引用了不存在策略组的配置。
 
 ## 规则来源
 

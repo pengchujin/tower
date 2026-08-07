@@ -20,7 +20,7 @@
 1. 订阅内容、节点和生成配置只在本机处理，不上传到第三方转换或 IP 查询服务。
 2. 域名节点可以使用系统 DNS 解析，但国家识别必须继续查询内置离线 IP 库。
 3. Surge、Stash、Shadowrocket、Loon 的一键导入继续使用仅绑定 `127.0.0.1`、45 秒自动失效的临时服务。
-4. Quantumult X 没有完整本地配置导入 Scheme，保持系统文件分享，不要伪装成完整一键导入。
+4. Quantumult X 没有完整本地配置导入 Scheme，保持系统文件分享，不要伪装成完整一键导入。依据是官方 [url-scheme.md](https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md)：`update-configuration` 和 `add-resource` 的 `remote-resource` 只接受 `server_remote` / `filter_remote` / `rewrite_remote` 三种**远程资源地址**，`[policy]` 策略组不在其中。只导节点和规则会得到一份引用了不存在策略组的配置。
 5. 国家/地区组默认使用延迟优选，同时保留父级策略中的手动选择入口；不要让地区组互相引用或引用包含自己的上级组。
 6. 策略组名称只显示一个前置 Logo。生成配置时可附带各客户端支持的图标字段，但不要把同一个 Emoji 再拼进可见名称。
 7. 首页订阅展开不使用从顶部滑入的过渡；节点列表不再提供“显示更多节点”。
