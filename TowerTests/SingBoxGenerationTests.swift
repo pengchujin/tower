@@ -140,34 +140,28 @@ final class SingBoxGenerationTests: XCTestCase {
         XCTAssertEqual(vmess["alter_id"] as? Int, 0)
     }
 
-    // MARK: - Snell's version ceiling runs the other way
+    // MARK: - Snell
 
-    func testSnellBelowV4IsSkipped() {
-        // sing-box's Snell starts at v4; Clash's stops at v3.
-        let output = generator.generate(
-            nodes: [node(.snell, version: 3)], preset: preset, target: .hiddify
-        )
+    func testSnellIsSkippedWhateverItsVersion() {
+        // sing-box the project implements Snell; the core Hiddify ships does
+        // not, so the version does not come into it.
+        for version in [3, 4] {
+            let output = generator.generate(
+                nodes: [node(.snell, version: version)], preset: preset, target: .hiddify
+            )
 
-        XCTAssertEqual(output.supportedNodeCount, 0)
-        XCTAssertEqual(output.skippedNodeCount, 1)
+            XCTAssertEqual(output.supportedNodeCount, 0, "v\(version)")
+            XCTAssertEqual(output.skippedNodeCount, 1, "v\(version)")
+        }
+        XCTAssertFalse(ClientTarget.hiddify.supports(.snell))
     }
 
-    func testSnellV4IsWritten() throws {
-        let config = try json(.hiddify, nodes: [node(.snell, version: 4)])
-        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
-        let snell = try XCTUnwrap(outbounds.first { $0["type"] as? String == "snell" })
-
-        XCTAssertEqual(snell["version"] as? Int, 4)
-    }
-
-    func testClashAndSingBoxDisagreeAboutTheSameSnellNode() {
+    func testTheClientsThatDoSupportSnellAreUnaffected() {
+        // Surge takes any version, Clash stops at v3.
         let v3 = node(.snell, version: 3)
-        let v4 = node(.snell, version: 4)
-
+        XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .surge).supportedNodeCount, 1)
         XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .clash).supportedNodeCount, 1)
-        XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .hiddify).supportedNodeCount, 0)
-        XCTAssertEqual(generator.generate(nodes: [v4], preset: preset, target: .clash).supportedNodeCount, 0)
-        XCTAssertEqual(generator.generate(nodes: [v4], preset: preset, target: .hiddify).supportedNodeCount, 1)
+        XCTAssertEqual(generator.generate(nodes: [v3], preset: preset, target: .egern).supportedNodeCount, 1)
     }
 
     // MARK: - Untrusted names

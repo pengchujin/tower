@@ -754,9 +754,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // no Hysteria at all.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .anytls, .socks5, .http].contains(kind)
         case .hiddify:
-            // Snell is accepted here but only from v4 up, which is the inverse
-            // of Clash's ceiling of v3; writes(_:to:excluding:) applies that.
-            kind != .unknown
+            // No Snell: sing-box the project implements it, but the core
+            // Hiddify ships does not, so those nodes are skipped and counted.
+            kind != .unknown && kind != .snell
         case .egern:
             [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
         }

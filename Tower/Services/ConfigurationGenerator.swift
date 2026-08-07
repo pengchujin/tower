@@ -134,9 +134,6 @@ struct ConfigurationGenerator {
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
-        // sing-box's ceiling runs the other way: its Snell starts at v4 and it
-        // rejects anything older, so v1–v3 cannot be written there.
-        if node.kind == .snell, target.usesSingBoxFormat, (node.version ?? 4) < 4 { return false }
         return true
     }
 
