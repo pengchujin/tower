@@ -56,3 +56,25 @@ final class DirectImportServiceTests: XCTestCase {
         XCTAssertEqual((response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Cache-Control"), "no-store")
     }
 }
+
+/// Egern documents `egern:/profiles/new?name=&url=` — one slash, so the path
+/// carries no authority component.
+extension DirectImportServiceTests {
+    func testEgernUsesItsDocumentedProfileScheme() throws {
+        let localURL = URL(string: "http://127.0.0.1:8080/token/塔台-Egern.yaml")!
+
+        let url = try ClientImportURLBuilder.make(target: .egern, configurationURL: localURL)
+
+        XCTAssertEqual(url.scheme, "egern")
+        XCTAssertNil(url.host, "egern:/… 没有 authority 段")
+        XCTAssertEqual(url.path, "/profiles/new")
+        let query = try XCTUnwrap(url.query)
+        XCTAssertTrue(query.contains("url="), query)
+        XCTAssertFalse(query.contains("127.0.0.1:8080/token"), "配置地址必须转义")
+    }
+
+    func testEgernIsOfferedAsOneTapImport() {
+        XCTAssertTrue(ClientTarget.egern.supportsDirectConfigurationImport)
+        XCTAssertFalse(ClientTarget.hiddify.supportsDirectConfigurationImport)
+    }
+}

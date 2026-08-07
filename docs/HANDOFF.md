@@ -176,7 +176,7 @@ Hiddify 是 Flutter 外壳 + `hiddify-core`（sing-box 内核），吃 sing-box 
 
 JSON 用 `JSONSerialization` 构建而非拼字符串——节点名是机场可控的不可信输入，交给编码器转义。几个格式决定：拒绝从 1.11 起是路由动作（`action: reject`），选择器没有可指的出站，所以拦截类策略不生成组、规则直接带动作；Clash 的四个隐藏别名组在 sing-box 里没有 hidden 概念但仍需存在，否则悬空引用导致起不来；sing-box 的 Snell 只支持 v4 以上，与 Clash 的 v3 上限正好相反。
 
-Egern 也已支持：三段都是单键映射的列表（`- shadowsocks:` / `- select:` / `- domain_suffix:`），策略组用 `select` 和 `auto_test`，规则每条一个 `match`，兜底是 `- default:`。字段是 snake_case（`user_id`、`udp_relay`、`skip_tls_verify`、`obfs_host`），Shadowsocks 的 cipher 要去掉 `-ietf` 中缀。
+Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是单斜杠、没有 authority 段）：三段都是单键映射的列表（`- shadowsocks:` / `- select:` / `- domain_suffix:`），策略组用 `select` 和 `auto_test`，规则每条一个 `match`，兜底是 `- default:`。字段是 snake_case（`user_id`、`udp_relay`、`skip_tls_verify`、`obfs_host`），Shadowsocks 的 cipher 要去掉 `-ietf` 中缀。
 
 ### 其他
 

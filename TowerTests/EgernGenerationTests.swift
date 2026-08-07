@@ -95,6 +95,7 @@ final class EgernGenerationTests: XCTestCase {
     func testTargetMetadata() {
         XCTAssertEqual(ClientTarget.egern.fileExtension, "yaml")
         XCTAssertFalse(ClientTarget.egern.usesSingBoxFormat)
-        XCTAssertFalse(ClientTarget.egern.supportsDirectConfigurationImport)
+        // Egern documents egern:/profiles/new, so it gets one-tap import.
+        XCTAssertTrue(ClientTarget.egern.supportsDirectConfigurationImport)
     }
 }

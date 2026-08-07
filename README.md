@@ -22,7 +22,7 @@
 - 输入链接导入 subconverter 远程配置（`.ini`），下载到本机后离线使用，可刷新或删除
 - 生成 Surge / Clash / Shadowrocket / Loon / QuanX / Hiddify 完整配置
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
-- Surge、Clash、Shadowrocket、Loon 支持点击主按钮后通过 URL Scheme 一键打开并导入
+- Surge、Clash、Shadowrocket、Loon、Egern 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
 - Quantumult X 和 Hiddify 通过系统分享接收本地配置文件
 
