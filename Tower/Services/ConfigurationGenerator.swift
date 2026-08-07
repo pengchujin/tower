@@ -1525,6 +1525,12 @@ struct ConfigurationGenerator {
             .replacingOccurrences(of: ",", with: "，")
             .replacingOccurrences(of: "#", with: "＃")
             .replacingOccurrences(of: ";", with: "；")
+            // Square brackets open a section in every INI-style config. A node
+            // called "[BETA-1] 🇭🇰 HongKong" started one mid-file and orphaned
+            // every proxy after it — Shadowrocket showed the five nodes above
+            // the line and silently dropped the other twenty-three.
+            .replacingOccurrences(of: "[", with: "［")
+            .replacingOccurrences(of: "]", with: "］")
             .trimmingCharacters(in: .whitespaces)
     }
 

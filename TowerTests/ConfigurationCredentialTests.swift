@@ -290,3 +290,43 @@ final class ConfigurationCredentialTests: XCTestCase {
         return match
     }
 }
+
+/// Square brackets open a section in every INI-style config, so a node named
+/// like an airport's "[BETA-1] …" silently ended the `[Proxy]` section and
+/// orphaned every proxy below it.
+extension ConfigurationCredentialTests {
+    func testBracketedNodeNameCannotStartANewSection() {
+        let nodes = [
+            ProxyNode(kind: .shadowsocks, name: "HK 01", server: "a.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x"),
+            ProxyNode(kind: .shadowsocks, name: "[BETA-1] 🇭🇰 HongKong [0.1x]", server: "b.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x"),
+            ProxyNode(kind: .shadowsocks, name: "HK 03", server: "c.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")
+        ]
+
+        for target in [ClientTarget.surge, .shadowrocket, .loon, .quanx] {
+            let content = ConfigurationGenerator()
+                .generate(nodes: nodes, preset: RulePreset.builtIns[0], target: target).content
+            let lines = content.split(separator: "\n").map(String.init)
+
+            // No proxy line may begin a section.
+            for line in lines where line.contains("example.com") {
+                XCTAssertFalse(line.hasPrefix("["), "\(target.name) 节点行开了新段：\(line.prefix(40))")
+            }
+            // And all three must still be in the file.
+            for host in ["a.example.com", "b.example.com", "c.example.com"] {
+                XCTAssertTrue(content.contains(host), "\(target.name) 丢了 \(host)")
+            }
+        }
+    }
+
+    func testBracketsSurviveAsReadableTextInTheName() {
+        let node = ProxyNode(kind: .shadowsocks, name: "[BETA] HK", server: "a.example.com",
+                             port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")
+        let content = ConfigurationGenerator()
+            .generate(nodes: [node], preset: RulePreset.builtIns[0], target: .shadowrocket).content
+
+        XCTAssertTrue(content.contains("［BETA］ HK"), content)
+    }
+}
