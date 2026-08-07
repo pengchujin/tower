@@ -92,21 +92,24 @@ final class RealityTests: XCTestCase {
 
     // MARK: - Clients that cannot express it
 
-    func testShadowrocketSkipsRealityRatherThanWritingPlainTLS() throws {
+    func testShadowrocketCarriesRealityOnItsVLESSLine() throws {
         let output = generator.generate(nodes: [try node()], preset: preset, target: .shadowrocket)
 
-        XCTAssertEqual(output.supportedNodeCount, 0)
-        XCTAssertEqual(output.skippedNodeCount, 1)
-        XCTAssertFalse(output.content.contains("TestPublicKey"))
+        XCTAssertEqual(output.supportedNodeCount, 1)
+        XCTAssertTrue(output.content.contains("public-key=TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), output.content)
+        XCTAssertTrue(output.content.contains("short-id=0123456789abcdef"))
+        XCTAssertTrue(output.content.contains("flow=xtls-rprx-vision"))
     }
 
-    func testShadowrocketStillTakesAPlainVLESSNode() throws {
-        let plain = try XCTUnwrap(parser.parseURI(
-            "vless://id@edge.example.com:443?security=tls&type=tcp&sni=a.example.com#Plain"
-        ))
-        let output = generator.generate(nodes: [plain], preset: preset, target: .shadowrocket)
+    /// Surge is the one client that genuinely cannot: its producer raises
+    /// "reality is unsupported", and it takes no VLESS at all.
+    func testSurgeIsTheOnlyTargetThatSkipsReality() throws {
+        let node = try node()
+        let skipping = ClientTarget.allCases.filter {
+            generator.generate(nodes: [node], preset: preset, target: $0).supportedNodeCount == 0
+        }
 
-        XCTAssertEqual(output.supportedNodeCount, 1)
+        XCTAssertEqual(skipping, [.surge])
     }
 
     func testNoTargetEverWritesARealityNodeWithoutItsPublicKey() throws {

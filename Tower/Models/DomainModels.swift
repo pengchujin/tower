@@ -731,14 +731,12 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     /// Whether the client has fields for REALITY's public key and short id.
     ///
-    /// Shadowrocket has none — its Sub-Store producer emits nothing for
-    /// REALITY — and Surge does not take VLESS at all, which is the only
-    /// protocol Tower sees REALITY on.
+    /// Only Surge does not: its producer raises `reality is unsupported`
+    /// outright, and it takes no VLESS at all, which is the only protocol
+    /// Tower sees REALITY on. Everything else carries it, Shadowrocket
+    /// included.
     var expressesReality: Bool {
-        switch self {
-        case .shadowrocket, .surge: false
-        default: true
-        }
+        self != .surge
     }
 
     /// Hiddify is a Flutter shell over hiddify-core, which is sing-box, so it

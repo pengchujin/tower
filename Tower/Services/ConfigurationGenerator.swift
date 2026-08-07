@@ -801,6 +801,14 @@ struct ConfigurationGenerator {
         case .vless:
             components = ["vless", node.server, "\(node.port)", "username=\(node.exportableUUID ?? "")"]
             appendSurgeTransport(node, includeTLSFlag: true, to: &components)
+            // Shadowrocket only. Surge takes no VLESS at all and rejects
+            // REALITY outright, so the keys would be meaningless there.
+            if shadowrocket, node.usesReality {
+                components.append("public-key=\(confValue(node.realityPublicKey ?? ""))")
+                appendValue(node.realityShortID, key: "short-id", to: &components)
+                appendValue(node.fingerprint, key: "fp", to: &components)
+                appendValue(node.flow, key: "flow", to: &components)
+            }
         case .trojan:
             components = ["trojan", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTransport(node, includeTLSFlag: false, to: &components)
