@@ -138,3 +138,22 @@ final class RealityTests: XCTestCase {
         }
     }
 }
+
+/// Share links encode names form-style, so `+` stands for a space.
+extension RealityTests {
+    func testPlusInTheNameBecomesASpace() throws {
+        let node = try XCTUnwrap(parser.parseURI(
+            "vless://id@edge.example.com:443?security=tls&type=tcp#%F0%9F%87%AD%F0%9F%87%B0+HongKong+01"
+        ))
+
+        XCTAssertEqual(node.name, "🇭🇰 HongKong 01")
+    }
+
+    func testAnAlreadySpacedNameIsUnchanged() throws {
+        let node = try XCTUnwrap(parser.parseURI(
+            "vless://id@edge.example.com:443?security=tls&type=tcp#HK%20Premium%2001"
+        ))
+
+        XCTAssertEqual(node.name, "HK Premium 01")
+    }
+}

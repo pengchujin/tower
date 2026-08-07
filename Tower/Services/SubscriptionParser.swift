@@ -726,7 +726,12 @@ struct SubscriptionParser {
     }
 
     private func normalizedName(_ value: String?, fallback: String) -> String {
-        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // Share links encode the name form-style, so `+` is a space. Strictly a
+        // URI fragment keeps `+` literal, but every airport writes it the other
+        // way — this one publishes "🇭🇰+HongKong+01" and its own Shadowrocket
+        // link spells the same node "🇭🇰%20HongKong%2001".
+        let spaced = (value ?? "").replacingOccurrences(of: "+", with: " ")
+        let trimmed = spaced.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : trimmed
     }
 
