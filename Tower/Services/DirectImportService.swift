@@ -42,9 +42,12 @@ struct ClientImportURLBuilder {
         // the path carries no authority component.
         case .egern:
             value = "egern:/profiles/new?url=\(encodedURL)&name=\(encodedName)"
-        // Quantumult X publishes no install scheme, and Hiddify documents
-        // none; those reach the client through the share sheet.
-        case .quanx, .hiddify:
+        // Two slashes here, unlike Egern: Hiddify's parser rejects any link
+        // with no authority component (`!uri.hasAuthority` returns nil), so the
+        // host segment has to be present even though it goes unread.
+        case .hiddify:
+            value = "hiddify://install-config?url=\(encodedURL)&name=\(encodedName)"
+        case .quanx:
             throw DirectImportError.unsupportedTarget(target)
         }
 

@@ -724,11 +724,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     }
 
     var supportsDirectConfigurationImport: Bool {
-        // Quantumult X publishes no install scheme, and Hiddify documents
-        // none, so those go through the system share sheet. Egern does:
-        // `egern:/profiles/new`.
+        // Quantumult X is the only one left without an install scheme.
         switch self {
-        case .quanx, .hiddify: false
+        case .quanx: false
         default: true
         }
     }

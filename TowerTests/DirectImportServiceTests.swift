@@ -75,6 +75,37 @@ extension DirectImportServiceTests {
 
     func testEgernIsOfferedAsOneTapImport() {
         XCTAssertTrue(ClientTarget.egern.supportsDirectConfigurationImport)
-        XCTAssertFalse(ClientTarget.hiddify.supportsDirectConfigurationImport)
+    }
+}
+
+/// Hiddify's parser bails on `!uri.hasAuthority`, so its link needs the two
+/// slashes Egern's must not have. Both forms are pinned so neither gets
+/// "corrected" into the other.
+extension DirectImportServiceTests {
+    func testHiddifyNeedsAnAuthorityComponent() throws {
+        let localURL = URL(string: "http://127.0.0.1:8080/token/塔台-Hiddify.json")!
+
+        let url = try ClientImportURLBuilder.make(target: .hiddify, configurationURL: localURL)
+
+        XCTAssertEqual(url.scheme, "hiddify")
+        XCTAssertNotNil(url.host, "hiddify:// 必须有 authority 段，否则解析器直接返回 nil")
+        let query = try XCTUnwrap(url.query)
+        XCTAssertTrue(query.contains("url="), query)
+        XCTAssertFalse(query.contains("127.0.0.1:8080/token"), "配置地址必须转义")
+    }
+
+    func testEgernAndHiddifyDisagreeAboutTheSlashCount() throws {
+        let localURL = URL(string: "http://127.0.0.1:8080/token/c.yaml")!
+
+        let egern = try ClientImportURLBuilder.make(target: .egern, configurationURL: localURL)
+        let hiddify = try ClientImportURLBuilder.make(target: .hiddify, configurationURL: localURL)
+
+        XCTAssertNil(egern.host)
+        XCTAssertNotNil(hiddify.host)
+    }
+
+    func testOnlyQuantumultXStillLacksAScheme() {
+        let withoutScheme = ClientTarget.allCases.filter { !$0.supportsDirectConfigurationImport }
+        XCTAssertEqual(withoutScheme, [.quanx])
     }
 }
