@@ -521,6 +521,13 @@ struct SubscriptionParser {
             hostHeader: query["host"],
             path: query["path"],
             alpn: query["alpn"],
+            // REALITY. `pbk` is the server public key and `sid` the short id;
+            // both are required to connect, so a node carrying them is only
+            // faithful if they survive into the generated configuration.
+            realityPublicKey: security == "reality" ? query["pbk"] : nil,
+            realityShortID: security == "reality" ? query["sid"] : nil,
+            fingerprint: query["fp"],
+            flow: query["flow"],
             skipCertificateVerification: ["1", "true"].contains(query["allowinsecure"] ?? query["insecure"] ?? ""),
             rawURI: raw
         )

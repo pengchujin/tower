@@ -131,6 +131,10 @@ struct ConfigurationGenerator {
         // has no faithful form; writing it blank would look fine and never
         // connect.
         if [.vmess, .vless].contains(node.kind), node.exportableUUID == nil { return false }
+        // REALITY needs the server's public key. A client with no field for it
+        // would get plain TLS aimed at a borrowed SNI — the exact "looks right,
+        // never connects" outcome, so those nodes are skipped and counted.
+        if node.usesReality, !target.expressesReality { return false }
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
@@ -597,10 +601,26 @@ struct ConfigurationGenerator {
         return values.joined(separator: "\n")
     }
 
+    /// REALITY needs the server's public key and short id; without them the
+    /// node is plain TLS to a borrowed SNI and cannot connect.
+    private func appendClashReality(_ node: ProxyNode, to values: inout [String]) {
+        guard node.usesReality else { return }
+        values.append("    reality-opts:")
+        values.append("      public-key: \(yaml(node.realityPublicKey ?? ""))")
+        if let shortID = node.realityShortID, !shortID.isEmpty {
+            values.append("      short-id: \(yaml(shortID))")
+        }
+        // Clash Meta defaults the fingerprint when REALITY is on but it is
+        // absent, so send whatever the airport specified.
+        values.append("    client-fingerprint: \(yaml(node.fingerprint ?? "chrome"))")
+        if let flow = node.flow, !flow.isEmpty { values.append("    flow: \(yaml(flow))") }
+    }
+
     private func appendClashTransport(_ node: ProxyNode, to values: inout [String]) {
         values.append("    tls: \(node.tls)")
         values.append("    skip-cert-verify: \(node.skipCertificateVerification)")
         if let sni = node.sni, !sni.isEmpty { values.append("    servername: \(yaml(sni))") }
+        appendClashReality(node, to: &values)
         if let transport = node.transport, !transport.isEmpty, transport != "tcp" {
             values.append("    network: \(yaml(transport))")
             if transport == "ws" {
@@ -1027,6 +1047,11 @@ struct ConfigurationGenerator {
     }
 
     private func appendLoonTransportAndTLS(_ node: ProxyNode, to values: inout [String]) {
+        if node.usesReality {
+            values.append("public-key=\"\(confValue(node.realityPublicKey ?? ""))\"")
+            appendValue(node.realityShortID, key: "short-id", to: &values)
+        }
+        if let flow = node.flow, !flow.isEmpty { values.append("flow=\(confValue(flow))") }
         appendValue(node.exportablePath, key: "path", to: &values)
         appendValue(node.hostHeader, key: "host", to: &values)
         values.append("over-tls=\(node.tls)")
@@ -1169,6 +1194,11 @@ struct ConfigurationGenerator {
         } else if node.tls {
             values.append("obfs=over-tls")
             appendValue(node.sni, key: "obfs-host", to: &values)
+        }
+        if node.usesReality {
+            appendValue(node.realityPublicKey, key: "reality-base64-pubkey", to: &values)
+            appendValue(node.realityShortID, key: "reality-hex-shortid", to: &values)
+            if let flow = node.flow, !flow.isEmpty { values.append("vless-flow=\(confValue(flow))") }
         }
         // Only once a TLS layer exists is there a certificate to skip checking.
         // A plain `ws` or bare TCP node has none, and an airport can still ship
@@ -1762,6 +1792,7 @@ extension ConfigurationGenerator {
         case .vless:
             outbound["type"] = "vless"
             outbound["uuid"] = node.exportableUUID ?? ""
+            if let flow = node.flow, !flow.isEmpty { outbound["flow"] = flow }
         case .trojan:
             outbound["type"] = "trojan"
             outbound["password"] = node.password ?? ""
@@ -1808,6 +1839,13 @@ extension ConfigurationGenerator {
         ]
         if let alpn = node.alpn, !alpn.isEmpty {
             tls["alpn"] = alpn.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+        if node.usesReality {
+            var reality: [String: Any] = ["enabled": true, "public_key": node.realityPublicKey ?? ""]
+            if let shortID = node.realityShortID, !shortID.isEmpty { reality["short_id"] = shortID }
+            tls["reality"] = reality
+            // REALITY needs uTLS; sing-box rejects the pair otherwise.
+            tls["utls"] = ["enabled": true, "fingerprint": node.fingerprint ?? "chrome"]
         }
         return tls
     }
@@ -2158,6 +2196,13 @@ extension ConfigurationGenerator {
         }
 
         body.append("      udp_relay: true")
+        if node.usesReality {
+            body.append("      reality:")
+            body.append("        public_key: \(yaml(node.realityPublicKey ?? ""))")
+            if let shortID = node.realityShortID, !shortID.isEmpty {
+                body.append("        short_id: \(yaml(shortID))")
+            }
+        }
         if node.skipCertificateVerification, node.kind != .shadowsocks {
             body.append("      skip_tls_verify: true")
         }

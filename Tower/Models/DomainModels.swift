@@ -279,6 +279,14 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var hostHeader: String?
     var path: String?
     var alpn: String?
+    /// REALITY's server public key (`pbk`) and short id (`sid`), plus the uTLS
+    /// fingerprint (`fp`) and the XTLS flow. A VLESS node that carries these is
+    /// a REALITY node: writing it without them yields plain TLS to a borrowed
+    /// SNI, which looks fine and never connects.
+    var realityPublicKey: String?
+    var realityShortID: String?
+    var fingerprint: String?
+    var flow: String?
     var skipCertificateVerification: Bool
     var alterID: Int?
     var protocolName: String?
@@ -307,6 +315,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         hostHeader: String? = nil,
         path: String? = nil,
         alpn: String? = nil,
+        realityPublicKey: String? = nil,
+        realityShortID: String? = nil,
+        fingerprint: String? = nil,
+        flow: String? = nil,
         skipCertificateVerification: Bool = false,
         alterID: Int? = nil,
         protocolName: String? = nil,
@@ -332,6 +344,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.hostHeader = hostHeader
         self.path = path
         self.alpn = alpn
+        self.realityPublicKey = realityPublicKey
+        self.realityShortID = realityShortID
+        self.fingerprint = fingerprint
+        self.flow = flow
         self.skipCertificateVerification = skipCertificateVerification
         self.alterID = alterID
         self.protocolName = protocolName
@@ -351,6 +367,11 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var canonicalKey: String {
         let credential = uuid ?? username ?? password ?? ""
         return "\(kind.rawValue)|\(server.lowercased())|\(port)|\(credential)"
+    }
+
+    /// Whether this node negotiates REALITY rather than ordinary TLS.
+    var usesReality: Bool {
+        !(realityPublicKey ?? "").isEmpty
     }
 
     /// The VMess/VLESS id in the form every client accepts.
@@ -705,6 +726,18 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .quanx: "ClientQuantumultX"
         case .hiddify: "ClientHiddify"
         case .egern: "ClientEgern"
+        }
+    }
+
+    /// Whether the client has fields for REALITY's public key and short id.
+    ///
+    /// Shadowrocket has none — its Sub-Store producer emits nothing for
+    /// REALITY — and Surge does not take VLESS at all, which is the only
+    /// protocol Tower sees REALITY on.
+    var expressesReality: Bool {
+        switch self {
+        case .shadowrocket, .surge: false
+        default: true
         }
     }
 
