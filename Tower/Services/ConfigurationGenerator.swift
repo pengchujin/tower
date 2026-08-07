@@ -2120,10 +2120,17 @@ extension ConfigurationGenerator {
                     body.append("      obfs_host: \(yaml(host))")
                 }
             }
-        case .trojan, .hysteria2, .anytls:
-            type = node.kind == .trojan ? "trojan" : (node.kind == .hysteria2 ? "hysteria2" : "anytls")
+        case .trojan, .anytls:
+            type = node.kind == .trojan ? "trojan" : "anytls"
             endpoint()
             body.append("      password: \(yaml(node.password ?? ""))")
+            if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
+        case .hysteria2:
+            // Egern names this one `auth`, not `password`, and treats it as
+            // required: "missing field `auth`" rejects the whole profile.
+            type = "hysteria2"
+            endpoint()
+            body.append("      auth: \(yaml(node.password ?? ""))")
             if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
         case .vmess:
             type = "vmess"

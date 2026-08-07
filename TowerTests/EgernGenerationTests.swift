@@ -99,3 +99,37 @@ final class EgernGenerationTests: XCTestCase {
         XCTAssertTrue(ClientTarget.egern.supportsDirectConfigurationImport)
     }
 }
+
+extension EgernGenerationTests {
+    /// Egern requires Hysteria 2's secret under `auth`; `password` rejects the
+    /// whole profile with "missing field `auth`".
+    func testHysteria2UsesAuthNotPassword() {
+        let hysteria2 = ProxyNode(
+            kind: .hysteria2, name: "TW 01", server: "tw.example.com", port: 443,
+            password: "secret", tls: true, sni: "tw.example.com", rawURI: "hysteria2://x"
+        )
+        let output = generator.generate(
+            nodes: [hysteria2], preset: RulePreset.builtIns[0], target: .egern
+        ).content
+
+        XCTAssertTrue(output.contains("  - hysteria2:"), output)
+        XCTAssertTrue(output.contains("      auth: \"secret\""), output)
+        XCTAssertFalse(output.contains("      password: \"secret\""))
+    }
+
+    /// The protocols that really do use `password` must keep it.
+    func testTrojanAndAnyTLSKeepPassword() {
+        for kind in [ProxyKind.trojan, .anytls] {
+            let node = ProxyNode(
+                kind: kind, name: "N", server: "n.example.com", port: 443,
+                password: "secret", tls: true, sni: "n.example.com", rawURI: "x://y"
+            )
+            let output = generator.generate(
+                nodes: [node], preset: RulePreset.builtIns[0], target: .egern
+            ).content
+
+            XCTAssertTrue(output.contains("      password: \"secret\""), "\(kind.rawValue): \(output)")
+            XCTAssertFalse(output.contains("      auth: "), kind.rawValue)
+        }
+    }
+}
