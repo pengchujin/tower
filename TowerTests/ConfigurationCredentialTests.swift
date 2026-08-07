@@ -186,10 +186,12 @@ final class ConfigurationCredentialTests: XCTestCase {
                 )
                 continue
             }
-            guard target != .clash else {
+            // Both YAML formats quote the name, so the injected text survives
+            // inside the scalar and only the line count proves it stayed put.
+            guard target != .clash, target != .egern else {
                 XCTAssertTrue(
-                    hostile.contains(#"name: "HK 01 REJECT = reject # owned""#),
-                    "Clash 应把节点名保留为单行带引号标量"
+                    hostile.contains(#""HK 01 REJECT = reject # owned""#),
+                    "\(target.name) 应把节点名保留为单行带引号标量"
                 )
                 continue
             }

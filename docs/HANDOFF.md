@@ -2,7 +2,7 @@
 
 ## 1. 当前结论
 
-塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、本地 Self-Configuration 规则、六种客户端配置生成、配置预览及导入/分享。
+塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、本地 Self-Configuration 规则、八种客户端配置生成、配置预览及导入/分享。
 
 当前代码版本为 `1.0 (3)`，Bundle ID 为 `com.jzb.tower`，已归档并上传到 TestFlight。归档在开发者本机完成；分发签名和上传走 Xcode Organizer，因为 SSH 会话拿不到钥匙串私钥（见 §4）。
 
@@ -176,7 +176,7 @@ Hiddify 是 Flutter 外壳 + `hiddify-core`（sing-box 内核），吃 sing-box 
 
 JSON 用 `JSONSerialization` 构建而非拼字符串——节点名是机场可控的不可信输入，交给编码器转义。几个格式决定：拒绝从 1.11 起是路由动作（`action: reject`），选择器没有可指的出站，所以拦截类策略不生成组、规则直接带动作；Clash 的四个隐藏别名组在 sing-box 里没有 hidden 概念但仍需存在，否则悬空引用导致起不来；sing-box 的 Snell 只支持 v4 以上，与 Clash 的 v3 上限正好相反。
 
-Egern 暂未做：顶层键已知（`proxies`/`policy_groups`/`rules`），三段都是单键映射的列表，但完整验证未完成。
+Egern 也已支持：三段都是单键映射的列表（`- shadowsocks:` / `- select:` / `- domain_suffix:`），策略组用 `select` 和 `auto_test`，规则每条一个 `match`，兜底是 `- default:`。字段是 snake_case（`user_id`、`udp_relay`、`skip_tls_verify`、`obfs_host`），Shadowsocks 的 cipher 要去掉 `-ietf` 中缀。
 
 ### 其他
 
@@ -442,7 +442,7 @@ xcodebuild -project Tower.xcodeproj \
   test
 ```
 
-配置生成器修改需要额外人工打开六种输出，检查：
+配置生成器修改需要额外人工打开八种输出，检查：
 
 - 所有组引用存在且无环。
 - 地区组只含对应节点，空地区不产生死组。

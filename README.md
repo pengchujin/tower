@@ -70,7 +70,7 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 2. 选择 iOS 17 或更新版本的模拟器/设备。
 3. 运行 `Tower` Scheme。
 
-测试覆盖订阅解析、Clash YAML 嵌套字段、IP 优先国家地区聚合、网络延迟链路、本地规则资源、一键导入 Scheme，以及六种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
+测试覆盖订阅解析、Clash YAML 嵌套字段、IP 优先国家地区聚合、网络延迟链路、本地规则资源、一键导入 Scheme，以及八种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
 
 ## 已知边界
 

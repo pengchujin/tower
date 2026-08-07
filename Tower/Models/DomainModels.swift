@@ -654,6 +654,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case quanx
     case singbox
     case hiddify
+    case egern
 
     var id: String { rawValue }
 
@@ -666,6 +667,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .quanx: "QuanX"
         case .singbox: "sing-box"
         case .hiddify: "Hiddify"
+        case .egern: "Egern"
         }
     }
 
@@ -678,6 +680,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .quanx: "Quantumult X"
         case .singbox: "sing-box JSON"
         case .hiddify: "sing-box 内核"
+        case .egern: "Egern YAML"
         }
     }
 
@@ -690,6 +693,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .quanx: "q.circle.fill"
         case .singbox: "shippingbox.circle.fill"
         case .hiddify: "eye.slash.circle.fill"
+        case .egern: "e.circle.fill"
         }
     }
 
@@ -702,7 +706,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .shadowrocket: "ClientShadowrocket"
         case .loon: "ClientLoon"
         case .quanx: "ClientQuantumultX"
-        case .singbox, .hiddify: nil
+        case .singbox, .hiddify, .egern: nil
         }
     }
 
@@ -714,7 +718,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var fileExtension: String {
         switch self {
-        case .clash: "yaml"
+        case .clash, .egern: "yaml"
         case .singbox, .hiddify: "json"
         default: "conf"
         }
@@ -724,7 +728,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         // Quantumult X has no import scheme, and neither sing-box nor Hiddify
         // documents one, so those go through the system share sheet.
         switch self {
-        case .quanx, .singbox, .hiddify: false
+        case .quanx, .singbox, .hiddify, .egern: false
         default: true
         }
     }
@@ -755,6 +759,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // Snell is accepted here but only from v4 up, which is the inverse
             // of Clash's ceiling of v3; writes(_:to:excluding:) applies that.
             kind != .unknown
+        case .egern:
+            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
         }
     }
 }

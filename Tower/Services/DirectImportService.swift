@@ -40,7 +40,7 @@ struct ClientImportURLBuilder {
             value = "loon://import?sub=\(encodedURL)"
         // Quantumult X publishes no install scheme, and neither sing-box nor
         // Hiddify documents one; those reach the client through the share sheet.
-        case .quanx, .singbox, .hiddify:
+        case .quanx, .singbox, .hiddify, .egern:
             throw DirectImportError.unsupportedTarget(target)
         }
 

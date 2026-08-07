@@ -111,7 +111,8 @@ final class ConfigurationGeneratorTests: XCTestCase {
             .surge: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
             .shadowrocket: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
             .loon: "AI服务 = select,🚀 节点选择,♻️ 自动选择,🎛️ 手动切换",
-            .quanx: "static=AI服务, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换"
+            .quanx: "static=AI服务, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
+            .egern: "  - select:\n      name: \"AI服务\"\n      policies:\n        - \"🚀 节点选择\"\n        - \"♻️ 自动选择\"\n        - \"🎛️ 手动切换\""
         ]
 
         for target in ClientTarget.allCases {

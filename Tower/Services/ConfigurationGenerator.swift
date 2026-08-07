@@ -64,6 +64,8 @@ struct ConfigurationGenerator {
             content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .singbox, .hiddify:
             content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
+        case .egern:
+            content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
         }
 
         return GeneratedConfiguration(
@@ -103,6 +105,8 @@ struct ConfigurationGenerator {
             content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         case .singbox, .hiddify:
             content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+        case .egern:
+            content = egernScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
         }
 
         return GeneratedConfiguration(
@@ -1931,5 +1935,250 @@ extension ConfigurationGenerator {
             return "{}"
         }
         return text + "\n"
+    }
+}
+
+// MARK: - Egern
+
+/// Egern's YAML nests by type: every proxy, policy group and rule is a
+/// single-key mapping whose key names the kind, unlike Clash's flat `type:`.
+///
+///     proxies:
+///       - shadowsocks:
+///           name: HK 01
+///     policy_groups:
+///       - select:
+///           name: 节点选择
+///           policies: [...]
+///     rules:
+///       - domain_suffix:
+///           match: google.com
+///           policy: 节点选择
+extension ConfigurationGenerator {
+    static let egernDirect = "DIRECT"
+    static let egernReject = "REJECT"
+
+    func egern(
+        nodes: [ProxyNode],
+        preset: RulePreset,
+        regionGroups: [RegionStrategyGroup]
+    ) -> String {
+        let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let regionGroupNames = regionGroups.map(\.name)
+
+        var output = header(target: .egern)
+        output += "\nproxies:\n"
+        output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
+
+        output += "\npolicy_groups:\n"
+        output += egernSelect(
+            name: RulePolicy.select.configurationName,
+            policies: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
+        )
+        output += egernAutoTest(name: RulePolicy.auto.configurationName, policies: nodeNames)
+        output += egernSelect(
+            name: Self.manualGroupName,
+            policies: nodeNames.isEmpty ? [Self.egernDirect] : nodeNames
+        )
+        // The four aliases every policy group points at, declared here the way
+        // the other formats declare them.
+        output += egernSelect(
+            name: Self.nestedSelectGroupName,
+            policies: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
+        )
+        output += egernAutoTest(name: Self.nestedAutoGroupName, policies: nodeNames)
+        output += egernSelect(
+            name: Self.nestedManualGroupName,
+            policies: nodeNames.isEmpty ? [Self.egernDirect] : nodeNames
+        )
+        output += egernSelect(name: Self.directGroupName, policies: [Self.egernDirect])
+
+        for policy in configurablePolicies(preset) {
+            output += egernSelect(
+                name: policy.configurationName,
+                policies: policyChoices(
+                    policy,
+                    regionGroupNames: regionGroupNames,
+                    reject: Self.egernReject
+                )
+            )
+        }
+        for group in regionGroups {
+            output += egernSelect(name: group.name, policies: [group.automaticName] + group.nodeNames)
+            output += egernAutoTest(name: group.automaticName, policies: group.nodeNames)
+        }
+
+        output += "\nrules:\n"
+        for assignment in preset.assignments {
+            let policyName = assignment.policy == .reject
+                ? Self.egernReject
+                : assignment.policy.configurationName
+            for rule in rules.lines(for: assignment) {
+                if let line = egernRule(rule, policy: policyName) { output += line }
+            }
+        }
+        if preset.includeGeoIPCN {
+            output += "  - geoip:\n      match: CN\n      policy: \(Self.egernDirect)\n"
+        }
+        output += "  - default:\n      policy: \(yaml(preset.finalPolicy.configurationName))\n"
+        return output
+    }
+
+    func egernScheme(
+        _ scheme: RuleScheme,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode],
+        schemes: RuleSchemeRepository
+    ) -> String {
+        var output = schemeHeader(scheme, target: .egern)
+        output += "\nproxies:\n"
+        output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
+
+        output += "\npolicy_groups:\n"
+        for group in groups {
+            switch group.kind {
+            case .select: output += egernSelect(name: group.name, policies: group.members)
+            case .urlTest: output += egernAutoTest(name: group.name, policies: group.members)
+            }
+        }
+
+        output += "\nrules:\n"
+        var finalGroup = groups.first?.name ?? Self.egernDirect
+        for ruleset in scheme.rulesets {
+            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
+                finalGroup = ruleset.groupName
+                continue
+            }
+            for line in schemes.lines(for: ruleset.resource) {
+                if let mapped = egernRule(line, policy: ruleset.groupName) { output += mapped }
+            }
+        }
+        output += "  - default:\n      policy: \(yaml(finalGroup))\n"
+        return output
+    }
+
+    private func egernSelect(name: String, policies: [String]) -> String {
+        var block = "  - select:\n      name: \(yaml(name))\n      policies:\n"
+        for policy in (policies.isEmpty ? [Self.egernDirect] : policies) {
+            block += "        - \(yaml(policy))\n"
+        }
+        return block
+    }
+
+    private func egernAutoTest(name: String, policies: [String]) -> String {
+        var block = "  - auto_test:\n      name: \(yaml(name))\n      policies:\n"
+        for policy in (policies.isEmpty ? [Self.egernDirect] : policies) {
+            block += "        - \(yaml(policy))\n"
+        }
+        return block + "      interval: 600\n      tolerance: 100\n      timeout: 5\n"
+    }
+
+    /// One rule per entry: Egern's `match` takes a single value, so a rule list
+    /// is one mapping each rather than an array per policy.
+    private func egernRule(_ rule: String, policy: String) -> String? {
+        let parts = rule.split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard parts.count >= 2,
+              let matcher = Self.egernRuleMatchers[parts[0].uppercased()],
+              !parts[1].isEmpty else { return nil }
+        return "  - \(matcher):\n      match: \(yaml(parts[1]))\n      policy: \(yaml(policy))\n"
+    }
+
+    private static let egernRuleMatchers: [String: String] = [
+        "DOMAIN": "domain",
+        "DOMAIN-SUFFIX": "domain_suffix",
+        "DOMAIN-KEYWORD": "domain_keyword",
+        "IP-CIDR": "ip_cidr",
+        "IP-CIDR6": "ip_cidr",
+        "IP6-CIDR": "ip_cidr",
+        "GEOIP": "geoip",
+        "URL-REGEX": "url_regex",
+        "DEST-PORT": "dest_port",
+        "PROTOCOL": "protocol"
+    ]
+
+    /// One `- <type>:` entry with the snake_case keys Egern uses.
+    func egernProxy(_ node: ProxyNode) -> String? {
+        var body: [String] = ["      name: \(yaml(NodeRegionResolver.displayName(for: node)))"]
+        func endpoint() {
+            body.append("      server: \(yaml(node.server))")
+            body.append("      port: \(node.port)")
+        }
+
+        let type: String
+        switch node.kind {
+        case .shadowsocks:
+            type = "shadowsocks"
+            // Egern spells this one without the `-ietf` infix.
+            let cipher = node.cipher ?? "aes-256-gcm"
+            body.append("      method: \(yaml(cipher == "chacha20-ietf-poly1305" ? "chacha20-poly1305" : cipher))")
+            body.append("      password: \(yaml(node.password ?? ""))")
+            endpoint()
+            if let mode = simpleObfsMode(node) {
+                body.append("      obfs: \(yaml(mode))")
+                if let host = node.obfsParam, !host.isEmpty {
+                    body.append("      obfs_host: \(yaml(host))")
+                }
+            }
+        case .trojan, .hysteria2, .anytls:
+            type = node.kind == .trojan ? "trojan" : (node.kind == .hysteria2 ? "hysteria2" : "anytls")
+            endpoint()
+            body.append("      password: \(yaml(node.password ?? ""))")
+            if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
+        case .vmess:
+            type = "vmess"
+            endpoint()
+            body.append("      user_id: \(yaml(node.exportableUUID ?? ""))")
+            body.append("      security: \(yaml(egernVMessSecurity(node)))")
+            body.append("      legacy: false")
+        case .vless:
+            type = "vless"
+            endpoint()
+            body.append("      user_id: \(yaml(node.exportableUUID ?? ""))")
+        case .snell:
+            type = "snell"
+            endpoint()
+            body.append("      psk: \(yaml(node.password ?? ""))")
+            body.append("      version: \(node.version ?? 4)")
+        case .socks5, .http:
+            let secure = node.tls
+            type = node.kind == .socks5 ? (secure ? "socks5_tls" : "socks5") : (secure ? "https" : "http")
+            endpoint()
+            if let user = node.username, !user.isEmpty { body.append("      username: \(yaml(user))") }
+            if let password = node.password, !password.isEmpty {
+                body.append("      password: \(yaml(password))")
+            }
+        case .shadowsocksR, .unknown:
+            // supports(_:) filters these out; this keeps the switch total.
+            return nil
+        }
+
+        body.append("      udp_relay: true")
+        if node.skipCertificateVerification, node.kind != .shadowsocks {
+            body.append("      skip_tls_verify: true")
+        }
+        if let transport = egernTransport(node) { body.append(contentsOf: transport) }
+        return "  - \(type):\n" + body.joined(separator: "\n") + "\n"
+    }
+
+    /// Websocket nests under `transport`, keyed `ws` or `wss` by whether the
+    /// node negotiates TLS.
+    private func egernTransport(_ node: ProxyNode) -> [String]? {
+        guard node.transport == "ws" else { return nil }
+        var lines = ["      transport:", "        \(node.tls ? "wss" : "ws"):"]
+        if let path = node.exportablePath { lines.append("          path: \(yaml(path))") }
+        if let host = node.hostHeader, !host.isEmpty {
+            lines.append("          headers:")
+            lines.append("            Host: \(yaml(host))")
+        }
+        if node.tls, let sni = node.sni, !sni.isEmpty { lines.append("          sni: \(yaml(sni))") }
+        return lines
+    }
+
+    private func egernVMessSecurity(_ node: ProxyNode) -> String {
+        let cipher = node.cipher?.lowercased() ?? "auto"
+        if cipher == "chacha20-ietf-poly1305" { return "chacha20-poly1305" }
+        let accepted: Set<String> = ["auto", "none", "aes-128-gcm", "chacha20-poly1305"]
+        return accepted.contains(cipher) ? cipher : "auto"
     }
 }
