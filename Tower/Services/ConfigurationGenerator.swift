@@ -801,13 +801,15 @@ struct ConfigurationGenerator {
         case .vless:
             components = ["vless", node.server, "\(node.port)", "username=\(node.exportableUUID ?? "")"]
             appendSurgeTransport(node, includeTLSFlag: true, to: &components)
-            // Shadowrocket only. Surge takes no VLESS at all and rejects
-            // REALITY outright, so the keys would be meaningless there.
+            // Shadowrocket only — Surge takes no VLESS and rejects REALITY.
+            // Its vocabulary is its own: `pbk`/`sid`/`fingerprint` rather than
+            // Loon's public-key/short-id/fp, and the flow is an enum (`xtls=2`
+            // for vision) rather than the flow string.
             if shadowrocket, node.usesReality {
-                components.append("public-key=\(confValue(node.realityPublicKey ?? ""))")
-                appendValue(node.realityShortID, key: "short-id", to: &components)
-                appendValue(node.fingerprint, key: "fp", to: &components)
-                appendValue(node.flow, key: "flow", to: &components)
+                appendValue(node.realityPublicKey, key: "pbk", to: &components)
+                appendValue(node.realityShortID, key: "sid", to: &components)
+                appendValue(node.fingerprint, key: "fingerprint", to: &components)
+                if let xtls = shadowrocketXTLSMode(node) { components.append("xtls=\(xtls)") }
             }
         case .trojan:
             components = ["trojan", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
@@ -851,6 +853,15 @@ struct ConfigurationGenerator {
         let password = node.password ?? ""
         guard !username.isEmpty || !password.isEmpty else { return [] }
         return [confValue(username), confValue(password)]
+    }
+
+    /// Shadowrocket numbers the XTLS flow instead of naming it: 2 is vision,
+    /// 1 the older direct mode.
+    private func shadowrocketXTLSMode(_ node: ProxyNode) -> Int? {
+        guard let flow = node.flow?.lowercased(), !flow.isEmpty else { return nil }
+        if flow.contains("vision") { return 2 }
+        if flow.contains("direct") { return 1 }
+        return nil
     }
 
     private func appendSurgeTransport(

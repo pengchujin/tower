@@ -92,13 +92,26 @@ final class RealityTests: XCTestCase {
 
     // MARK: - Clients that cannot express it
 
-    func testShadowrocketCarriesRealityOnItsVLESSLine() throws {
+    /// Shadowrocket names these differently from every other client, and
+    /// numbers the flow rather than spelling it.
+    func testShadowrocketUsesItsOwnRealityVocabulary() throws {
         let output = generator.generate(nodes: [try node()], preset: preset, target: .shadowrocket)
 
         XCTAssertEqual(output.supportedNodeCount, 1)
-        XCTAssertTrue(output.content.contains("public-key=TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), output.content)
-        XCTAssertTrue(output.content.contains("short-id=0123456789abcdef"))
-        XCTAssertTrue(output.content.contains("flow=xtls-rprx-vision"))
+        XCTAssertTrue(output.content.contains("pbk=TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), output.content)
+        XCTAssertTrue(output.content.contains("sid=0123456789abcdef"))
+        XCTAssertTrue(output.content.contains("fingerprint=chrome"))
+        XCTAssertTrue(output.content.contains("xtls=2"), "vision 应写成 xtls=2")
+        // Loon's spelling must not leak into Shadowrocket's line.
+        XCTAssertFalse(output.content.contains("public-key="))
+        XCTAssertFalse(output.content.contains("short-id="))
+    }
+
+    func testLoonKeepsItsOwnSpelling() throws {
+        let loon = generator.generate(nodes: [try node()], preset: preset, target: .loon).content
+
+        XCTAssertTrue(loon.contains("public-key="), loon)
+        XCTAssertFalse(loon.contains("xtls="))
     }
 
     /// Surge is the one client that genuinely cannot: its producer raises
