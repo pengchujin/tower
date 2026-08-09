@@ -283,6 +283,30 @@ private struct ConversionSummary: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
             }
+            if !configuration.conversionWarnings.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(
+                        "\(configuration.conversionWarnings.count) 条 DNS 配置未能转换",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    ForEach(configuration.conversionWarnings.prefix(3), id: \.self) { warning in
+                        Text(warning)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if configuration.conversionWarnings.count > 3 {
+                        Text("等 \(configuration.conversionWarnings.count) 条……")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Text("未转换的 DNS 条目不会写入配置，也不影响预览、复制或导入。")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(20)
         .towerCard()

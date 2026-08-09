@@ -364,6 +364,7 @@ final class AppModel {
         var updated = source
         updated.lastUpdatedAt = .now
         updated.usage = result.usage
+        updated.dnsConfiguration = result.dnsConfiguration
         subscriptions.append(updated)
         nodes.append(contentsOf: result.nodes)
         persist()
@@ -400,6 +401,7 @@ final class AppModel {
             subscriptions[index].lastUpdatedAt = .now
             subscriptions[index].lastError = nil
             subscriptions[index].usage = result.usage
+            subscriptions[index].dnsConfiguration = result.dnsConfiguration
             persist()
             showToast(importSummary("已更新", result: result), symbol: "arrow.triangle.2.circlepath.circle.fill")
         } catch {
@@ -460,6 +462,13 @@ final class AppModel {
     func configuration(target: ClientTarget? = nil) -> GeneratedConfiguration {
         let resolvedTarget = target ?? selectedTarget
         let currentNodes = enabledNodes
+        // Enabled subscriptions merge in list order: the first non-empty value
+        // wins per global field, the first occurrence wins per matcher. A
+        // disabled subscription contributes nothing and drops out of the cache
+        // key below, so toggling it invalidates the cached configuration.
+        let dnsConfiguration = SubscriptionDNSConfiguration.merged(
+            subscriptions.filter(\.isEnabled).compactMap(\.dnsConfiguration)
+        )
         let currentNodeIDs = Set(currentNodes.map(\.id))
         let currentCountryCodes = nodeIPCountryCodes.filter { currentNodeIDs.contains($0.key) }
         let countryCodesHash = currentCountryCodes
@@ -476,7 +485,10 @@ final class AppModel {
             countryCodesHash: countryCodesHash,
             // Without this, toggling a protocol would keep serving the cached
             // configuration for that client.
-            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
+            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue,
+            // DNS metadata merges from the enabled subscriptions, so disabling
+            // one changes this hash and invalidates the cached configuration.
+            dnsHash: dnsConfiguration?.hashValue ?? 0
         )
         if let cached = generationCache[key] { return cached }
 
@@ -488,7 +500,8 @@ final class AppModel {
                 scheme: scheme,
                 target: resolvedTarget,
                 schemes: schemeRepository,
-                excludedKinds: excluded
+                excludedKinds: excluded,
+                dnsConfiguration: dnsConfiguration
             )
         } else {
             generated = generator.generate(
@@ -496,7 +509,8 @@ final class AppModel {
                 preset: selectedPreset,
                 target: resolvedTarget,
                 countryCodes: currentCountryCodes,
-                excludedKinds: excluded
+                excludedKinds: excluded,
+                dnsConfiguration: dnsConfiguration
             )
         }
         generationCache[key] = generated
@@ -591,19 +605,24 @@ struct GenerationCacheKey: Hashable {
     let nodesHash: Int
     let countryCodesHash: Int
     let excludedHash: Int
+    /// Merged DNS metadata. Toggling a subscription changes it, which drops
+    /// the cached configuration for that key.
+    let dnsHash: Int
 
     init(
         target: ClientTarget,
         presetID: String,
         nodesHash: Int,
         countryCodesHash: Int,
-        excludedHash: Int = 0
+        excludedHash: Int = 0,
+        dnsHash: Int = 0
     ) {
         self.target = target
         self.presetID = presetID
         self.nodesHash = nodesHash
         self.countryCodesHash = countryCodesHash
         self.excludedHash = excludedHash
+        self.dnsHash = dnsHash
     }
 
     fileprivate var signature: GenerationCacheSignature {

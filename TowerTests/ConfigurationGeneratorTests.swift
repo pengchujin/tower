@@ -83,6 +83,48 @@ final class ConfigurationGeneratorTests: XCTestCase {
         XCTAssertTrue(result.content.contains("MATCH,国际流量"))
     }
 
+    func testClashCarriesNameserverPolicyWhileOtherFormatsDoNot() {
+        let dns = SubscriptionDNSConfiguration(nameserverPolicy: [
+            NameserverPolicyEntry(
+                matcher: "geosite:cn,private",
+                nameservers: ["https://dns.alidns.com/dns-query", "https://doh.pub/dns-query"]
+            )
+        ])
+        let clash = ConfigurationGenerator().generate(
+            nodes: nodes,
+            preset: RulePreset.builtIns[0],
+            target: .clash,
+            dnsConfiguration: dns
+        ).content
+        let surge = ConfigurationGenerator().generate(
+            nodes: nodes,
+            preset: RulePreset.builtIns[0],
+            target: .surge,
+            dnsConfiguration: dns
+        ).content
+
+        XCTAssertTrue(clash.contains("dns:\n  enable: true"))
+        XCTAssertTrue(clash.contains("  nameserver-policy:\n    \"geosite:cn,private\":"))
+        XCTAssertTrue(clash.contains("      - \"https://dns.alidns.com/dns-query\""))
+        XCTAssertFalse(surge.contains("nameserver-policy"))
+    }
+
+    func testClashNameserverPolicyKeepsFirstValueForDuplicateMatcher() {
+        let dns = SubscriptionDNSConfiguration(nameserverPolicy: [
+            NameserverPolicyEntry(matcher: "+.example.com", nameservers: ["tls://1.1.1.1"]),
+            NameserverPolicyEntry(matcher: "+.example.com", nameservers: ["tls://8.8.8.8"])
+        ])
+        let content = ConfigurationGenerator().generate(
+            nodes: nodes,
+            preset: RulePreset.builtIns[0],
+            target: .clash,
+            dnsConfiguration: dns
+        ).content
+
+        XCTAssertTrue(content.contains("tls://1.1.1.1"))
+        XCTAssertFalse(content.contains("tls://8.8.8.8"))
+    }
+
     func testEveryClientAddsNativeImageFieldsToStrategyGroups() {
         let generator = ConfigurationGenerator()
         let preset = RulePreset.builtIns[0]

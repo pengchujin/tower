@@ -43,29 +43,34 @@ struct ConfigurationGenerator {
         preset: RulePreset,
         target: ClientTarget,
         countryCodes: [UUID: String] = [:],
-        excludedKinds: Set<ProxyKind> = []
+        excludedKinds: Set<ProxyKind> = [],
+        dnsConfiguration: SubscriptionDNSConfiguration? = nil
     ) -> GeneratedConfiguration {
+        // An empty block means the airport shipped no usable field, so it falls
+        // back to the same built-in defaults as no block at all.
+        let dns = dnsConfiguration?.isEmpty == true ? nil : dnsConfiguration
         let supported = uniquedNames(
             nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: reservedProxyNames(for: preset)
         )
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
+        var warnings: [String] = []
         let content: String
         switch target {
         case .clash:
-            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, dns: dns, warnings: &warnings)
         case .surge:
-            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: false)
+            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: false, dns: dns, warnings: &warnings)
         case .shadowrocket:
-            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: true)
+            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: true, dns: dns, warnings: &warnings)
         case .loon:
-            content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = loon(nodes: supported, preset: preset, regionGroups: regionGroups, dns: dns, warnings: &warnings)
         case .quanx:
-            content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups, dns: dns, warnings: &warnings)
         case .hiddify:
-            content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups, dns: dns, warnings: &warnings)
         case .egern:
-            content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = egern(nodes: supported, preset: preset, regionGroups: regionGroups, dns: dns, warnings: &warnings)
         }
 
         return GeneratedConfiguration(
@@ -73,7 +78,8 @@ struct ConfigurationGenerator {
             content: content,
             supportedNodeCount: supported.count,
             skippedNodeCount: nodes.count - supported.count,
-            ruleCount: rules.count(for: preset)
+            ruleCount: rules.count(for: preset),
+            conversionWarnings: warnings.removingDuplicates()
         )
     }
 
@@ -86,27 +92,32 @@ struct ConfigurationGenerator {
         scheme: RuleScheme,
         target: ClientTarget,
         schemes: RuleSchemeRepository = RuleSchemeRepository(),
-        excludedKinds: Set<ProxyKind> = []
+        excludedKinds: Set<ProxyKind> = [],
+        dnsConfiguration: SubscriptionDNSConfiguration? = nil
     ) -> GeneratedConfiguration {
+        // An empty block means the airport shipped no usable field, so it falls
+        // back to the same built-in defaults as no block at all.
+        let dns = dnsConfiguration?.isEmpty == true ? nil : dnsConfiguration
         let supported = uniquedNames(
             nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
+        var warnings: [String] = []
         let content: String
         switch target {
         case .clash:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = clashScheme(scheme, groups: resolved, nodes: supported, schemes: schemes, dns: dns, warnings: &warnings)
         case .surge, .shadowrocket:
-            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, schemes: schemes)
+            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, schemes: schemes, dns: dns, warnings: &warnings)
         case .loon:
-            content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes, dns: dns, warnings: &warnings)
         case .quanx:
-            content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes, dns: dns, warnings: &warnings)
         case .hiddify:
-            content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes, dns: dns, warnings: &warnings)
         case .egern:
-            content = egernScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = egernScheme(scheme, groups: resolved, nodes: supported, schemes: schemes, dns: dns, warnings: &warnings)
         }
 
         return GeneratedConfiguration(
@@ -114,7 +125,8 @@ struct ConfigurationGenerator {
             content: content,
             supportedNodeCount: supported.count,
             skippedNodeCount: nodes.count - supported.count,
-            ruleCount: ruleCount(for: scheme, schemes: schemes)
+            ruleCount: ruleCount(for: scheme, schemes: schemes),
+            conversionWarnings: warnings.removingDuplicates()
         )
     }
 
@@ -281,7 +293,9 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         var output = schemeHeader(scheme, target: .clash)
         output += """
@@ -291,6 +305,11 @@ struct ConfigurationGenerator {
         log-level: warning
         ipv6: true
 
+        """
+        let (dnsText, dnsWarnings) = clashDNS(dns)
+        warnings += dnsWarnings
+        output += dnsText
+        output += """
         proxies:
         """
         output += "\n"
@@ -321,20 +340,15 @@ struct ConfigurationGenerator {
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
         target: ClientTarget,
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
+        let (generalDNS, hostDNS) = surgeFamilyDNS(dns, shadowrocket: target == .shadowrocket, warnings: &warnings)
         var output = schemeHeader(scheme, target: target)
-        output += """
-        [General]
-        loglevel = notify
-        ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
-        skip-proxy = 127.0.0.1, localhost, *.local
-        test-timeout = 5
-
-        [Proxy]
-        """
-        output += "\n"
+        output += "[General]\nloglevel = notify\nipv6 = true\n"
+        output += generalDNS
+        output += "skip-proxy = 127.0.0.1, localhost, *.local\ntest-timeout = 5\n\n[Proxy]\n"
         for node in nodes {
             output += surgeNode(node, shadowrocket: target == .shadowrocket) + "\n"
         }
@@ -351,6 +365,7 @@ struct ConfigurationGenerator {
         }
         output += "\n[Rule]\n"
         output += schemeRules(scheme, target: target, schemes: schemes)
+        output += hostDNS
         return output
     }
 
@@ -358,17 +373,16 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
+        let generalDNS = loonGeneralDNS(dns, warnings: &warnings)
+        let hostDNS = hostSectionDNS(dns?.nameserverPolicy ?? [], targetName: "Loon", allowEncrypted: true, warnings: &warnings)
         var output = schemeHeader(scheme, target: .loon)
-        output += """
-        [General]
-        ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
-
-        [Proxy]
-        """
-        output += "\n"
+        output += "[General]\nipv6 = true\n"
+        output += generalDNS
+        output += "\n[Proxy]\n"
         for node in nodes { output += loonNode(node) + "\n" }
         output += "\n[Proxy Group]\n"
         for group in groups {
@@ -383,6 +397,7 @@ struct ConfigurationGenerator {
         }
         output += "\n[Rule]\n"
         output += schemeRules(scheme, target: .loon, schemes: schemes)
+        output += hostDNS
         return output
     }
 
@@ -390,7 +405,9 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         var output = schemeHeader(scheme, target: .quanx)
         output += """
@@ -398,13 +415,9 @@ struct ConfigurationGenerator {
         server_check_url = http://www.gstatic.com/generate_204
         server_check_timeout = 5000
 
-        [dns]
-        no-system
-        server = 223.5.5.5
-        server = 1.1.1.1
-
-        [server_local]
         """
+        output += quanXDNS(dns, warnings: &warnings)
+        output += "[server_local]"
         output += "\n"
         for node in nodes { output += quanXNode(node) + "\n" }
         output += "\n[policy]\n"
@@ -433,7 +446,9 @@ struct ConfigurationGenerator {
     private func clash(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
@@ -445,6 +460,11 @@ struct ConfigurationGenerator {
         log-level: warning
         ipv6: true
 
+        """
+        let (dnsText, dnsWarnings) = clashDNS(dns)
+        warnings += dnsWarnings
+        output += dnsText
+        output += """
         proxies:
         """
         output += "\n"
@@ -526,6 +546,45 @@ struct ConfigurationGenerator {
         }
         output += "  - MATCH,\(clashPolicyName(preset.finalPolicy))\n"
         return output
+    }
+
+    /// The `dns:` block for Stash/Clash, which speaks the same vocabulary the
+    /// airport used. Built-in defaults fill only the fields the airport left
+    /// blank; Mihomo-only proxy fields are dropped with a warning.
+    private func clashDNS(_ dns: SubscriptionDNSConfiguration?) -> (text: String, warnings: [String]) {
+        var warnings: [String] = []
+        var lines: [String] = ["dns:", "  enable: \(dns?.enable ?? true)"]
+
+        if let defaultNameservers = dns?.defaultNameservers, !defaultNameservers.isEmpty {
+            lines.append("  default-nameserver:")
+            for resolver in defaultNameservers { lines.append("    - \(yaml(resolver))") }
+        }
+
+        let nameservers = dns?.nameservers ?? ["https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"]
+        lines.append("  nameserver:")
+        for resolver in nameservers { lines.append("    - \(yaml(resolver))") }
+
+        if let fallbacks = dns?.fallbacks, !fallbacks.isEmpty {
+            lines.append("  fallback:")
+            for resolver in fallbacks { lines.append("    - \(yaml(resolver))") }
+        }
+
+        if let policy = dns?.nameserverPolicy, !policy.isEmpty {
+            lines.append("  nameserver-policy:")
+            var seen = Set<String>()
+            for entry in policy where seen.insert(entry.matcher).inserted && !entry.nameservers.isEmpty {
+                lines.append("    \(yaml(entry.matcher)):")
+                for resolver in entry.nameservers { lines.append("      - \(yaml(resolver))") }
+            }
+        }
+
+        if let proxy = dns?.proxyServerNameservers, !proxy.isEmpty {
+            warnings.append("Stash 不输出 Mihomo 专属的 proxy-server-nameserver（\(proxy.count) 个解析器），已跳过")
+        }
+        if let proxyPolicy = dns?.proxyServerNameserverPolicy, !proxyPolicy.isEmpty {
+            warnings.append("Stash 不输出 Mihomo 专属的 proxy-server-nameserver-policy（\(proxyPolicy.count) 条），已跳过")
+        }
+        return (lines.joined(separator: "\n") + "\n\n", warnings)
     }
 
     private func clashNode(_ node: ProxyNode) -> String {
@@ -674,22 +733,18 @@ struct ConfigurationGenerator {
         nodes: [ProxyNode],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup],
-        shadowrocket: Bool
+        shadowrocket: Bool,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let target: ClientTarget = shadowrocket ? .shadowrocket : .surge
         let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
+        let (generalDNS, hostDNS) = surgeFamilyDNS(dns, shadowrocket: shadowrocket, warnings: &warnings)
         var output = header(target: target)
-        output += """
-        [General]
-        loglevel = notify
-        ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
-        skip-proxy = 127.0.0.1, localhost, *.local
-        test-timeout = 5
-
-        [Proxy]
-        """
+        output += "[General]\nloglevel = notify\nipv6 = true\n"
+        output += generalDNS
+        output += "skip-proxy = 127.0.0.1, localhost, *.local\ntest-timeout = 5\n\n[Proxy]"
         output += "\n"
         for node in nodes {
             output += surgeNode(node, shadowrocket: shadowrocket) + "\n"
@@ -768,6 +823,7 @@ struct ConfigurationGenerator {
         }
         if preset.includeGeoIPCN { output += "GEOIP,CN,DIRECT,no-resolve\n" }
         output += "FINAL,\(surgePolicyName(preset.finalPolicy))\n"
+        output += hostDNS
         return output
     }
 
@@ -914,18 +970,18 @@ struct ConfigurationGenerator {
     private func loon(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
+        let generalDNS = loonGeneralDNS(dns, warnings: &warnings)
+        let hostDNS = hostSectionDNS(dns?.nameserverPolicy ?? [], targetName: "Loon", allowEncrypted: true, warnings: &warnings)
         var output = header(target: .loon)
-        output += """
-        [General]
-        ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
-
-        [Proxy]
-        """
+        output += "[General]\nipv6 = true\n"
+        output += generalDNS
+        output += "\n[Proxy]"
         output += "\n"
         for node in nodes { output += loonNode(node) + "\n" }
         output += "\n[Proxy Group]\n"
@@ -976,6 +1032,7 @@ struct ConfigurationGenerator {
         }
         if preset.includeGeoIPCN { output += "GEOIP,CN,DIRECT\n" }
         output += "FINAL,\(surgePolicyName(preset.finalPolicy))\n"
+        output += hostDNS
         return output
     }
 
@@ -1081,7 +1138,9 @@ struct ConfigurationGenerator {
     private func quanX(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
@@ -1091,13 +1150,9 @@ struct ConfigurationGenerator {
         server_check_url = http://www.gstatic.com/generate_204
         server_check_timeout = 5000
 
-        [dns]
-        no-system
-        server = 223.5.5.5
-        server = 1.1.1.1
-
-        [server_local]
         """
+        output += quanXDNS(dns, warnings: &warnings)
+        output += "[server_local]"
         output += "\n"
         for node in nodes { output += quanXNode(node) + "\n" }
         output += "\n[policy]\n"
@@ -1554,6 +1609,580 @@ struct ConfigurationGenerator {
             .replacingOccurrences(of: "\r", with: " ")
             .replacingOccurrences(of: "\n", with: " ")
     }
+
+    // MARK: - DNS conversion
+
+    /// [General] DNS lines for Surge and Shadowrocket, plus the `[Host]`
+    /// section carrying the nameserver policy. Shadowrocket spells some keys
+    /// differently and can express a global proxy resolver (`proxy-dns-server`)
+    /// where Surge has nothing at all.
+    private func surgeFamilyDNS(
+        _ dns: SubscriptionDNSConfiguration?,
+        shadowrocket: Bool,
+        warnings: inout [String]
+    ) -> (general: String, host: String) {
+        let targetName = shadowrocket ? "Shadowrocket" : "Surge"
+        guard let dns else {
+            return ("dns-server = system, 223.5.5.5, 1.1.1.1\n", "")
+        }
+
+        var plain: [String] = ["system"]
+        var encrypted: [String] = []
+        var fallbackPlain: [String] = []
+
+        // default-nameserver is the plain resolver that bootstraps the DoH
+        // hostnames — the same role dns-server plays in Surge, so it joins it.
+        // Every value is untrusted airport text, so it goes through confValue
+        // (folds newlines, encodes commas) exactly like a node parameter.
+        for resolver in dns.defaultNameservers {
+            guard let kind = DNSProtocolKind.classify(resolver), kind == .plain else {
+                warnings.append("\(targetName) 的 dns-server 不接受非普通 DNS `\(resolver)`，已跳过")
+                continue
+            }
+            plain.append(confValue(plainResolverAddress(resolver)))
+        }
+
+        let nameservers = dns.nameservers.isEmpty
+            ? ["https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"]
+            : dns.nameservers
+        for resolver in nameservers {
+            guard let kind = DNSProtocolKind.classify(resolver) else {
+                warnings.append("\(targetName) 无法识别的 DNS 解析器 `\(resolver)`，已跳过")
+                continue
+            }
+            switch kind {
+            case .plain:
+                plain.append(confValue(plainResolverAddress(resolver)))
+            case .doh, .doh3, .doq:
+                if shadowrocket {
+                    warnings.append("Shadowrocket 的 dns-server 不表达 \(kind.name) DNS，`\(resolver)` 已跳过")
+                } else {
+                    encrypted.append(confValue(resolver))
+                }
+            case .dot:
+                warnings.append("\(targetName) 不表达 DoT 解析器 `\(resolver)`，已跳过")
+            }
+        }
+
+        // Surge's dns-server list already fails over, so its fallbacks join the
+        // list; Shadowrocket keeps a dedicated key.
+        for resolver in dns.fallbacks {
+            guard let kind = DNSProtocolKind.classify(resolver) else { continue }
+            switch kind {
+            case .plain:
+                if shadowrocket {
+                    fallbackPlain.append(confValue(plainResolverAddress(resolver)))
+                } else {
+                    plain.append(confValue(plainResolverAddress(resolver)))
+                }
+            case .doh, .doh3, .doq:
+                if shadowrocket {
+                    warnings.append("Shadowrocket 的 fallback-dns-server 不表达 \(kind.name) DNS，`\(resolver)` 已跳过")
+                } else {
+                    encrypted.append(confValue(resolver))
+                }
+            case .dot:
+                warnings.append("\(targetName) 不表达 DoT fallback `\(resolver)`，已跳过")
+            }
+        }
+
+        var general = "dns-server = \(plain.joined(separator: ", "))\n"
+        if !encrypted.isEmpty {
+            general += "encrypted-dns-server = \(encrypted.joined(separator: ", "))\n"
+        }
+        if shadowrocket, !fallbackPlain.isEmpty {
+            general += "fallback-dns-server = \(fallbackPlain.joined(separator: ", "))\n"
+        }
+
+        if !dns.proxyServerNameservers.isEmpty { let proxy = dns.proxyServerNameservers
+            if shadowrocket {
+                var valid: [String] = []
+                for resolver in proxy {
+                    guard let kind = DNSProtocolKind.classify(resolver), kind == .plain else {
+                        warnings.append("Shadowrocket 的 proxy-dns-server 不表达非普通 DNS `\(resolver)`，已跳过")
+                        continue
+                    }
+                    valid.append(confValue(plainResolverAddress(resolver)))
+                }
+                if !valid.isEmpty {
+                    general += "proxy-dns-server = \(valid.joined(separator: ", "))\n"
+                }
+            } else {
+                warnings.append("Surge 没有对应 proxy-server-nameserver 的字段（\(proxy.count) 个解析器），已跳过")
+            }
+        }
+        if !dns.proxyServerNameserverPolicy.isEmpty { let proxyPolicy = dns.proxyServerNameserverPolicy
+            warnings.append("\(targetName) 没有按域区分代理节点 DNS 的字段（\(proxyPolicy.count) 条），已跳过")
+        }
+
+        let host = hostSectionDNS(dns.nameserverPolicy, targetName: targetName, allowEncrypted: true, warnings: &warnings)
+        return (general, host)
+    }
+
+    /// `[Host]` section mapping each policy matcher to a resolver, shared by
+    /// Surge, Shadowrocket and Loon. Only exact and `+.`/`*.` matchers convert;
+    /// geosite and unspellable resolver protocols are dropped with a warning.
+    private func hostSectionDNS(
+        _ policy: [NameserverPolicyEntry],
+        targetName: String,
+        allowEncrypted: Bool,
+        warnings: inout [String]
+    ) -> String {
+        var lines: [String] = ["[Host]"]
+        var any = false
+        var seen = Set<String>()
+        for entry in policy where seen.insert(entry.matcher).inserted && !entry.nameservers.isEmpty {
+            guard let matcher = DNSMatcherKind.classify(entry.matcher) else {
+                warnings.append("\(targetName) 无法表达 DNS matcher `\(entry.matcher)`，已跳过")
+                continue
+            }
+            if case .geosite = matcher {
+                warnings.append("\(targetName) 不支持 geosite DNS 匹配，`\(entry.matcher)` 已跳过")
+                continue
+            }
+            var resolvers: [String] = []
+            for resolver in entry.nameservers {
+                guard let kind = DNSProtocolKind.classify(resolver) else {
+                    warnings.append("\(targetName) 无法识别的 DNS 解析器 `\(resolver)`，已跳过")
+                    continue
+                }
+                switch kind {
+                case .plain:
+                    resolvers.append(plainResolverAddress(resolver))
+                case .doh where allowEncrypted:
+                    resolvers.append(resolver)
+                default:
+                    warnings.append("\(targetName) 的 [Host] 不表达 \(kind.name) 解析器 `\(resolver)`，已跳过")
+                }
+            }
+            guard !resolvers.isEmpty else {
+                warnings.append("\(targetName) 无法表达 `\(entry.matcher)` 的 DNS 解析器，已跳过")
+                continue
+            }
+            // Both sides are untrusted airport text: confName folds the matcher
+            // into a single line and neutralises brackets, confValue encodes
+            // any comma that would have split the resolver list.
+            lines.append("\(confName(hostPattern(matcher))) = server:\(resolvers.map(confValue).joined(separator: ","))")
+            any = true
+        }
+        return any ? lines.joined(separator: "\n") + "\n" : ""
+    }
+
+    private func hostPattern(_ matcher: DNSMatcherKind) -> String {
+        switch matcher {
+        case .exact(let domain): domain
+        // The [Host] sections of Surge, Shadowrocket and Loon only know the
+        // `*.domain` wildcard, which covers both Clash suffix forms.
+        case .suffix(let domain, _): "*.\(domain)"
+        case .geosite: ""
+        }
+    }
+
+    /// Loon's [General] splits resolvers by protocol. Its plain list already
+    /// fails over, so fallbacks join it rather than a dedicated key; DoT has no
+    /// home and is dropped with a warning.
+    private func loonGeneralDNS(_ dns: SubscriptionDNSConfiguration?, warnings: inout [String]) -> String {
+        guard let dns else { return "dns-server = system, 223.5.5.5, 1.1.1.1\n" }
+        var plain: [String] = ["system"]
+        var doh: [String] = []
+        var doq: [String] = []
+        var doh3: [String] = []
+        let nameservers = dns.nameservers.isEmpty
+            ? ["https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"]
+            : dns.nameservers
+        for resolver in dns.defaultNameservers + nameservers + dns.fallbacks {
+            guard let kind = DNSProtocolKind.classify(resolver) else {
+                warnings.append("Loon 无法识别的 DNS 解析器 `\(resolver)`，已跳过")
+                continue
+            }
+            switch kind {
+            case .plain: plain.append(confValue(plainResolverAddress(resolver)))
+            case .doh: doh.append(confValue(resolver))
+            case .doq: doq.append(confValue(resolver))
+            case .doh3: doh3.append(confValue(resolver))
+            case .dot:
+                warnings.append("Loon 不表达 DoT 解析器 `\(resolver)`，已跳过")
+            }
+        }
+        if !dns.proxyServerNameservers.isEmpty { let proxy = dns.proxyServerNameservers
+            warnings.append("Loon 没有对应 proxy-server-nameserver 的字段（\(proxy.count) 个解析器），已跳过")
+        }
+        if !dns.proxyServerNameserverPolicy.isEmpty { let proxyPolicy = dns.proxyServerNameserverPolicy
+            warnings.append("Loon 没有按域区分代理节点 DNS 的字段（\(proxyPolicy.count) 条），已跳过")
+        }
+        var lines = ["dns-server = \(plain.joined(separator: ", "))"]
+        if !doh.isEmpty { lines.append("doh-server = \(doh.joined(separator: ", "))") }
+        if !doq.isEmpty { lines.append("doq-server = \(doq.joined(separator: ", "))") }
+        if !doh3.isEmpty { lines.append("doh3-server = \(doh3.joined(separator: ", "))") }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// Quantumult X's `[dns]` section: plain resolvers on `server =`, DoH/DoQ
+    /// on their own keys, and matcher bindings written as `server = /domain/ns`.
+    /// DoT, DoH3 and the proxy fields have no home — all dropped with a warning.
+    private func quanXDNS(_ dns: SubscriptionDNSConfiguration?, warnings: inout [String]) -> String {
+        guard let dns else {
+            return "[dns]\nno-system\nserver = 223.5.5.5\nserver = 1.1.1.1\n\n"
+        }
+        var plain: [String] = []
+        var doh: [String] = []
+        var doq: [String] = []
+        var bindings: [String] = []
+
+        let nameservers = dns.nameservers.isEmpty
+            ? ["223.5.5.5", "1.1.1.1"]
+            : dns.nameservers
+        for resolver in dns.defaultNameservers + nameservers + dns.fallbacks {
+            guard let kind = DNSProtocolKind.classify(resolver) else {
+                warnings.append("Quantumult X 无法识别的 DNS 解析器 `\(resolver)`，已跳过")
+                continue
+            }
+            switch kind {
+            case .plain: plain.append(confValue(plainResolverAddress(resolver)))
+            case .doh: doh.append(confValue(resolver))
+            case .doq: doq.append(confValue(resolver))
+            case .dot, .doh3:
+                warnings.append("Quantumult X 不表达 \(kind.name) 解析器 `\(resolver)`，已跳过")
+            }
+        }
+
+        var seen = Set<String>()
+        for entry in dns.nameserverPolicy where seen.insert(entry.matcher).inserted && !entry.nameservers.isEmpty {
+            guard let matcher = DNSMatcherKind.classify(entry.matcher) else {
+                warnings.append("Quantumult X 无法表达 DNS matcher `\(entry.matcher)`，已跳过")
+                continue
+            }
+            if case .geosite = matcher {
+                warnings.append("Quantumult X 不支持 geosite DNS 匹配，`\(entry.matcher)` 已跳过")
+                continue
+            }
+            // QuanX spells the binding as `/pattern/resolver`, and the pattern
+            // already carries its trailing slash.
+            let pattern = confName(quanXHostPattern(matcher))
+            for resolver in entry.nameservers {
+                guard let kind = DNSProtocolKind.classify(resolver) else { continue }
+                switch kind {
+                case .plain: bindings.append("server = \(pattern)\(confValue(plainResolverAddress(resolver)))")
+                case .doh: bindings.append("doh-server = \(pattern)\(confValue(resolver))")
+                case .doq: bindings.append("doq-server = \(pattern)\(confValue(resolver))")
+                case .dot, .doh3:
+                    warnings.append("Quantumult X 不表达 \(kind.name) 解析器 `\(resolver)`，已跳过")
+                }
+            }
+        }
+
+        if !dns.proxyServerNameservers.isEmpty { let proxy = dns.proxyServerNameservers
+            warnings.append("Quantumult X 没有对应 proxy-server-nameserver 的字段（\(proxy.count) 个解析器），已跳过")
+        }
+        if !dns.proxyServerNameserverPolicy.isEmpty { let proxyPolicy = dns.proxyServerNameserverPolicy
+            warnings.append("Quantumult X 没有按域区分代理节点 DNS 的字段（\(proxyPolicy.count) 条），已跳过")
+        }
+
+        var lines = ["[dns]", "no-system"]
+        for resolver in plain { lines.append("server = \(resolver)") }
+        for resolver in doh { lines.append("doh-server = \(resolver)") }
+        for resolver in doq { lines.append("doq-server = \(resolver)") }
+        lines += bindings
+        return lines.joined(separator: "\n") + "\n\n"
+    }
+
+    private func quanXHostPattern(_ matcher: DNSMatcherKind) -> String {
+        switch matcher {
+        case .exact(let domain): "/\(domain)/"
+        // Quantumult X's `/*.domain/` binding covers the apex too, matching
+        // `+.` exactly and adding the apex for `*.`.
+        case .suffix(let domain, _): "/*.\(domain)/"
+        case .geosite: ""
+        }
+    }
+
+    /// Egern's `dns:` block. The airport's resolver groups map onto `upstreams`
+    /// (multi-resolver policies stay whole), policy matchers become `forward`
+    /// rules, and the global proxy resolver lands on `proxy_nameservers`.
+    private func egernDNS(_ dns: SubscriptionDNSConfiguration?, warnings: inout [String]) -> String {
+        guard let dns else { return "" }
+
+        var bootstrap: [String] = []
+        for resolver in dns.defaultNameservers {
+            guard let kind = DNSProtocolKind.classify(resolver), kind == .plain else {
+                warnings.append("Egern 的 bootstrap 只接受普通 DNS，`\(resolver)` 已跳过")
+                continue
+            }
+            bootstrap.append(plainResolverAddress(resolver))
+        }
+        if bootstrap.isEmpty { bootstrap = ["223.5.5.5"] }
+
+        let nameservers = dns.nameservers.isEmpty
+            ? ["https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"]
+            : dns.nameservers
+        var upstreams: [(name: String, resolvers: [String])] = [("main", nameservers + dns.fallbacks)]
+        var forwards: [String] = []
+        var seen = Set<String>()
+        for entry in dns.nameserverPolicy where seen.insert(entry.matcher).inserted && !entry.nameservers.isEmpty {
+            guard let matcher = DNSMatcherKind.classify(entry.matcher) else {
+                warnings.append("Egern 无法表达 DNS matcher `\(entry.matcher)`，已跳过")
+                continue
+            }
+            switch matcher {
+            case .geosite:
+                warnings.append("Egern 不支持 geosite DNS 匹配，`\(entry.matcher)` 已跳过")
+                continue
+            case .exact(let domain):
+                appendEgernForward(&forwards, &upstreams, type: "domain", domain: domain, entry: entry)
+            case .suffix(let domain, _):
+                appendEgernForward(&forwards, &upstreams, type: "domain_wildcard", domain: "*.\(domain)", entry: entry)
+            }
+        }
+        // Without a catch-all rule Egern would answer everything with the
+        // bootstrap resolvers, leaving the airport's main upstreams unused.
+        // The catch-all comes last, after the policy rules.
+        forwards.append("    - domain_regex:\n        match: \".*\"\n        value: \"main\"")
+
+        var lines = ["dns:", "  bootstrap:"]
+        for resolver in bootstrap { lines.append("    - \(yaml(resolver))") }
+        lines.append("  upstreams:")
+        for group in upstreams {
+            // Group names are always generated (`main` or a sanitised matcher),
+            // so the key needs no quoting; the resolvers inside are airport text
+            // and stay quoted.
+            lines.append("    \(group.name):")
+            for resolver in group.resolvers { lines.append("      - \(yaml(resolver))") }
+        }
+        lines.append("  forward:")
+        lines.append(contentsOf: forwards)
+        if !dns.proxyServerNameservers.isEmpty { let proxy = dns.proxyServerNameservers
+            lines.append("  proxy_nameservers:")
+            for resolver in proxy { lines.append("    - \(yaml(resolver))") }
+        }
+        if !dns.proxyServerNameserverPolicy.isEmpty { let proxyPolicy = dns.proxyServerNameserverPolicy
+            warnings.append("Egern 没有按域区分代理节点 DNS 的字段（\(proxyPolicy.count) 条），已跳过")
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    private func appendEgernForward(
+        _ forwards: inout [String],
+        _ upstreams: inout [(name: String, resolvers: [String])],
+        type: String,
+        domain: String,
+        entry: NameserverPolicyEntry
+    ) {
+        let value: String
+        if entry.nameservers.count == 1 {
+            value = entry.nameservers[0]
+        } else {
+            let name = egernUpstreamGroupName(entry.matcher)
+            upstreams.append((name, entry.nameservers))
+            value = name
+        }
+        forwards.append("    - \(type):\n        match: \(yaml(domain))\n        value: \(yaml(value))")
+    }
+
+    private func egernUpstreamGroupName(_ matcher: String) -> String {
+        let allowed = CharacterSet.alphanumerics
+        var result = "policy"
+        var pendingDash = false
+        for scalar in matcher.unicodeScalars {
+            if allowed.contains(scalar) {
+                if pendingDash { result.append("-"); pendingDash = false }
+                result.append(Character(scalar))
+            } else {
+                pendingDash = true
+            }
+        }
+        return result
+    }
+
+    /// The `dns` object for a sing-box document, plus the tags a proxy node's
+    /// `domain_resolver` should point at. With no airport DNS the built-in
+    /// remote/local pair is kept; otherwise every resolver becomes a server and
+    /// the matchers become rules.
+    private func singBoxDNS(
+        _ dns: SubscriptionDNSConfiguration?,
+        directTag: String,
+        selectTag: String,
+        warnings: inout [String]
+    ) -> SingBoxDNSPlan {
+        guard let dns else {
+            return SingBoxDNSPlan(
+                dns: [
+                    "servers": [
+                        ["tag": "remote", "address": "https://1.1.1.1/dns-query", "detour": selectTag],
+                        ["tag": "local", "address": "https://223.5.5.5/dns-query", "detour": directTag]
+                    ],
+                    "final": "local",
+                    "strategy": "prefer_ipv4"
+                ],
+                proxyTag: nil,
+                proxyMatchers: []
+            )
+        }
+
+        var servers: [[String: Any]] = []
+        var serverTags: [String: String] = [:]
+        func tag(for address: String) -> String {
+            if let existing = serverTags[address] { return existing }
+            let tag = "ns-\(serverTags.count)"
+            serverTags[address] = tag
+            servers.append(["tag": tag, "address": address, "detour": directTag])
+            return tag
+        }
+
+        let nameservers = dns.nameservers.isEmpty
+            ? ["https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"]
+            : dns.nameservers
+        for resolver in dns.defaultNameservers + nameservers + dns.fallbacks {
+            _ = tag(for: resolver)
+        }
+
+        var rules: [[String: Any]] = []
+        var seen = Set<String>()
+        for entry in dns.nameserverPolicy where seen.insert(entry.matcher).inserted && !entry.nameservers.isEmpty {
+            guard let matcher = DNSMatcherKind.classify(entry.matcher) else {
+                warnings.append("Hiddify 无法表达 DNS matcher `\(entry.matcher)`，已跳过")
+                continue
+            }
+            switch matcher {
+            case .geosite:
+                warnings.append("Hiddify 按方案不输出 geosite DNS 匹配，`\(entry.matcher)` 已跳过")
+                continue
+            case .exact(let domain):
+                rules.append(["domain": [domain], "server": tag(for: entry.nameservers[0])])
+            case .suffix(let domain, let includesApex):
+                // `+.example.com` includes the apex; `.example.com` with the
+                // leading dot is exactly that. `*.example.com` does not include
+                // it, so it is spelled as a wildcard.
+                if includesApex {
+                    rules.append(["domain_suffix": [".\(domain)"], "server": tag(for: entry.nameservers[0])])
+                } else {
+                    rules.append(["domain_wildcard": ["*.\(domain)"], "server": tag(for: entry.nameservers[0])])
+                }
+            }
+            if entry.nameservers.count > 1 {
+                warnings.append("Hiddify 的 dns 规则只支持单个解析器，`\(entry.matcher)` 的其余 \(entry.nameservers.count - 1) 个已忽略")
+            }
+        }
+
+        var proxyTag: String?
+        var proxyMatchers: [(kind: DNSMatcherKind, tag: String)] = []
+        if !dns.proxyServerNameservers.isEmpty { let proxy = dns.proxyServerNameservers
+            proxyTag = tag(for: proxy[0])
+            if proxy.count > 1 {
+                warnings.append("Hiddify 的 proxy-server-nameserver 只取第一个解析器，其余 \(proxy.count - 1) 个已忽略")
+            }
+        }
+        for entry in dns.proxyServerNameserverPolicy where !entry.nameservers.isEmpty {
+            guard let matcher = DNSMatcherKind.classify(entry.matcher) else {
+                warnings.append("Hiddify 无法表达代理 DNS matcher `\(entry.matcher)`，已跳过")
+                continue
+            }
+            if case .geosite = matcher {
+                warnings.append("Hiddify 不支持 geosite 代理 DNS 匹配，`\(entry.matcher)` 已跳过")
+                continue
+            }
+            proxyMatchers.append((kind: matcher, tag: tag(for: entry.nameservers[0])))
+            if entry.nameservers.count > 1 {
+                warnings.append("Hiddify 的代理 DNS 规则只取第一个解析器，`\(entry.matcher)` 的其余 \(entry.nameservers.count - 1) 个已忽略")
+            }
+        }
+
+        var dnsDict: [String: Any] = ["servers": servers, "final": tag(for: nameservers[0]), "strategy": "prefer_ipv4"]
+        if !rules.isEmpty { dnsDict["rules"] = rules }
+        return SingBoxDNSPlan(dns: dnsDict, proxyTag: proxyTag, proxyMatchers: proxyMatchers)
+    }
+}
+
+fileprivate enum DNSProtocolKind {
+    case plain, dot, doh, doh3, doq
+
+    static func classify(_ value: String) -> DNSProtocolKind? {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if lower.hasPrefix("tls://") { return .dot }
+        if lower.hasPrefix("https://") { return .doh }
+        if lower.hasPrefix("h3://") { return .doh3 }
+        if lower.hasPrefix("quic://") { return .doq }
+        return .plain
+    }
+
+    var name: String {
+        switch self {
+        case .plain: "普通"
+        case .dot: "DoT"
+        case .doh: "DoH"
+        case .doh3: "DoH3"
+        case .doq: "DoQ"
+        }
+    }
+}
+
+fileprivate enum DNSMatcherKind {
+    case exact(String)
+    /// `+.example.com` (suffix including the apex) or `*.example.com`
+    /// (subdomains only) — the two Clash forms map differently on targets that
+    /// can tell them apart.
+    case suffix(domain: String, includesApex: Bool)
+    case geosite(String)
+
+    static func classify(_ matcher: String) -> DNSMatcherKind? {
+        let value = matcher.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("geosite:") { return .geosite(String(value.dropFirst("geosite:".count))) }
+        if value.hasPrefix("+.") { return .suffix(domain: String(value.dropFirst(2)), includesApex: true) }
+        if value.hasPrefix("*.") { return .suffix(domain: String(value.dropFirst(2)), includesApex: false) }
+        // An exact domain carries no scheme, space or slash; anything else
+        // (rule-set:, browser, a matcher Tower cannot map) is skipped.
+        if value.contains(":") || value.contains(" ") || value.hasPrefix("/") { return nil }
+        return .exact(value)
+    }
+
+    /// Whether a proxy node's server hostname falls under this matcher.
+    func matches(host: String) -> Bool {
+        let candidate = host.lowercased()
+        switch self {
+        case .exact(let domain):
+            return candidate == domain.lowercased()
+        case .suffix(let domain, let includesApex):
+            let suffix = domain.lowercased()
+            if includesApex, candidate == suffix { return true }
+            return candidate.hasSuffix(".\(suffix)")
+        case .geosite:
+            return false
+        }
+    }
+}
+
+fileprivate struct SingBoxDNSPlan {
+    let dns: [String: Any]?
+    let proxyTag: String?
+    let proxyMatchers: [(kind: DNSMatcherKind, tag: String)]
+
+    /// The DNS server tag that answers this node's hostname, or nil when the
+    /// node is an IP literal or the airport configured no proxy resolver.
+    func domainResolverTag(for node: ProxyNode) -> String? {
+        guard isHostname(node.server) else { return nil }
+        for (kind, tag) in proxyMatchers where kind.matches(host: node.server) {
+            return tag
+        }
+        return proxyTag
+    }
+}
+
+fileprivate func isHostname(_ server: String) -> Bool {
+    let value = server.trimmingCharacters(in: .whitespacesAndNewlines)
+    if value.isEmpty { return false }
+    if value.contains(":") { return false } // IPv6 literal (brackets were stripped on import)
+    let octets = value.split(separator: ".")
+    if octets.count == 4, octets.allSatisfy({ Int($0).map { (0...255).contains($0) } ?? false }) {
+        return false // IPv4 literal
+    }
+    return true
+}
+
+fileprivate func plainResolverAddress(_ value: String) -> String {
+    let lower = value.lowercased()
+    for prefix in ["udp://", "http://"] where lower.hasPrefix(prefix) {
+        return String(value.dropFirst(prefix.count))
+    }
+    return value
 }
 
 private struct RegionDefinition {
@@ -1596,7 +2225,9 @@ extension ConfigurationGenerator {
     func singBox(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let nodeTags = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
@@ -1650,6 +2281,12 @@ extension ConfigurationGenerator {
             groups.append(.init(tag: group.automaticName, isAutomatic: true, members: group.nodeNames))
         }
 
+        let dnsPlan = singBoxDNS(
+            dns,
+            directTag: Self.singBoxDirectTag,
+            selectTag: RulePolicy.select.configurationName,
+            warnings: &warnings
+        )
         var outbounds: [[String: Any]] = groups.map { group in
             var outbound: [String: Any] = [
                 "tag": group.tag,
@@ -1665,19 +2302,19 @@ extension ConfigurationGenerator {
             }
             return outbound
         }
-        outbounds += nodes.compactMap(singBoxOutbound)
+        // A node whose server is a hostname can pin the resolver that answers
+        // it, which is what a proxy-server-nameserver-policy asks for.
+        for node in nodes {
+            guard var outbound = singBoxOutbound(node) else { continue }
+            if let resolver = dnsPlan.domainResolverTag(for: node) {
+                outbound["domain_resolver"] = ["server": resolver]
+            }
+            outbounds.append(outbound)
+        }
         outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
 
-        let configuration: [String: Any] = [
+        var configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": [
-                "servers": [
-                    ["tag": "remote", "address": "https://1.1.1.1/dns-query", "detour": RulePolicy.select.configurationName],
-                    ["tag": "local", "address": "https://223.5.5.5/dns-query", "detour": Self.singBoxDirectTag]
-                ],
-                "final": "local",
-                "strategy": "prefer_ipv4"
-            ],
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
@@ -1696,6 +2333,9 @@ extension ConfigurationGenerator {
                 "cache_file": ["enabled": true, "store_fakeip": false]
             ]
         ]
+        if let dnsDict = dnsPlan.dns {
+            configuration["dns"] = dnsDict
+        }
 
         guard let data = try? JSONSerialization.data(
             withJSONObject: configuration,
@@ -1918,8 +2558,16 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
+        let dnsPlan = singBoxDNS(
+            dns,
+            directTag: Self.singBoxDirectTag,
+            selectTag: groups.first?.name ?? Self.singBoxDirectTag,
+            warnings: &warnings
+        )
         var outbounds: [[String: Any]] = groups.map { group in
             var outbound: [String: Any] = [
                 "tag": group.name,
@@ -1933,7 +2581,13 @@ extension ConfigurationGenerator {
             }
             return outbound
         }
-        outbounds += nodes.compactMap(singBoxOutbound)
+        for node in nodes {
+            guard var outbound = singBoxOutbound(node) else { continue }
+            if let resolver = dnsPlan.domainResolverTag(for: node) {
+                outbound["domain_resolver"] = ["server": resolver]
+            }
+            outbounds.append(outbound)
+        }
         outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
 
         var rules: [[String: Any]] = []
@@ -1973,7 +2627,7 @@ extension ConfigurationGenerator {
             rules.append(rule)
         }
 
-        let configuration: [String: Any] = [
+        var configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
             "inbounds": [[
                 "type": "tun",
@@ -1987,6 +2641,9 @@ extension ConfigurationGenerator {
             "route": ["rules": rules, "final": finalGroup, "auto_detect_interface": true],
             "experimental": ["cache_file": ["enabled": true, "store_fakeip": false]]
         ]
+        if let dnsDict = dnsPlan.dns {
+            configuration["dns"] = dnsDict
+        }
 
         guard let data = try? JSONSerialization.data(
             withJSONObject: configuration,
@@ -2021,12 +2678,15 @@ extension ConfigurationGenerator {
     func egern(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
 
         var output = header(target: .egern)
+        output += egernDNS(dns, warnings: &warnings)
         output += "\nproxies:\n"
         output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
 
@@ -2088,9 +2748,12 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        schemes: RuleSchemeRepository,
+        dns: SubscriptionDNSConfiguration?,
+        warnings: inout [String]
     ) -> String {
         var output = schemeHeader(scheme, target: .egern)
+        output += egernDNS(dns, warnings: &warnings)
         output += "\nproxies:\n"
         output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
 
