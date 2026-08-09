@@ -50,6 +50,33 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
+    func testImportedHTTPProxyReachesEveryClientFormat() {
+        let node = ProxyNode(
+            kind: .http,
+            name: "Office HTTPS",
+            server: "proxy.example.com",
+            port: 8443,
+            password: "password",
+            username: "alice",
+            tls: true,
+            sni: "proxy.example.com",
+            rawURI: "https://alice:password@proxy.example.com:8443#Office"
+        )
+
+        for target in ClientTarget.allCases {
+            let result = ConfigurationGenerator().generate(
+                nodes: [node],
+                preset: RulePreset.builtIns[0],
+                target: target
+            )
+
+            XCTAssertEqual(result.supportedNodeCount, 1, target.name)
+            XCTAssertEqual(result.skippedNodeCount, 0, target.name)
+            XCTAssertTrue(result.content.contains("proxy.example.com"), target.name)
+            XCTAssertTrue(result.content.contains("alice"), target.name)
+        }
+    }
+
     func testSurgeSkipsUnsupportedVLESSAndReportsIt() {
         let vless = ProxyNode(
             kind: .vless,
@@ -71,36 +98,30 @@ final class ConfigurationGeneratorTests: XCTestCase {
         XCTAssertFalse(result.content.contains("vless.example.com"))
     }
 
-    func testClashOutputContainsLocalSelfConfigurationRules() {
+    func testLegacySelfConfigurationPresetDoesNotShipRulePayloads() {
         let result = ConfigurationGenerator().generate(
             nodes: nodes,
             preset: RulePreset.builtIns[0],
             target: .clash
         )
 
-        XCTAssertGreaterThan(result.ruleCount, 1_000)
-        XCTAssertTrue(result.content.contains("DOMAIN-SUFFIX"))
+        XCTAssertEqual(result.ruleCount, 1)
+        XCTAssertFalse(result.content.contains("DOMAIN-SUFFIX"))
         XCTAssertTrue(result.content.contains("MATCH,国际流量"))
     }
 
-    func testEveryClientAddsNativeImageFieldsToStrategyGroups() {
+    func testGeneratedStrategyGroupsDoNotReferenceRemoteIcons() {
         let generator = ConfigurationGenerator()
         let preset = RulePreset.builtIns[0]
-        let aiIcon = "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/OpenAI.png"
 
-        let clash = generator.generate(nodes: nodes, preset: preset, target: .clash).content
-        XCTAssertTrue(clash.contains("    icon: \"\(aiIcon)\""))
-
-        for target in [ClientTarget.surge, .shadowrocket] {
+        for target in ClientTarget.allCases {
             let content = generator.generate(nodes: nodes, preset: preset, target: target).content
-            XCTAssertTrue(content.contains("icon-url=\(aiIcon)"), "\(target.name) 缺少策略组图标")
+            XCTAssertFalse(content.contains("icon-url="), target.name)
+            XCTAssertFalse(content.contains("img-url="), target.name)
+            XCTAssertFalse(content.contains("\n    icon:"), target.name)
+            XCTAssertFalse(content.contains("Koolson/Qure"), target.name)
+            XCTAssertFalse(content.contains("Orz-3/mini"), target.name)
         }
-
-        let loon = generator.generate(nodes: nodes, preset: preset, target: .loon).content
-        XCTAssertTrue(loon.contains("img-url=\(aiIcon)"))
-
-        let quanX = generator.generate(nodes: nodes, preset: preset, target: .quanx).content
-        XCTAssertTrue(quanX.contains("img-url=\(aiIcon)"))
     }
 
     func testNestedStrategyChoicesUseEmojiAndChineseDirectLabel() {
@@ -426,13 +447,13 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
-    func testSelfConfigurationResourcesSurviveBundleFlattening() {
+    func testSelfConfigurationResourcesAreNotBundled() {
         let assignments = RulePreset.builtIns[0].assignments
         let aiSuite = assignments.first { $0.resourcePath == "AI Suite" }!
         let domesticIPs = assignments.first { $0.resourcePath == "Domestic IPs" }!
 
-        XCTAssertGreaterThan(RuleRepository().count(for: aiSuite), 50)
-        XCTAssertGreaterThan(RuleRepository().count(for: domesticIPs), 1_000)
+        XCTAssertEqual(RuleRepository().count(for: aiSuite), 0)
+        XCTAssertEqual(RuleRepository().count(for: domesticIPs), 0)
     }
 
     func testSectionHeadersEndBeforeFirstNode() {
@@ -519,6 +540,101 @@ final class ConfigurationGeneratorTests: XCTestCase {
         XCTAssertTrue(content.contains("ws=true"))
         XCTAssertTrue(content.contains("sni=trojan.example.com"))
         XCTAssertFalse(content.contains("tls=true"))
+    }
+
+    func testNodeOnlyResourcesContainNodesWithoutRulesOrGroups() {
+        let generator = ConfigurationGenerator()
+
+        for target in [ClientTarget.shadowrocket, .loon, .quanx, .hiddify] {
+            let result = generator.generateNodeSubscription(
+                nodes: nodes,
+                target: target,
+                profileName: "我的节点"
+            )
+
+            XCTAssertEqual(result.contentMode, .nodesOnly, target.name)
+            XCTAssertEqual(result.fileName, "我的节点.txt", target.name)
+            XCTAssertEqual(result.supportedNodeCount, 2, target.name)
+            XCTAssertEqual(result.ruleCount, 0, target.name)
+            XCTAssertFalse(result.content.contains("[Rule]"), target.name)
+            XCTAssertFalse(result.content.contains("proxy-groups:"), target.name)
+        }
+
+        let shadowrocket = generator.generateNodeSubscription(nodes: nodes, target: .shadowrocket)
+        let decoded = Data(base64Encoded: shadowrocket.content)
+            .flatMap { String(data: $0, encoding: .utf8) }
+        XCTAssertNotNil(decoded)
+        XCTAssertTrue(decoded?.contains("ss://") == true)
+    }
+
+    func testNodeOnlyExportDropsProviderNoticesAndCanonicalizesEmojiNames() throws {
+        let notice = ProxyNode(
+            kind: .shadowsocks,
+            name: "请定期更新您的订阅",
+            server: "notice.invalid",
+            port: 1,
+            cipher: "aes-128-gcm",
+            password: "notice",
+            rawURI: "ss://notice",
+            isSubscriptionMetadata: true
+        )
+        let node = ProxyNode(
+            kind: .shadowsocks,
+            name: "🇭🇰 香港 02",
+            server: "hk.example.com",
+            port: 8388,
+            cipher: "chacha20-ietf-poly1305",
+            password: "secret",
+            rawURI: "ss://raw-provider-value@hk.example.com:8388#🇭🇰 香港 02"
+        )
+        let generator = ConfigurationGenerator()
+
+        let shadowrocket = generator.generateNodeSubscription(
+            nodes: [notice, node],
+            target: .shadowrocket
+        )
+        let decoded = Data(base64Encoded: shadowrocket.content)
+            .flatMap { String(data: $0, encoding: .utf8) }
+
+        XCTAssertEqual(shadowrocket.supportedNodeCount, 1)
+        XCTAssertEqual(shadowrocket.skippedNodeCount, 1)
+        XCTAssertFalse(try XCTUnwrap(decoded).contains("请定期更新您的订阅"))
+        XCTAssertTrue(try XCTUnwrap(decoded).contains("#%F0%9F%87%AD%F0%9F%87%B0%20%E9%A6%99%E6%B8%AF%2002"))
+
+        let loon = generator.generateNodeSubscription(nodes: [notice, node], target: .loon)
+        XCTAssertEqual(loon.supportedNodeCount, 1)
+        XCTAssertFalse(loon.content.contains("请定期更新您的订阅"))
+        XCTAssertTrue(loon.content.contains(",\"secret\","), loon.content)
+    }
+
+    func testQuanXRuleSubscriptionKeepsDirectAndRejectButUsesImportedNodePolicy() {
+        let full = """
+        [filter_local]
+        host-suffix, example.com, 🚀 节点选择
+        ip-cidr, 10.0.0.0/8, direct, no-resolve
+        host-suffix, ads.example, reject
+        final, 🚀 节点选择
+        """
+        let configuration = GeneratedConfiguration(
+            target: .quanx,
+            content: full,
+            supportedNodeCount: 3,
+            skippedNodeCount: 0,
+            ruleCount: 4,
+            profileName: "塔台"
+        )
+
+        let rules = ConfigurationGenerator().generateQuanXRuleSubscription(
+            from: configuration,
+            profileName: "塔台"
+        )
+
+        XCTAssertEqual(rules.contentMode, .rulesOnly)
+        XCTAssertTrue(rules.content.contains("host-suffix, example.com, 塔台"), rules.content)
+        XCTAssertTrue(rules.content.contains("ip-cidr, 10.0.0.0/8, direct, no-resolve"), rules.content)
+        XCTAssertTrue(rules.content.contains("host-suffix, ads.example, reject"), rules.content)
+        XCTAssertTrue(rules.content.contains("final, 塔台"), rules.content)
+        XCTAssertFalse(rules.content.contains("🚀 节点选择"), rules.content)
     }
 
     private func clashGroupBlock(named name: String, in content: String) -> Substring? {

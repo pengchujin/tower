@@ -11,10 +11,9 @@ Bundled here: the ACL4SSR_Online, ACL4SSR_Online_Mini and ACL4SSR_Online_Full
 remote configs, plus every .list rule file they reference.
 
 Modifications: none to the rule contents. Every file carries an "ACL4SSR_"
-prefix because Xcode flattens resources into the bundle root, where these
-would otherwise collide with the Self-Configuration snapshot. The configs'
-"master" URLs were rewritten to the pinned revision above so the snapshot is
-reproducible.
+prefix because Xcode flattens resources into the bundle root; this keeps their
+origin explicit and avoids future filename collisions. The configs' "master"
+URLs were rewritten to the pinned revision above so the snapshot is reproducible.
 
 Sources, rule counts and SHA-256 digests: ACL4SSR_manifest.json
 Regenerate with: python3 Scripts/update_acl4ssr_rules.py

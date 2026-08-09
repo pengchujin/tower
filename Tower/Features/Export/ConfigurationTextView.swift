@@ -29,14 +29,31 @@ enum ConfigurationPreviewFormatter {
     }
 }
 
+/// The compact export preview contains at most a few lines. Rendering it with
+/// SwiftUI avoids the intermittent blank TextKit surface seen when a disabled,
+/// non-scrolling `UITextView` is recycled inside the export page's lazy stack.
+struct ConfigurationSummaryView: View {
+    let text: String
+
+    var body: some View {
+        Text(text.isEmpty ? String(localized: "没有可预览的配置内容") : text)
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(text.isEmpty ? .secondary : .primary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(14)
+            .clipped()
+            .accessibilityIdentifier("configuration-summary")
+    }
+}
+
 @MainActor
 enum ConfigurationTextViewFactory {
-    static func make() -> UITextView {
+    static func make(isScrollEnabled: Bool = true) -> UITextView {
         let textView = UITextView()
         textView.isEditable = false
         textView.isSelectable = true
-        textView.isScrollEnabled = true
-        textView.alwaysBounceVertical = true
+        textView.isScrollEnabled = isScrollEnabled
+        textView.alwaysBounceVertical = isScrollEnabled
         textView.backgroundColor = .clear
         textView.textColor = .label
         textView.contentInsetAdjustmentBehavior = .never
@@ -54,14 +71,17 @@ enum ConfigurationTextViewFactory {
 
 struct ConfigurationTextView: UIViewRepresentable {
     let text: String
+    var isScrollEnabled = true
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = ConfigurationTextViewFactory.make()
+        let textView = ConfigurationTextViewFactory.make(isScrollEnabled: isScrollEnabled)
         textView.text = text
         return textView
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
+        textView.isScrollEnabled = isScrollEnabled
+        textView.alwaysBounceVertical = isScrollEnabled
         guard textView.text != text else { return }
         textView.text = text
         textView.setContentOffset(.zero, animated: false)

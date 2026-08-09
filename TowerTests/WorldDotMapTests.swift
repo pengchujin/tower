@@ -46,9 +46,7 @@ final class WorldDotMapTests: XCTestCase {
 
     // MARK: - Projection
 
-    func testProjectionSpansTheCroppedLongitudeBand() {
-        // The Pacific is cropped off both edges, so the band no longer runs the
-        // full ±180.
+    func testProjectionSpansTheWholeWorldLongitudeBand() {
         let west = WorldDotGrid.unitPoint(latitude: 0, longitude: WorldDotGrid.minimumLongitude)
         XCTAssertEqual(west.x, 0, accuracy: 0.001)
 
@@ -62,19 +60,19 @@ final class WorldDotMapTests: XCTestCase {
         XCTAssertEqual(middle.x, 0.5, accuracy: 0.001)
     }
 
-    func testLongitudeOutsideTheBandIsClamped() {
+    func testLongitudeAtTheDateLineMapsToTheTwoEdges() {
         XCTAssertEqual(WorldDotGrid.unitPoint(latitude: 0, longitude: -180).x, 0, accuracy: 0.001)
         XCTAssertEqual(WorldDotGrid.unitPoint(latitude: 0, longitude: 180).x, 1, accuracy: 0.001)
     }
 
-    func testEveryRegionLongitudeSitsInsideTheCroppedBand() throws {
-        // Cropping must not push a region Tower knows onto the edge, which is
-        // where a clamped coordinate would land.
-        for code in ["US", "CA", "BR", "GB", "FR", "DE", "NL", "RU", "AE", "IN",
-                     "TH", "SG", "MY", "VN", "HK", "PH", "TW", "JP", "KR", "AU"] {
-            let region = try XCTUnwrap(NodeRegionResolver.region(countryCode: code), code)
-            XCTAssertGreaterThan(region.longitude, WorldDotGrid.minimumLongitude, code)
-            XCTAssertLessThan(region.longitude, WorldDotGrid.maximumLongitude, code)
+    func testEveryPracticalRegionUsesItsRealCoordinateRatherThanAClampedEdge() throws {
+        // Antarctica is intentionally outside this compact node overview; all
+        // other ISO regions Tower exposes must retain their actual label point.
+        for (code, entry) in NodeRegionResolver.countryTable where code != "AQ" {
+            XCTAssertGreaterThan(entry.longitude, WorldDotGrid.minimumLongitude, code)
+            XCTAssertLessThan(entry.longitude, WorldDotGrid.maximumLongitude, code)
+            XCTAssertGreaterThan(entry.latitude, WorldDotGrid.minimumLatitude, code)
+            XCTAssertLessThan(entry.latitude, WorldDotGrid.maximumLatitude, code)
         }
     }
 
@@ -221,6 +219,95 @@ final class WorldDotMapTests: XCTestCase {
         XCTAssertNotNil(placements["TW"])
     }
 
+    func testSelectingMarkerDoesNotMoveOtherCountryLabels() throws {
+        try XCTSkipIf(WorldDotGrid.shared.isEmpty)
+        let baseMarkers = [
+            marker("HK", title: "香港", latitude: 22.3, longitude: 114.2, weight: 18),
+            marker("TW", title: "台湾", latitude: 22.4, longitude: 114.3, weight: 12),
+            marker("PH", title: "菲律宾", latitude: 14.6, longitude: 121.0, weight: 8)
+        ]
+        let selectedMarkers = baseMarkers.map { value in
+            marker(
+                value.id,
+                title: value.title,
+                latitude: value.latitude,
+                longitude: value.longitude,
+                weight: value.weight,
+                selected: value.id == "TW"
+            )
+        }
+        let bounds = CGRect(x: 0, y: 0, width: 360, height: 160)
+
+        let before = WorldDotMapView.LabelPlanner.plan(
+            markers: baseMarkers,
+            layout: layout,
+            bounds: bounds
+        )
+        let after = WorldDotMapView.LabelPlanner.plan(
+            markers: selectedMarkers,
+            layout: layout,
+            bounds: bounds
+        )
+
+        for markerID in ["HK", "PH"] {
+            XCTAssertEqual(after[markerID], before[markerID], "选择台湾不应移动 \(markerID) 的文字")
+        }
+    }
+
+    func testCrowdedLabelsStayDirectlyAboveOrBelowTheirMarker() throws {
+        try XCTSkipIf(WorldDotGrid.shared.isEmpty)
+        let markers = [
+            marker("A", title: "香港", latitude: 22.3, longitude: 114.2, weight: 3),
+            marker("B", title: "九龙", latitude: 22.3, longitude: 114.2, weight: 2),
+            marker("C", title: "新界", latitude: 22.3, longitude: 114.2, weight: 1)
+        ]
+        let placements = WorldDotMapView.LabelPlanner.plan(
+            markers: markers,
+            layout: layout,
+            bounds: CGRect(x: 0, y: 0, width: 360, height: 160)
+        )
+        let anchor = layout.position(for: markers[0])
+
+        XCTAssertEqual(placements.count, 2, "附近没有准确位置时应隐藏标签，而不是把它推到其他地点")
+        for placement in placements.values {
+            XCTAssertEqual(placement.x, anchor.x, accuracy: 0.001)
+            XCTAssertLessThanOrEqual(abs(placement.y - anchor.y), 14)
+        }
+    }
+
+    func testMapMarkerTitlesDoNotIncludeFlagEmoji() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/NodeMapOverview.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertFalse(source.contains("region.flag"))
+    }
+
+    func testDenseAsiaKeepsAtLeastTheHighestPriorityLabels() throws {
+        try XCTSkipIf(WorldDotGrid.shared.isEmpty)
+        let markers = [
+            marker("HK", title: "香港", latitude: 22.3, longitude: 114.2, weight: 18),
+            marker("TW", title: "台湾", latitude: 25.0, longitude: 121.6, weight: 12),
+            marker("PH", title: "菲律宾", latitude: 14.6, longitude: 121.0, weight: 8),
+            marker("VN", title: "越南", latitude: 10.8, longitude: 106.6, weight: 7),
+            marker("MY", title: "马来西亚", latitude: 3.1, longitude: 101.7, weight: 6),
+            marker("SG", title: "新加坡", latitude: 1.35, longitude: 103.8, weight: 5),
+            marker("JP", title: "日本", latitude: 35.7, longitude: 139.7, weight: 4),
+            marker("KR", title: "韩国", latitude: 37.6, longitude: 127.0, weight: 3)
+        ]
+
+        let placements = WorldDotMapView.LabelPlanner.plan(
+            markers: markers,
+            layout: layout,
+            bounds: CGRect(x: 0, y: 0, width: 360, height: 160)
+        )
+
+        XCTAssertGreaterThanOrEqual(placements.count, 2)
+        XCTAssertNotNil(placements["HK"])
+    }
+
     // MARK: - Bundled resource
 
     func testBundledGridLoadsAndLooksLikeAWorld() {
@@ -242,7 +329,7 @@ final class WorldDotMapTests: XCTestCase {
         let grid = WorldDotGrid.shared
         try XCTSkipIf(grid.isEmpty)
 
-        for code in ["HK", "JP", "US", "SG", "TW", "KR", "GB", "DE", "FR", "AU", "BR"] {
+        for code in NodeRegionResolver.countryTable.keys where code != "AQ" {
             let region = try XCTUnwrap(NodeRegionResolver.region(countryCode: code), code)
             let point = WorldDotGrid.unitPoint(
                 latitude: region.latitude,

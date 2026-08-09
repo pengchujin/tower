@@ -101,4 +101,93 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertEqual(result.nodes[0].hostHeader, "cdn.example.com")
         XCTAssertEqual(result.nodes[0].alterID, 0)
     }
+
+    func testKeepsNamedNodesThatShareEndpointAndCredential() {
+        let list = """
+        trojan://shared-secret@edge.example.com:443?sni=origin.example.com#Hong%20Kong
+        trojan://shared-secret@edge.example.com:443?sni=origin.example.com#Tokyo
+        """
+
+        let result = SubscriptionParser().parse(data: Data(list.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.name), ["Hong Kong", "Tokyo"])
+    }
+
+    func testKeepsNodesThatDifferByRoutingParameters() {
+        let list = """
+        trojan://shared-secret@edge.example.com:443?sni=hk.example.com#Premium
+        trojan://shared-secret@edge.example.com:443?sni=jp.example.com#Premium
+        """
+
+        let result = SubscriptionParser().parse(data: Data(list.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.sni), ["hk.example.com", "jp.example.com"])
+    }
+
+    func testStillDeduplicatesAnExactlyRepeatedNode() {
+        let node = "trojan://shared-secret@edge.example.com:443?sni=origin.example.com#Hong%20Kong"
+        let list = [node, node].joined(separator: "\n")
+
+        let result = SubscriptionParser().parse(data: Data(list.utf8))
+
+        XCTAssertEqual(result.nodes.count, 1)
+    }
+}
+
+extension SubscriptionParserTests {
+    func testClashYAMLPreservesRealityAndNestedTransportOptions() throws {
+        let yaml = """
+        proxies:
+          - name: "🇯🇵 日本高速 01"
+            type: vless
+            server: jp.example.com
+            port: 443
+            uuid: 11111111-1111-1111-1111-111111111111
+            tls: true
+            network: ws
+            servername: jp-sni.example.com
+            ws-opts:
+              path: /liangxin/jp1
+              headers:
+                Host: jp-sni.example.com
+          - name: "🇭🇰 香港高速 01"
+            type: vless
+            server: hk.example.com
+            port: 36458
+            uuid: 22222222-2222-2222-2222-222222222222
+            tls: true
+            servername: iosapps.itunes.apple.com
+            client-fingerprint: chrome
+            flow: xtls-rprx-vision
+            reality-opts:
+              public-key: TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+              short-id: 0123456789abcdef
+        """
+
+        let parsed = SubscriptionParser().parse(data: Data(yaml.utf8))
+        XCTAssertEqual(parsed.nodes.count, 2)
+
+        let websocket = try XCTUnwrap(parsed.nodes.first)
+        XCTAssertEqual(websocket.transport, "ws")
+        XCTAssertEqual(websocket.exportablePath, "/liangxin/jp1")
+        XCTAssertEqual(websocket.hostHeader, "jp-sni.example.com")
+
+        let reality = try XCTUnwrap(parsed.nodes.last)
+        XCTAssertTrue(reality.usesReality)
+        XCTAssertEqual(reality.realityPublicKey, "TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        XCTAssertEqual(reality.realityShortID, "0123456789abcdef")
+        XCTAssertEqual(reality.fingerprint, "chrome")
+        XCTAssertEqual(reality.flow, "xtls-rprx-vision")
+
+        let stash = ConfigurationGenerator().generate(
+            nodes: parsed.nodes,
+            preset: RulePreset.builtIns[0],
+            target: .clash
+        ).content
+        XCTAssertTrue(stash.contains("    reality-opts:"), stash)
+        XCTAssertTrue(stash.contains("      public-key: \"TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\""), stash)
+        XCTAssertTrue(stash.contains("      short-id: \"0123456789abcdef\""), stash)
+        XCTAssertTrue(stash.contains("    client-fingerprint: \"chrome\""), stash)
+        XCTAssertTrue(stash.contains("    flow: \"xtls-rprx-vision\""), stash)
+    }
 }

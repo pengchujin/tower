@@ -12,7 +12,7 @@ enum SharePayloadFactory {
     static func subscription(_ source: SubscriptionSource) -> SharePayload {
         SharePayload(
             title: source.name,
-            detail: "订阅链接",
+            detail: String(localized: "订阅链接"),
             value: source.urlString,
             symbol: "link.circle.fill"
         )
@@ -35,15 +35,24 @@ struct ProxyNodeShareLinkGenerator {
             return original
         }
 
+        return canonicalLink(for: node)
+    }
+
+    /// Subscription payloads need a normalized URI even when the provider's
+    /// original link is otherwise reusable. In particular, percent-encoding
+    /// the fragment keeps flag emoji and non-ASCII names intact after a client
+    /// decodes the outer base64 subscription.
+    func canonicalLink(for node: ProxyNode) -> String {
+        let original = node.rawURI.trimmingCharacters(in: .whitespacesAndNewlines)
+
         return switch node.kind {
         case .shadowsocks: shadowsocksLink(for: node) ?? original
         case .shadowsocksR: shadowsocksRLink(for: node) ?? original
         case .vmess: vmessLink(for: node) ?? original
         case .vless, .trojan, .hysteria2, .anytls, .socks5, .http:
             standardLink(for: node) ?? original
-        // Snell has no URI form; the Surge proxy line it arrived as is the
-        // only thing another client can consume.
-        case .snell: original
+        // Snell has no URI form, so share its portable Surge proxy line.
+        case .snell: original.isEmpty ? snellLine(for: node) : original
         case .unknown: original
         }
     }
@@ -148,7 +157,19 @@ struct ProxyNodeShareLinkGenerator {
         if let transport = node.transport, !transport.isEmpty {
             queryItems.append(URLQueryItem(name: "type", value: transport))
         }
-        if node.tls && ![.trojan, .hysteria2, .anytls, .http].contains(node.kind) {
+        if node.usesReality {
+            queryItems.append(URLQueryItem(name: "security", value: "reality"))
+            queryItems.append(URLQueryItem(name: "pbk", value: node.realityPublicKey))
+            if let shortID = node.realityShortID, !shortID.isEmpty {
+                queryItems.append(URLQueryItem(name: "sid", value: shortID))
+            }
+            if let fingerprint = node.fingerprint, !fingerprint.isEmpty {
+                queryItems.append(URLQueryItem(name: "fp", value: fingerprint))
+            }
+            if let flow = node.flow, !flow.isEmpty {
+                queryItems.append(URLQueryItem(name: "flow", value: flow))
+            }
+        } else if node.tls && ![.trojan, .hysteria2, .anytls, .http].contains(node.kind) {
             queryItems.append(URLQueryItem(name: "security", value: "tls"))
         }
         if let sni = node.sni, !sni.isEmpty {
@@ -163,11 +184,49 @@ struct ProxyNodeShareLinkGenerator {
         if let alpn = node.alpn, !alpn.isEmpty {
             queryItems.append(URLQueryItem(name: "alpn", value: alpn))
         }
+        if node.kind == .hysteria2,
+           let obfs = node.obfs,
+           !obfs.isEmpty,
+           obfs.lowercased() != "none" {
+            queryItems.append(URLQueryItem(name: "obfs", value: obfs))
+            if let password = node.obfsParam, !password.isEmpty {
+                queryItems.append(URLQueryItem(name: "obfs-password", value: password))
+            }
+        }
+        if node.kind == .anytls {
+            if let value = node.idleSessionCheckInterval {
+                queryItems.append(URLQueryItem(name: "idle-session-check-interval", value: String(value)))
+            }
+            if let value = node.idleSessionTimeout {
+                queryItems.append(URLQueryItem(name: "idle-session-timeout", value: String(value)))
+            }
+            if let value = node.minIdleSession {
+                queryItems.append(URLQueryItem(name: "min-idle-session", value: String(value)))
+            }
+        }
         if node.skipCertificateVerification {
-            queryItems.append(URLQueryItem(name: "allowInsecure", value: "1"))
+            let name = [.hysteria2, .anytls].contains(node.kind) ? "insecure" : "allowInsecure"
+            queryItems.append(URLQueryItem(name: name, value: "1"))
         }
         components.queryItems = queryItems.isEmpty ? nil : queryItems
         return components.string
+    }
+
+    private func snellLine(for node: ProxyNode) -> String {
+        var parts = [
+            "\(node.name) = snell",
+            node.server,
+            String(node.port),
+            "psk=\(node.password ?? "")",
+            "version=\(node.version ?? 4)"
+        ]
+        if let mode = node.obfs, !mode.isEmpty, mode.lowercased() != "none" {
+            parts.append("obfs=\(mode)")
+            if let host = node.obfsParam, !host.isEmpty {
+                parts.append("obfs-host=\(host)")
+            }
+        }
+        return parts.joined(separator: ", ")
     }
 
     private func formattedHost(_ host: String) -> String {

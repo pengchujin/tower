@@ -96,6 +96,49 @@ final class RuleSchemeTests: XCTestCase {
         }
     }
 
+    func testParsesClashYAMLForManualSelfConfigurationDownload() throws {
+        let yaml = """
+        proxy-groups:
+          - name: 🚀 节点选择
+            type: select
+            proxies:
+              - DIRECT
+              - 🇭🇰 Hong Kong
+          - name: 🇭🇰 Hong Kong
+            type: select
+            use:
+              - all-proxies
+            filter: "(?i)港|HK|Hong Kong"
+        rules:
+          - RULE-SET,AI Suite,🚀 节点选择
+          - GEOIP,CN,DIRECT
+          - MATCH,🚀 节点选择
+        rule-providers:
+          AI Suite:
+            type: http
+            url: 'https://example.com/AI.yaml'
+        """
+
+        let scheme = try parser.parse(
+            text: yaml,
+            id: "self-configuration",
+            name: "Self-Configuration",
+            summary: "手动下载"
+        )
+
+        XCTAssertEqual(scheme.groups.count, 2)
+        XCTAssertEqual(
+            scheme.groups.last?.members,
+            [.nodePattern("(?i)港|HK|Hong Kong")]
+        )
+        XCTAssertEqual(scheme.rulesets.count, 3)
+        XCTAssertEqual(
+            scheme.remoteRulesetURLs,
+            [URL(string: "https://example.com/AI.yaml")!]
+        )
+        XCTAssertEqual(scheme.finalGroupName, "🚀 节点选择")
+    }
+
     // MARK: - Bundled snapshots
 
     func testBundledACL4SSRSchemesLoadAndDifferInGroupCount() {
@@ -123,13 +166,13 @@ final class RuleSchemeTests: XCTestCase {
         XCTAssertGreaterThan(total, 100, "内置快照没有读到规则")
     }
 
-    func testACL4SSRResourcesDoNotShadowSelfConfiguration() {
-        // Both snapshots ship Apple/Microsoft/Telegram lists and Xcode flattens
-        // resources into one directory, so the ACL4SSR copies carry a prefix.
+    func testSelfConfigurationRulesAreNotInTheApplicationBundle() {
         let repository = RuleRepository(bundle: .main)
         let apple = RuleAssignment(resourcePath: "Apple", title: "Apple", policy: .apple)
 
-        XCTAssertGreaterThan(repository.count(for: apple), 0, "Self-Configuration 的 Apple 规则被覆盖了")
+        XCTAssertEqual(repository.count(for: apple), 0, "Self-Configuration 只能由用户主动下载")
+        XCTAssertNil(Bundle.main.url(forResource: "SelfConfiguration-NOTICE", withExtension: "txt"))
+        XCTAssertNil(Bundle.main.url(forResource: "manifest", withExtension: "json"))
     }
 
     // MARK: - Source URL handling
@@ -169,6 +212,19 @@ final class RuleSchemeTests: XCTestCase {
 
         XCTAssertTrue(RuleSchemeImportService.looksLikeWebPage(html))
         XCTAssertFalse(RuleSchemeImportService.looksLikeWebPage(config))
+    }
+
+    func testDownloadedClashProviderKeepsOnlyPayloadRules() {
+        let provider = """
+        payload:
+          - DOMAIN-SUFFIX,openai.com
+          - 'DOMAIN-SUFFIX,anthropic.com'
+        """
+
+        XCTAssertEqual(
+            RuleSchemeRepository.sanitizedLines(from: provider),
+            ["DOMAIN-SUFFIX,openai.com", "DOMAIN-SUFFIX,anthropic.com"]
+        )
     }
 
     // MARK: - Generation

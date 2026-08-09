@@ -2,32 +2,32 @@ import SwiftUI
 
 struct SubscriptionsView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAddSourcePresented = false
     @State private var pendingDeletion: PendingDeletion?
+    @State private var nodeFilterRoute: NodeFilterRoute?
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 22) {
                     SubscriptionOverviewCard { metric in
-                        if reduceMotion {
+                        switch metric {
+                        case .nodes:
+                            nodeFilterRoute = .all
+                        case .regions:
+                            nodeFilterRoute = .regions
+                        case .subscriptions, .localNodes:
                             proxy.scrollTo(metric.scrollTarget, anchor: .top)
-                        } else {
-                            withAnimation(.smooth(duration: 0.32)) {
-                                proxy.scrollTo(metric.scrollTarget, anchor: .top)
-                            }
                         }
                     }
+
+                    NodeMapOverview(nodes: model.enabledNodes)
 
                     if model.subscriptions.isEmpty && model.localNodes.isEmpty {
                         SubscriptionEmptyState {
                             isAddSourcePresented = true
                         }
                     } else {
-                        if !model.enabledNodes.isEmpty {
-                            NodeGlobeOverview(nodes: model.enabledNodes)
-                        }
                         subscriptionsSection
                         localNodesSection
 
@@ -58,15 +58,16 @@ struct SubscriptionsView: View {
                 }
             }
             .refreshable {
-                for source in model.subscriptions where source.isEnabled {
-                    await model.updateSubscription(id: source.id)
-                }
+                await model.refreshEnabledSubscriptions()
             }
             .sheet(isPresented: $isAddSourcePresented) {
                 AddSourceSheet()
             }
+            .navigationDestination(item: $nodeFilterRoute) { route in
+                NodeFilterView(initialFocus: route)
+            }
             .confirmationDialog(
-                pendingDeletion?.title ?? "确认删除",
+                pendingDeletion?.title ?? String(localized: "确认删除"),
                 isPresented: Binding(
                     get: { pendingDeletion != nil },
                     set: { if !$0 { pendingDeletion = nil } }
@@ -89,7 +90,7 @@ struct SubscriptionsView: View {
     private var subscriptionsSection: some View {
         if !model.subscriptions.isEmpty {
             VStack(spacing: 12) {
-                SectionHeading(title: "订阅", detail: "\(model.subscriptions.count) 个来源")
+                SectionHeading(title: "订阅", detail: String(localized: "\(model.subscriptions.count) 个来源"))
                 ForEach(model.subscriptions) { source in
                     SubscriptionCard(source: source) {
                         Task { await model.updateSubscription(id: source.id) }
@@ -107,7 +108,7 @@ struct SubscriptionsView: View {
     private var localNodesSection: some View {
         if !model.localNodes.isEmpty {
             LazyVStack(spacing: 12) {
-                SectionHeading(title: "自有节点", detail: "\(model.localNodes.count) 个")
+                SectionHeading(title: "自有节点", detail: String(localized: "\(model.localNodes.count) 个"))
                 ForEach(model.localNodes) { node in
                     LocalNodeCard(node: node) {
                         pendingDeletion = .node(node)
@@ -149,15 +150,15 @@ private enum PendingDeletion {
 
     var title: String {
         switch self {
-        case .subscription(let source): "删除“\(source.name)”？"
-        case .node(let node): "删除“\(NodeRegionResolver.displayName(for: node))”？"
+        case .subscription(let source): String(localized: "删除“\(source.name)”？")
+        case .node(let node): String(localized: "删除“\(NodeRegionResolver.displayName(for: node))”？")
         }
     }
 
     var message: String {
         switch self {
-        case .subscription: "该订阅及已读取的节点会从这台设备移除。"
-        case .node: "这个自有节点会从这台设备移除。"
+        case .subscription: String(localized: "该订阅及已读取的节点会从这台设备移除。")
+        case .node: String(localized: "这个自有节点会从这台设备移除。")
         }
     }
 }
@@ -172,7 +173,7 @@ private struct SubscriptionOverviewCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("准备你的节点")
                         .font(.title2.weight(.bold))
-                    Text("集中管理机场订阅和自建节点，再转换成常用客户端配置。")
+                    Text("集中管理代理订阅和自建节点，再转换成常用客户端配置。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -187,7 +188,7 @@ private struct SubscriptionOverviewCard: View {
 
             HStack(spacing: 10) {
                 Button { onMetricTap(.subscriptions) } label: {
-                    MetricPill(value: "\(model.enabledSubscriptionCount)", label: "启用订阅")
+                    MetricPill(value: model.enabledSubscriptionCount, label: "已启用")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .frame(maxWidth: .infinity)
@@ -196,25 +197,25 @@ private struct SubscriptionOverviewCard: View {
                 .accessibilityIdentifier("overview-subscriptions")
                 Divider().frame(height: 38)
                 Button { onMetricTap(.nodes) } label: {
-                    MetricPill(value: "\(model.enabledNodes.count)", label: "可用节点")
+                    MetricPill(value: model.enabledNodes.count, label: "节点")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .frame(maxWidth: .infinity)
-                .disabled(model.enabledNodes.isEmpty)
-                .accessibilityHint("跳到节点列表")
+                .disabled(model.availableNodes.isEmpty)
+                .accessibilityHint("打开节点筛选")
                 .accessibilityIdentifier("overview-nodes")
                 Divider().frame(height: 38)
                 Button { onMetricTap(.regions) } label: {
-                    MetricPill(value: "\(model.coveredCountryCount)", label: "覆盖地区")
+                    MetricPill(value: model.coveredCountryCount, label: "地区")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .frame(maxWidth: .infinity)
                 .disabled(model.coveredCountryCount == 0)
-                .accessibilityHint("跳到地球覆盖区域")
+                .accessibilityHint("按国家地区筛选节点")
                 .accessibilityIdentifier("overview-regions")
                 Divider().frame(height: 38)
                 Button { onMetricTap(.localNodes) } label: {
-                    MetricPill(value: "\(model.localNodes.count)", label: "自有节点")
+                    MetricPill(value: model.localNodes.count, label: "自有节点")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .frame(maxWidth: .infinity)
@@ -277,9 +278,7 @@ private struct SubscriptionCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 13) {
                 Button {
-                    withAnimation(expansionAnimation) {
-                        isExpanded.toggle()
-                    }
+                    isExpanded.toggle()
                 } label: {
                     HStack(spacing: 13) {
                         Image(systemName: "cloud.fill")
@@ -301,11 +300,14 @@ private struct SubscriptionCard: View {
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            .animation(expansionAnimation, value: isExpanded)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
-                .accessibilityLabel(isExpanded ? "收起 \(source.name) 的节点" : "展开 \(source.name) 的节点")
+                .accessibilityLabel(isExpanded
+                    ? String(localized: "收起 \(source.name) 的节点")
+                    : String(localized: "展开 \(source.name) 的节点"))
 
                 Toggle(
                     "启用 \(source.name)",
@@ -316,6 +318,8 @@ private struct SubscriptionCard: View {
                 )
                 .labelsHidden()
                 .toggleStyle(CheckmarkToggleStyle())
+                .frame(width: 34, height: 44)
+                .transaction { $0.animation = nil }
                 .accessibilityLabel("启用 \(source.name)")
             }
             // Scoped to the header. On the whole card a long press anywhere —
@@ -338,9 +342,7 @@ private struct SubscriptionCard: View {
 
             HStack {
                 Button {
-                    withAnimation(expansionAnimation) {
-                        isExpanded.toggle()
-                    }
+                    isExpanded.toggle()
                 } label: {
                     Label("\(sourceNodes.count) 个节点", systemImage: "circle.grid.2x2.fill")
                 }
@@ -377,7 +379,6 @@ private struct SubscriptionCard: View {
                         ExpandableNodeRow(node: node)
                     }
                 }
-                .transition(.opacity)
             }
 
             Button(action: onRefresh) {
@@ -387,7 +388,7 @@ private struct SubscriptionCard: View {
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
-                    Text(isRefreshing ? "正在更新" : "更新订阅")
+                    Text(isRefreshing ? String(localized: "正在更新") : String(localized: "更新订阅"))
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
@@ -416,7 +417,7 @@ private struct LocalNodeCard: View {
     let onDelete: () -> Void
 
     var body: some View {
-        ExpandableNodeRow(node: node)
+        ExpandableNodeRow(node: node, usesInsetBackground: false, showsInclusionToggle: true)
             .padding(5)
             .towerCard()
         .contextMenu {
@@ -459,12 +460,12 @@ private struct SubscriptionUsageRow: View {
     private var summary: String? {
         var parts: [String] = []
         if let used = usage.usedBytes, let total = usage.totalBytes {
-            parts.append("已用 \(format(used)) / \(format(total))")
+            parts.append(String(localized: "已用 \(format(used)) / \(format(total))"))
         } else if let remaining = usage.remainingBytes {
-            parts.append("剩余 \(format(remaining))")
+            parts.append(String(localized: "剩余 \(format(remaining))"))
         }
         if let expiresAt = usage.expiresAt {
-            parts.append("到期 \(expiresAt.formatted(.iso8601.year().month().day().dateSeparator(.dash)))")
+            parts.append(String(localized: "到期 \(expiresAt.formatted(date: .abbreviated, time: .omitted))"))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

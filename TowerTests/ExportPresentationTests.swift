@@ -26,18 +26,12 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertTrue(textView.textContainer.widthTracksTextView)
     }
 
-    /// A declared asset must actually be bundled, and a client with no artwork
-    /// must fall back to a symbol that exists — a missing asset renders as a
-    /// blank square, which reads as breakage rather than as "we ship no icon".
-    func testEveryClientTargetResolvesToSomethingDrawable() {
+    func testEveryClientTargetUsesBundledOfficialAppIcon() {
         for target in ClientTarget.allCases {
-            if let asset = target.appIconAssetName {
-                XCTAssertNotNil(UIImage(named: asset), "\(target.name) 声明了图标却没有打包")
-            } else {
-                XCTAssertNotNil(
-                    UIImage(systemName: target.symbol),
-                    "\(target.name) 没有图标，回退的 SF Symbol 也不存在"
-                )
+            let asset = try? XCTUnwrap(target.appIconAssetName)
+            XCTAssertNotNil(asset, "\(target.name) 缺少 App Store 图标资源名")
+            if let asset {
+                XCTAssertNotNil(UIImage(named: asset), "\(target.name) 的 App Store 图标未打进资源包")
             }
         }
     }
@@ -46,6 +40,43 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(ClientTarget.clash.name, "Stash")
         XCTAssertEqual(ClientTarget.clash.subtitle, "Clash YAML")
         XCTAssertEqual(ClientTarget.clash.appIconAssetName, "ClientStash")
+        XCTAssertEqual(ClientTarget.clash.brandColorHex, "1473E6")
+    }
+
+    func testExportedConfigurationUsesAStableClientSpecificFileName() {
+        let localizedAppName = String(localized: "塔台")
+
+        for target in ClientTarget.allCases {
+            XCTAssertEqual(
+                configuration(for: target).fileName,
+                "\(localizedAppName).\(target.fileExtension)",
+                target.name
+            )
+        }
+    }
+
+    func testCustomProfileNameIsSanitizedAndUsedForEveryTarget() {
+        let configuration = GeneratedConfiguration(
+            target: .loon,
+            content: "x",
+            supportedNodeCount: 1,
+            skippedNodeCount: 0,
+            ruleCount: 0,
+            profileName: "家庭/代理:配置"
+        )
+
+        XCTAssertEqual(configuration.fileName, "家庭 代理 配置.conf")
+    }
+
+    func testConfigurationNameDraftCanBeClearedBeforeDefaultIsCommitted() {
+        var draft = ConfigurationNameDraft(text: "塔台")
+
+        draft.text = ""
+
+        XCTAssertEqual(draft.text, "", "编辑过程中不能把默认名称强行写回输入框")
+        XCTAssertEqual(draft.committedName, TowerBrand.localizedName)
+        draft.text = "家庭网络配置"
+        XCTAssertEqual(draft.committedName, "家庭网络配置")
     }
 
     func testGenerationCacheKeepsConfigurationsForMultipleTargets() {
@@ -72,6 +103,66 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(cache.count, 1)
         XCTAssertNil(cache[oldKey])
         XCTAssertEqual(cache[currentKey]?.target, .loon)
+    }
+
+    func testGenerationCacheDropsConfigurationsWhenCustomizedRulesChange() {
+        var cache = ConfigurationCache()
+        let oldKey = GenerationCacheKey(
+            target: .surge,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            rulesHash: 10
+        )
+        let currentKey = GenerationCacheKey(
+            target: .surge,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            rulesHash: 11
+        )
+
+        cache[oldKey] = configuration(for: .surge)
+        cache[currentKey] = configuration(for: .surge)
+
+        XCTAssertEqual(cache.count, 1)
+        XCTAssertNil(cache[oldKey])
+        XCTAssertEqual(cache[currentKey]?.target, .surge)
+    }
+
+    func testGenerationCacheSeparatesRuleSetPreference() {
+        var cache = ConfigurationCache()
+        let remoteKey = GenerationCacheKey(
+            target: .surge,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            preferRuleSets: true
+        )
+        let inlineKey = GenerationCacheKey(
+            target: .surge,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            preferRuleSets: false
+        )
+
+        cache[remoteKey] = GeneratedConfiguration(
+            target: .surge,
+            content: "RULE-SET,https://rules.example.com/list,Proxy",
+            supportedNodeCount: 1,
+            skippedNodeCount: 0,
+            ruleCount: 1
+        )
+        cache[inlineKey] = GeneratedConfiguration(
+            target: .surge,
+            content: "DOMAIN-SUFFIX,example.com,Proxy",
+            supportedNodeCount: 1,
+            skippedNodeCount: 0,
+            ruleCount: 1
+        )
+
+        XCTAssertNotEqual(cache[remoteKey]?.content, cache[inlineKey]?.content)
     }
 
     private func configuration(for target: ClientTarget) -> GeneratedConfiguration {

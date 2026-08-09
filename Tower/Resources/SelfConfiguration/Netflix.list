@@ -1,9 +1,0 @@
-# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/Netflix.yaml
-# Snapshot for Self-Configuration fb658cc85802
-DOMAIN-SUFFIX,netflix.com
-DOMAIN-SUFFIX,netflix.net
-DOMAIN-SUFFIX,nflxext.com
-DOMAIN-SUFFIX,nflximg.com
-DOMAIN-SUFFIX,nflximg.net
-DOMAIN-SUFFIX,nflxso.net
-DOMAIN-SUFFIX,nflxvideo.net

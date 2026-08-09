@@ -1,0 +1,288 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "CFBundleDisplayName": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台"
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُستخدم لمسح رموز QR للاشتراكات أو العُقد."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Scannen von QR-Codes für Abonnements oder Knoten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan subscription or node QR codes."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se usa para escanear códigos QR de suscripciones o nodos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé pour scanner les codes QR d’abonnements ou de nœuds."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digunakan untuk memindai kode QR langganan atau node."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションまたはノードのQRコードをスキャンするために使用します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 또는 노드 QR 코드를 스캔하는 데 사용됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usado para ler códigos QR de assinaturas ou nós."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Используется для сканирования QR-кодов подписок или узлов."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้เพื่อสแกนคิวอาร์โค้ดการสมัครสมาชิกหรือโหนด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik veya düğüm QR kodlarını taramak için kullanılır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dùng để quét mã QR của gói đăng ký hoặc nút."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于扫描订阅或节点二维码。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於掃描訂閱或節點 QR Code。"
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُستخدم لمشاركة إعدادات الاشتراك المحوّلة مع الكمبيوتر أو جهاز التوجيه على شبكة Wi-Fi نفسها."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Teilen konvertierter Abonnementkonfigurationen mit deinem Computer oder Router im selben WLAN."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share converted subscription configurations with your computer or router on the same Wi-Fi."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se usa para compartir configuraciones de suscripción convertidas con tu ordenador o router en la misma red Wi-Fi."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé pour partager les configurations d’abonnement converties avec votre ordinateur ou routeur sur le même réseau Wi-Fi."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digunakan untuk membagikan konfigurasi langganan yang dikonversi ke komputer atau router di Wi-Fi yang sama."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じWi-Fi上のコンピュータまたはルーターと変換済みサブスクリプション構成を共有するために使用します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동일한 Wi-Fi의 컴퓨터 또는 라우터와 변환된 구독 구성을 공유하는 데 사용됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usado para compartilhar configurações de assinatura convertidas com seu computador ou roteador na mesma rede Wi-Fi."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Используется для передачи преобразованных конфигураций подписок компьютеру или маршрутизатору в той же сети Wi-Fi."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้เพื่อแชร์การกำหนดค่าการสมัครสมาชิกที่แปลงแล้วกับคอมพิวเตอร์หรือเราเตอร์บน Wi-Fi เดียวกัน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dönüştürülen abonelik yapılandırmalarını aynı Wi-Fi ağındaki bilgisayarınızla veya yönlendiricinizle paylaşmak için kullanılır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dùng để chia sẻ cấu hình đăng ký đã chuyển đổi với máy tính hoặc bộ định tuyến trên cùng mạng Wi-Fi."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于在同一 Wi-Fi 中向你的电脑或路由器共享转换后的订阅配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於在同一 Wi-Fi 中向你的電腦或路由器分享轉換後的訂閱設定。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

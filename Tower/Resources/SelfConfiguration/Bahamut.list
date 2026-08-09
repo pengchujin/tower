@@ -1,8 +1,0 @@
-# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Media/Bahamut.yaml
-# Snapshot for Self-Configuration fb658cc85802
-PROCESS-NAME,tw.com.gamer.android.animad
-DOMAIN-SUFFIX,bahamut.com.tw
-DOMAIN-SUFFIX,gamer.com.tw
-DOMAIN,gamer-cds.cdn.hinet.net
-DOMAIN,gamer2-cds.cdn.hinet.net
-DOMAIN,bahamut.akamaized.net

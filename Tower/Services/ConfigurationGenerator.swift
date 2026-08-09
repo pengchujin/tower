@@ -6,18 +6,16 @@ struct ConfigurationGenerator {
     private static let nestedAutoGroupName = "♻️ 自动选择"
     private static let nestedManualGroupName = "🎛️ 手动切换"
     private static let directGroupName = "🎯 直接连接"
-    private static let qureIconBaseURL = "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color"
-    private static let miniIconBaseURL = "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color"
     private static let regionDefinitions = [
-        RegionDefinition(code: "HK", name: "🇭🇰 香港", iconFile: "Hong_Kong.png"),
-        RegionDefinition(code: "JP", name: "🇯🇵 日本", iconFile: "Japan.png"),
-        RegionDefinition(code: "US", name: "🇺🇸 美国", iconFile: "United_States.png"),
-        RegionDefinition(code: "SG", name: "🇸🇬 新加坡", iconFile: "Singapore.png"),
-        RegionDefinition(code: "TW", name: "🇹🇼 台湾", iconFile: "Taiwan.png"),
-        RegionDefinition(code: "KR", name: "🇰🇷 韩国", iconFile: "Korea.png"),
-        RegionDefinition(code: "GB", name: "🇬🇧 英国", iconFile: "United_Kingdom.png"),
-        RegionDefinition(code: "DE", name: "🇩🇪 德国", iconFile: "Germany.png"),
-        RegionDefinition(code: "FR", name: "🇫🇷 法国", iconFile: "France.png")
+        RegionDefinition(code: "HK", name: "🇭🇰 香港"),
+        RegionDefinition(code: "JP", name: "🇯🇵 日本"),
+        RegionDefinition(code: "US", name: "🇺🇸 美国"),
+        RegionDefinition(code: "SG", name: "🇸🇬 新加坡"),
+        RegionDefinition(code: "TW", name: "🇹🇼 台湾"),
+        RegionDefinition(code: "KR", name: "🇰🇷 韩国"),
+        RegionDefinition(code: "GB", name: "🇬🇧 英国"),
+        RegionDefinition(code: "DE", name: "🇩🇪 德国"),
+        RegionDefinition(code: "FR", name: "🇫🇷 法国")
     ]
     private static let otherRegionsName = "🌍 其他地区"
     // Rule types Surge, Shadowrocket and Loon all accept in a [Rule] section.
@@ -86,27 +84,33 @@ struct ConfigurationGenerator {
         scheme: RuleScheme,
         target: ClientTarget,
         schemes: RuleSchemeRepository = RuleSchemeRepository(),
-        excludedKinds: Set<ProxyKind> = []
+        excludedKinds: Set<ProxyKind> = [],
+        preferRuleSets: Bool = true
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
             nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
+        let rulePlan = RuleSetEmissionPlanner(repository: schemes).plan(
+            for: scheme,
+            target: target,
+            preferRuleSets: preferRuleSets
+        )
         let content: String
         switch target {
         case .clash:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = clashScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .surge, .shadowrocket:
-            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, schemes: schemes)
+            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, rulePlan: rulePlan)
         case .loon:
-            content = loonScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = loonScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .quanx:
-            content = quanXScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = quanXScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .hiddify:
-            content = singBoxScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = singBoxScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .egern:
-            content = egernScheme(scheme, groups: resolved, nodes: supported, schemes: schemes)
+            content = egernScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         }
 
         return GeneratedConfiguration(
@@ -115,6 +119,137 @@ struct ConfigurationGenerator {
             supportedNodeCount: supported.count,
             skippedNodeCount: nodes.count - supported.count,
             ruleCount: ruleCount(for: scheme, schemes: schemes)
+        )
+    }
+
+    /// Generates the remote node resource expected by clients that can add a
+    /// subscription without replacing their rules and policy groups.
+    func generateNodeSubscription(
+        nodes: [ProxyNode],
+        target: ClientTarget,
+        excludedKinds: Set<ProxyKind> = [],
+        profileName: String = TowerBrand.localizedName
+    ) -> GeneratedConfiguration {
+        guard target.supportsNodesOnlyImport else {
+            return GeneratedConfiguration(
+                target: target,
+                content: "",
+                supportedNodeCount: 0,
+                skippedNodeCount: nodes.count,
+                ruleCount: 0,
+                profileName: profileName,
+                contentMode: .nodesOnly,
+                fileExtensionOverride: "txt"
+            )
+        }
+
+        var supported = uniquedNames(
+            nodes.filter {
+                $0.isSubscriptionMetadata != true
+                    && writes($0, to: target, excluding: excludedKinds)
+            },
+            reservedNames: []
+        )
+        // Snell has no subscription URI and is unsupported by Loon, QuanX and
+        // Hiddify. Shadowrocket can read it in a full Surge-style profile, but
+        // not from a node-only subscription resource.
+        if target == .shadowrocket {
+            supported.removeAll { $0.kind == .snell }
+        }
+
+        let content: String
+        switch target {
+        case .shadowrocket:
+            let generator = ProxyNodeShareLinkGenerator()
+            let links = supported.map { generator.canonicalLink(for: $0) }
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            content = Data(links.joined(separator: "\n").utf8).base64EncodedString()
+        case .loon:
+            content = supported.map(loonNode).joined(separator: "\n") + (supported.isEmpty ? "" : "\n")
+        case .quanx:
+            content = supported.map(quanXNode).joined(separator: "\n") + (supported.isEmpty ? "" : "\n")
+        case .hiddify:
+            let generator = ProxyNodeShareLinkGenerator()
+            content = supported.map { generator.canonicalLink(for: $0) }.joined(separator: "\n")
+                + (supported.isEmpty ? "" : "\n")
+        default:
+            content = ""
+            supported = []
+        }
+
+        return GeneratedConfiguration(
+            target: target,
+            content: content,
+            supportedNodeCount: supported.count,
+            skippedNodeCount: nodes.count - supported.count,
+            ruleCount: 0,
+            profileName: profileName,
+            contentMode: .nodesOnly,
+            fileExtensionOverride: "txt"
+        )
+    }
+
+    /// Builds a Quantumult X `filter_remote` snippet. Direct/reject rules stay
+    /// local decisions, while every proxy policy is routed through the static
+    /// policy created by the separately imported Tower node resource.
+    func generateQuanXRuleSubscription(
+        from configuration: GeneratedConfiguration,
+        profileName: String = TowerBrand.localizedName
+    ) -> GeneratedConfiguration {
+        guard configuration.target == .quanx else {
+            return GeneratedConfiguration(
+                target: configuration.target,
+                content: "",
+                supportedNodeCount: 0,
+                skippedNodeCount: configuration.skippedNodeCount,
+                ruleCount: 0,
+                profileName: profileName,
+                contentMode: .rulesOnly,
+                fileExtensionOverride: "list"
+            )
+        }
+
+        let lines = configuration.content.components(separatedBy: .newlines)
+        guard let sectionStart = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "[filter_local]" }) else {
+            return GeneratedConfiguration(
+                target: .quanx,
+                content: "",
+                supportedNodeCount: 0,
+                skippedNodeCount: configuration.skippedNodeCount,
+                ruleCount: 0,
+                profileName: profileName,
+                contentMode: .rulesOnly,
+                fileExtensionOverride: "list"
+            )
+        }
+
+        var resourceLines: [String] = []
+        for line in lines.dropFirst(sectionStart + 1) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("[") { break }
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.hasPrefix(";") else { continue }
+            var fields = trimmed.split(separator: ",", omittingEmptySubsequences: false)
+                .map { String($0).trimmingCharacters(in: .whitespaces) }
+            guard fields.count >= 2 else { continue }
+            let policyIndex = fields.last?.lowercased() == "no-resolve"
+                ? fields.index(before: fields.index(before: fields.endIndex))
+                : fields.index(before: fields.endIndex)
+            let policy = fields[policyIndex].lowercased()
+            if policy != "direct" && policy != "reject" {
+                fields[policyIndex] = ExportFilePresentation.profileName(profileName)
+            }
+            resourceLines.append(fields.joined(separator: ", "))
+        }
+
+        return GeneratedConfiguration(
+            target: .quanx,
+            content: resourceLines.joined(separator: "\n") + (resourceLines.isEmpty ? "" : "\n"),
+            supportedNodeCount: 0,
+            skippedNodeCount: configuration.skippedNodeCount,
+            ruleCount: resourceLines.count,
+            profileName: profileName,
+            contentMode: .rulesOnly,
+            fileExtensionOverride: "list"
         )
     }
 
@@ -235,30 +370,23 @@ struct ConfigurationGenerator {
         scheme.rulesets.reduce(0) { $0 + schemes.lines(for: $1.resource).count }
     }
 
-    /// Emits every ruleset in declaration order. `FINAL` is special: it is the
-    /// catch-all each format spells differently and must come last.
-    private func schemeRules(
-        _ scheme: RuleScheme,
+    /// Emits every local rule in declaration order. `FINAL` is held separately
+    /// by the planner because each format spells it differently and it must
+    /// remain last even when the ordinary rules are remote resources.
+    private func localSchemeRules(
+        _ plan: RuleSetEmissionPlanner.Plan,
         target: ClientTarget,
-        schemes: RuleSchemeRepository,
         indent: String = ""
     ) -> String {
         var output = ""
-        var finalGroup: String?
-
-        for ruleset in scheme.rulesets {
-            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
-                finalGroup = ruleset.groupName
-                continue
-            }
-            for line in schemes.lines(for: ruleset.resource) {
-                if let mapped = mappedRule(line, policyName: ruleset.groupName, target: target) {
-                    output += "\(indent)\(mapped)\n"
-                }
+        for entry in plan.entries {
+            guard case .inline(let rule) = entry else { continue }
+            if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: target) {
+                output += "\(indent)\(mapped)\n"
             }
         }
 
-        guard let finalGroup else { return output }
+        guard let finalGroup = plan.finalGroupName else { return output }
         switch target {
         case .clash: output += "\(indent)MATCH,\(finalGroup)\n"
         case .quanx: output += "\(indent)final, \(finalGroup)\n"
@@ -281,7 +409,7 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .clash)
         output += """
@@ -299,7 +427,7 @@ struct ConfigurationGenerator {
         for group in groups {
             switch group.kind {
             case .select:
-                output += clashSelectGroup(name: group.name, nodeNames: group.members, iconURL: "")
+                output += clashSelectGroup(name: group.name, nodeNames: group.members)
             case .urlTest:
                 var block = "  - name: \(yaml(group.name))\n"
                 block += "    type: url-test\n"
@@ -311,8 +439,32 @@ struct ConfigurationGenerator {
                 output += block
             }
         }
+        let remoteResources = rulePlan.remoteResources
+        if !remoteResources.isEmpty {
+            output += "\nrule-providers:\n"
+            for resource in remoteResources {
+                let isYAML = resource.format == .clashProviderYAML
+                output += "  \(resource.identifier):\n"
+                output += "    type: http\n"
+                output += "    behavior: classical\n"
+                output += "    format: \(isYAML ? "yaml" : "text")\n"
+                output += "    url: \(yaml(resource.url.absoluteString))\n"
+                output += "    path: ./ruleset/\(resource.identifier).\(isYAML ? "yaml" : "list")\n"
+                output += "    interval: 86400\n"
+            }
+        }
         output += "\nrules:\n"
-        output += schemeRules(scheme, target: .clash, schemes: schemes, indent: "  - ")
+        for entry in rulePlan.entries {
+            switch entry {
+            case .remote(let resource):
+                output += "  - RULE-SET,\(resource.identifier),\(resource.policyName)\n"
+            case .inline(let rule):
+                if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: .clash) {
+                    output += "  - \(mapped)\n"
+                }
+            }
+        }
+        if let final = rulePlan.finalGroupName { output += "  - MATCH,\(final)\n" }
         return output
     }
 
@@ -321,7 +473,7 @@ struct ConfigurationGenerator {
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
         target: ClientTarget,
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: target)
         output += """
@@ -342,7 +494,7 @@ struct ConfigurationGenerator {
         for group in groups {
             switch group.kind {
             case .select:
-                output += surgeSelect(name: group.name, values: group.members, iconURL: "")
+                output += surgeSelect(name: group.name, values: group.members)
             case .urlTest:
                 let members = group.members.map(confName).joined(separator: ", ")
                 output += "\(confName(group.name)) = url-test, \(members), url=\(group.testURL)"
@@ -350,7 +502,17 @@ struct ConfigurationGenerator {
             }
         }
         output += "\n[Rule]\n"
-        output += schemeRules(scheme, target: target, schemes: schemes)
+        for entry in rulePlan.entries {
+            switch entry {
+            case .remote(let resource):
+                output += "RULE-SET,\(resource.url.absoluteString),\(confName(resource.policyName)),update-interval=86400\n"
+            case .inline(let rule):
+                if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: target) {
+                    output += mapped + "\n"
+                }
+            }
+        }
+        if let final = rulePlan.finalGroupName { output += "FINAL,\(confName(final))\n" }
         return output
     }
 
@@ -358,7 +520,7 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .loon)
         output += """
@@ -382,7 +544,15 @@ struct ConfigurationGenerator {
             }
         }
         output += "\n[Rule]\n"
-        output += schemeRules(scheme, target: .loon, schemes: schemes)
+        output += localSchemeRules(rulePlan, target: .loon)
+        let remoteResources = rulePlan.remoteResources
+        if !remoteResources.isEmpty {
+            output += "\n[Remote Rule]\n"
+            for resource in remoteResources {
+                output += "\(resource.url.absoluteString),policy=\(confName(resource.policyName))"
+                output += ",tag=\(resource.identifier),enabled=true\n"
+            }
+        }
         return output
     }
 
@@ -390,7 +560,7 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .quanx)
         output += """
@@ -423,8 +593,11 @@ struct ConfigurationGenerator {
             }
         }
         output += "\n[filter_local]\n"
-        output += schemeRules(scheme, target: .quanx, schemes: schemes)
-        output += quanXTrailingSections()
+        output += localSchemeRules(rulePlan, target: .quanx)
+        let remoteRules = rulePlan.remoteResources.map {
+            "\($0.url.absoluteString), tag=\($0.identifier), force-policy=\(confName($0.policyName)), enabled=true"
+        }
+        output += quanXTrailingSections(filterRemote: remoteRules)
         return output
     }
 
@@ -452,41 +625,34 @@ struct ConfigurationGenerator {
         output += "\nproxy-groups:\n"
         output += clashSelectGroup(
             name: RulePolicy.select.configurationName,
-            nodeNames: nestedPrimaryChoices(regionGroupNames: regionGroupNames),
-            iconURL: iconURL(for: .select)
+            nodeNames: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
         )
         output += clashSelectGroup(
             name: Self.manualGroupName,
-            nodeNames: nodeNames.isEmpty ? ["DIRECT"] : nodeNames,
-            iconURL: qureIconURL("Static.png")
+            nodeNames: nodeNames.isEmpty ? ["DIRECT"] : nodeNames
         )
         output += clashURLTestGroup(
             name: RulePolicy.auto.configurationName,
-            nodeNames: nodeNames,
-            iconURL: iconURL(for: .auto)
+            nodeNames: nodeNames
         )
         output += clashSelectGroup(
             name: Self.nestedSelectGroupName,
             nodeNames: nestedPrimaryChoices(regionGroupNames: regionGroupNames),
-            iconURL: iconURL(for: .select),
             hidden: true
         )
         output += clashSelectGroup(
             name: Self.nestedManualGroupName,
             nodeNames: nodeNames.isEmpty ? [Self.directGroupName] : nodeNames,
-            iconURL: qureIconURL("Static.png"),
             hidden: true
         )
         output += clashURLTestGroup(
             name: Self.nestedAutoGroupName,
             nodeNames: nodeNames,
-            iconURL: iconURL(for: .auto),
             hidden: true
         )
         output += clashSelectGroup(
             name: Self.directGroupName,
             nodeNames: ["DIRECT"],
-            iconURL: iconURL(for: .direct),
             hidden: true
         )
         for policy in configurablePolicies(preset) {
@@ -496,20 +662,17 @@ struct ConfigurationGenerator {
                     policy,
                     regionGroupNames: regionGroupNames,
                     reject: "REJECT"
-                ),
-                iconURL: iconURL(for: policy)
+                )
             )
         }
         for group in regionGroups {
             output += clashSelectGroup(
                 name: group.name,
-                nodeNames: [group.automaticName] + group.nodeNames,
-                iconURL: ""
+                nodeNames: [group.automaticName] + group.nodeNames
             )
             output += clashURLTestGroup(
                 name: group.automaticName,
                 nodeNames: group.nodeNames,
-                iconURL: "",
                 hidden: true
             )
         }
@@ -572,6 +735,12 @@ struct ConfigurationGenerator {
         case .hysteria2:
             values += ["    password: \(yaml(node.password ?? ""))", "    skip-cert-verify: \(node.skipCertificateVerification)"]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
+                values.append("    obfs: \(yaml(obfs))")
+                if let password = node.obfsParam, !password.isEmpty {
+                    values.append("    obfs-password: \(yaml(password))")
+                }
+            }
         case .anytls:
             values += [
                 "    password: \(yaml(node.password ?? ""))",
@@ -579,6 +748,9 @@ struct ConfigurationGenerator {
                 "    udp: true"
             ]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            if let value = node.idleSessionCheckInterval { values.append("    idle-session-check-interval: \(value)") }
+            if let value = node.idleSessionTimeout { values.append("    idle-session-timeout: \(value)") }
+            if let value = node.minIdleSession { values.append("    min-idle-session: \(value)") }
         case .snell:
             values.append("    psk: \(yaml(node.password ?? ""))")
             if let version = node.version { values.append("    version: \(version)") }
@@ -637,14 +809,12 @@ struct ConfigurationGenerator {
     private func clashSelectGroup(
         name: String,
         nodeNames: [String],
-        iconURL: String,
         hidden: Bool = false
     ) -> String {
         var output = "  - name: \(yaml(name))\n    type: select\n    proxies:\n"
         for name in nodeNames.removingDuplicates() {
             output += "      - \(yaml(name))\n"
         }
-        if !iconURL.isEmpty { output += "    icon: \(yaml(iconURL))\n" }
         if hidden { output += "    hidden: true\n" }
         return output
     }
@@ -652,11 +822,10 @@ struct ConfigurationGenerator {
     private func clashURLTestGroup(
         name: String,
         nodeNames: [String],
-        iconURL: String,
         hidden: Bool = false
     ) -> String {
         guard !nodeNames.isEmpty else {
-            return clashSelectGroup(name: name, nodeNames: ["DIRECT"], iconURL: iconURL)
+            return clashSelectGroup(name: name, nodeNames: ["DIRECT"])
         }
         var output = "  - name: \(yaml(name))\n"
         output += "    type: url-test\n"
@@ -665,7 +834,6 @@ struct ConfigurationGenerator {
         output += "    tolerance: 50\n"
         output += "    proxies:\n"
         for name in nodeNames { output += "      - \(yaml(name))\n" }
-        if !iconURL.isEmpty { output += "    icon: \(yaml(iconURL))\n" }
         if hidden { output += "    hidden: true\n" }
         return output
     }
@@ -697,41 +865,34 @@ struct ConfigurationGenerator {
         output += "\n[Proxy Group]\n"
         output += surgeSelect(
             name: RulePolicy.select.configurationName,
-            values: nestedPrimaryChoices(regionGroupNames: regionGroupNames),
-            iconURL: iconURL(for: .select)
+            values: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
         )
         output += surgeSelect(
             name: Self.manualGroupName,
-            values: names.isEmpty ? ["DIRECT"] : names,
-            iconURL: qureIconURL("Static.png")
+            values: names.isEmpty ? ["DIRECT"] : names
         )
         output += surgeURLTest(
             name: RulePolicy.auto.configurationName,
-            names: names,
-            iconURL: iconURL(for: .auto)
+            names: names
         )
         output += surgeSelect(
             name: Self.nestedSelectGroupName,
             values: nestedPrimaryChoices(regionGroupNames: regionGroupNames),
-            iconURL: iconURL(for: .select),
             hidden: true
         )
         output += surgeSelect(
             name: Self.nestedManualGroupName,
             values: names.isEmpty ? [Self.directGroupName] : names,
-            iconURL: qureIconURL("Static.png"),
             hidden: true
         )
         output += surgeURLTest(
             name: Self.nestedAutoGroupName,
             names: names,
-            iconURL: iconURL(for: .auto),
             hidden: true
         )
         output += surgeSelect(
             name: Self.directGroupName,
             values: ["DIRECT"],
-            iconURL: iconURL(for: .direct),
             hidden: true
         )
         for policy in configurablePolicies(preset) {
@@ -741,20 +902,17 @@ struct ConfigurationGenerator {
                     policy,
                     regionGroupNames: regionGroupNames,
                     reject: "REJECT"
-                ),
-                iconURL: iconURL(for: policy)
+                )
             )
         }
         for group in regionGroups {
             output += surgeSelect(
                 name: group.name,
-                values: [group.automaticName] + group.nodeNames,
-                iconURL: ""
+                values: [group.automaticName] + group.nodeNames
             )
             output += surgeURLTest(
                 name: group.automaticName,
                 names: group.nodeNames,
-                iconURL: "",
                 hidden: true
             )
         }
@@ -891,24 +1049,20 @@ struct ConfigurationGenerator {
     private func surgeSelect(
         name: String,
         values: [String],
-        iconURL: String,
         hidden: Bool = false
     ) -> String {
-        let iconParameter = iconURL.isEmpty ? "" : ", icon-url=\(iconURL)"
         let hiddenParameter = hidden ? ", hidden=true" : ""
-        return "\(confName(name)) = select, \(values.removingDuplicates().map(confName).joined(separator: ", "))\(iconParameter)\(hiddenParameter)\n"
+        return "\(confName(name)) = select, \(values.removingDuplicates().map(confName).joined(separator: ", "))\(hiddenParameter)\n"
     }
 
     private func surgeURLTest(
         name: String,
         names: [String],
-        iconURL: String,
         hidden: Bool = false
     ) -> String {
-        guard !names.isEmpty else { return surgeSelect(name: name, values: ["DIRECT"], iconURL: iconURL) }
-        let iconParameter = iconURL.isEmpty ? "" : ", icon-url=\(iconURL)"
+        guard !names.isEmpty else { return surgeSelect(name: name, values: ["DIRECT"]) }
         let hiddenParameter = hidden ? ", hidden=true" : ""
-        return "\(confName(name)) = url-test, \(names.map(confName).joined(separator: ", ")), url=http://www.gstatic.com/generate_204, interval=300, tolerance=50\(iconParameter)\(hiddenParameter)\n"
+        return "\(confName(name)) = url-test, \(names.map(confName).joined(separator: ", ")), url=http://www.gstatic.com/generate_204, interval=300, tolerance=50\(hiddenParameter)\n"
     }
 
     private func loon(
@@ -932,28 +1086,28 @@ struct ConfigurationGenerator {
         let selectNames = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ",")
-        output += "\(confName(RulePolicy.select.configurationName)) = select,\(selectNames),img-url=\(iconURL(for: .select))\n"
+        output += "\(confName(RulePolicy.select.configurationName)) = select,\(selectNames)\n"
         let manualNames = (names.isEmpty ? ["DIRECT"] : names).map(confName).joined(separator: ",")
-        output += "\(confName(Self.manualGroupName)) = select,\(manualNames),img-url=\(qureIconURL("Static.png"))\n"
+        output += "\(confName(Self.manualGroupName)) = select,\(manualNames)\n"
         if names.isEmpty {
-            output += "\(confName(RulePolicy.auto.configurationName)) = select,DIRECT,img-url=\(iconURL(for: .auto))\n"
+            output += "\(confName(RulePolicy.auto.configurationName)) = select,DIRECT\n"
         } else {
-            output += "\(confName(RulePolicy.auto.configurationName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,img-url=\(iconURL(for: .auto))\n"
+            output += "\(confName(RulePolicy.auto.configurationName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50\n"
         }
         let nestedSelectNames = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ",")
-        output += "\(confName(Self.nestedSelectGroupName)) = select,\(nestedSelectNames),img-url=\(iconURL(for: .select)),hidden=true\n"
+        output += "\(confName(Self.nestedSelectGroupName)) = select,\(nestedSelectNames),hidden=true\n"
         let nestedManualNames = (names.isEmpty ? [Self.directGroupName] : names)
             .map(confName)
             .joined(separator: ",")
-        output += "\(confName(Self.nestedManualGroupName)) = select,\(nestedManualNames),img-url=\(qureIconURL("Static.png")),hidden=true\n"
+        output += "\(confName(Self.nestedManualGroupName)) = select,\(nestedManualNames),hidden=true\n"
         if names.isEmpty {
-            output += "\(confName(Self.nestedAutoGroupName)) = select,\(confName(Self.directGroupName)),img-url=\(iconURL(for: .auto)),hidden=true\n"
+            output += "\(confName(Self.nestedAutoGroupName)) = select,\(confName(Self.directGroupName)),hidden=true\n"
         } else {
-            output += "\(confName(Self.nestedAutoGroupName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,img-url=\(iconURL(for: .auto)),hidden=true\n"
+            output += "\(confName(Self.nestedAutoGroupName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,hidden=true\n"
         }
-        output += "\(confName(Self.directGroupName)) = select,DIRECT,img-url=\(iconURL(for: .direct)),hidden=true\n"
+        output += "\(confName(Self.directGroupName)) = select,DIRECT,hidden=true\n"
         for policy in configurablePolicies(preset) {
             let choices = policyChoices(
                 policy,
@@ -962,7 +1116,7 @@ struct ConfigurationGenerator {
             )
                 .map(confName)
                 .joined(separator: ",")
-            output += "\(confName(policy.configurationName)) = select,\(choices),img-url=\(iconURL(for: policy))\n"
+            output += "\(confName(policy.configurationName)) = select,\(choices)\n"
         }
         for group in regionGroups {
             output += "\(confName(group.name)) = select,\(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ","))\n"
@@ -984,7 +1138,7 @@ struct ConfigurationGenerator {
         var values: [String]
         switch node.kind {
         case .shadowsocks:
-            values = ["Shadowsocks", node.server, "\(node.port)", node.cipher ?? "aes-256-gcm", confValue(node.password ?? "")]
+            values = ["Shadowsocks", node.server, "\(node.port)", node.cipher ?? "aes-256-gcm", loonQuoted(node.password ?? "")]
             if let mode = simpleObfsMode(node) {
                 // Loon names the simple-obfs mode obfs-name; plain "obfs" is
                 // the ShadowsocksR field and means something else there.
@@ -993,7 +1147,7 @@ struct ConfigurationGenerator {
             }
             values.append("udp=true")
         case .shadowsocksR:
-            values = ["ShadowsocksR", node.server, "\(node.port)", node.cipher ?? "aes-256-cfb", confValue(node.password ?? ""), "protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
+            values = ["ShadowsocksR", node.server, "\(node.port)", node.cipher ?? "aes-256-cfb", loonQuoted(node.password ?? ""), "protocol=\(node.protocolName ?? "origin")", "obfs=\(node.obfs ?? "plain")"]
             appendValue(node.protocolParam, key: "protocol-param", to: &values)
             appendValue(node.obfsParam, key: "obfs-param", to: &values)
             values.append("udp=true")
@@ -1003,7 +1157,7 @@ struct ConfigurationGenerator {
                 node.server,
                 "\(node.port)",
                 node.cipher ?? "auto",
-                confValue(node.exportableUUID ?? ""),
+                loonQuoted(node.exportableUUID ?? ""),
                 "transport=\(node.transport ?? "tcp")",
                 "alterId=\(node.alterID ?? 0)"
             ]
@@ -1013,12 +1167,12 @@ struct ConfigurationGenerator {
                 "VLESS",
                 node.server,
                 "\(node.port)",
-                confValue(node.exportableUUID ?? ""),
+                loonQuoted(node.exportableUUID ?? ""),
                 "transport=\(node.transport ?? "tcp")"
             ]
             appendLoonTransportAndTLS(node, to: &values)
         case .trojan:
-            values = ["trojan", node.server, "\(node.port)", confValue(node.password ?? "")]
+            values = ["trojan", node.server, "\(node.port)", loonQuoted(node.password ?? "")]
             appendValue(node.transport, key: "transport", to: &values)
             appendValue(node.exportablePath, key: "path", to: &values)
             appendValue(node.hostHeader, key: "host", to: &values)
@@ -1027,12 +1181,12 @@ struct ConfigurationGenerator {
             appendValue(node.sni, key: "tls-name", to: &values)
             values.append("udp=true")
         case .hysteria2:
-            values = ["Hysteria2", node.server, "\(node.port)", confValue(node.password ?? "")]
+            values = ["Hysteria2", node.server, "\(node.port)", loonQuoted(node.password ?? "")]
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
             appendValue(node.sni, key: "tls-name", to: &values)
             values += ["udp=true", "fast-open=true"]
         case .anytls:
-            values = ["anytls", node.server, "\(node.port)", "\"\(confValue(node.password ?? ""))\""]
+            values = ["anytls", node.server, "\(node.port)", loonQuoted(node.password ?? "")]
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
             appendValue(node.sni, key: "tls-name", to: &values)
             values.append("udp=true")
@@ -1062,7 +1216,7 @@ struct ConfigurationGenerator {
         let username = node.username ?? ""
         let password = node.password ?? ""
         guard !username.isEmpty || !password.isEmpty else { return [] }
-        return [confValue(username), confValue(password)]
+        return [loonQuoted(username), loonQuoted(password)]
     }
 
     private func appendLoonTransportAndTLS(_ node: ProxyNode, to values: inout [String]) {
@@ -1104,28 +1258,28 @@ struct ConfigurationGenerator {
         let selectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ", ")
-        output += "static=\(RulePolicy.select.configurationName), \(selectValues), img-url=\(iconURL(for: .select))\n"
+        output += "static=\(RulePolicy.select.configurationName), \(selectValues)\n"
         let manualValues = (names.isEmpty ? ["direct"] : names).map(confName).joined(separator: ", ")
-        output += "static=\(Self.manualGroupName), \(manualValues), img-url=\(qureIconURL("Static.png"))\n"
+        output += "static=\(Self.manualGroupName), \(manualValues)\n"
         if names.isEmpty {
-            output += "static=\(RulePolicy.auto.configurationName), direct, img-url=\(iconURL(for: .auto))\n"
+            output += "static=\(RulePolicy.auto.configurationName), direct\n"
         } else {
-            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         let nestedSelectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ", ")
-        output += "static=\(Self.nestedSelectGroupName), \(nestedSelectValues), img-url=\(iconURL(for: .select))\n"
+        output += "static=\(Self.nestedSelectGroupName), \(nestedSelectValues)\n"
         let nestedManualValues = (names.isEmpty ? [Self.directGroupName] : names)
             .map(confName)
             .joined(separator: ", ")
-        output += "static=\(Self.nestedManualGroupName), \(nestedManualValues), img-url=\(qureIconURL("Static.png"))\n"
+        output += "static=\(Self.nestedManualGroupName), \(nestedManualValues)\n"
         if names.isEmpty {
-            output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName), img-url=\(iconURL(for: .auto))\n"
+            output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName)\n"
         } else {
-            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50, img-url=\(iconURL(for: .auto))\n"
+            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50\n"
         }
-        output += "static=\(Self.directGroupName), direct, img-url=\(iconURL(for: .direct))\n"
+        output += "static=\(Self.directGroupName), direct\n"
         for policy in configurablePolicies(preset) {
             let choices = policyChoices(
                 policy,
@@ -1134,7 +1288,7 @@ struct ConfigurationGenerator {
             )
                 .map(confName)
                 .joined(separator: ", ")
-            output += "static=\(policy.configurationName), \(choices), img-url=\(iconURL(for: policy))\n"
+            output += "static=\(policy.configurationName), \(choices)\n"
         }
         for group in regionGroups {
             output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
@@ -1239,17 +1393,18 @@ struct ConfigurationGenerator {
     /// list on import and refuses the file when one is missing — it reported
     /// `配置文件缺少模块 [server_remote]`. Tower has nothing to put in the remote
     /// and rewrite modules, so they are emitted empty rather than omitted.
-    private func quanXTrailingSections() -> String {
-        let empty = [
-            "server_remote",
-            "filter_remote",
-            "rewrite_local",
-            "rewrite_remote",
-            "task_local",
-            "http_backend",
-            "mitm"
-        ]
-        return empty.map { "\n[\($0)]\n" }.joined()
+    private func quanXTrailingSections(filterRemote: [String] = []) -> String {
+        var output = "\n[server_remote]\n"
+        output += "\n[filter_remote]\n"
+        if !filterRemote.isEmpty {
+            output += filterRemote.joined(separator: "\n") + "\n"
+        }
+        for section in [
+            "rewrite_local", "rewrite_remote", "task_local", "http_backend", "mitm"
+        ] {
+            output += "\n[\(section)]\n"
+        }
+        return output
     }
 
     /// The simple-obfs mode of a Shadowsocks node, or nil when it carries no
@@ -1290,9 +1445,17 @@ struct ConfigurationGenerator {
         }
         guard parts.count >= 2 else { return nil }
 
+        let ruleType = parts[0].uppercased()
+        // Clash/Mihomo does not implement Surge's URL-REGEX dialect. These
+        // expressions may inspect the URL path, so converting them to a domain
+        // rule would silently change their meaning; omit them for Clash only.
+        if target == .clash, ruleType == "URL-REGEX" {
+            return nil
+        }
+
         if target == .quanx {
             let mappedType: String
-            switch parts[0].uppercased() {
+            switch ruleType {
             case "DOMAIN": mappedType = "host"
             case "DOMAIN-SUFFIX": mappedType = "host-suffix"
             case "DOMAIN-KEYWORD": mappedType = "host-keyword"
@@ -1303,7 +1466,7 @@ struct ConfigurationGenerator {
             default: return nil
             }
             parts[0] = mappedType
-        } else if !Self.surgeFamilyRuleTypes.contains(parts[0].uppercased()) {
+        } else if !Self.surgeFamilyRuleTypes.contains(ruleType) {
             // A future rule snapshot may introduce a type these clients cannot
             // parse. Dropping it keeps the rest of the configuration loadable
             // instead of shipping a line that fails at import time.
@@ -1352,59 +1515,18 @@ struct ConfigurationGenerator {
             guard let names = nodesByCode[definition.code], !names.isEmpty else { return nil }
             return RegionStrategyGroup(
                 name: definition.name,
-                nodeNames: names.removingDuplicates(),
-                iconURL: qureIconURL(definition.iconFile)
+                nodeNames: names.removingDuplicates()
             )
         }
         if !otherNodeNames.isEmpty {
             groups.append(
                 RegionStrategyGroup(
                     name: Self.otherRegionsName,
-                    nodeNames: otherNodeNames.removingDuplicates(),
-                    iconURL: qureIconURL("World_Map.png")
+                    nodeNames: otherNodeNames.removingDuplicates()
                 )
             )
         }
         return groups
-    }
-
-    private func iconURL(for policy: RulePolicy) -> String {
-        switch policy {
-        case .direct:
-            qureIconURL("Direct.png")
-        case .reject:
-            qureIconURL("Reject.png")
-        case .select:
-            qureIconURL("Proxy.png")
-        case .auto:
-            qureIconURL("Auto.png")
-        case .international:
-            qureIconURL("Global.png")
-        case .domestic:
-            qureIconURL("Domestic.png")
-        case .foreignAds:
-            qureIconURL("Advertising.png")
-        case .ai:
-            "\(Self.miniIconBaseURL)/OpenAI.png"
-        case .youtube:
-            qureIconURL("YouTube.png")
-        case .media:
-            qureIconURL("Streaming.png")
-        case .telegram:
-            qureIconURL("Telegram.png")
-        case .googleFCM:
-            qureIconURL("Gmail.png")
-        case .apple:
-            qureIconURL("Apple.png")
-        case .microsoft:
-            qureIconURL("Microsoft.png")
-        case .google:
-            qureIconURL("Google.png")
-        }
-    }
-
-    private func qureIconURL(_ file: String) -> String {
-        "\(Self.qureIconBaseURL)/\(file)"
     }
 
     private func nestedPrimaryChoices(regionGroupNames: [String]) -> [String] {
@@ -1451,7 +1573,7 @@ struct ConfigurationGenerator {
     private func header(target: ClientTarget) -> String {
         """
         # Generated locally by 塔台 for \(target.name)
-        # Rules: ClashConnectRules/Self-Configuration, revision \(RuleRepository.sourceRevision)
+        # Rules are selected and stored locally on this device.
         # Subscription credentials never leave this device.
 
         """
@@ -1548,6 +1670,16 @@ struct ConfigurationGenerator {
             .replacingOccurrences(of: ",", with: "%2C")
     }
 
+    /// Loon's positional credential fields are quoted in its documented node
+    /// syntax. Escaping here also prevents commas inside credentials from
+    /// becoming extra fields.
+    private func loonQuoted(_ value: String) -> String {
+        let escaped = collapsingLineBreaks(value)
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
+    }
+
     private func collapsingLineBreaks(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\r\n", with: " ")
@@ -1559,13 +1691,11 @@ struct ConfigurationGenerator {
 private struct RegionDefinition {
     let code: String
     let name: String
-    let iconFile: String
 }
 
 struct RegionStrategyGroup {
     let name: String
     let nodeNames: [String]
-    let iconURL: String
 
     var automaticName: String { "\(name) · 延迟优选" }
 }
@@ -1824,9 +1954,19 @@ extension ConfigurationGenerator {
         case .hysteria2:
             outbound["type"] = "hysteria2"
             outbound["password"] = node.password ?? ""
+            if let type = node.obfs, !type.isEmpty, type.lowercased() != "none" {
+                var obfs: [String: Any] = ["type": type]
+                if let password = node.obfsParam, !password.isEmpty { obfs["password"] = password }
+                outbound["obfs"] = obfs
+            }
         case .anytls:
             outbound["type"] = "anytls"
             outbound["password"] = node.password ?? ""
+            if let value = node.idleSessionCheckInterval {
+                outbound["idle_session_check_interval"] = "\(value)s"
+            }
+            if let value = node.idleSessionTimeout { outbound["idle_session_timeout"] = "\(value)s" }
+            if let value = node.minIdleSession { outbound["min_idle_session"] = value }
         case .snell:
             outbound["type"] = "snell"
             outbound["psk"] = node.password ?? ""
@@ -1918,7 +2058,7 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var outbounds: [[String: Any]] = groups.map { group in
             var outbound: [String: Any] = [
@@ -1937,41 +2077,72 @@ extension ConfigurationGenerator {
         outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
 
         var rules: [[String: Any]] = []
-        var finalGroup = groups.first?.name ?? Self.singBoxDirectTag
-        var ordered: [String] = []
-        var byGroup: [String: [String: [String]]] = [:]
+        let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.singBoxDirectTag
+        var pendingGroup: String?
+        var pendingFields: [String: [String]] = [:]
 
-        for ruleset in scheme.rulesets {
-            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
-                finalGroup = ruleset.groupName
-                continue
-            }
-            for line in schemes.lines(for: ruleset.resource) {
-                let parts = line.split(separator: ",", omittingEmptySubsequences: false)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                guard parts.count >= 2,
-                      let field = Self.singBoxRuleFields[parts[0].uppercased()],
-                      !parts[1].isEmpty else { continue }
-                if byGroup[ruleset.groupName] == nil {
-                    byGroup[ruleset.groupName] = [:]
-                    ordered.append(ruleset.groupName)
-                }
-                byGroup[ruleset.groupName]?[field, default: []].append(parts[1])
-            }
-        }
-        for groupName in ordered {
-            guard let fields = byGroup[groupName], !fields.isEmpty else { continue }
+        func rule(policyName: String, fields: [String: [String]]) -> [String: Any] {
             var rule: [String: Any] = [:]
             for (field, values) in fields.sorted(by: { $0.key < $1.key }) {
                 rule[field] = values.removingDuplicates()
             }
-            if groupName.uppercased() == "REJECT" {
+            if policyName.uppercased() == "REJECT" {
                 rule["action"] = "reject"
             } else {
-                rule["outbound"] = groupName
+                rule["outbound"] = policyName
             }
-            rules.append(rule)
+            return rule
         }
+
+        func flushPending() {
+            guard let group = pendingGroup, !pendingFields.isEmpty else { return }
+            rules.append(rule(policyName: group, fields: pendingFields))
+            pendingGroup = nil
+            pendingFields = [:]
+        }
+
+        for entry in rulePlan.entries {
+            switch entry {
+            case .remote(let resource):
+                flushPending()
+                var remoteRule: [String: Any] = ["rule_set": [resource.identifier]]
+                if resource.policyName.uppercased() == "REJECT" {
+                    remoteRule["action"] = "reject"
+                } else {
+                    remoteRule["outbound"] = resource.policyName
+                }
+                rules.append(remoteRule)
+            case .inline(let inline):
+                let parts = inline.line.split(separator: ",", omittingEmptySubsequences: false)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                guard parts.count >= 2,
+                      let field = Self.singBoxRuleFields[parts[0].uppercased()],
+                      !parts[1].isEmpty else { continue }
+                if pendingGroup != inline.policyName {
+                    flushPending()
+                    pendingGroup = inline.policyName
+                }
+                pendingFields[field, default: []].append(parts[1])
+            }
+        }
+        flushPending()
+
+        let remoteRuleSets: [[String: Any]] = rulePlan.remoteResources.map {
+            [
+                "type": "remote",
+                "tag": $0.identifier,
+                "format": "source",
+                "url": $0.url.absoluteString,
+                "update_interval": "1d"
+            ]
+        }
+
+        var route: [String: Any] = [
+            "rules": rules,
+            "final": finalGroup,
+            "auto_detect_interface": true
+        ]
+        if !remoteRuleSets.isEmpty { route["rule_set"] = remoteRuleSets }
 
         let configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
@@ -1984,7 +2155,7 @@ extension ConfigurationGenerator {
                 "stack": "mixed"
             ]],
             "outbounds": outbounds,
-            "route": ["rules": rules, "final": finalGroup, "auto_detect_interface": true],
+            "route": route,
             "experimental": ["cache_file": ["enabled": true, "store_fakeip": false]]
         ]
 
@@ -2088,7 +2259,7 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        schemes: RuleSchemeRepository
+        rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .egern)
         output += "\nproxies:\n"
@@ -2103,14 +2274,16 @@ extension ConfigurationGenerator {
         }
 
         output += "\nrules:\n"
-        var finalGroup = groups.first?.name ?? Self.egernDirect
-        for ruleset in scheme.rulesets {
-            if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
-                finalGroup = ruleset.groupName
-                continue
-            }
-            for line in schemes.lines(for: ruleset.resource) {
-                if let mapped = egernRule(line, policy: ruleset.groupName) { output += mapped }
+        let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.egernDirect
+        for entry in rulePlan.entries {
+            switch entry {
+            case .remote(let resource):
+                output += "  - rule_set:\n"
+                output += "      match: \(yaml(resource.url.absoluteString))\n"
+                output += "      policy: \(yaml(resource.policyName))\n"
+                output += "      update_interval: 86400\n"
+            case .inline(let rule):
+                if let mapped = egernRule(rule.line, policy: rule.policyName) { output += mapped }
             }
         }
         output += "  - default:\n      policy: \(yaml(finalGroup))\n"

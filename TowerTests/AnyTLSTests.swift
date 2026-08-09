@@ -119,6 +119,29 @@ final class AnyTLSTests: XCTestCase {
         }
     }
 
+    func testSessionTuningReachesClash() {
+        let node = ProxyNode(
+            kind: .anytls,
+            name: "AnyTLS tuned",
+            server: "node.example.com",
+            port: 443,
+            password: "password",
+            tls: true,
+            idleSessionCheckInterval: 20,
+            idleSessionTimeout: 45,
+            minIdleSession: 3,
+            rawURI: "anytls://node"
+        )
+
+        let content = ConfigurationGenerator().generate(
+            nodes: [node], preset: RulePreset.builtIns[0], target: .clash
+        ).content
+
+        XCTAssertTrue(content.contains("idle-session-check-interval: 20"), content)
+        XCTAssertTrue(content.contains("idle-session-timeout: 45"), content)
+        XCTAssertTrue(content.contains("min-idle-session: 3"), content)
+    }
+
     // MARK: - Sharing
 
     func testSharedLinkRoundTrips() throws {

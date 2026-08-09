@@ -60,4 +60,24 @@ final class ProxyNodeShareLinkGeneratorTests: XCTestCase {
         XCTAssertEqual(reparsed?.transport, "ws")
         XCTAssertEqual(reparsed?.path, "/gateway")
     }
+
+    func testHysteria2ObfuscationRoundTripsThroughOfficialURIFields() throws {
+        let node = ProxyNode(
+            kind: .hysteria2,
+            name: "HY2",
+            server: "hy2.example.com",
+            port: 443,
+            password: "authentication-password",
+            tls: true,
+            obfs: "salamander",
+            obfsParam: "obfuscation-password",
+            rawURI: "clash://local/hy2"
+        )
+
+        let link = ProxyNodeShareLinkGenerator().link(for: node)
+        let reparsed = try XCTUnwrap(SubscriptionParser().parseURI(link))
+
+        XCTAssertEqual(reparsed.obfs, "salamander")
+        XCTAssertEqual(reparsed.obfsParam, "obfuscation-password")
+    }
 }

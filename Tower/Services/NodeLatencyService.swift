@@ -4,7 +4,35 @@ import Network
 
 enum NodeProbeMethod: String, Equatable, Sendable {
     case icmp = "ICMP"
-    case tcp = "端口"
+    case tcp = "TCP"
+    case http = "HTTP"
+}
+
+enum NodeLatencyTestMode: String, CaseIterable, Identifiable, Sendable {
+    case automatic = "自动"
+    case icmp = "ICMP"
+    case tcp = "TCP"
+    case http = "HTTP"
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: String(localized: "自动")
+        case .icmp: "ICMP"
+        case .tcp: "TCP"
+        case .http: "HTTP"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .automatic: "gauge.with.dots.needle.50percent"
+        case .icmp: "dot.radiowaves.left.and.right"
+        case .tcp: "cable.connector"
+        case .http: "globe"
+        }
+    }
 }
 
 struct NodeLatencyMeasurement: Equatable, Sendable {
@@ -35,17 +63,19 @@ enum LatencyProbeError: LocalizedError {
     case sendFailed(Int32)
     case timeout
     case connectionFailed(String)
+    case invalidResponse
 
     var errorDescription: String? {
         switch self {
-        case .invalidHost: "节点地址无效"
-        case .invalidPort: "节点端口无效"
+        case .invalidHost: String(localized: "节点地址无效")
+        case .invalidPort: String(localized: "节点端口无效")
         case .resolutionFailed(let status):
-            "无法解析节点地址（\(String(cString: gai_strerror(status)))）"
-        case .socketFailed: "无法创建 ICMP 探测"
-        case .sendFailed: "无法发送 ICMP 探测"
-        case .timeout: "探测超时"
-        case .connectionFailed: "节点端口不可达"
+            String(localized: "无法解析节点地址（\(String(cString: gai_strerror(status)))）")
+        case .socketFailed: String(localized: "无法创建 ICMP 探测")
+        case .sendFailed: String(localized: "无法发送 ICMP 探测")
+        case .timeout: String(localized: "探测超时")
+        case .connectionFailed: String(localized: "节点端口不可达")
+        case .invalidResponse: String(localized: "没有收到 HTTP 响应")
         }
     }
 }
@@ -53,36 +83,69 @@ enum LatencyProbeError: LocalizedError {
 actor NodeLatencyService {
     typealias ICMPProbe = @Sendable (_ host: String, _ timeout: TimeInterval) async throws -> Int
     typealias TCPProbe = @Sendable (_ host: String, _ port: Int, _ timeout: TimeInterval) async throws -> Int
+    typealias HTTPProbe = @Sendable (_ node: ProxyNode, _ timeout: TimeInterval) async throws -> Int
 
     private let icmpTimeout: TimeInterval
     private let tcpTimeout: TimeInterval
+    private let httpTimeout: TimeInterval
     private let icmpProbe: ICMPProbe
     private let tcpProbe: TCPProbe
+    private let httpProbe: HTTPProbe
 
-    init(icmpTimeout: TimeInterval = 1.2, tcpTimeout: TimeInterval = 1.8) {
+    init(
+        icmpTimeout: TimeInterval = 1.2,
+        tcpTimeout: TimeInterval = 1.8,
+        httpTimeout: TimeInterval = 2.5
+    ) {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
+        self.httpTimeout = httpTimeout
         icmpProbe = { host, timeout in
             try await ICMPPingProbe.measure(host: host, timeout: timeout)
         }
         tcpProbe = { host, port, timeout in
             try await TCPConnectProbe.measure(host: host, port: port, timeout: timeout)
         }
+        httpProbe = { node, timeout in
+            try await HTTPResponseProbe.measure(node: node, timeout: timeout)
+        }
     }
 
     init(
         icmpTimeout: TimeInterval = 1.2,
         tcpTimeout: TimeInterval = 1.8,
+        httpTimeout: TimeInterval = 2.5,
         icmpProbe: @escaping ICMPProbe,
-        tcpProbe: @escaping TCPProbe
+        tcpProbe: @escaping TCPProbe,
+        httpProbe: @escaping HTTPProbe = { node, timeout in
+            try await HTTPResponseProbe.measure(node: node, timeout: timeout)
+        }
     ) {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
+        self.httpTimeout = httpTimeout
         self.icmpProbe = icmpProbe
         self.tcpProbe = tcpProbe
+        self.httpProbe = httpProbe
     }
 
-    func measure(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+    func measure(
+        _ node: ProxyNode,
+        mode: NodeLatencyTestMode = .automatic
+    ) async throws -> NodeLatencyMeasurement {
+        switch mode {
+        case .automatic:
+            return try await measureAutomatically(node)
+        case .icmp:
+            return try await measureICMP(node)
+        case .tcp:
+            return try await measureTCP(node)
+        case .http:
+            return try await measureHTTP(node)
+        }
+    }
+
+    private func measureAutomatically(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
         do {
             let milliseconds = try await icmpProbe(node.server, icmpTimeout)
             return .success(milliseconds: milliseconds, method: .icmp)
@@ -100,6 +163,80 @@ actor NodeLatencyService {
                 )
             }
         }
+    }
+
+    private func measureICMP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        do {
+            return .success(
+                milliseconds: try await icmpProbe(node.server, icmpTimeout),
+                method: .icmp
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .unavailable("ICMP：\(error.localizedDescription)")
+        }
+    }
+
+    private func measureTCP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        do {
+            return .success(
+                milliseconds: try await tcpProbe(node.server, node.port, tcpTimeout),
+                method: .tcp
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .unavailable("TCP：\(error.localizedDescription)")
+        }
+    }
+
+    private func measureHTTP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        do {
+            return .success(
+                milliseconds: try await httpProbe(node, httpTimeout),
+                method: .http
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .unavailable("HTTP：\(error.localizedDescription)")
+        }
+    }
+}
+
+private enum HTTPResponseProbe {
+    static func measure(node: ProxyNode, timeout: TimeInterval) async throws -> Int {
+        guard !node.server.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LatencyProbeError.invalidHost
+        }
+        guard (1 ... 65_535).contains(node.port) else {
+            throw LatencyProbeError.invalidPort
+        }
+
+        var components = URLComponents()
+        components.scheme = node.tls || node.port == 443 ? "https" : "http"
+        components.host = node.server
+        components.port = node.port
+        components.path = "/"
+        guard let url = components.url else { throw LatencyProbeError.invalidHost }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        configuration.waitsForConnectivity = false
+        let session = URLSession(configuration: configuration)
+        defer { session.finishTasksAndInvalidate() }
+
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        let (_, response) = try await session.data(for: request)
+        guard response is HTTPURLResponse else { throw LatencyProbeError.invalidResponse }
+        return max(Int((ProcessInfo.processInfo.systemUptime - startedAt) * 1_000), 1)
     }
 }
 

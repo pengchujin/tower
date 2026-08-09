@@ -138,7 +138,7 @@ final class SubscriptionUsageTests: XCTestCase {
 
     // MARK: - Notices in the node list
 
-    func testAnnouncementEntriesBecomeNoticesNotNodes() {
+    func testAnnouncementEntriesRemainNodesAndAreMarkedAsMetadata() {
         // The shape a real airport uses: quota rows are ss:// entries whose
         // only real content is the name.
         let list = [
@@ -149,7 +149,8 @@ final class SubscriptionUsageTests: XCTestCase {
 
         let result = parser.parse(data: Data(list.utf8))
 
-        XCTAssertEqual(result.nodes.map(\.name), ["香港 IEPL 专线 1"])
+        XCTAssertEqual(result.nodes.map(\.name), ["香港 IEPL 专线 1", "剩余流量：101.69 GB", "套餐到期：2026-08-09"])
+        XCTAssertEqual(result.nodes.map { $0.isSubscriptionMetadata == true }, [false, true, true])
         XCTAssertEqual(result.notices, ["剩余流量：101.69 GB", "套餐到期：2026-08-09"])
         XCTAssertEqual(result.rejectedLineCount, 0, "公告不是解析失败")
     }
@@ -172,7 +173,7 @@ final class SubscriptionUsageTests: XCTestCase {
         }
     }
 
-    func testAnnouncementsParkedOnAPublicResolverAreExcludedWhateverTheySay() {
+    func testAnnouncementsParkedOnAPublicResolverAreMarkedWhateverTheySay() {
         // One airport advertises its own client this way. The pitch matches no
         // keyword, but nothing real listens on 8.8.8.8:8.
         let yaml = """
@@ -183,11 +184,12 @@ final class SubscriptionUsageTests: XCTestCase {
 
         let result = parser.parse(data: Data(yaml.utf8))
 
-        XCTAssertEqual(result.nodes.map(\.name), ["香港 01"])
+        XCTAssertEqual(result.nodes.map(\.name), ["香港 01", "！！！强烈推荐使用官方客户端！！！"])
+        XCTAssertEqual(result.nodes.last?.isSubscriptionMetadata, true)
         XCTAssertEqual(result.notices, ["！！！强烈推荐使用官方客户端！！！"])
     }
 
-    func testClashYAMLAnnouncementsAreAlsoExcluded() {
+    func testClashYAMLAnnouncementsAreAlsoMarked() {
         let yaml = """
         proxies:
           - {name: 香港 01, server: hk.example.com, port: 8388, type: ss, cipher: aes-128-gcm, password: pw}
@@ -196,7 +198,8 @@ final class SubscriptionUsageTests: XCTestCase {
 
         let result = parser.parse(data: Data(yaml.utf8))
 
-        XCTAssertEqual(result.nodes.map(\.name), ["香港 01"])
+        XCTAssertEqual(result.nodes.map(\.name), ["香港 01", "剩余流量：50 GB"])
+        XCTAssertEqual(result.nodes.last?.isSubscriptionMetadata, true)
         XCTAssertEqual(result.notices, ["剩余流量：50 GB"])
     }
 

@@ -23,9 +23,17 @@ struct RuleDownloadStore {
     }
 
     func lines(for url: URL) -> [String]? {
-        let fileURL = folderURL.appendingPathComponent(Self.fileName(for: url), isDirectory: false)
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
+        guard let content = content(for: url) else { return nil }
         return RuleSchemeRepository.sanitizedLines(from: content)
+    }
+
+    /// The planner sometimes needs the original container syntax, not only
+    /// the normalized payload lines. In particular a Clash provider YAML and
+    /// a plain Surge ruleset can contain identical rules but are not
+    /// interchangeable remote resources.
+    func content(for url: URL) -> String? {
+        let fileURL = folderURL.appendingPathComponent(Self.fileName(for: url), isDirectory: false)
+        return try? String(contentsOf: fileURL, encoding: .utf8)
     }
 
     func hasCachedRules(for url: URL) -> Bool {

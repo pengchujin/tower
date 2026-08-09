@@ -97,6 +97,18 @@ final class NodeRegionResolverTests: XCTestCase {
         }
     }
 
+    func testCountriesOutsideTheCuratedListAreIncludedInMapClusters() {
+        let nodes = [
+            node(name: "Spain"),
+            node(name: "Austria"),
+            node(name: "Türkiye")
+        ]
+
+        let clusterCodes = Set(NodeRegionResolver.clusters(for: nodes).map(\.region.code))
+
+        XCTAssertTrue(clusterCodes.isSuperset(of: ["ES", "AT", "TR"]))
+    }
+
     func testProtocolAbbreviationsAreNotReadAsCountries() {
         // SS is Shadowsocks, WS is WebSocket, GB is gigabytes.
         XCTAssertNil(NodeRegionResolver.region(for: node(name: "SS 中转", server: "203.0.113.8")))

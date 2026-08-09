@@ -126,5 +126,6 @@ final class ProtocolFilterTests: XCTestCase {
 
         let model = AppModel(persistence: PersistenceStore(fileURL: url), arguments: [])
         XCTAssertTrue(model.excludedKinds.isEmpty)
+        XCTAssertEqual(model.selectedPresetID, "acl4ssr-default")
     }
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Rasterise world land polygons into the dot grid the home screen draws.
 
-The map on the subscriptions tab is a flat dot-matrix world rather than a
-MapKit globe: it draws one dot per land cell of an equirectangular grid. This
+The map on the subscriptions tab is a flat dot-matrix world: it draws one dot
+per land cell of a Web-Mercator grid. This
 script turns Natural Earth's public-domain land polygons into that grid and
 stores it as a compact bitmap the app reads at launch.
 
@@ -28,19 +28,21 @@ SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "{revision}/geojson/ne_110m_land.geojson"
 )
-REVISION = "master"
+# The shipped bitmap must be reproducible. Move this pin only after reviewing
+# the regenerated map and country-table diffs together.
+REVISION = "ca96624a56bd078437bca8184e78163e5039ad19"
 
 ROOT = Path(__file__).resolve().parent.parent
 DESTINATION = ROOT / "Tower" / "Resources" / "WorldMap"
 
 # Antarctica is dropped: it spans the whole bottom edge and adds a heavy bar
 # that no proxy node ever sits on.
-MIN_LATITUDE = -52.0
-MAX_LATITUDE = 72.0
-# The full -180..180 leaves the empty Pacific on both edges, so the drawn band
-# is cropped to where land and every region Tower knows actually sit.
-MIN_LONGITUDE = -128.0
-MAX_LONGITUDE = 168.0
+MIN_LATITUDE = -60.0
+MAX_LATITUDE = 84.0
+# Keep the complete date-line span. Cropping the Pacific clamps real country
+# label points such as Fiji and New Zealand onto the edge of the card.
+MIN_LONGITUDE = -180.0
+MAX_LONGITUDE = 180.0
 
 
 def fetch(url: str) -> bytes:

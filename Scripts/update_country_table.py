@@ -27,7 +27,9 @@ SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "{revision}/geojson/ne_110m_admin_0_countries.geojson"
 )
-REVISION = "master"
+# Keep generated country names and coordinates reproducible across checkouts.
+# Update this deliberately after reviewing the generated Swift diff.
+REVISION = "ca96624a56bd078437bca8184e78163e5039ad19"
 
 ROOT = Path(__file__).resolve().parent.parent
 DESTINATION = ROOT / "Tower" / "Services" / "CountryTable.swift"

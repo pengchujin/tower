@@ -6,6 +6,8 @@ struct ExportView: View {
     @State private var sharePayload: ExportPayload?
     @State private var directImportService = DirectImportService()
     @State private var isImporting = false
+    @State private var isSettingsPresented = false
+    @State private var previewPayload: ConfigurationPreviewPayload?
 
     var body: some View {
         let configuration = model.configuration()
@@ -13,10 +15,18 @@ struct ExportView: View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 ClientPicker()
-                ProtocolFilter()
+                ExportContentModePicker()
+                if configuration.contentMode != .rulesOnly {
+                    ProtocolFilter()
+                }
                 ConversionSummary(configuration: configuration)
-                ImportPrivacyNote(target: model.selectedTarget)
-                ConfigurationPreview(configuration: configuration)
+                ImportPrivacyNote(
+                    target: model.selectedTarget,
+                    contentMode: model.exportContentMode(for: model.selectedTarget)
+                )
+                ConfigurationPreview(configuration: configuration) {
+                    previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                }
             }
             .padding(.horizontal, TowerTheme.pagePadding)
             .padding(.top, 12)
@@ -24,11 +34,24 @@ struct ExportView: View {
         }
         .background(TowerTheme.background.ignoresSafeArea())
         .navigationTitle("生成与导入")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isSettingsPresented = true
+                } label: {
+                    Label("设置", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("open-settings")
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             ImportActionBar(
                 target: model.selectedTarget,
+                contentMode: configuration.contentMode,
                 isImporting: isImporting,
-                isDisabled: configuration.supportedNodeCount == 0,
+                isDisabled: configuration.contentMode == .rulesOnly
+                    ? configuration.ruleCount == 0
+                    : configuration.supportedNodeCount == 0,
                 importAction: {
                     Task { await importConfiguration(configuration) }
                 },
@@ -39,6 +62,12 @@ struct ExportView: View {
         .sheet(item: $sharePayload) { payload in
             ActivitySheet(items: [payload.url])
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $isSettingsPresented) {
+            ExportSettingsSheet()
+        }
+        .fullScreenCover(item: $previewPayload) { payload in
+            ConfigurationPreviewSheet(configuration: payload.configuration)
         }
         .sensoryFeedback(.selection, trigger: model.selectedTarget)
         // Deliberately no .onDisappear teardown. Handing the link to another
@@ -52,14 +81,14 @@ struct ExportView: View {
         do {
             sharePayload = ExportPayload(url: try model.makeExportURL())
         } catch {
-            model.showToast("生成失败：\(error.localizedDescription)", symbol: "exclamationmark.triangle.fill")
+            model.showToast(String(localized: "生成失败：\(error.localizedDescription)"), symbol: "exclamationmark.triangle.fill")
         }
     }
 
     @MainActor
     private func importConfiguration(_ configuration: GeneratedConfiguration) async {
         guard !isImporting else { return }
-        guard configuration.target.supportsDirectConfigurationImport else {
+        guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             export()
             return
         }
@@ -77,10 +106,10 @@ struct ExportView: View {
 
             if didOpen {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                model.showToast("已交给 \(configuration.target.name) 导入", symbol: "arrow.up.forward.app.fill")
+                model.showToast(String(localized: "已交给 \(configuration.target.name) 导入"), symbol: "arrow.up.forward.app.fill")
             } else {
                 directImportService.stop()
-                model.showToast("未找到 \(configuration.target.name)，请从分享列表选择", symbol: "exclamationmark.circle.fill")
+                model.showToast(String(localized: "未找到 \(configuration.target.name)，请从分享列表选择"), symbol: "exclamationmark.circle.fill")
                 export()
             }
         } catch {
@@ -92,7 +121,65 @@ struct ExportView: View {
 
     private func copy(_ configuration: GeneratedConfiguration) {
         UIPasteboard.general.string = configuration.content
-        model.showToast("配置已复制", symbol: "doc.on.doc.fill")
+        model.showToast(String(localized: "配置已复制"), symbol: "doc.on.doc.fill")
+    }
+}
+
+private struct ExportContentModePicker: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.selectedTarget.supportsNodesOnlyImport {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeading(title: "导入内容", detail: model.selectedTarget.name)
+                Picker(
+                    "导入内容",
+                    selection: Binding(
+                        get: { model.exportContentMode(for: model.selectedTarget) },
+                        set: { model.setExportContentMode($0, for: model.selectedTarget) }
+                    )
+                ) {
+                    ForEach(model.selectedTarget.supportedContentModes) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("export-content-mode")
+
+                Text(modeExplanation)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .towerCard()
+        }
+    }
+
+    private var modeExplanation: String {
+        switch model.exportContentMode(for: model.selectedTarget) {
+        case .nodesOnly:
+            return String(localized: "只添加节点订阅，不替换客户端现有的规则和策略组。")
+        case .rulesOnly:
+            return String(localized: "只添加分流规则。请先把塔台节点导入 QuanX，规则会使用同名节点策略。")
+        case .fullConfiguration:
+            return String(localized: "导入节点、规则和策略组组成的完整配置。")
+        }
+    }
+}
+
+private struct ExportSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            SettingsView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完成") { dismiss() }
+                    }
+                }
+        }
     }
 }
 
@@ -101,15 +188,20 @@ private struct ExportPayload: Identifiable {
     let url: URL
 }
 
+private struct ConfigurationPreviewPayload: Identifiable {
+    let id = UUID()
+    let configuration: GeneratedConfiguration
+}
+
 private struct ClientPicker: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "目标客户端", detail: model.selectedTarget.subtitle)
+            SectionHeading(title: "目标客户端", detail: String(localized: "长按拖动排序"))
             ScrollView(.horizontal) {
-                LazyHStack(spacing: 12) {
-                    ForEach(ClientTarget.allCases) { target in
+                HStack(spacing: 12) {
+                    ForEach(model.clientOrder) { target in
                         Button {
                             guard model.selectedTarget != target else { return }
                             model.selectTarget(target)
@@ -118,6 +210,19 @@ private struct ClientPicker: View {
                         }
                         .buttonStyle(ResponsivePressButtonStyle())
                         .accessibilityIdentifier("client-\(target.rawValue)")
+                        .draggable(target.rawValue)
+                        .dropDestination(for: String.self) { values, _ in
+                            guard let rawValue = values.first,
+                                  let source = ClientTarget(rawValue: rawValue) else { return false }
+                            model.moveClient(source, before: target)
+                            return true
+                        }
+                        .accessibilityAction(named: "向前移动") {
+                            model.moveClient(target, by: -1)
+                        }
+                        .accessibilityAction(named: "向后移动") {
+                            model.moveClient(target, by: 1)
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -169,15 +274,10 @@ private struct ClientAppIcon: View {
     let size: CGFloat
 
     var body: some View {
-        // Clients with no bundled artwork fall back to their symbol. A missing
-        // asset renders as a blank square, which reads as a broken icon rather
-        // than as an icon we simply do not ship.
         Group {
             if let asset = target.appIconAssetName {
                 Image(asset)
                     .resizable()
-                    .interpolation(.high)
-                    .antialiased(true)
                     .scaledToFill()
             } else {
                 Image(systemName: target.symbol)
@@ -187,14 +287,14 @@ private struct ClientAppIcon: View {
                     .background(Color.accentColor.opacity(0.12))
             }
         }
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .stroke(.black.opacity(0.075), lineWidth: 0.65)
-            }
-            .shadow(color: .black.opacity(0.09), radius: 5, y: 2)
-            .accessibilityHidden(true)
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .stroke(.black.opacity(0.075), lineWidth: 0.65)
+        }
+        .shadow(color: .black.opacity(0.09), radius: 5, y: 2)
+        .accessibilityHidden(true)
     }
 }
 
@@ -208,7 +308,7 @@ private struct ProtocolFilter: View {
         let kinds = model.filterableKinds(for: model.selectedTarget)
         if kinds.count > 1 {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeading(title: "协议筛选", detail: "只影响 \(model.selectedTarget.name)")
+                SectionHeading(title: "协议筛选", detail: String(localized: "只影响 \(model.selectedTarget.name)"))
                 VStack(spacing: 0) {
                     ForEach(Array(kinds.enumerated()), id: \.element.kind) { index, entry in
                         if index > 0 { Divider().padding(.leading, 16) }
@@ -259,7 +359,7 @@ private struct ConversionSummary: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("转换已就绪")
                         .font(.title3.weight(.semibold))
-                    Text("\(model.selectedPreset.name) · \(model.selectedTarget.name)")
+                    Text(summarySubtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -269,11 +369,14 @@ private struct ConversionSummary: View {
                     .foregroundStyle(configuration.supportedNodeCount > 0 ? .green : .orange)
             }
             HStack(spacing: 16) {
-                MetricPill(value: "\(configuration.supportedNodeCount)", label: "兼容节点")
+                MetricPill(
+                    value: configuration.supportedNodeCount,
+                    label: configuration.contentMode == .rulesOnly ? "节点资源" : "兼容节点"
+                )
                 Divider().frame(height: 38)
-                MetricPill(value: configuration.ruleCount.formatted(), label: "本地规则")
+                MetricPill(value: configuration.ruleCount, label: "本地规则")
                 Divider().frame(height: 38)
-                MetricPill(value: "\(configuration.skippedNodeCount)", label: "已跳过")
+                MetricPill(value: configuration.skippedNodeCount, label: "已跳过")
             }
             if configuration.skippedNodeCount > 0 {
                 Label(
@@ -287,11 +390,22 @@ private struct ConversionSummary: View {
         .padding(20)
         .towerCard()
     }
+
+    private var summarySubtitle: String {
+        switch configuration.contentMode {
+        case .nodesOnly:
+            String(localized: "仅节点 · \(model.selectedTarget.name)")
+        case .rulesOnly:
+            String(localized: "仅规则 · \(model.selectedTarget.name)")
+        case .fullConfiguration:
+            "\(model.activeRuleName) · \(model.selectedTarget.name)"
+        }
+    }
 }
 
 private struct ConfigurationPreview: View {
     let configuration: GeneratedConfiguration
-    @State private var showsFullPreview = false
+    let onOpen: () -> Void
 
     private var preview: String {
         ConfigurationPreviewFormatter.summary(from: configuration.content)
@@ -300,24 +414,17 @@ private struct ConfigurationPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "配置预览", detail: configuration.fileName)
-            ConfigurationTextView(text: preview)
+            ConfigurationSummaryView(text: preview)
                 .frame(height: 220)
                 .background(Color.black.opacity(0.045), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            Button {
-                showsFullPreview = true
-            } label: {
+            Button(action: onOpen) {
                 Label("全屏预览", systemImage: "arrow.up.left.and.arrow.down.right")
             }
             .font(.subheadline.weight(.semibold))
         }
         .padding(16)
         .towerCard()
-        .sheet(isPresented: $showsFullPreview) {
-            ConfigurationPreviewSheet(configuration: configuration)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
     }
 }
 
@@ -325,30 +432,43 @@ private struct ConfigurationPreviewSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let configuration: GeneratedConfiguration
+    @State private var isContentReady = false
 
     var body: some View {
         NavigationStack {
-            ConfigurationTextView(text: configuration.content)
-                .background(Color(uiColor: .secondarySystemBackground))
-                .navigationTitle(configuration.target.name)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("完成") { dismiss() }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("复制", systemImage: "doc.on.doc") {
-                            UIPasteboard.general.string = configuration.content
-                            model.showToast("配置已复制", symbol: "doc.on.doc.fill")
-                        }
+            Group {
+                if isContentReady {
+                    ConfigurationTextView(text: configuration.content)
+                } else {
+                    ProgressView("正在加载完整配置…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .background(Color(uiColor: .secondarySystemBackground))
+            .navigationTitle(configuration.target.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("完成") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("复制", systemImage: "doc.on.doc") {
+                        UIPasteboard.general.string = configuration.content
+                        model.showToast(String(localized: "配置已复制"), symbol: "doc.on.doc.fill")
                     }
                 }
+            }
+            .task {
+                await Task.yield()
+                isContentReady = true
+            }
         }
     }
 }
 
 private struct ImportPrivacyNote: View {
     let target: ClientTarget
+    let contentMode: ExportContentMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -373,19 +493,28 @@ private struct ImportPrivacyNote: View {
     }
 
     private var title: String {
-        target.supportsDirectConfigurationImport ? "本机一键导入" : "使用本地文件导入"
+        target.supportsDirectImport(mode: contentMode)
+            ? String(localized: "本机一键导入")
+            : String(localized: "使用本地文件导入")
     }
 
     private var detail: String {
-        if target.supportsDirectConfigurationImport {
-            return "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。"
+        if contentMode == .nodesOnly {
+            return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
         }
-        return "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。"
+        if contentMode == .rulesOnly {
+            return String(localized: "塔台会把分流规则作为 QuanX 的 filter_remote 资源添加，不会重复添加节点。请先导入同名节点资源。")
+        }
+        if target.supportsDirectConfigurationImport {
+            return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
+        }
+        return String(localized: "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。")
     }
 }
 
 private struct ImportActionBar: View {
     let target: ClientTarget
+    let contentMode: ExportContentMode
     let isImporting: Bool
     let isDisabled: Bool
     let importAction: () -> Void
@@ -402,7 +531,7 @@ private struct ImportActionBar: View {
                     } else {
                         ClientAppIcon(target: target, size: 27)
                     }
-                    Text(target.primaryImportTitle)
+                    Text(importTitle)
                         .font(.headline)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -435,6 +564,17 @@ private struct ImportActionBar: View {
         .background(.bar)
         .overlay(alignment: .top) {
             Divider().opacity(0.45)
+        }
+    }
+
+    private var importTitle: String {
+        switch contentMode {
+        case .nodesOnly:
+            return String(localized: "仅导入节点到 \(target.name)")
+        case .rulesOnly:
+            return String(localized: "仅导入规则到 \(target.name)")
+        case .fullConfiguration:
+            return target.primaryImportTitle
         }
     }
 }

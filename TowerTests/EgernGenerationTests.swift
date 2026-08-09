@@ -48,7 +48,29 @@ final class EgernGenerationTests: XCTestCase {
     }
 
     func testRulesCarryMatchAndPolicyAndEndWithDefault() {
-        let output = content([node(.trojan)])
+        // The legacy RulePreset payloads were deliberately removed from the
+        // bundle. Exercise the RuleScheme path the app now ships instead of
+        // expecting a deleted Self-Configuration list to produce a rule.
+        let scheme = RuleScheme(
+            id: "egern-rules",
+            name: "Egern Rules",
+            summary: "inline fixture",
+            groups: [
+                RuleSchemeGroup(
+                    name: "节点选择",
+                    kind: .select,
+                    members: [.nodePattern(".*")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "节点选择",
+                    resource: .inline("DOMAIN-SUFFIX,example.com")
+                ),
+                RuleSchemeRuleset(groupName: "节点选择", resource: .inline("FINAL")),
+            ]
+        )
+        let output = generator.generate(nodes: [node(.trojan)], scheme: scheme, target: .egern).content
 
         XCTAssertTrue(output.contains("  - domain_suffix:\n      match: "), output)
         XCTAssertTrue(output.contains("      policy: "))

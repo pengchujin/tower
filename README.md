@@ -1,6 +1,6 @@
 # 塔台
 
-塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，使用 Self-Configuration 分流规则，并生成 Surge、Clash、Shadowrocket、Loon、Quantumult X 和 Hiddify 配置。
+塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，选择本机规则或手动下载 Self-Configuration，并生成 Surge、Stash/Clash、Shadowrocket、Loon、Quantumult X、Hiddify 和 Egern 配置。
 
 ## 开发交接
 
@@ -14,23 +14,29 @@
 - 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5 自有节点；Snell 粘贴 Surge 配置行添加
 - 首页节点与订阅都可展开查看地址、协议、地区和测试方式
 - 节点行使用服务器 IP 的离线国家识别结果显示地区 Logo，并列出协议、传输、TLS 与 UDP 能力
-- 首页使用自绘的点阵世界地图，优先按服务器 IP 的离线国家结果聚合节点；IP 暂不可解析时才参考节点名称
+- 首页使用自绘的平面点阵世界地图，保留完整日期变更线范围；节点按名称优先、服务器主机名其次、离线 IP 回退的统一结果聚合，密集地区标签会按权重多方向避让
 - 展开地图或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
 - 读取常见 Base64 节点订阅和 Clash YAML，包括仅含 HTTP(S)/SOCKS 的 Base64 列表与 Clash 嵌套 WebSocket 选项
-- 内置 Self-Configuration：覆盖 AI、YouTube、全球流媒体、Telegram、Google、Apple、Microsoft、国内外流量与广告过滤
+- 规则页底部提供 Self-Configuration 手动下载，只有用户点击后才从项目上游获取
 - 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
-- 输入链接导入 subconverter 远程配置（`.ini`），下载到本机后离线使用，可刷新或删除
-- 生成 Surge / Clash / Shadowrocket / Loon / QuanX / Hiddify 完整配置
+- 当前方案可搜索并勾选服务分组；最终兜底与被引用的基础策略自动保留
+- 可新增、编辑和停用本地自定义规则流，内置 Tailscale 示例，刷新上游方案不会覆盖
+- 输入链接导入 Clash YAML、subconverter（`.ini`）或 Surge 远程配置，下载到本机后离线使用，可刷新或删除
+- 生成 Surge / Stash/Clash / Shadowrocket / Loon / QuanX / Hiddify / Egern 完整配置
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
 - Surge、Clash、Shadowrocket、Loon、Egern、Hiddify 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
+- 七个目标客户端使用塔台自绘的品牌色矢量标识，长按即可拖动排序，不打包第三方 App 图标
 - Quantumult X 和 Hiddify 通过系统分享接收本地配置文件
+- 设置页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
+- 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知
+- 设置页可开关“优先使用规则集”；兼容的客户端引用远程规则集以减小配置，不兼容的资源自动保留本地转换
 
 ## 隐私设计
 
 转换、规则匹配和 IP 国家查询全部在设备上完成。App 不调用第三方订阅转换或 IP 地理位置服务，也不会上传用户节点。域名节点只通过系统 DNS 解析地址，随后查询 App 内置的离线数据库。
 
-规则联网的边界：内置的 Self-Configuration 和三个 ACL4SSR 快照随 App 打包，**完全离线**；只有你主动「导入规则链接」或刷新已导入方案时才会联网下载，下载内容保存在本机，之后生成配置不再联网。
+规则联网的边界：三个 ACL4SSR 快照随 App 打包，**完全离线**。Self-Configuration 不在源码或 App 包内，只在用户点击规则页底部的「手动下载」后直接从上游获取；导入其他规则链接或刷新已导入方案同样只在用户操作时联网。下载内容保存在本机，之后生成配置不再联网。
 
 写入磁盘的三类文件都使用 iOS 完整文件保护：Application Support 中的订阅快照、分享用的临时配置文件，以及分享用的临时二维码 PNG。后两类还会在再次生成时清理超过 5 分钟的旧文件，不会在 `tmp` 中长期堆积明文凭据。
 
@@ -40,25 +46,35 @@
 
 Surge、Clash、Shadowrocket 和 Loon 的配置导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
 
+设置页的局域网订阅与上述临时服务完全分开：它默认关闭，只在用户主动开启时监听 Wi-Fi，并用随机访问密钥保护路径。`target=auto` 会按 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern 的 User-Agent 生成对应格式，也可以在界面里复制指定格式的链接。客户端拿到的是塔台当前本地快照的转换结果，链接和 HTTP 响应都不包含机场原始订阅地址；因此需要自定义 UA 或 DNS 的机场仍由塔台请求，电脑和路由器不会接触机场密钥。受 iOS 后台限制，客户端刷新时需要让塔台保持在前台并与客户端位于同一 Wi-Fi。
+
 Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md) 只能添加或替换远程资源（`server_remote` / `filter_remote` / `rewrite_remote`），策略组不在其中，因此没有完整本地配置导入接口。塔台对 QuanX 保留系统文件分享，避免导入一份引用了不存在策略组的配置。
 
 ## 规则来源
 
-规则结构来自 [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration)，配置版本 `fb658cc85802`。模板引用的规则提供者已固定到明确版本并转换为本地 `.list` 快照，来源、版本、规则数量与 SHA-256 记录在 `Tower/Resources/SelfConfiguration/manifest.json`，使用这套规则时运行时不联网。
-
-需要更新快照时运行 `python3 Scripts/update_self_configuration_rules.py`。脚本会读取固定版本的 Self-Configuration 模板，下载其声明的规则提供者并原子替换本地资源。
+规则页底部提供 [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration) 的手动下载入口。App 不再分发它的配置或规则列表；点击后读取上游 `Clash.yaml`，解析策略组并把引用的规则列表保存到当前设备。删除该方案会同时删除本地下载内容。
 
 ### ACL4SSR
 
 [acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，固定在 `ACL4SSR/ACL4SSR` 的 `06ff293e` 版本，资源位于 `Tower/Resources/ACL4SSR/`，来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。更新用 `python3 Scripts/update_acl4ssr_rules.py`。
 
-这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。内置 Self-Configuration 预设仍使用离线 IP 国家库分组，两套机制互不干扰。
+这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。
 
-ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Telegram.list`，而 Xcode 会把资源拍平到 bundle 根目录，所以 ACL4SSR 的全部资源都带 `ACL4SSR_` 前缀。**不要移除这个前缀**，否则两套规则会互相覆盖。
+ACL4SSR 的全部资源保留 `ACL4SSR_` 前缀，便于在 Xcode 拍平后的 bundle 根目录中识别来源，也让旧版本迁移保持稳定。
 
 ### 导入自己的规则
 
-规则页的「导入规则链接」支持 subconverter 的远程配置（`.ini`）。塔台只接受 HTTPS 地址，会下载配置和它引用的全部规则列表并保存到本机（完整文件保护），之后生成配置不再联网。已导入的方案可以随时刷新或删除。
+规则页的「导入规则链接」支持 Clash YAML、subconverter（`.ini`）和 Surge 配置。塔台只接受 HTTPS 地址，会下载配置和它引用的全部规则列表并保存到本机（完整文件保护），之后生成配置不再联网。已导入的方案可以随时刷新或删除。
+
+选择方案后，「当前规则定制」可以搜索并勾选其中拥有实际规则的服务分组，例如国外媒体或 AI。取消分组不会破坏配置：末尾兜底和被引用的节点选择、自动选择等基础策略会按依赖自动保留。
+
+「添加自定义规则流」把用户规则单独保存在 App 状态中，而不是写回下载的方案。每行接受 `TYPE,VALUE`，也可以粘贴带旧策略的客户端规则；塔台会统一改用界面里选择的流向并保留 `no-resolve`。因此刷新 Self-Configuration 或其他上游方案后，Tailscale 等自定义规则仍然存在，并会进入七种导出格式。
+
+## 多语言
+
+App 内置简体中文、繁体中文、英语、日语、韩语、西班牙语、法语、德语、巴西葡萄牙语、俄语、阿拉伯语、土耳其语、印尼语、泰语和越南语，共 15 种语言。系统会自动跟随 iOS，也可以在“设置 > App > 塔台 > 语言”里只修改塔台的显示语言。
+
+界面、错误提示、通知权限说明和国家/地区名称会本地化；用户自己的订阅名、节点名和导入规则名保持原文。字符串位于 `Tower/Localizable.xcstrings` 和 `Tower/InfoPlist.xcstrings`。新增界面文案后先用 Xcode 导出简体中文源目录，再运行 `Scripts/generate_localizations.py --source-catalog <导出的 Localizable.xcstrings>`，最后执行完整测试；`LocalizationTests` 会检查所有文案是否覆盖全部 15 种语言。
 
 ## IP 国家库
 
@@ -70,7 +86,7 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 2. 选择 iOS 17 或更新版本的模拟器/设备。
 3. 运行 `Tower` Scheme。
 
-测试覆盖订阅解析、Clash YAML 嵌套字段、IP 优先国家地区聚合、网络延迟链路、本地规则资源、一键导入 Scheme，以及七种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
+测试覆盖订阅解析、Clash YAML 嵌套字段、名称优先的国家地区聚合与离线 IP 回退、网络延迟链路、本地规则资源、一键导入 Scheme，以及七种配置生成器。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
 
 ## 已知边界
 
@@ -91,9 +107,8 @@ ACL4SSR 与 Self-Configuration 都含有 `Apple.list`、`Microsoft.list`、`Tele
 | 资源 | 来源 | 许可证 |
 | --- | --- | --- |
 | ACL4SSR 规则 | [ACL4SSR/ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) | CC BY-SA 4.0 |
-| Self-Configuration 规则 | [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration) | 上游未声明 |
 | IP 国家库 | [sapics/ip-location-db](https://github.com/sapics/ip-location-db) | CC0 1.0 |
 
-详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。若你是上述规则的作者且希望移除，请提 issue，我会立即删除对应资源并改为运行时按需下载。
+详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。Self-Configuration 由用户从其上游手动下载，不属于随 App 分发的资源。
 
 塔台只在本机把订阅转换成各客户端的配置文件，**不含 VPN 或代理功能，不接管任何流量**。

@@ -1,10 +1,6 @@
 import Foundation
 
 struct RuleRepository {
-    static let sourceRevision = "fb658cc85802"
-    static let sourceURL = URL(string: "https://github.com/ClashConnectRules/Self-Configuration")!
-    static let sourceName = "Self-Configuration"
-
     private let bundle: Bundle
 
     init(bundle: Bundle = .main) {
@@ -71,20 +67,13 @@ private final class RuleSnapshotCache: @unchecked Sendable {
         }
 
         for case let url as URL in enumerator where url.pathExtension == "list" {
-            // Xcode flattens resources into the bundle root, so the ACL4SSR
-            // snapshots share this namespace. They are served by
-            // RuleSchemeRepository and must not land in the
-            // Self-Configuration lookup table.
+            // ACL4SSR snapshots are served by RuleSchemeRepository. The
+            // legacy preset repository intentionally ignores them; downloaded
+            // schemes live in RuleDownloadStore instead of the app bundle.
             guard !url.lastPathComponent.hasPrefix(RuleSchemeRepository.resourcePrefix) else {
                 continue
             }
-            let path = url.path
-            let key: String
-            if let marker = path.range(of: "SelfConfiguration/") {
-                key = String(path[marker.upperBound...].dropLast(".list".count))
-            } else {
-                key = url.deletingPathExtension().lastPathComponent
-            }
+            let key = url.deletingPathExtension().lastPathComponent
             guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
             let lines = content
                 .components(separatedBy: .newlines)

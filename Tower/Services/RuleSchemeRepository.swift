@@ -4,9 +4,8 @@ import Foundation
 /// lines a scheme references, whether those come from the bundled snapshot or
 /// from a list the user downloaded.
 struct RuleSchemeRepository {
-    /// Prefix used by `Scripts/update_acl4ssr_rules.py`. Bundle resources are
-    /// flattened into one directory, so this keeps the ACL4SSR lists from
-    /// colliding with the Self-Configuration ones.
+    /// Stable prefix used by `Scripts/update_acl4ssr_rules.py` after Xcode
+    /// flattens the snapshot into the bundle resource directory.
     static let resourcePrefix = "ACL4SSR_"
 
     private let bundle: Bundle
@@ -35,6 +34,29 @@ struct RuleSchemeRepository {
         }
     }
 
+    /// `payload:` is part of the remote resource contract. Removing it is
+    /// useful while mapping rules locally, but a client fetching the original
+    /// URL still receives YAML and must support that container explicitly.
+    func isClashProviderYAML(_ resource: RuleSchemeRuleset.Resource) -> Bool {
+        guard case .remote(let url) = resource else { return false }
+        let content = downloadStore?.content(for: url)
+            ?? bundledContent(named: Self.bundledResourceName(for: url))
+        guard let content else { return false }
+        return content.components(separatedBy: .newlines).contains { rawLine in
+            rawLine
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}")) == "payload:"
+        }
+    }
+
+    private func bundledContent(named name: String) -> String? {
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        guard let url = bundle.url(forResource: base, withExtension: ext, subdirectory: "ACL4SSR")
+            ?? bundle.url(forResource: base, withExtension: ext) else { return nil }
+        return try? String(contentsOf: url, encoding: .utf8)
+    }
+
     /// Mirrors `local_name()` in the update script so a pinned URL resolves to
     /// the file that was vendored for it.
     static func bundledResourceName(for url: URL) -> String {
@@ -47,10 +69,32 @@ struct RuleSchemeRepository {
     }
 
     static func sanitizedLines(from content: String) -> [String] {
-        content
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix(";") && !$0.hasPrefix("//") }
+        let rawLines = content.components(separatedBy: .newlines)
+        let isClashProvider = rawLines.contains {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines) == "payload:"
+        }
+        guard isClashProvider else {
+            return rawLines
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix(";") && !$0.hasPrefix("//") }
+        }
+
+        var inPayload = false
+        return rawLines.compactMap { rawLine in
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line == "payload:" {
+                inPayload = true
+                return nil
+            }
+            guard inPayload, line.hasPrefix("- ") else { return nil }
+            let value = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+            guard value.count >= 2,
+                  let first = value.first,
+                  let last = value.last,
+                  (first == "\"" || first == "'"),
+                  first == last else { return value }
+            return String(value.dropFirst().dropLast())
+        }
     }
 }
 
@@ -132,17 +176,16 @@ private final class RuleSchemeSnapshotCache: @unchecked Sendable {
             return try? parser.parse(
                 data: payload,
                 id: id,
-                name: name,
-                summary: summary,
+                name: String(localized: String.LocalizationValue(name)),
+                summary: String(localized: String.LocalizationValue(summary)),
                 sourceURLString: entry["source"] as? String,
                 isBundled: true
             )
         }
     }
 
-    /// The Self-Configuration snapshot ships its own `manifest.json`, and the
-    /// flattened bundle keeps only one of them under that name, so the ACL4SSR
-    /// manifest is located by the resource prefix instead.
+    /// The updater writes a prefixed manifest so it remains unambiguous after
+    /// Xcode flattens resources into the application bundle.
     private static func acl4ssrManifestURL(in bundle: Bundle) -> URL? {
         bundle.url(forResource: "\(RuleSchemeRepository.resourcePrefix)manifest", withExtension: "json")
     }

@@ -1,8 +1,0 @@
-# Source: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/dab47069a30c4ae70f7f5f4c919d639d9aaf79dc/rule/Clash/GoogleDrive/GoogleDrive.yaml
-# Snapshot for Self-Configuration fb658cc85802
-DOMAIN,www.googleapis.com
-DOMAIN-SUFFIX,docs.google.com
-DOMAIN-SUFFIX,drive.google.com
-DOMAIN-SUFFIX,googledrive.com
-DOMAIN-SUFFIX,googleusercontent.com
-PROCESS-NAME,BackupandSync

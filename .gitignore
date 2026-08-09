@@ -5,6 +5,7 @@
 .artifacts/
 build/
 DerivedData/
+output/
 *.xcuserstate
 xcuserdata/
 *.xcarchive
@@ -18,6 +19,8 @@ xcuserdata/
 .build/
 .swiftpm/
 .xcode.env.local
+.playwright-cli/
+__pycache__/
 
 # Agent scratch output. These have held unrelated personal documents;
 # they are not part of the source handoff and must never be committed.

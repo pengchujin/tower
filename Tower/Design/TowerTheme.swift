@@ -27,19 +27,17 @@ enum TowerTheme {
 }
 
 struct TowerCardModifier: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
     func body(content: Content) -> some View {
         content
             .background {
                 RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous)
-                    .fill(reduceTransparency ? AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground)) : AnyShapeStyle(.thinMaterial))
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
             }
             .overlay {
                 RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(reduceTransparency ? 0 : 0.28), lineWidth: 0.75)
+                    .stroke(Color.secondary.opacity(0.1), lineWidth: 0.75)
             }
-            .shadow(color: .black.opacity(0.055), radius: 18, y: 8)
+            .shadow(color: .black.opacity(0.035), radius: 8, y: 3)
     }
 }
 
@@ -64,7 +62,7 @@ struct ResponsivePressButtonStyle: ButtonStyle {
 }
 
 struct PrimaryActionLabel: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
 
     var body: some View {
@@ -82,7 +80,7 @@ struct PrimaryActionLabel: View {
 }
 
 struct SectionHeading: View {
-    let title: String
+    let title: LocalizedStringKey
     var detail: String?
 
     var body: some View {
@@ -112,17 +110,29 @@ struct PrivacyBadge: View {
 }
 
 struct MetricPill: View {
-    let value: String
-    let label: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let value: Int
+    let label: LocalizedStringKey
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value)
+            Text(value, format: .number)
                 .font(.title2.weight(.bold))
                 .monospacedDigit()
+                .contentTransition(
+                    reduceMotion ? .opacity : .numericText(value: Double(value))
+                )
+                .animation(
+                    reduceMotion
+                        ? .easeOut(duration: 0.14)
+                        : .spring(response: 0.34, dampingFraction: 1),
+                    value: value
+                )
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -155,17 +165,15 @@ struct SelectionIndicator: View {
     var body: some View {
         ZStack {
             Circle()
+                .fill(isSelected ? Color.accentColor : Color.clear)
+            Circle()
                 .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
-                .frame(width: 25, height: 25)
-            if isSelected {
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: 25, height: 25)
-                Image(systemName: "checkmark")
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(.white)
-            }
+            Image(systemName: "checkmark")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.white)
+                .opacity(isSelected ? 1 : 0)
         }
+        .frame(width: 25, height: 25)
         .padding(.top, 2)
     }
 }

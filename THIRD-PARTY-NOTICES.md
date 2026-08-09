@@ -17,18 +17,9 @@
 
 按 CC BY-SA 4.0 的要求：署名归 ACL4SSR 项目及其贡献者所有；这些规则文件本身以原样再分发，未作内容修改（仅为避免 bundle 内文件名冲突而统一加了 `ACL4SSR_` 前缀，并把 `master` 链接改写为上述固定版本）；对这些规则数据的任何再分发或改编，仍须以 CC BY-SA 4.0 或兼容许可发布。
 
-## Self-Configuration 规则
+## Self-Configuration（用户手动下载）
 
-- **来源**：https://github.com/ClashConnectRules/Self-Configuration
-- **固定版本**：`fb658cc85802`
-- **本地路径**：`Tower/Resources/SelfConfiguration/`
-- **许可证**：**上游仓库未声明任何许可证**
-- **更新脚本**：`Scripts/update_self_configuration_rules.py`
-- **清单**：`Tower/Resources/SelfConfiguration/manifest.json`
-
-⚠️ 上游未声明许可证，按著作权默认规则即为「保留所有权利」，本项目对这部分数据不主张任何权利，仅出于离线可用的目的原样收录并完整署名来源。若上游作者希望移除，请提 issue，我们会立即从仓库中删除这部分资源并改为运行时按需下载。
-
-同一目录下的 `SelfConfiguration-NOTICE.txt` 记录了模板所引用的各规则提供者及其固定版本，这些提供者本身还有各自的上游（如 `dler-io/Rules`、`blackmatrix7/ios_rule_script`），也一并适用其原有条款。
+App 和本仓库不再包含 Self-Configuration 的配置、规则列表或图标。规则页只提供指向项目上游的手动下载入口；下载由用户明确触发，内容保存在用户设备的 Application Support 中并可随时删除。因此它不属于 `Tower/Resources/` 下随 App 再分发的第三方资源。
 
 ## IP 国家数据库
 
@@ -57,15 +48,6 @@
 - **更新脚本**：`Scripts/update_country_table.py`
 
 节点地区识别用的中英文国名、别名和标注坐标由该数据集生成。生成的是源码而不是资源文件，因为它只有几百行常量、需要在代码评审里看见 diff，也省掉一次启动时的文件读取。Natural Earth 的 110m 精度会略掉香港、新加坡、澳门这类小面积地区，脚本里按名单单独补齐。
-
-## 策略组图标
-
-生成的配置中引用了以下图标集的远程地址（图标本身不随 App 打包，由客户端按需加载）：
-
-- Koolson/Qure：https://github.com/Koolson/Qure
-- Orz-3/mini：https://github.com/Orz-3/mini
-
----
 
 ## 客户端 App 图标
 

@@ -49,7 +49,32 @@ final class SingBoxGenerationTests: XCTestCase {
     }
 
     func testRejectIsARuleActionNotABlockOutbound() throws {
-        let config = try json(.hiddify, nodes: [node(.shadowsocks)])
+        let scheme = RuleScheme(
+            id: "reject-rule-test",
+            name: "Reject",
+            summary: "Reject action regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "节点选择",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "REJECT",
+                    resource: .inline("DOMAIN-SUFFIX,ads.example")
+                ),
+                RuleSchemeRuleset(groupName: "节点选择", resource: .inline("FINAL"))
+            ]
+        )
+        let content = generator.generate(
+            nodes: [node(.shadowsocks)],
+            scheme: scheme,
+            target: .hiddify
+        ).content
+        let object = try JSONSerialization.jsonObject(with: Data(content.utf8))
+        let config = try XCTUnwrap(object as? [String: Any])
         let route = try XCTUnwrap(config["route"] as? [String: Any])
         let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
@@ -60,7 +85,6 @@ final class SingBoxGenerationTests: XCTestCase {
         // And with no outbound to point at, the blocking policies must not be
         // emitted as selector groups either.
         let tags = Set(outbounds.compactMap { $0["tag"] as? String })
-        XCTAssertFalse(tags.contains(RulePolicy.foreignAds.configurationName))
         XCTAssertFalse(tags.contains(Self.rejectTag))
     }
 
@@ -129,6 +153,49 @@ final class SingBoxGenerationTests: XCTestCase {
         XCTAssertEqual(tls["enabled"] as? Bool, true)
         XCTAssertEqual(tls["server_name"] as? String, "hk.example.com")
         XCTAssertEqual(tls["insecure"] as? Bool, false)
+    }
+
+    func testHysteria2CarriesOfficialObfuscationBlock() throws {
+        let hysteria2 = ProxyNode(
+            kind: .hysteria2,
+            name: "HY2",
+            server: "hy2.example.com",
+            port: 443,
+            password: "authentication-password",
+            tls: true,
+            obfs: "salamander",
+            obfsParam: "obfuscation-password",
+            rawURI: "hysteria2://x"
+        )
+        let config = try json(.hiddify, nodes: [hysteria2])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let outbound = try XCTUnwrap(outbounds.first { $0["type"] as? String == "hysteria2" })
+        let obfs = try XCTUnwrap(outbound["obfs"] as? [String: Any])
+
+        XCTAssertEqual(obfs["type"] as? String, "salamander")
+        XCTAssertEqual(obfs["password"] as? String, "obfuscation-password")
+    }
+
+    func testAnyTLSSessionTuningUsesDurationStrings() throws {
+        let anyTLS = ProxyNode(
+            kind: .anytls,
+            name: "AnyTLS",
+            server: "anytls.example.com",
+            port: 443,
+            password: "password",
+            tls: true,
+            idleSessionCheckInterval: 20,
+            idleSessionTimeout: 45,
+            minIdleSession: 3,
+            rawURI: "anytls://x"
+        )
+        let config = try json(.hiddify, nodes: [anyTLS])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let outbound = try XCTUnwrap(outbounds.first { $0["type"] as? String == "anytls" })
+
+        XCTAssertEqual(outbound["idle_session_check_interval"] as? String, "20s")
+        XCTAssertEqual(outbound["idle_session_timeout"] as? String, "45s")
+        XCTAssertEqual(outbound["min_idle_session"] as? Int, 3)
     }
 
     func testVMessNeverWritesAutoAsAConcreteCipher() throws {

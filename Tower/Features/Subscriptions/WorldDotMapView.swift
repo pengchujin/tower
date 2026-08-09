@@ -12,12 +12,15 @@ struct WorldDotGrid {
     let land: [Bool]
 
     /// Must match the bounds the generator wrote.
-    static let minimumLatitude = -52.0
-    static let maximumLatitude = 72.0
-    /// Cropped from the full range: the eastern and western Pacific are empty
-    /// and only left blank margins down both sides of the card.
-    static let minimumLongitude = -128.0
-    static let maximumLongitude = 168.0
+    // Antarctica is omitted from this compact node overview, while Greenland
+    // and every practical proxy-node region keep their real label point.
+    static let minimumLatitude = -60.0
+    static let maximumLatitude = 84.0
+    // Keep the full date-line span. Cropping the Pacific looked denser, but it
+    // clamped Fiji and New Zealand to the right edge and made their markers
+    // indistinguishable.
+    static let minimumLongitude = -180.0
+    static let maximumLongitude = 180.0
 
     static let shared: WorldDotGrid = load() ?? WorldDotGrid(columns: 0, rows: 0, land: [])
 
@@ -145,30 +148,12 @@ struct WorldDotMapView: View {
                 }
                 .drawingGroup()
 
-                ForEach(markers) { entry in
+                ForEach(Array(markers.enumerated()), id: \.element.id) { index, entry in
                     let placement = placements[entry.id]
-                    Button {
+                    AnimatedWorldDotMarker(entry: entry, index: index) {
                         onSelect(entry.id)
-                    } label: {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(
-                                width: entry.isSelected ? 13 : 9,
-                                height: entry.isSelected ? 13 : 9
-                            )
-                            .overlay {
-                                Circle()
-                                    .stroke(Color.green.opacity(0.3), lineWidth: entry.isSelected ? 5 : 0)
-                                    .padding(-3)
-                            }
-                            // A generous hit area: the dot itself is far smaller
-                            // than a comfortable target.
-                            .frame(width: 34, height: 34)
-                            .contentShape(Circle())
                     }
-                    .buttonStyle(ResponsivePressButtonStyle())
                     .position(layout.position(for: entry))
-                    .accessibilityLabel(entry.title)
 
                     if let placement {
                         Text(entry.title)
@@ -228,16 +213,17 @@ struct WorldDotMapView: View {
         }
     }
 
-    /// Places labels around their dots, dropping the ones that cannot fit.
+    /// Places labels directly above or below their dots, dropping the ones
+    /// that cannot fit without overlap.
     ///
     /// East and Southeast Asia put a dozen regions within a few dots of each
     /// other, so labels stacked on top of one another and became unreadable.
     /// Heavier markers — more nodes — claim their spot first, and a label that
     /// still collides is left out rather than drawn over its neighbour.
     ///
-    /// Only labels are treated as obstacles. A label may therefore sit over a
-    /// neighbouring dot, which is the accepted trade for keeping every label
-    /// beside the dot it names.
+    /// The previous multi-ring planner could move a country name far enough to
+    /// look like a different location. Position accuracy wins here: a hidden
+    /// label is less misleading than a readable label over the wrong country.
     enum LabelPlanner {
         /// Roughly one em per CJK character, which is what these names are.
         private static let characterWidth: CGFloat = 10.5
@@ -251,10 +237,13 @@ struct WorldDotMapView: View {
             var placed: [CGRect] = []
             var result: [String: CGPoint] = [:]
 
-            // Selected first so its label never loses to a neighbour, then by
-            // node count.
+            // Selection must never participate in the layout order. Doing so
+            // made neighbouring country names exchange positions every time a
+            // pin was tapped. Node count and the stable country id are enough
+            // to keep the exact same inputs at the exact same coordinates.
             let ordered = markers.sorted {
-                $0.isSelected != $1.isSelected ? $0.isSelected : $0.weight > $1.weight
+                if $0.weight != $1.weight { return $0.weight > $1.weight }
+                return $0.id < $1.id
             }
 
             for marker in ordered {
@@ -263,14 +252,10 @@ struct WorldDotMapView: View {
                     width: CGFloat(marker.title.count) * characterWidth,
                     height: labelHeight
                 )
-                // Kept close to the dot on purpose. Avoiding the dots as well
-                // needed far more candidate positions, which pushed labels so
-                // far from their own dot that the pairing stopped reading.
+                let vertical = size.height / 2 + 7
                 let candidates = [
-                    CGPoint(x: anchor.x, y: anchor.y - 13),
-                    CGPoint(x: anchor.x, y: anchor.y + 13),
-                    CGPoint(x: anchor.x + size.width / 2 + 10, y: anchor.y),
-                    CGPoint(x: anchor.x - size.width / 2 - 10, y: anchor.y)
+                    CGPoint(x: anchor.x, y: anchor.y - vertical),
+                    CGPoint(x: anchor.x, y: anchor.y + vertical)
                 ]
 
                 for candidate in candidates {
@@ -290,6 +275,55 @@ struct WorldDotMapView: View {
                 }
             }
             return result
+        }
+    }
+}
+
+private struct AnimatedWorldDotMarker: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let entry: WorldDotMarker
+    let index: Int
+    let onSelect: () -> Void
+    @State private var isVisible = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            Circle()
+                .fill(Color.green)
+                .frame(width: 10, height: 10)
+                .overlay {
+                    Circle()
+                        .stroke(Color.green.opacity(0.3), lineWidth: entry.isSelected ? 5 : 0)
+                        .padding(-3)
+                }
+                .scaleEffect(entry.isSelected ? 1.3 : 1)
+                // The visual dot stays small while the hit target remains easy.
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.92))
+        .opacity(isVisible ? 1 : 0)
+        .animation(
+            reduceMotion
+                ? .easeOut(duration: 0.14)
+                : .spring(response: 0.32, dampingFraction: 1),
+            value: entry.isSelected
+        )
+        .accessibilityLabel(entry.title)
+        .task(id: entry.id) {
+            if !reduceMotion {
+                let delay = min(Double(index) * 0.025, 0.2)
+                try? await Task.sleep(for: .seconds(delay))
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(
+                reduceMotion
+                    ? .easeOut(duration: 0.14)
+                    : .spring(response: 0.36, dampingFraction: 1)
+            ) {
+                isVisible = true
+            }
         }
     }
 }

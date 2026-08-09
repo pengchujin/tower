@@ -38,4 +38,60 @@ final class NodeLatencyServiceTests: XCTestCase {
         XCTAssertEqual(result.milliseconds, 38)
         XCTAssertNil(result.errorMessage)
     }
+
+    func testExplicitTCPModeDoesNotAttemptICMP() async throws {
+        let service = NodeLatencyService(
+            icmpProbe: { _, _ in
+                XCTFail("明确选择 TCP 时不应先探测 ICMP")
+                throw LatencyProbeError.timeout
+            },
+            tcpProbe: { _, _, _ in 27 },
+            httpProbe: { _, _ in
+                XCTFail("明确选择 TCP 时不应探测 HTTP")
+                throw LatencyProbeError.timeout
+            }
+        )
+        let node = ProxyNode(
+            kind: .trojan,
+            name: "TCP",
+            server: "tcp.example.com",
+            port: 443,
+            rawURI: "trojan://tcp"
+        )
+
+        let result = try await service.measure(node, mode: .tcp)
+
+        XCTAssertEqual(result.method, .tcp)
+        XCTAssertEqual(result.milliseconds, 27)
+    }
+
+    func testExplicitHTTPModeUsesHTTPProbe() async throws {
+        let service = NodeLatencyService(
+            icmpProbe: { _, _ in
+                XCTFail("明确选择 HTTP 时不应探测 ICMP")
+                throw LatencyProbeError.timeout
+            },
+            tcpProbe: { _, _, _ in
+                XCTFail("明确选择 HTTP 时不应探测 TCP")
+                throw LatencyProbeError.timeout
+            },
+            httpProbe: { node, _ in
+                XCTAssertEqual(node.server, "web.example.com")
+                return 46
+            }
+        )
+        let node = ProxyNode(
+            kind: .http,
+            name: "HTTPS",
+            server: "web.example.com",
+            port: 443,
+            tls: true,
+            rawURI: "https://web.example.com"
+        )
+
+        let result = try await service.measure(node, mode: .http)
+
+        XCTAssertEqual(result.method, .http)
+        XCTAssertEqual(result.milliseconds, 46)
+    }
 }

@@ -20,8 +20,8 @@ from urllib.request import Request, urlopen
 
 ACL4SSR_REVISION = "06ff293e02565adceef9aa92321efa2603f68f32"
 RAW_BASE = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR"
-# Keeps these snapshots from colliding with Self-Configuration in the flat
-# bundle namespace, and lets RuleRepository ignore them.
+# Keeps every ACL4SSR snapshot identifiable in Xcode's flat bundle namespace
+# and lets RuleRepository ignore them.
 RESOURCE_PREFIX = "ACL4SSR_"
 
 # id -> (file name in the repo, display name, summary)
@@ -86,10 +86,8 @@ def ruleset_urls(config_text: str, revision: str) -> list[str]:
 def local_name(url: str) -> str:
     """Flatten a rule list URL into a unique, filesystem-safe file name.
 
-    Xcode copies resources into the bundle root, so these share one namespace
-    with the Self-Configuration snapshot. Apple.list, Microsoft.list and
-    Telegram.list exist in both, and without a prefix one would silently
-    overwrite the other in the built app.
+    Xcode copies resources into the bundle root. The prefix keeps the origin
+    explicit and avoids collisions with future bundled resources.
     """
     tail = url.split("/Clash/", 1)[-1]
     return RESOURCE_PREFIX + tail.replace("/", "_")
@@ -144,8 +142,8 @@ def build(revision: str) -> None:
                     "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
                 }
 
-        # Prefixed for the same reason the rule lists are: Self-Configuration
-        # ships its own manifest.json, and only one survives the flat bundle.
+        # Prefixed for the same reason as the rule lists: the flat bundle should
+        # retain an origin-specific manifest name.
         (staging / f"{RESOURCE_PREFIX}manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",

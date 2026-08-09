@@ -2,7 +2,7 @@
 
 ## 1. 当前结论
 
-塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、本地 Self-Configuration 规则、七种客户端配置生成、配置预览及导入/分享。
+塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、七种客户端配置生成、配置预览及导入/分享。
 
 当前代码版本为 `1.0 (3)`，Bundle ID 为 `com.jzb.tower`，已归档并上传到 TestFlight。归档在开发者本机完成；分发签名和上传走 Xcode Organizer，因为 SSH 会话拿不到钥匙串私钥（见 §4）。
 
@@ -57,11 +57,11 @@
 
 ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚举是两套东西，因此新增了 `RuleScheme` 这条并行路径：
 
-| | 内置 Self-Configuration | 导入的 `RuleScheme` |
+| | 内置 ACL4SSR | 导入的 `RuleScheme` |
 | --- | --- | --- |
-| 策略组 | 固定枚举，写死在 Swift | 按 ini 声明还原（精简 5／默认 11／全分组 29 组）|
-| 地区分组 | 离线 IP 国家库 | 配置里的节点名正则 |
-| 联网 | 从不 | 仅导入和刷新时 |
+| 策略组 | 按随包 ini 声明还原 | 按 Clash YAML、ini 或 Surge 配置声明还原 |
+| 地区分组 | 配置里的节点名正则 | 配置声明的成员或节点名正则 |
+| 联网 | 从不 | 仅用户下载和刷新时 |
 
 两套机制互不干扰，不要合并。
 
@@ -72,14 +72,32 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 - QuanX 的 `url-latency-benchmark` 仍走 `server-tag-regex`（第 13 条约束）。
 - 导入只接受 HTTPS；规则列表按 6 个一批下载，存到 Application Support 并用完整文件保护；删除方案会一并清掉它下载的列表。
 - `AppSnapshot.importedSchemes` 是 Optional——Swift 合成的解码器不会对缺失键套用默认值，改成非可选会让旧存档解不出来。
+- `AppSnapshot.selectedRuleGroups` 和 `customRuleFlows` 同样保持 Optional，旧存档解码后分别回到“完整沿用上游”和“没有自定义规则”。
+- 服务分组选择只过滤拥有非 `FINAL` 规则的组；生成前从剩余规则与自定义流向递归保留引用到的基础组，并始终保留末尾兜底。
+- `CustomRuleFlow` 不写入 `RuleScheme`。刷新远程方案时只更新下载缓存和时间戳，因此用户的 Tailscale 等规则不会丢失。
+
+### 规则集优先生成（2026-08-09）
+
+设置页提供“优先使用规则集”，默认关闭。`preferRuleSetsWasExplicitlySet` 用于迁移此前短暂存在的隐式开启值：升级后先恢复关闭，只有用户手动开启才会持续保存。`RuleSetEmissionPlanner` 会检查每个下载资源的已缓存原文与解析结果，再决定是远程引用还是本地内联：
+
+| 客户端 | 兼容时的生成方式 | 不兼容时 |
+| --- | --- | --- |
+| Clash / Stash | `rule-providers` + `RULE-SET`；Clash Provider YAML 使用 `format: yaml` | 本地映射 |
+| Surge / Shadowrocket | URL `RULE-SET` | 本地映射 |
+| Loon | `[Remote Rule]` | 本地映射 |
+| Quantumult X | 原生 `[filter_remote]` 资源 | 本地转换为 QX filter |
+| Hiddify / sing-box | sing-box source JSON `route.rule_set` | 本地 JSON 路由规则 |
+| Egern | 原生 rule-set YAML | 本地 YAML 规则 |
+
+不要改成“只看 URL 后缀”：`.list` 可能是 Clash、Surge 或 QuanX 的不同方言；`.yaml` 也可能是带 `payload:` 包装的 Clash Provider。后者只允许 Clash/Stash 远程引用，Surge、Shadowrocket、Loon 和 QuanX 必须内联解析后的规则。盲目引用会使整份配置被客户端拒绝。`RuleSetGenerationTests` 用七种合成资源、Clash Provider YAML 和随 App 打包的 ACL4SSR 快照同时回归这个边界。
 
 ### 资源命名（不要改）
 
-`Tower/Resources/ACL4SSR/` 下所有文件带 `ACL4SSR_` 前缀。Xcode 把资源拍平到 bundle 根目录，而两套规则都含 `Apple.list`、`Microsoft.list`、`Telegram.list` 和 `manifest.json`，去掉前缀会互相覆盖。`RuleRepository` 也靠这个前缀跳过它们。
+`Tower/Resources/ACL4SSR/` 下所有文件带 `ACL4SSR_` 前缀。Xcode 会把资源拍平到 bundle 根目录；保留前缀可稳定识别来源，`RuleRepository` 也靠这个前缀跳过它们。
 
 ### 验证状态
 
-- 模拟器（iPhone 17）：105 个测试通过，1 个按平台跳过（数据保护只能在真机验证）。
+- 模拟器（iPhone 17 Pro，iOS 26.5）：418 个测试通过，1 个按平台跳过（数据保护只能在真机验证）；结果包为 `~/Library/Developer/Xcode/DerivedData/Tower-*/Logs/Test/Test-Tower-2026.08.09_23-15-02-+0800.xcresult`。
 - 真机 iPhone 17 Pro：已签名安装并启动成功。
 
 ### 真机安装
@@ -130,18 +148,15 @@ git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA
 | 资源 | 上游许可证 | 义务 |
 | --- | --- | --- |
 | ACL4SSR 规则 | CC BY-SA 4.0 | 署名 + 衍生作品相同方式共享 |
-| Self-Configuration 规则 | **上游未声明** | 默认保留所有权利 |
 | IP 国家库 | CC0 1.0 | 无 |
 
-相关文件：根目录 `LICENSE`、`THIRD-PARTY-NOTICES.md`，以及三个资源目录各自的 NOTICE。
+相关文件：根目录 `LICENSE`、`THIRD-PARTY-NOTICES.md`，以及随包资源目录各自的 NOTICE。
 
 `LICENSE` 末尾写明了「本许可仅覆盖源码」。这会让 GitHub 把许可证识别成 `Other` 而不是 `MIT`，**这是有意为之**：混合许可的项目把边界写进 LICENSE 正文，比让人看到 MIT 徽章后误以为整个仓库可随意取用更稳妥。不要为了拿徽章去掉这段说明。
 
-### 待处理的法律风险
+### Self-Configuration 分发边界
 
-**Self-Configuration 上游没有任何许可证**，按著作权默认规则即「保留所有权利」，严格说本项目没有再分发授权。当前缓解措施是完整署名，并在 README 和 NOTICE 里声明：上游作者提 issue 即立即移除。
-
-若需要移除，改动不大——规则导入功能（`RuleSchemeImportService`）已经具备运行时按需下载的能力，把这套快照从仓库删掉、改成首次使用时下载即可，代价是内置预设不再离线可用。
+仓库和 App 包不含 Self-Configuration 配置或规则列表。规则页底部只提供用户明确触发的上游下载入口，下载内容保存在当前设备并可删除。这是必须保持的 P0 约束，不能重新把快照加入 `Tower/Resources/`。
 
 ## 1.4 2026-08-07 导出兼容性与地区识别
 
@@ -168,6 +183,12 @@ git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA
 
 改为索引：单词和国家代码走字典，多词国名按首词分桶，中文名按首字分桶（纯英文名根本不会碰到中文表），再加一层按名字/主机名的记忆化。另外订阅展开和地图选中地区两个列表原本是普通 `VStack`，为显示十行会把几百行全建出来，改成 `LazyVStack`。
 
+2026-08-07 又补了一层运行时修复：IP 地区查询和测速虽然已经限制为每批 8 个，但旧实现每完成一个节点就分别修改一次 `@Observable` 字典/集合，后台结果回来时会反复使整个首页失效。现在由 `NodeCountryResolutionBatch` / `NodeLatencyResultBatch` 先收齐一批，再各发布一次；强制重测前清理旧延迟也从逐节点写入改为一次字典替换。地图父视图已经统一解析全部节点，地图区域内的行不再随滚动重复启动同一 IP 查询，其他入口的节点行仍保留按需解析。
+
+用 iOS 26.5 模拟器写入 1000 个节点后安装运行，借助无障碍滚动从第 1 个推进到第 70 个节点，未崩溃；12 秒采样中主线程 10207 个样本有 9429 个停在事件循环等待（约 92%），物理内存 70.0 MB、峰值 70.2 MB。采样本身包含无障碍树读取开销，所以它证明这一规模下没有持续占满主线程，不能替代最终真机 FPS 验收。
+
+同一份 1000 节点快照还做了规则/导出运行验收：在服务分组表搜索“国外媒体”只保留目标行，勾选状态稳定，返回后规则数从 3,160 立即更新到 3,532；导出页同步显示 3,532 条且 1,000 个节点全部兼容。客户端顺序用无障碍“向后移动/向前移动”完成一次往返并恢复；Surge 超长配置全屏预览成功打开、滚动文本可见并正常关闭，没有复现旧闪退。
+
 导出页也量过：`configuration()` 有缓存，命中时 500 节点仅 0.5ms，不是瓶颈，没动。
 
 ### 新增 Hiddify 导出
@@ -182,7 +203,7 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 
 - 首页机场开关改用规则页那个圆形对勾（`CheckmarkToggleStyle`），并补上选择震动。
 - Snell 的图标之前写的是 `shell.fill`，SF Symbols 里没有这个符号——`Image(systemName:)` 遇到未知名字既不崩溃也不报错，只画空白。改为 `s.square.fill`，并加测试断言所有符号确实存在。
-- 地图右上角的整体测速按钮已移除；逐节点测速仍在展开后的节点详情里。
+- 地图上方有 54pt 的“测试全部节点”主按钮和测速方式菜单；逐节点重测仍在展开后的节点详情里。
 - 订阅套餐流量：按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表公告行取值。节点始终以订阅原地址返回体为准，`flag=clash` 只在缺结构化配额时补发一次且只读响应头——机场的 Clash 转换器会丢掉它表达不了的协议（实测少 12 个 AnyTLS 节点）。
 
 ## 2. 产品目标与确定的交互
@@ -195,34 +216,34 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 - 节点行显示 IP 国家/地区 Logo、名称、协议/传输/UDP 信息和真实延迟。
 - 订阅和单节点都可以分享；单节点导出协议链接和二维码。
 - 页面直接嵌入自绘的点阵世界地图（`WorldDotMapView`，不用 MapKit），显示带 Emoji 的节点标注，不单独设置“地球”标签页。
+- 世界点阵保留完整 `-180...180` 经度；斐济、新西兰和格陵兰不会再因裁剪被压到地图边缘。密集地区会按选中状态/节点数优先，再尝试 16 个近邻位置，无法避让的低权重文字才隐藏，节点本身始终显示。
 
 ### 规则页
 
-- 默认规则只有 ClashConnectRules/Self-Configuration。
-- 策略组只保留一个前置图标，不在名称内重复 Emoji。
-- “手动切换”“自动选择”“全球直连”等使用中文可见名称并匹配图标。
+- 默认使用内置 ACL4SSR；Self-Configuration 位于页面底部并由用户手动下载。
+- 当前方案提供可搜索的服务分组勾选页；取消勾选后规则数量和七种导出立即更新。
+- 自定义规则流可新增、编辑、启停和删除，带 Tailscale 示例；规则与方案分开保存，重启 App 或刷新方案后仍保留。
+- 生成配置不引用远程策略组图标，只保留名称内有语义的 Emoji。
+- “手动切换”“自动选择”“全球直连”等使用中文可见名称。
 - 香港、日本、美国、新加坡等国家/地区策略位于业务策略之后。
 - 地区组本身默认延迟优选；业务策略仍可手动选择地区组。
 - 生成器必须避免地区组、节点选择和业务策略之间的循环引用。
 
 ### 导出页
 
-- 目标客户端使用对应 App Store 图标，横向滚动选择。
+- 七个目标客户端使用塔台自绘的品牌色矢量标识，不打包或仿制第三方 App Store 图标；横向滚动选择并支持长按拖动排序。
 - 主按钮固定在标签栏上方，一次点击就通过客户端 Scheme 导入。
 - Surge、Stash/Clash、Shadowrocket、Loon 使用本地临时 URL；Quantumult X 使用文件分享。
 - 支持配置摘要和完整预览，但不要在客户端切换动画中同步重复生成大文本。
 
 ## 3. 已完成的关键实现
 
-### 本地规则
+### 规则存储
 
-- 上游：`ClashConnectRules/Self-Configuration`。
-- 固定修订：`fb658cc85802`。
-- 本地资源：`Tower/Resources/SelfConfiguration/`。
-- 版本、来源、数量和 SHA-256：`manifest.json`。
-- 更新脚本：`Scripts/update_self_configuration_rules.py`。
-
-运行时不拉取规则，保证离线可用并避免上游改动导致同一版本生成结果漂移。
+- ACL4SSR 固定快照位于 `Tower/Resources/ACL4SSR/`，随 App 离线提供。
+- Self-Configuration 不在仓库或 App 包内；用户点击规则页底部按钮后从上游下载。
+- 远程方案与规则提供者保存到 Application Support，删除方案会一并清理。
+- 分组勾选与 `CustomRuleFlow` 保存在 `state.json` 的独立字段中；删除方案时同步清理该方案的本地定制。
 
 ### IP 国家库
 
@@ -231,7 +252,7 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 - 二进制索引：`Tower/Resources/IPCountry/`。
 - 更新脚本：`Scripts/update_ip_country_db.py`。
 
-节点是域名时先用系统 DNS 获取地址，再查询内置库。只有失败时才参考节点名称，因此 Amsterdam、Spain、Israel 等英文名称不再决定最终国旗。
+地区识别以节点名称为第一信号，再检查服务器主机名；两者都无结果时，域名才通过系统 DNS 解析并查询内置 IP 国家库。这个顺序与 `NodeRegionResolver.resolvedRegion` 一致。
 
 ### 一键导入
 
@@ -239,9 +260,26 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 
 Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入完整本地节点、策略组和规则，因此保留文件分享。
 
+### 局域网订阅与“透传”
+
+`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。设置页会展示带 32 位随机访问密钥的地址，密钥可手动轮换，旧链接立即失效。
+
+- 路由：`/sub/<token>?target=auto`，另兼容 `/download/<token>`；支持 GET/HEAD。
+- 自动识别：OpenClash 的 `clash.meta`、Clash Verge/Mihomo/Stash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify/sing-box、Egern。
+- 未知 User-Agent 返回带可用 `target=` 值的 400，不默认输出 Clash，避免客户端悄悄接收错误格式。
+- 显式 `target` 优先，可用于不发送品牌 User-Agent 的 Windows/Mac 客户端。
+- 安全边界：LAN URL 和响应不含机场 URL；每次请求用本地节点、规则和协议筛选实时生成。上游需要自定义 UA/DoH 时仍由 `SubscriptionService` 获取，路由器或电脑不会拿到上游 token。
+- iOS 后台不能作为常驻服务器，客户端刷新时必须让塔台保持前台；界面已明确提示。
+
+2026-08-07 用目标清单提供的 4 个实时订阅做过一次性兼容验收：四个 HTTPS 端点均返回 200，随后由 iOS 模拟器内的 `SubscriptionService` 携带自定义 UA，并通过 Cloudflare DoH 请求，四个来源都成功解析出节点。URL 只通过模拟器临时环境传入，测试结束后立即清除，未写入源码、结果包或文档。
+
+自动测试不只调用路由函数：`testLoopbackListenerServesGeneratedConfigurationEndToEnd` 会真实启动 `NWListener`，通过 `URLSession` 携带 OpenClash User-Agent 请求随机端口，并核对 200、`X-Tower-Target: clash` 与生成内容。测试环境只把监听依赖切到 `127.0.0.1`，App 默认仍固定为 Wi-Fi 环境。
+
+首次开启会触发 `NSLocalNetworkUsageDescription` 权限。真机验收要把手机和另一台设备放到同一 Wi-Fi，分别用 `curl -A clash.meta '<自动链接>'` 和显式 `?target=surge` 验证，随后轮换密钥确认旧 URL 返回 404。
+
 ### 策略组
 
-当前生成器按 IP 识别结果创建地区组，为地区组建立延迟优选，同时让节点选择/业务策略引用这些地区入口。历史上出现过以下回归，修改时必须保留测试：
+当前生成器按名称优先、离线 IP 回退的统一结果创建地区组，为地区组建立延迟优选，同时让节点选择/业务策略引用这些地区入口。历史上出现过以下回归，修改时必须保留测试：
 
 - 地区组互相引用导致 Surge/Shadowrocket 报循环。
 - 节点选择间接包含自身。
@@ -276,23 +314,9 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-re
 
 `DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`UploadOptions-TestFlight.plist` 是 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
-### 代码里的版本与已上传的版本不一致
+### 代码与已上传版本
 
-工程当前是 **`1.0 (2)`**：`CURRENT_PROJECT_VERSION` 已递增，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。
-
-但**没有任何机器用这份代码归档过**。两台 Mac 都查过，只有 2026-08-03 那份 build 1 的归档。也就是说：
-
-- TestFlight 里能看到的包仍然是 build 1，不含 2026-08-04 的审查修复，也不含规则导入和 ACL4SSR 功能。
-- build 1 的 Info.plist 没有 `ITSAppUsesNonExemptEncryption`，出口合规处于未回答状态。
-
-### 内部测试可见、外部测试不可见的原因
-
-外部测试要求出口合规已回答，内部测试不要求。build 1 因此只出现在内部测试的构建列表里，在外部群组的构建选择器中被隐藏，且界面不会说明原因。
-
-两条路：
-
-1. 在 App Store Connect 的构建版本旁手动回答一次出口合规，build 1 立刻可用于外部测试（但功能停留在 8-03）。
-2. 打一个真正的 build 2（推荐）。代码已就绪，`ITSAppUsesNonExemptEncryption` 会自动带上，不会再被问。
+工程和已上传构建均为 **`1.0 (3)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。下次归档前必须先递增 `CURRENT_PROJECT_VERSION`，不要重复上传 build 3。
 
 ### 外部测试还需要补的材料
 
@@ -354,28 +378,27 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`，不要重复上传 build 1。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`，当前已使用 build 3。
 
 ## 6. 优先任务
 
 ### P0：发布闭环
 
-1. 确认 build 1 的 Processing/合规状态并加入内部 TestFlight 测试组。
-2. 在至少一台 iOS 17+ 真机完成启动、订阅导入、地图、测速、规则和导出主流程。
-3. 为下个构建补 `ITSAppUsesNonExemptEncryption = NO`，构建号增至 2。
+1. 在至少一台 iOS 17+ 真机完成启动、订阅导入、平面点阵地图、测速、规则和导出主流程。
+2. 下次上传前把构建号从 build 3 继续递增，并重新核对 App 隐私、Beta 测试信息和外部测试审核状态。
 
 ### P1：性能和崩溃回归
 
 1. 反复展开/关闭“配置预览”，使用包含数百节点的大订阅观察是否仍闪退。
-2. 快速横向切换五个目标客户端，确认图标和配置不重复加载、动画不掉帧。
+2. 快速横向切换七个目标客户端，确认矢量标识和配置不重复生成、动画不掉帧；长按拖动后重启 App，确认顺序保留。
 3. 第一次打开节点/订阅分享 Sheet，确认二维码生成和 Activity View 不阻塞主线程。
 4. 如仍卡顿，先用 Instruments 的 Time Profiler / Allocations 复现，重点排查：
    - SwiftUI body 中重复生成完整配置。
    - 大字符串在 `Text`、剪贴板、分享 payload 之间产生多份副本。
-   - 客户端图标在滚动时重复解码。
+   - 客户端切换时重复生成配置或重建大文本预览。
    - 二维码在主线程同步生成。
 
-### P1：五客户端真机兼容
+### P1：七客户端真机兼容
 
 准备安装相应客户端的测试机，分别验证：
 
@@ -384,6 +407,8 @@ xcodebuild -project Tower.xcodeproj \
 - Shadowrocket：节点协议链接、策略环路、规则和 Scheme 接收。
 - Loon：VMess/VLESS/Trojan/Hysteria 2 参数及策略组。
 - Quantumult X：分享文件能否出现在目标列表；若不能，验证“存储到文件”后手动导入。
+- Hiddify：sing-box JSON 的一键导入和内核兼容跳过。
+- Egern：YAML 结构、`egern:/profiles/new` Scheme 和规则兜底。
 
 ### P2：解析兼容
 
@@ -398,22 +423,22 @@ xcodebuild -project Tower.xcodeproj \
 - [ ] 首次点击“+”时剪贴板权限文案正常，订阅和节点都能自动识别。
 - [ ] 四个统计项跳到正确位置。
 - [ ] 订阅展开没有从顶部滑入或列表勾选漂移。
-- [ ] 节点国旗与服务器 IP 匹配，失败时回退合理。
+- [ ] 节点国旗优先遵循明确名称，名称无结果时使用离线 IP 回退。
 - [ ] 点阵地图铺满卡片，国家/地区标注不重叠，节点 Emoji 正常。
 - [ ] ICMP 与“端口”回退标识准确。
 - [ ] 节点和订阅分享、二维码、协议链接可用。
 
 ### 规则
 
-- [ ] 只显示 Self-Configuration 默认规则。
-- [ ] 策略列表仅一个前置 Logo，不重复 Emoji。
+- [ ] 默认显示内置 ACL4SSR，Self-Configuration 位于底部且只能手动下载。
+- [ ] 生成配置没有 `icon`、`icon-url` 或 `img-url` 远程策略图标字段。
 - [ ] 地区策略位于业务策略之后。
 - [ ] 地区默认延迟优选，业务策略可手动选择地区。
 - [ ] 展开/收起时选择标记不漂移。
 
 ### 导出
 
-- [ ] 五个 App Store 图标立即出现，横向滚动与切换流畅。
+- [ ] 七个自绘矢量客户端标识立即出现，不含第三方 App 图；横向滚动、拖动排序与切换流畅。
 - [ ] 摘要中的节点数、跳过数、规则数正确。
 - [ ] 完整预览多次展开不闪退。
 - [ ] 固定主按钮不被底部标签栏遮挡。
@@ -423,6 +448,7 @@ xcodebuild -project Tower.xcodeproj \
 ### 恢复与隐私
 
 - [ ] 杀掉 App 后订阅和自有节点恢复。
+- [ ] 用户开启续费提醒后才请求通知权限；机场到期前 24 小时触发，关闭后清除待发送提醒。
 - [ ] 日志中没有订阅 URL、节点密码、UUID 或完整配置。
 - [ ] 飞行模式下仍可查看已保存内容并生成配置。
 - [ ] 打开“+”面板时只出现一次系统粘贴请求；支持的订阅或节点链接自动填入，不支持的文本不覆盖输入框，手动粘贴仍可用。

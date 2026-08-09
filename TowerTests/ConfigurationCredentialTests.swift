@@ -56,7 +56,7 @@ final class ConfigurationCredentialTests: XCTestCase {
 
         let line = proxyLine(for: node, target: .loon, containing: "socks.example.com")
 
-        XCTAssertTrue(line.contains("user,pw"), line)
+        XCTAssertTrue(line.contains("\"user\",\"pw\""), line)
     }
 
     // MARK: - Quantumult X fidelity
@@ -258,11 +258,60 @@ final class ConfigurationCredentialTests: XCTestCase {
     }
 
     func testProcessNameRulesSurviveForSurgeFamilyButNotQuanX() {
-        let surge = ConfigurationGenerator().generate(nodes: [], preset: preset, target: .surge).content
-        let quanX = ConfigurationGenerator().generate(nodes: [], preset: preset, target: .quanx).content
+        let scheme = RuleScheme(
+            id: "process-name-test",
+            name: "Process rule",
+            summary: "Rule dialect regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "节点选择",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "节点选择",
+                    resource: .inline("PROCESS-NAME,example")
+                ),
+                RuleSchemeRuleset(groupName: "节点选择", resource: .inline("FINAL"))
+            ]
+        )
+        let generator = ConfigurationGenerator()
+        let surge = generator.generate(nodes: [], scheme: scheme, target: .surge).content
+        let quanX = generator.generate(nodes: [], scheme: scheme, target: .quanx).content
 
-        XCTAssertTrue(surge.contains("PROCESS-NAME"), "Surge 丢掉了快照里的 PROCESS-NAME 规则")
+        XCTAssertTrue(surge.contains("PROCESS-NAME"), "Surge 丢掉了 PROCESS-NAME 规则")
         XCTAssertFalse(quanX.contains("PROCESS-NAME"), "Quantumult X 不支持 PROCESS-NAME")
+    }
+
+    func testURLRegexRulesAreDroppedForClashButPreservedForSurge() {
+        let scheme = RuleScheme(
+            id: "url-regex-test",
+            name: "URL regex rule",
+            summary: "Clash portability regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "节点选择",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "节点选择",
+                    resource: .inline(#"URL-REGEX,^https?:\/\/www\.amazon\.com\/(Amazon-Video|gp\/video)\/"#)
+                ),
+                RuleSchemeRuleset(groupName: "节点选择", resource: .inline("FINAL"))
+            ]
+        )
+        let generator = ConfigurationGenerator()
+
+        let clash = generator.generate(nodes: [], scheme: scheme, target: .clash).content
+        let surge = generator.generate(nodes: [], scheme: scheme, target: .surge).content
+
+        XCTAssertFalse(clash.contains("URL-REGEX"), "Clash Mi 不支持 URL-REGEX，写出后整份配置无法启动")
+        XCTAssertTrue(surge.contains("URL-REGEX"), "Surge 支持 URL-REGEX，不应为了 Clash 兼容而全局删除")
     }
 
     // MARK: - Helpers

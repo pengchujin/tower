@@ -7,9 +7,9 @@ enum RuleSchemeParseError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .notReadableText: "规则配置不是可识别的文本"
-        case .noGroups: "配置里没有找到策略组（custom_proxy_group）"
-        case .noRulesets: "配置里没有找到规则（ruleset）"
+        case .notReadableText: String(localized: "规则配置不是可识别的文本")
+        case .noGroups: String(localized: "配置里没有找到可识别的策略组")
+        case .noRulesets: String(localized: "配置里没有找到可识别的规则")
         }
     }
 }
@@ -55,6 +55,21 @@ struct RuleSchemeParser {
         sourceURLString: String? = nil,
         isBundled: Bool = false
     ) throws -> RuleScheme {
+        // Self-Configuration publishes a complete Clash YAML document rather
+        // than a subconverter INI. Only the three sections Tower needs are
+        // read: policy groups, rules and their remote providers. Nodes and DNS
+        // remain Tower's responsibility.
+        if text.contains("proxy-groups:"), text.contains("rules:") {
+            return try parseClashConfiguration(
+                text: text,
+                id: id,
+                name: name,
+                summary: summary,
+                sourceURLString: sourceURLString,
+                isBundled: isBundled
+            )
+        }
+
         // A complete Surge configuration carries the same information in
         // [Proxy Group] and [Rule] that a subconverter config puts in
         // custom_proxy_group= and ruleset=, so both are accepted.
@@ -100,6 +115,230 @@ struct RuleSchemeParser {
             updatedAt: .now,
             isBundled: isBundled
         )
+    }
+
+    // MARK: - Clash YAML
+
+    private struct ClashGroupDraft {
+        var name = ""
+        var kind: RuleSchemeGroup.Kind = .select
+        var proxies: [String] = []
+        var usesProvider = false
+        var filter: String?
+        var testURLString: String?
+        var interval: Int?
+        var tolerance: Int?
+    }
+
+    private func parseClashConfiguration(
+        text: String,
+        id: String,
+        name: String,
+        summary: String,
+        sourceURLString: String?,
+        isBundled: Bool
+    ) throws -> RuleScheme {
+        let lines = text.components(separatedBy: .newlines)
+        let providers = clashProviderURLs(in: lines)
+        let drafts = clashGroupDrafts(in: lines)
+        let groupNames = Set(drafts.map(\.name))
+
+        let groups = drafts.compactMap { draft -> RuleSchemeGroup? in
+            guard !draft.name.isEmpty else { return nil }
+            var members = draft.proxies.map { value -> RuleSchemeGroupMember in
+                if groupNames.contains(value)
+                    || value.uppercased() == "DIRECT"
+                    || value.uppercased() == "REJECT" {
+                    return .reference(value)
+                }
+                return .nodePattern("^\(NSRegularExpression.escapedPattern(for: value))$")
+            }
+            if draft.usesProvider {
+                members.append(.nodePattern(draft.filter ?? ".*"))
+            }
+            return RuleSchemeGroup(
+                name: draft.name,
+                kind: draft.kind,
+                members: members,
+                testURLString: draft.testURLString,
+                interval: draft.interval,
+                tolerance: draft.tolerance
+            )
+        }
+        let rulesets = clashRulesets(in: lines, providers: providers)
+
+        guard !groups.isEmpty else { throw RuleSchemeParseError.noGroups }
+        guard !rulesets.isEmpty else { throw RuleSchemeParseError.noRulesets }
+
+        return RuleScheme(
+            id: id,
+            name: name,
+            summary: summary,
+            sourceURLString: sourceURLString,
+            groups: groups,
+            rulesets: rulesets,
+            updatedAt: .now,
+            isBundled: isBundled
+        )
+    }
+
+    private func clashGroupDrafts(in lines: [String]) -> [ClashGroupDraft] {
+        var result: [ClashGroupDraft] = []
+        var inSection = false
+        var current: ClashGroupDraft?
+        var listKey: String?
+
+        func finish(_ draft: ClashGroupDraft?) {
+            if let draft, !draft.name.isEmpty { result.append(draft) }
+        }
+
+        for rawLine in lines {
+            let indent = rawLine.prefix { $0 == " " }.count
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+
+            if indent == 0 {
+                if inSection { finish(current) }
+                inSection = line == "proxy-groups:"
+                current = nil
+                listKey = nil
+                continue
+            }
+            guard inSection else { continue }
+
+            if indent == 2, line.hasPrefix("- name:") {
+                finish(current)
+                current = ClashGroupDraft()
+                current?.name = yamlScalar(after: "- name:", in: line)
+                listKey = nil
+                continue
+            }
+            guard current != nil else { continue }
+
+            if indent == 4 {
+                listKey = nil
+                if line == "proxies:" || line == "use:" {
+                    listKey = String(line.dropLast())
+                } else if line.hasPrefix("type:") {
+                    let value = yamlScalar(after: "type:", in: line).lowercased()
+                    current?.kind = value == "url-test" ? .urlTest : .select
+                } else if line.hasPrefix("filter:") {
+                    current?.filter = yamlScalar(after: "filter:", in: line)
+                } else if line.hasPrefix("url:") {
+                    current?.testURLString = yamlScalar(after: "url:", in: line)
+                } else if line.hasPrefix("interval:") {
+                    current?.interval = Int(yamlScalar(after: "interval:", in: line))
+                } else if line.hasPrefix("tolerance:") {
+                    current?.tolerance = Int(yamlScalar(after: "tolerance:", in: line))
+                }
+                continue
+            }
+
+            if indent >= 6, line.hasPrefix("- ") {
+                let value = unquotedYAMLScalar(String(line.dropFirst(2)))
+                if listKey == "proxies" { current?.proxies.append(value) }
+                if listKey == "use" { current?.usesProvider = true }
+            }
+        }
+        if inSection { finish(current) }
+        return result
+    }
+
+    private func clashProviderURLs(in lines: [String]) -> [String: URL] {
+        var result: [String: URL] = [:]
+        var inSection = false
+        var providerName: String?
+
+        for rawLine in lines {
+            let indent = rawLine.prefix { $0 == " " }.count
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+
+            if indent == 0 {
+                inSection = line == "rule-providers:"
+                providerName = nil
+                continue
+            }
+            guard inSection else { continue }
+
+            if indent == 2, line.hasSuffix(":"), !line.hasPrefix("-") {
+                providerName = unquotedYAMLScalar(String(line.dropLast()))
+            } else if indent == 4,
+                      line.hasPrefix("url:"),
+                      let providerName {
+                let value = yamlScalar(after: "url:", in: line)
+                if let url = URL(string: value), url.scheme?.lowercased() == "https" {
+                    result[providerName] = url
+                }
+            }
+        }
+        return result
+    }
+
+    private func clashRulesets(
+        in lines: [String],
+        providers: [String: URL]
+    ) -> [RuleSchemeRuleset] {
+        var result: [RuleSchemeRuleset] = []
+        var inSection = false
+
+        for rawLine in lines {
+            let indent = rawLine.prefix { $0 == " " }.count
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+
+            if indent == 0 {
+                inSection = line == "rules:"
+                continue
+            }
+            guard inSection, line.hasPrefix("- ") else { continue }
+
+            let value = unquotedYAMLScalar(String(line.dropFirst(2)))
+            let parts = value.components(separatedBy: ",").map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            guard parts.count >= 2 else { continue }
+
+            if parts[0].uppercased() == "RULE-SET", parts.count >= 3,
+               let url = providers[parts[1]] {
+                result.append(RuleSchemeRuleset(groupName: parts[2], resource: .remote(url)))
+                continue
+            }
+
+            if parts[0].uppercased() == "MATCH" {
+                result.append(RuleSchemeRuleset(groupName: parts[1], resource: .inline("FINAL")))
+                continue
+            }
+
+            let hasNoResolve = parts.last?.lowercased() == "no-resolve"
+            let policyIndex = parts.count - (hasNoResolve ? 2 : 1)
+            guard policyIndex > 0 else { continue }
+            let policy = parts[policyIndex]
+            var ruleParts = Array(parts[..<policyIndex])
+            if hasNoResolve { ruleParts.append("no-resolve") }
+            result.append(
+                RuleSchemeRuleset(
+                    groupName: policy,
+                    resource: .inline(ruleParts.joined(separator: ","))
+                )
+            )
+        }
+        return result
+    }
+
+    private func yamlScalar(after key: String, in line: String) -> String {
+        unquotedYAMLScalar(
+            String(line.dropFirst(key.count)).trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    private func unquotedYAMLScalar(_ value: String) -> String {
+        guard value.count >= 2,
+              let first = value.first,
+              let last = value.last,
+              (first == "\"" || first == "'"),
+              first == last else { return value }
+        return String(value.dropFirst().dropLast())
     }
 
     private func value(of key: String, in line: String) -> String? {

@@ -10,11 +10,11 @@ enum DirectImportError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unsupportedTarget(let target):
-            "\(target.name) 暂不支持完整配置的一键导入"
+            String(localized: "\(target.name) 暂不支持完整配置的一键导入")
         case .invalidSchemeURL:
-            "无法生成客户端导入链接"
+            String(localized: "无法生成客户端导入链接")
         case .localServerFailed:
-            "无法启动本机临时导入服务"
+            String(localized: "无法启动本机临时导入服务")
         }
     }
 }
@@ -23,7 +23,9 @@ struct ClientImportURLBuilder {
     static func make(
         target: ClientTarget,
         configurationURL: URL,
-        displayName: String = "塔台"
+        displayName: String = TowerBrand.localizedName,
+        contentMode: ExportContentMode = .fullConfiguration,
+        importRevision: String = UUID().uuidString
     ) throws -> URL {
         let encodedURL = encode(configurationURL.absoluteString)
         let encodedName = encode(displayName)
@@ -35,9 +37,21 @@ struct ClientImportURLBuilder {
         case .clash:
             value = "clash://install-config?url=\(encodedURL)&name=\(encodedName)"
         case .shadowrocket:
-            value = "shadowrocket://config/add/\(configurationURL.absoluteString)"
+            value = contentMode == .nodesOnly
+                ? "shadowrocket://add/\(configurationURL.absoluteString)#\(displayName)"
+                : "shadowrocket://config/add/\(configurationURL.absoluteString)"
         case .loon:
-            value = "loon://import?sub=\(encodedURL)"
+            if contentMode == .nodesOnly {
+                var components = URLComponents(url: configurationURL, resolvingAgainstBaseURL: false)
+                let existingItems = components?.queryItems ?? []
+                components?.queryItems = existingItems + [
+                    URLQueryItem(name: "tower-import", value: importRevision)
+                ]
+                let refreshableURL = components?.url ?? configurationURL
+                value = "loon://import?nodelist=\(encode(refreshableURL.absoluteString))"
+            } else {
+                value = "loon://import?sub=\(encodedURL)"
+            }
         // A single slash, not two: Egern's documented form is `egern:/…`, so
         // the path carries no authority component.
         case .egern:
@@ -46,9 +60,23 @@ struct ClientImportURLBuilder {
         // with no authority component (`!uri.hasAuthority` returns nil), so the
         // host segment has to be present even though it goes unread.
         case .hiddify:
-            value = "hiddify://install-config?url=\(encodedURL)&name=\(encodedName)"
+            // Current Hiddify releases use one import route for v2ray node
+            // subscriptions, Clash YAML and sing-box JSON. The title belongs
+            // in Profile-Title; a percent-encoded fragment is displayed
+            // literally by current Hiddify releases.
+            value = "hiddify://import/\(configurationURL.absoluteString)"
         case .quanx:
-            throw DirectImportError.unsupportedTarget(target)
+            guard [.nodesOnly, .rulesOnly].contains(contentMode) else {
+                throw DirectImportError.unsupportedTarget(target)
+            }
+            let resource: [String: [String]] = contentMode == .nodesOnly
+                ? ["server_remote": ["\(configurationURL.absoluteString), tag=\(displayName), as-policy=static"]]
+                : ["filter_remote": ["\(configurationURL.absoluteString), tag=\(displayName), enabled=true"]]
+            guard let data = try? JSONSerialization.data(withJSONObject: resource, options: [.sortedKeys]),
+                  let json = String(data: data, encoding: .utf8) else {
+                throw DirectImportError.invalidSchemeURL
+            }
+            value = "quantumult-x:///add-resource?remote-resource=\(encode(json))"
         }
 
         guard let url = URL(string: value) else {
@@ -64,6 +92,19 @@ struct ClientImportURLBuilder {
     }
 }
 
+enum DirectImportAccessTokenStore {
+    private static let key = "direct-import-access-token"
+
+    static func loadOrCreate(defaults: UserDefaults = .standard) -> String {
+        if let existing = defaults.string(forKey: key), existing.count >= 24 {
+            return existing
+        }
+        let token = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        defaults.set(token, forKey: key)
+        return token
+    }
+}
+
 @MainActor
 final class DirectImportService {
     private var server: LocalConfigurationServer?
@@ -72,7 +113,7 @@ final class DirectImportService {
 
     func prepare(_ configuration: GeneratedConfiguration) async throws -> URL {
         stop()
-        guard configuration.target.supportsDirectConfigurationImport else {
+        guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
 
@@ -93,7 +134,9 @@ final class DirectImportService {
         do {
             return try ClientImportURLBuilder.make(
                 target: configuration.target,
-                configurationURL: localURL
+                configurationURL: localURL,
+                displayName: configuration.profileName,
+                contentMode: configuration.contentMode
             )
         } catch {
             stop()
@@ -125,24 +168,43 @@ final class DirectImportService {
 }
 
 final class LocalConfigurationServer: @unchecked Sendable {
+    static let fixedLoopbackPort: UInt16 = 65_172
+
     private let queue = DispatchQueue(label: "com.jzb.tower.direct-import")
     private let body: Data
     private let fileName: String
     private let contentType: String
+    private let profileName: String
+    private let profileTitle: String
+    private let token: String
 
     /// Exposed for tests: the name and type the client will see.
     var servedFileName: String { fileName }
     var servedContentType: String { contentType }
-    private let token = UUID().uuidString.lowercased()
+    /// A stable, app-private endpoint lets clients recognize the next import as
+    /// the same Tower profile. The listener still exists for only 45 seconds.
+    var configurationURL: URL {
+        URL(string: "http://127.0.0.1:\(Self.fixedLoopbackPort)/\(token)")!
+            .deletingLastPathComponent()
+            .appendingPathComponent(profileName, isDirectory: true)
+            .appendingPathComponent(token, isDirectory: true)
+            .appendingPathComponent(fileName, isDirectory: false)
+    }
     private var listener: NWListener?
     private var didResumeStart = false
 
-    init(configuration: GeneratedConfiguration) {
+    init(
+        configuration: GeneratedConfiguration,
+        token: String = DirectImportAccessTokenStore.loadOrCreate()
+    ) {
         body = Data(configuration.content.utf8)
-        // Both derived from the target rather than special-casing one client:
-        // Hiddify was being handed JSON named `tower.conf` as text/plain.
-        fileName = "tower.\(configuration.target.fileExtension)"
-        contentType = switch configuration.target.fileExtension {
+        self.token = token
+        // Share sheets and URL-scheme clients receive exactly the same stable,
+        // localized profile name instead of creating timestamped duplicates.
+        fileName = configuration.fileName
+        profileName = configuration.profileName
+        profileTitle = "base64:\(Data(configuration.profileName.utf8).base64EncodedString())"
+        contentType = switch configuration.fileExtension {
         case "yaml": "application/yaml; charset=utf-8"
         case "json": "application/json; charset=utf-8"
         default: "text/plain; charset=utf-8"
@@ -156,7 +218,7 @@ final class LocalConfigurationServer: @unchecked Sendable {
                 parameters.allowLocalEndpointReuse = true
                 parameters.requiredLocalEndpoint = .hostPort(
                     host: NWEndpoint.Host("127.0.0.1"),
-                    port: .any
+                    port: NWEndpoint.Port(rawValue: Self.fixedLoopbackPort)!
                 )
 
                 let listener = try NWListener(using: parameters)
@@ -168,11 +230,9 @@ final class LocalConfigurationServer: @unchecked Sendable {
                     guard let self else { return }
                     switch state {
                     case .ready:
-                        guard !self.didResumeStart, let port = listener.port else { return }
+                        guard !self.didResumeStart, listener.port != nil else { return }
                         self.didResumeStart = true
-                        continuation.resume(
-                            returning: URL(string: "http://127.0.0.1:\(port.rawValue)/\(self.token)/\(self.fileName)")!
-                        )
+                        continuation.resume(returning: self.configurationURL)
                     case .failed:
                         guard !self.didResumeStart else { return }
                         self.didResumeStart = true
@@ -203,9 +263,14 @@ final class LocalConfigurationServer: @unchecked Sendable {
 
             let request = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             let firstLine = request.components(separatedBy: "\r\n").first ?? ""
-            let expectedPath = "/\(self.token)/\(self.fileName)"
-            let isHead = firstLine.hasPrefix("HEAD \(expectedPath) ")
-            let isGet = firstLine.hasPrefix("GET \(expectedPath) ")
+            let requestTarget = firstLine.split(separator: " ").dropFirst().first.map(String.init) ?? ""
+            let requestPath = requestTarget.split(separator: "?", maxSplits: 1).first.map(String.init) ?? requestTarget
+            let expectedPath = URLComponents(
+                url: self.configurationURL,
+                resolvingAgainstBaseURL: false
+            )?.percentEncodedPath ?? self.configurationURL.path
+            let isHead = firstLine.hasPrefix("HEAD ") && requestPath == expectedPath
+            let isGet = firstLine.hasPrefix("GET ") && requestPath == expectedPath
 
             guard isHead || isGet else {
                 self.send(
@@ -219,7 +284,8 @@ final class LocalConfigurationServer: @unchecked Sendable {
             HTTP/1.1 200 OK\r
             Content-Type: \(self.contentType)\r
             Content-Length: \(self.body.count)\r
-            Content-Disposition: attachment; filename=\"\(self.fileName)\"\r
+            Content-Disposition: \(ExportFilePresentation.contentDisposition(fileName: self.fileName))\r
+            Profile-Title: \(self.profileTitle)\r
             Cache-Control: no-store\r
             Connection: close\r
             \r

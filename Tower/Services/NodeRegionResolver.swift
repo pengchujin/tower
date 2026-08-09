@@ -12,6 +12,13 @@ struct NodeRegion: Identifiable, Hashable, Sendable {
     var coordinate: CLLocationCoordinate2D {
         .init(latitude: latitude, longitude: longitude)
     }
+
+    /// The system provides country names for every language Tower supports,
+    /// so the map follows the user's App Language without duplicating a world
+    /// country-name table in every localization.
+    var localizedName: String {
+        AppLocalization.regionName(for: code, fallback: name)
+    }
 }
 
 struct NodeRegionCluster: Identifiable, Hashable {
@@ -415,9 +422,22 @@ enum NodeRegionResolver {
         let grouped = Dictionary(grouping: nodes) { node in
             resolvedRegion(for: node, countryCode: countryCodes[node.id])?.code
         }
-        return definitions.compactMap { definition in
-            guard let nodes = grouped[definition.region.code], !nodes.isEmpty else { return nil }
-            return NodeRegionCluster(region: definition.region, nodes: nodes)
+        let curatedOrder = Dictionary(
+            uniqueKeysWithValues: definitions.enumerated().map { ($0.element.region.code, $0.offset) }
+        )
+        return grouped.compactMap { countryCode, groupedNodes in
+            guard let countryCode,
+                  !groupedNodes.isEmpty,
+                  let region = region(countryCode: countryCode) else {
+                return nil
+            }
+            return NodeRegionCluster(region: region, nodes: groupedNodes)
+        }
+        .sorted { lhs, rhs in
+            let lhsOrder = curatedOrder[lhs.region.code] ?? Int.max
+            let rhsOrder = curatedOrder[rhs.region.code] ?? Int.max
+            if lhsOrder != rhsOrder { return lhsOrder < rhsOrder }
+            return lhs.region.name.localizedStandardCompare(rhs.region.name) == .orderedAscending
         }
     }
 

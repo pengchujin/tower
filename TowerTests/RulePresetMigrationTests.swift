@@ -1,17 +1,21 @@
 import XCTest
 @testable import Tower
 
+@MainActor
 final class RulePresetMigrationTests: XCTestCase {
-    func testSelfConfigurationReplacesEveryLegacyPreset() {
-        XCTAssertEqual(RulePreset.builtIns.map(\.id), ["self-configuration"])
-        XCTAssertEqual(RulePreset.builtIns.first?.name, "Self-Configuration")
+    func testSelfConfigurationManualDownloadUsesTheOfficialClashDocument() {
+        XCTAssertNotEqual(AppModel.defaultRuleSchemeID, "self-configuration")
         XCTAssertEqual(
-            RuleRepository.sourceURL,
+            SelfConfigurationSource.projectURL,
             URL(string: "https://github.com/ClashConnectRules/Self-Configuration")
+        )
+        XCTAssertEqual(
+            SelfConfigurationSource.downloadURL,
+            URL(string: "https://raw.githubusercontent.com/ClashConnectRules/Self-Configuration/main/Clash.yaml")
         )
     }
 
-    func testSelfConfigurationKeepsCorePolicyGroups() throws {
+    func testLegacyPresetMetadataKeepsCorePolicyGroupsForOldSnapshots() throws {
         let preset = try XCTUnwrap(RulePreset.builtIns.first)
         let policyNames = Set(preset.policies.map(\.configurationName))
 

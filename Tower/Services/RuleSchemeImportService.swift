@@ -11,13 +11,13 @@ enum RuleImportError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: "规则地址无效"
-        case .insecureURL: "请使用 HTTPS 规则地址"
-        case .badResponse: "服务器返回了无法识别的响应"
-        case .httpStatus(let status): "服务器返回 HTTP \(status)"
-        case .emptyBody: "规则内容为空"
-        case .noRulesetsDownloaded: "配置里引用的规则列表都没有下载成功"
-        case .receivedWebPage: "这个地址返回的是网页，不是配置文件。请使用规则文件本身的地址。"
+        case .invalidURL: String(localized: "规则地址无效")
+        case .insecureURL: String(localized: "请使用 HTTPS 规则地址")
+        case .badResponse: String(localized: "服务器返回了无法识别的响应")
+        case .httpStatus(let status): String(localized: "服务器返回 HTTP \(status)")
+        case .emptyBody: String(localized: "规则内容为空")
+        case .noRulesetsDownloaded: String(localized: "配置里引用的规则列表都没有下载成功")
+        case .receivedWebPage: String(localized: "这个地址返回的是网页，不是配置文件。请使用规则文件本身的地址。")
         }
     }
 }
@@ -30,8 +30,8 @@ struct RuleImportResult {
     let failedRulesetCount: Int
 }
 
-/// Downloads a subconverter-style `.ini` config and every rule list it
-/// references, storing the lists locally so the scheme works offline afterwards.
+/// Downloads a supported rule config and every rule list it references,
+/// storing the lists locally so the scheme works offline afterwards.
 struct RuleSchemeImportService {
     private let store: RuleDownloadStore
     private let parser = RuleSchemeParser()
@@ -64,8 +64,8 @@ struct RuleSchemeImportService {
         let scheme = try parser.parse(
             data: payload,
             id: "imported-\(UUID().uuidString)",
-            name: resolvedName.isEmpty ? (url.host ?? "导入的规则") : resolvedName,
-            summary: "从 \(url.host ?? trimmed) 导入",
+            name: resolvedName.isEmpty ? (url.host ?? String(localized: "导入的规则")) : resolvedName,
+            summary: String(localized: "从 \(url.host ?? trimmed) 导入"),
             sourceURLString: trimmed,
             isBundled: false
         )

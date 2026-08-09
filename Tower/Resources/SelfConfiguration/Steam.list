@@ -1,8 +1,0 @@
-# Source: https://raw.githubusercontent.com/dler-io/Rules/1bfdc7d39e329cab2d2c50d391a3faaadb6a7e30/Clash/Provider/Steam.yaml
-# Snapshot for Self-Configuration fb658cc85802
-DOMAIN-SUFFIX,s.team
-DOMAIN-SUFFIX,steampowered.com
-DOMAIN-SUFFIX,steamcommunity.com
-DOMAIN-SUFFIX,steamgames.com
-DOMAIN-SUFFIX,steamusercontent.com
-DOMAIN-SUFFIX,steamstatic.com

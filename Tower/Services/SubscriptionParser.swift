@@ -1,8 +1,9 @@
 import Foundation
+import Network
 
 enum SubscriptionError: LocalizedError {
     case invalidURL
-    case insecureURL
+    case invalidDNSURL
     case badResponse
     case httpStatus(Int)
     case emptySubscription
@@ -10,25 +11,42 @@ enum SubscriptionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: "订阅地址无效"
-        case .insecureURL: "请使用 HTTPS 订阅地址，避免凭据在网络中明文传输"
-        case .badResponse: "订阅服务器返回了无法识别的响应"
-        case .httpStatus(let status): "订阅服务器返回 HTTP \(status)"
-        case .emptySubscription: "订阅内容为空"
-        case .noSupportedNodes: "没有找到可识别的节点"
+        case .invalidURL: String(localized: "订阅地址无效")
+        case .invalidDNSURL: String(localized: "自定义 DNS 必须是 HTTPS 的 DNS-over-HTTPS 地址")
+        case .badResponse: String(localized: "订阅服务器返回了无法识别的响应")
+        case .httpStatus(let status): String(localized: "订阅服务器返回 HTTP \(status)")
+        case .emptySubscription: String(localized: "订阅内容为空")
+        case .noSupportedNodes: String(localized: "没有找到可识别的节点")
         }
     }
 }
 
-struct SubscriptionService {
-    var parser = SubscriptionParser()
+protocol SubscriptionFetching {
+    func fetch(_ source: SubscriptionSource) async throws -> ImportResult
+}
+
+struct SubscriptionService: SubscriptionFetching {
+    var parser: SubscriptionParser
+    private let requestBuilder: SubscriptionRequestBuilder
+    private let httpClient: any SubscriptionHTTPDataLoading
+
+    init(
+        parser: SubscriptionParser = SubscriptionParser(),
+        requestBuilder: SubscriptionRequestBuilder = SubscriptionRequestBuilder(),
+        httpClient: any SubscriptionHTTPDataLoading = SubscriptionHTTPClient()
+    ) {
+        self.parser = parser
+        self.requestBuilder = requestBuilder
+        self.httpClient = httpClient
+    }
 
     func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
         guard let url = URL(string: source.urlString), url.host != nil else {
             throw SubscriptionError.invalidURL
         }
-        guard url.scheme?.lowercased() == "https" else {
-            throw SubscriptionError.insecureURL
+        guard let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme) else {
+            throw SubscriptionError.invalidURL
         }
 
         var result = try await load(url, source: source)
@@ -40,7 +58,7 @@ struct SubscriptionService {
         // whatever it cannot express. One real airport returns 43 of its 55
         // nodes that way, silently losing every AnyTLS entry.
         if result.usage?.hasPlanDetail != true, let probe = Self.quotaProbe(for: url) {
-            if let usage = try? await quota(at: probe) {
+            if let usage = try? await quota(at: probe, source: source) {
                 var merged = usage
                 merged.notices = result.usage?.notices ?? []
                 result.usage = merged
@@ -61,12 +79,10 @@ struct SubscriptionService {
         return components.url
     }
 
-    private func quota(at url: URL) async throws -> SubscriptionUsage {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 15
-        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
-
-        let (_, response) = try await URLSession.shared.data(for: request)
+    private func quota(at url: URL, source: SubscriptionSource) async throws -> SubscriptionUsage {
+        let request = try requestBuilder.make(url: url, source: source, timeout: 15)
+        let dnsURL = try source.requestOptions?.validatedDNSOverHTTPSURL()
+        let (_, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode),
               let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo"),
@@ -76,14 +92,10 @@ struct SubscriptionService {
         return usage
     }
 
-    private static let userAgent = "Tower/1.0 (iOS; local subscription converter)"
-
     private func load(_ url: URL, source: SubscriptionSource) async throws -> ImportResult {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 30
-        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let request = try requestBuilder.make(url: url, source: source, timeout: 30)
+        let dnsURL = try source.requestOptions?.validatedDNSOverHTTPSURL()
+        let (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SubscriptionError.badResponse
         }
@@ -105,8 +117,143 @@ struct SubscriptionService {
         return ImportResult(
             nodes: parsed.nodes,
             rejectedLineCount: parsed.rejectedLineCount,
-            usage: usage.isEmpty ? nil : usage
+            usage: usage.isEmpty ? nil : usage,
+            suggestedName: Self.providerTitle(from: httpResponse)
         )
+    }
+
+    /// Reads the same profile naming hints used by modern subscription apps.
+    /// Hiddify documents `Profile-Title` as the first-priority value and allows
+    /// a base64 UTF-8 form for names containing emoji.
+    static func providerTitle(from response: HTTPURLResponse) -> String? {
+        for header in ["Profile-Title", "Subscription-Title"] {
+            if let value = response.value(forHTTPHeaderField: header),
+               let decoded = decodedProfileTitle(value) {
+                return decoded
+            }
+        }
+
+        guard let disposition = response.value(forHTTPHeaderField: "Content-Disposition") else {
+            return nil
+        }
+        let pattern = #"filename\*?=(?:UTF-8''|\")?([^\";]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(
+                in: disposition,
+                range: NSRange(disposition.startIndex..., in: disposition)
+              ),
+              let range = Range(match.range(at: 1), in: disposition) else { return nil }
+        let fileName = String(disposition[range]).removingPercentEncoding ?? String(disposition[range])
+        let stem = (fileName as NSString).deletingPathExtension
+        return decodedProfileTitle(stem)
+    }
+
+    private static func decodedProfileTitle(_ rawValue: String) -> String? {
+        let trimmed = rawValue.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'"))
+        let decoded: String
+        if trimmed.lowercased().hasPrefix("base64:"),
+           let data = Data(base64Encoded: String(trimmed.dropFirst("base64:".count))),
+           let value = String(data: data, encoding: .utf8) {
+            decoded = value
+        } else {
+            decoded = trimmed.removingPercentEncoding ?? trimmed
+        }
+        let result = decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? nil : result
+    }
+}
+
+struct SubscriptionRequestBuilder {
+    static let defaultUserAgent = "Tower/1.0 (iOS; local subscription converter)"
+
+    func make(url: URL, source: SubscriptionSource, timeout: TimeInterval) throws -> URLRequest {
+        _ = try source.requestOptions?.validatedDNSOverHTTPSURL()
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        let custom = source.requestOptions?.userAgent?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        request.setValue(
+            custom?.isEmpty == false ? custom : Self.defaultUserAgent,
+            forHTTPHeaderField: "User-Agent"
+        )
+        return request
+    }
+}
+
+/// Serialises subscription requests while a process-wide encrypted resolver is
+/// active. Network.framework applies the default privacy context to URLSession
+/// resolutions too; without the gate, one refresh could reset another one's
+/// resolver during its request.
+private actor SubscriptionRequestGate {
+    private var isLocked = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if !isLocked {
+            isLocked = true
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        if waiters.isEmpty {
+            isLocked = false
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
+}
+
+protocol SubscriptionHTTPDataLoading {
+    func data(
+        for request: URLRequest,
+        dnsOverHTTPSURL: URL?
+    ) async throws -> (Data, URLResponse)
+}
+
+struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
+    private static let gate = SubscriptionRequestGate()
+
+    func data(
+        for request: URLRequest,
+        dnsOverHTTPSURL: URL?
+    ) async throws -> (Data, URLResponse) {
+        await Self.gate.acquire()
+        if let dnsOverHTTPSURL { applyDNSOverHTTPS(dnsOverHTTPSURL) }
+
+        do {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+            let session = URLSession(configuration: configuration)
+            let result = try await session.data(for: request)
+            session.finishTasksAndInvalidate()
+            if dnsOverHTTPSURL != nil { resetDNS() }
+            await Self.gate.release()
+            return result
+        } catch {
+            if dnsOverHTTPSURL != nil { resetDNS() }
+            await Self.gate.release()
+            throw error
+        }
+    }
+
+    private func applyDNSOverHTTPS(_ url: URL) {
+        let context = NWParameters.PrivacyContext.default
+        context.requireEncryptedNameResolution(
+            true,
+            fallbackResolver: .https(url, serverAddresses: [])
+        )
+        context.flushCache()
+    }
+
+    private func resetDNS() {
+        let context = NWParameters.PrivacyContext.default
+        context.requireEncryptedNameResolution(
+            false,
+            fallbackResolver: nil
+        )
+        context.flushCache()
     }
 }
 
@@ -169,9 +316,10 @@ struct SubscriptionParser {
 
         if text.contains("proxies:") {
             let parsed = parseClashYAML(text, sourceID: sourceID)
-            let notices = parsed.nodes.filter { Self.isNotice($0) }.map(\.name)
+            let marked = parsed.nodes.map(markingSubscriptionMetadata)
+            let notices = marked.filter { $0.isSubscriptionMetadata == true }.map(\.name)
             return .init(
-                nodes: deduplicated(parsed.nodes.filter { !Self.isNotice($0) }),
+                nodes: deduplicated(marked),
                 rejectedLineCount: parsed.rejectedLineCount,
                 notices: notices,
                 status: notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
@@ -204,10 +352,10 @@ struct SubscriptionParser {
                 rejected += 1
             }
         }
-        let notices = nodes.filter { Self.isNotice($0) }.map(\.name)
-        let real = nodes.filter { !Self.isNotice($0) }
+        let marked = nodes.map(markingSubscriptionMetadata)
+        let notices = marked.filter { $0.isSubscriptionMetadata == true }.map(\.name)
         return .init(
-            nodes: deduplicated(real),
+            nodes: deduplicated(marked),
             rejectedLineCount: rejected,
             notices: notices,
             // Other panels write the same line in as a node remark.
@@ -224,7 +372,10 @@ struct SubscriptionParser {
         if lowercased.hasPrefix("ss://") { return parseShadowsocks(value, sourceID: sourceID) }
         if lowercased.hasPrefix("ssr://") { return parseShadowsocksR(value, sourceID: sourceID) }
         if lowercased.hasPrefix("vmess://") { return parseVMess(value, sourceID: sourceID) }
-        if lowercased.hasPrefix("vless://") { return parseStandardURL(value, kind: .vless, sourceID: sourceID) }
+        if lowercased.hasPrefix("vless://") {
+            return parseStandardURL(value, kind: .vless, sourceID: sourceID)
+                ?? parseLegacyVLESS(value, sourceID: sourceID)
+        }
         if lowercased.hasPrefix("trojan://") { return parseStandardURL(value, kind: .trojan, sourceID: sourceID) }
         if lowercased.hasPrefix("anytls://") { return parseStandardURL(value, kind: .anytls, sourceID: sourceID) }
         if lowercased.hasPrefix("hysteria2://") || lowercased.hasPrefix("hy2://") {
@@ -487,6 +638,72 @@ struct SubscriptionParser {
         )
     }
 
+    /// `vless://base64(uuid@host:port)?remarks=…&tls=1&pbk=…&xtls=2`.
+    ///
+    /// Shadowrocket exports this endpoint-only Base64 dialect instead of the
+    /// standard VLESS URL authority form. Its REALITY option names also differ
+    /// from the Xray vocabulary used by standard VLESS links.
+    private func parseLegacyVLESS(_ raw: String, sourceID: UUID?) -> ProxyNode? {
+        var body = String(raw.dropFirst("vless://".count))
+        let fragmentName: String?
+        if let fragment = body.firstIndex(of: "#") {
+            fragmentName = String(body[body.index(after: fragment)...]).removingPercentEncoding
+            body = String(body[..<fragment])
+        } else {
+            fragmentName = nil
+        }
+
+        let parts = body.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        guard let decoded = decodeBase64String(String(parts[0])),
+              let atIndex = decoded.lastIndex(of: "@") else { return nil }
+        let rawUUID = String(decoded[..<atIndex])
+        let uuid = rawUUID.hasPrefix(":") ? String(rawUUID.dropFirst()) : rawUUID
+        guard !uuid.isEmpty,
+              let address = parseEndpoint(String(decoded[decoded.index(after: atIndex)...])) else {
+            return nil
+        }
+
+        let rawQuery = parts.count > 1 ? queryDictionary(String(parts[1])) : [:]
+        let query = Dictionary(rawQuery.map { ($0.key.lowercased(), $0.value) }) { _, new in new }
+        let realityPublicKey = query["pbk"]?.removingPercentEncoding
+        let tlsValue = (query["security"] ?? query["tls"] ?? "").lowercased()
+        let rawTransport = (query["type"] ?? query["network"] ?? query["obfs"])?
+            .removingPercentEncoding?.lowercased()
+        let transport: String? = switch rawTransport {
+        case "websocket", "ws": "ws"
+        case "none", "tcp", "": nil
+        default: rawTransport
+        }
+        let flow = query["flow"]?.removingPercentEncoding
+            ?? (query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
+        let name = query["remarks"]?.removingPercentEncoding ?? fragmentName
+
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .vless,
+            name: normalizedName(name, fallback: address.host),
+            server: address.host,
+            port: address.port,
+            uuid: uuid,
+            transport: transport,
+            tls: !((realityPublicKey ?? "").isEmpty)
+                || ["1", "true", "tls", "reality"].contains(tlsValue),
+            sni: (query["peer"] ?? query["sni"] ?? query["servername"])?
+                .removingPercentEncoding,
+            hostHeader: query["host"]?.removingPercentEncoding,
+            path: query["path"]?.removingPercentEncoding,
+            alpn: query["alpn"]?.removingPercentEncoding,
+            realityPublicKey: realityPublicKey,
+            realityShortID: query["sid"]?.removingPercentEncoding,
+            fingerprint: (query["fingerprint"] ?? query["fp"])?.removingPercentEncoding,
+            flow: flow,
+            skipCertificateVerification: ["1", "true"].contains(
+                query["allowinsecure"]?.lowercased() ?? query["insecure"]?.lowercased() ?? ""
+            ),
+            rawURI: raw
+        )
+    }
+
     private func parseStandardURL(_ raw: String, kind: ProxyKind, sourceID: UUID?) -> ProxyNode? {
         var normalized = raw
         if normalized.lowercased().hasPrefix("hy2://") {
@@ -529,6 +746,17 @@ struct SubscriptionParser {
             fingerprint: query["fp"],
             flow: query["flow"],
             skipCertificateVerification: ["1", "true"].contains(query["allowinsecure"] ?? query["insecure"] ?? ""),
+            obfs: kind == .hysteria2 ? query["obfs"] : nil,
+            obfsParam: kind == .hysteria2 ? query["obfs-password"] ?? query["obfspassword"] : nil,
+            idleSessionCheckInterval: kind == .anytls
+                ? Int(query["idle-session-check-interval"] ?? query["idlesessioncheckinterval"] ?? "")
+                : nil,
+            idleSessionTimeout: kind == .anytls
+                ? Int(query["idle-session-timeout"] ?? query["idlesessiontimeout"] ?? "")
+                : nil,
+            minIdleSession: kind == .anytls
+                ? Int(query["min-idle-session"] ?? query["minidlesession"] ?? "")
+                : nil,
             rawURI: raw
         )
     }
@@ -593,6 +821,11 @@ struct SubscriptionParser {
             }
 
             let server = normalizedHost(rawServer)
+            // The deliberately small YAML reader above flattens nested maps.
+            // Keep the parent marker so a generic `public-key` is only treated
+            // as REALITY when it actually came from `reality-opts`.
+            let hasRealityOptions = dictionary.keys.contains("reality-opts")
+                || dictionary["security"]?.lowercased() == "reality"
             nodes.append(ProxyNode(
                 sourceID: sourceID,
                 kind: kind,
@@ -609,6 +842,16 @@ struct SubscriptionParser {
                 hostHeader: dictionary["host"],
                 path: dictionary["path"],
                 alpn: dictionary["alpn"],
+                realityPublicKey: hasRealityOptions
+                    ? dictionary["public-key"] ?? dictionary["pbk"]
+                    : nil,
+                realityShortID: hasRealityOptions
+                    ? clashYAMLScalar(dictionary["short-id"] ?? dictionary["sid"])
+                    : nil,
+                fingerprint: dictionary["client-fingerprint"]
+                    ?? dictionary["fingerprint"]
+                    ?? dictionary["fp"],
+                flow: dictionary["flow"],
                 skipCertificateVerification: boolString(dictionary["skip-cert-verify"]),
                 alterID: Int(dictionary["alterid"] ?? dictionary["alter-id"] ?? ""),
                 protocolName: dictionary["protocol"],
@@ -622,6 +865,21 @@ struct SubscriptionParser {
             nodes: nodes,
             rejectedLineCount: dictionaries.isEmpty ? 1 : rejected
         )
+    }
+
+    /// Clash producers occasionally encode a single REALITY short id as a
+    /// one-element YAML array. ProxyNode stores the protocol value itself.
+    private func clashYAMLScalar(_ value: String?) -> String? {
+        guard var value else { return nil }
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("["), value.hasSuffix("]") {
+            value = String(value.dropFirst().dropLast())
+                .split(separator: ",", maxSplits: 1)
+                .first
+                .map(String.init) ?? ""
+        }
+        value = value.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'"))
+        return value.isEmpty ? nil : value
     }
 
     private func parseInlineYAMLMap(_ value: String) -> [String: String] {
@@ -762,6 +1020,17 @@ struct SubscriptionParser {
 
     private func deduplicated(_ nodes: [ProxyNode]) -> [ProxyNode] {
         var seen = Set<String>()
-        return nodes.filter { seen.insert($0.canonicalKey).inserted }
+        return nodes.filter { node in
+            let key = node.isSubscriptionMetadata == true
+                ? "\(node.canonicalKey)|metadata|\(node.name.lowercased())"
+                : node.canonicalKey
+            return seen.insert(key).inserted
+        }
+    }
+
+    private func markingSubscriptionMetadata(_ node: ProxyNode) -> ProxyNode {
+        var marked = node
+        marked.isSubscriptionMetadata = Self.isNotice(node)
+        return marked
     }
 }
