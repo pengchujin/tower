@@ -101,4 +101,117 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertEqual(result.nodes[0].hostHeader, "cdn.example.com")
         XCTAssertEqual(result.nodes[0].alterID, 0)
     }
+
+    func testParsesClashNameserverPolicyScalarsAndLists() {
+        let yaml = """
+        dns:
+          enable: true
+          nameserver-policy:
+            "geosite:cn,private":
+              - https://dns.alidns.com/dns-query
+              - "https://doh.pub/dns-query"
+            '+.example.com': 'tls://1.1.1.1'
+            "geosite:geolocation-!cn": [https://1.1.1.1/dns-query, "https://8.8.8.8/dns-query"]
+        proxies:
+          - { name: HK, type: ss, server: hk.example.com, port: 8388, cipher: aes-256-gcm, password: secret }
+        """
+
+        let result = SubscriptionParser().parse(data: Data(yaml.utf8))
+        let expected: [NameserverPolicyEntry] = [
+            .init(
+                matcher: "geosite:cn,private",
+                nameservers: ["https://dns.alidns.com/dns-query", "https://doh.pub/dns-query"]
+            ),
+            .init(matcher: "+.example.com", nameservers: ["tls://1.1.1.1"]),
+            .init(
+                matcher: "geosite:geolocation-!cn",
+                nameservers: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"]
+            )
+        ]
+
+        XCTAssertEqual(result.dnsConfiguration?.nameserverPolicy, expected)
+        XCTAssertEqual(
+            SubscriptionParser().parseDNSConfiguration(data: Data(yaml.utf8)),
+            result.dnsConfiguration,
+            "Clash 元数据探测不需要采用探测响应中的节点"
+        )
+    }
+
+    func testParsesEveryFieldOfTheDNSBlock() {
+        let yaml = """
+        dns:
+          enable: false
+          default-nameserver:
+            - 223.5.5.5
+          nameserver: [https://dns.alidns.com/dns-query, "https://1.1.1.1/dns-query"]
+          fallback:
+            - 'https://dns.google/dns-query'
+          nameserver-policy:
+            "geosite:cn": https://doh.pub/dns-query
+          proxy-server-nameserver:
+            - tls://1.1.1.1
+          proxy-server-nameserver-policy:
+            '+.example.com':
+              - https://dns.alidns.com/dns-query
+        proxies:
+          - { name: HK, type: ss, server: hk.example.com, port: 8388, cipher: aes-256-gcm, password: secret }
+        """
+
+        let config = SubscriptionParser().parse(data: Data(yaml.utf8)).dnsConfiguration
+        let expected = SubscriptionDNSConfiguration(
+            enable: false,
+            defaultNameservers: ["223.5.5.5"],
+            nameservers: ["https://dns.alidns.com/dns-query", "https://1.1.1.1/dns-query"],
+            fallbacks: ["https://dns.google/dns-query"],
+            nameserverPolicy: [.init(matcher: "geosite:cn", nameservers: ["https://doh.pub/dns-query"])],
+            proxyServerNameservers: ["tls://1.1.1.1"],
+            proxyServerNameserverPolicy: [
+                .init(matcher: "+.example.com", nameservers: ["https://dns.alidns.com/dns-query"])
+            ]
+        )
+
+        XCTAssertEqual(config, expected)
+    }
+
+    func testDNSBlockInlineCommentsAreStrippedButURLFragmentsSurvive() {
+        let yaml = """
+        dns:
+          enable: true # enabled by the airport
+          nameserver:
+            - https://dns.alidns.com/dns-query#probe
+          nameserver-policy:
+            "geosite:cn": https://doh.pub/dns-query # domestic
+        proxies:
+          - { name: HK, type: ss, server: hk.example.com, port: 8388, cipher: aes-256-gcm, password: secret }
+        """
+
+        let config = SubscriptionParser().parse(data: Data(yaml.utf8)).dnsConfiguration
+        XCTAssertEqual(config?.enable, true)
+        XCTAssertEqual(config?.nameservers, ["https://dns.alidns.com/dns-query#probe"])
+        XCTAssertEqual(
+            config?.nameserverPolicy,
+            [.init(matcher: "geosite:cn", nameservers: ["https://doh.pub/dns-query"])]
+        )
+    }
+
+    func testUnknownDNSBlockFieldsAndIgnoredExtensionsAreDropped() {
+        let yaml = """
+        dns:
+          enable: true
+          enhanced-mode: fake-ip
+          fake-ip-range: 198.18.0.1/16
+          respect-rules: false
+          nameserver:
+            - 223.5.5.5
+        proxies:
+          - { name: HK, type: ss, server: hk.example.com, port: 8388, cipher: aes-256-gcm, password: secret }
+        """
+
+        let config = SubscriptionParser().parse(data: Data(yaml.utf8)).dnsConfiguration
+        XCTAssertEqual(config?.enable, true)
+        XCTAssertEqual(config?.nameservers, ["223.5.5.5"])
+        // Out-of-scope extensions do not leak into the model.
+        XCTAssertTrue(config?.fallbacks.isEmpty ?? false)
+        XCTAssertTrue(config?.proxyServerNameservers.isEmpty ?? false)
+    }
 }

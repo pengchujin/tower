@@ -185,6 +185,17 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 - 地图右上角的整体测速按钮已移除；逐节点测速仍在展开后的节点详情里。
 - 订阅套餐流量：按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表公告行取值。节点始终以订阅原地址返回体为准，`flag=clash` 只在缺结构化配额时补发一次且只读响应头——机场的 Clash 转换器会丢掉它表达不了的协议（实测少 12 个 AnyTLS 节点）。
 
+## 1.5 2026-08-09 跨客户端 DNS Policy 转换
+
+实现 `docs/dns-policy-conversion-plan.md`，订阅携带的 Clash `dns:` 块不再被丢弃，而是按各客户端原生语法做保守转换：
+
+- 解析并持久化 `SubscriptionDNSConfiguration`：`enable`、`default-nameserver`、`nameserver`、`fallback`、`nameserver-policy`、`proxy-server-nameserver`、`proxy-server-nameserver-policy`。普通订阅响应和 `flag=clash` 探测响应都提取 DNS；探测响应仍只读元数据，绝不采用其转换出的节点列表。
+- 多订阅按列表顺序合并：全局字段取首个非空值（不混合不同机场的上游），相同 matcher 取先出现的一条。禁用订阅立即退出合并；生成缓存键新增 `dnsHash`，开关订阅自动使缓存失效。
+- 七目标转换（内置 preset 与导入 scheme 共用同一套渲染）：Stash 原生输出；Surge/Shadowrocket/Loon 转 `dns-server`/`doh-server` 等键及 `[Host] domain = server:…`；QuanX 转 `[dns] server`/`doh-server`/`doq-server` 与 `/pattern/resolver` 域名绑定；Egern 转 `bootstrap`/`upstreams`/`forward`/`proxy_nameservers`（含兜底 `.*` 规则，否则主 upstream 组永远不会被查询）；Hiddify 转 `dns.servers`/`dns.rules`，并用节点 outbound 的 `domain_resolver` 应用代理 DNS。
+- 只转换 exact、`+.`、`*.` matcher；`geosite:*` 只在 Stash 保留。协议或条目目标无法表达时跳过并产生结构化 `conversionWarnings`（如 Surge 不认 DoT、Stash 不输出 Mihomo 专属 proxy 字段），导出摘要展示且不阻塞预览/复制/导入。
+- 机场未提供 DNS 时各目标保持原有硬编码默认值；`+.` 与 `*.` 的 apex 语义在能区分的目标（sing-box）上忠实保留。DNS 文本按目标格式经 `yaml()`/`confName`/`confValue`/JSON 转义，防止注入新配置段。
+- 测试：`DNSConversionTests`（18 条）覆盖七目标、两种生成路径、geosite 边界、协议不支持警告、警告去重与注入防护；解析器测试覆盖全字段、行内注释、URL fragment 与范围外字段忽略。全量 310 条测试通过。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页

@@ -74,6 +74,33 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(cache[currentKey]?.target, .loon)
     }
 
+    /// Disabling a subscription changes the merged DNS metadata, so the cache
+    /// key must differ and the old configuration must no longer be served.
+    func testGenerationCacheInvalidatesWhenDNSConfigurationChanges() {
+        var cache = ConfigurationCache()
+        let withDNS = GenerationCacheKey(
+            target: .clash,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            dnsHash: 42
+        )
+        let withoutDNS = GenerationCacheKey(
+            target: .clash,
+            presetID: "rules",
+            nodesHash: 1,
+            countryCodesHash: 1,
+            dnsHash: 0
+        )
+
+        cache[withDNS] = configuration(for: .clash)
+        cache[withoutDNS] = configuration(for: .clash)
+
+        XCTAssertEqual(cache.count, 2)
+        XCTAssertNotNil(cache[withDNS])
+        XCTAssertNotNil(cache[withoutDNS])
+    }
+
     private func configuration(for target: ClientTarget) -> GeneratedConfiguration {
         GeneratedConfiguration(
             target: target,

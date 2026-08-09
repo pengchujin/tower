@@ -33,24 +33,27 @@ struct SubscriptionService {
 
         var result = try await load(url, source: source)
 
-        // The node list is authoritative for nodes; only the quota may be
-        // missing from it. Airports that answer `flag=clash` send a
-        // `subscription-userinfo` header, so a second request fills the gap —
-        // but its body is not used, because the panel's Clash converter drops
-        // whatever it cannot express. One real airport returns 43 of its 55
-        // nodes that way, silently losing every AnyTLS entry.
-        if result.usage?.hasPlanDetail != true, let probe = Self.quotaProbe(for: url) {
-            if let usage = try? await quota(at: probe) {
+        // The first response remains authoritative for nodes. A `flag=clash`
+        // probe can fill missing quota and DNS metadata, but its converted node
+        // list is never adopted: one real airport drops every AnyTLS entry and
+        // returns only 43 of its 55 nodes in that dialect.
+        if result.usage?.hasPlanDetail != true || result.dnsConfiguration == nil,
+           let probe = Self.quotaProbe(for: url),
+           let metadata = try? await clashMetadata(at: probe) {
+            if result.usage?.hasPlanDetail != true, let usage = metadata.usage {
                 var merged = usage
                 merged.notices = result.usage?.notices ?? []
                 result.usage = merged
+            }
+            if result.dnsConfiguration == nil {
+                result.dnsConfiguration = metadata.dnsConfiguration
             }
         }
         return result
     }
 
-    /// The same subscription asked for in Clash's dialect, purely to read the
-    /// quota header. `nil` when the caller already pinned a flag themselves.
+    /// The same subscription asked for in Clash's dialect to read its quota
+    /// header and DNS policy. `nil` when the caller pinned a flag themselves.
     private static func quotaProbe(for url: URL) -> URL? {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return nil
@@ -61,19 +64,26 @@ struct SubscriptionService {
         return components.url
     }
 
-    private func quota(at url: URL) async throws -> SubscriptionUsage {
+    private func clashMetadata(at url: URL) async throws -> ClashMetadata {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
-              (200..<300).contains(httpResponse.statusCode),
-              let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo"),
-              let usage = SubscriptionUsage.parse(header: header) else {
+              (200..<300).contains(httpResponse.statusCode) else {
             throw SubscriptionError.badResponse
         }
-        return usage
+        let usage = httpResponse.value(forHTTPHeaderField: "subscription-userinfo")
+            .flatMap(SubscriptionUsage.parse(header:))
+        let dns = parser.parseDNSConfiguration(data: data)
+        guard usage != nil || dns != nil else { throw SubscriptionError.badResponse }
+        return ClashMetadata(usage: usage, dnsConfiguration: dns)
+    }
+
+    private struct ClashMetadata {
+        let usage: SubscriptionUsage?
+        let dnsConfiguration: SubscriptionDNSConfiguration?
     }
 
     private static let userAgent = "Tower/1.0 (iOS; local subscription converter)"
@@ -105,7 +115,8 @@ struct SubscriptionService {
         return ImportResult(
             nodes: parsed.nodes,
             rejectedLineCount: parsed.rejectedLineCount,
-            usage: usage.isEmpty ? nil : usage
+            usage: usage.isEmpty ? nil : usage,
+            dnsConfiguration: parsed.dnsConfiguration
         )
     }
 }
@@ -120,6 +131,8 @@ struct SubscriptionParser {
         /// Quota read from a `STATUS=` line at the head of the list, for the
         /// panels that put it there instead of in the response header.
         var status: SubscriptionUsage?
+        /// DNS metadata from a `dns:` block, when the subscription carries one.
+        var dnsConfiguration: SubscriptionDNSConfiguration?
     }
 
     /// Names that are an announcement rather than a node.
@@ -174,7 +187,8 @@ struct SubscriptionParser {
                 nodes: deduplicated(parsed.nodes.filter { !Self.isNotice($0) }),
                 rejectedLineCount: parsed.rejectedLineCount,
                 notices: notices,
-                status: notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
+                status: notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first,
+                dnsConfiguration: parsed.dnsConfiguration
             )
         }
 
@@ -213,6 +227,15 @@ struct SubscriptionParser {
             // Other panels write the same line in as a node remark.
             status: status ?? notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
         )
+    }
+
+    /// Lightweight metadata-only path for the Clash probe. In particular this
+    /// does not make its converted proxy list authoritative. Returns `nil` when
+    /// the probe carries no `dns:` block.
+    func parseDNSConfiguration(data: Data) -> SubscriptionDNSConfiguration? {
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        let config = parseDNSConfiguration(in: text.components(separatedBy: .newlines))
+        return config.isEmpty ? nil : config
     }
 
     func parseURI(_ rawValue: String, sourceID: UUID? = nil) -> ProxyNode? {
@@ -620,8 +643,170 @@ struct SubscriptionParser {
         }
         return .init(
             nodes: nodes,
-            rejectedLineCount: dictionaries.isEmpty ? 1 : rejected
+            rejectedLineCount: dictionaries.isEmpty ? 1 : rejected,
+            dnsConfiguration: parseDNSConfiguration(in: lines)
         )
+    }
+
+    /// Reads the `dns:` block emitted by Clash/Mihomo subscription converters:
+    ///
+    ///     dns:
+    ///       enable: true
+    ///       nameserver:
+    ///         - https://dns.alidns.com/dns-query
+    ///       nameserver-policy:
+    ///         "geosite:cn":
+    ///           - https://dns.alidns.com/dns-query
+    ///
+    /// Only the fields Tower re-emits are collected; `fake-ip`, `fallback-filter`
+    /// and friends are out of scope. Matchers contain colons surprisingly often,
+    /// so the key/value separator is found outside quotes rather than with
+    /// `firstIndex(of: ":")`.
+    private func parseDNSConfiguration(in lines: [String]) -> SubscriptionDNSConfiguration {
+        guard let start = lines.firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines) == "dns:"
+        }) else { return .init() }
+        let baseIndent = indentation(of: lines[start])
+
+        var config = SubscriptionDNSConfiguration()
+        var key: String?
+        var keyIndent = 0
+        var list: [String] = []
+        var policy: [NameserverPolicyEntry] = []
+        var matcher: String?
+        var matcherValues: [String] = []
+        var matcherIndent = 0
+
+        func finishMatcher() {
+            guard let currentMatcher = matcher, !currentMatcher.isEmpty, !matcherValues.isEmpty else { return }
+            policy.append(.init(matcher: currentMatcher, nameservers: matcherValues))
+            matcher = nil
+            matcherValues = []
+            matcherIndent = 0
+        }
+
+        func commit() {
+            guard let currentKey = key else { return }
+            finishMatcher()
+            switch currentKey {
+            case "enable": config.enable = list.first?.lowercased() == "true"
+            case "default-nameserver": config.defaultNameservers = list
+            case "nameserver": config.nameservers = list
+            case "fallback": config.fallbacks = list
+            case "nameserver-policy": config.nameserverPolicy = policy
+            case "proxy-server-nameserver": config.proxyServerNameservers = list
+            case "proxy-server-nameserver-policy": config.proxyServerNameserverPolicy = policy
+            default: break
+            }
+            key = nil
+            list = []
+            policy = []
+        }
+
+        for rawLine in lines.dropFirst(start + 1) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
+            let indent = indentation(of: rawLine)
+            if indent <= baseIndent { break }
+
+            if !trimmed.hasPrefix("-"), let pair = splitYAMLPair(trimmed) {
+                if indent <= keyIndent, key != nil { commit() }
+                // An inline `# comment` must not become part of a key or value;
+                // a fragment attached to a URL (`dns-query#probe`) has no space
+                // before the hash and survives.
+                let keyText = strippingInlineComment(pair.0)
+                let valueText = strippingInlineComment(pair.1)
+                if indent <= baseIndent + 2 {
+                    // A field of the dns block itself.
+                    key = unquoted(keyText).lowercased()
+                    keyIndent = indent
+                    list = yamlStringList(valueText)
+                } else {
+                    // A matcher inside nameserver-policy (or its proxy twin).
+                    finishMatcher()
+                    matcher = unquoted(keyText)
+                    matcherValues = yamlStringList(valueText)
+                    matcherIndent = indent
+                }
+            } else if indent > keyIndent, trimmed.hasPrefix("-") {
+                let raw = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+                let value = unquoted(strippingInlineComment(raw))
+                if value.isEmpty { continue }
+                if matcher != nil, indent > matcherIndent {
+                    matcherValues.append(value)
+                } else {
+                    list.append(value)
+                }
+            }
+        }
+        commit()
+        return config
+    }
+
+    private func indentation(of line: String) -> Int {
+        line.prefix { $0 == " " || $0 == "\t" }.count
+    }
+
+    /// YAML allows a `# comment` after a value on the same line. It must not
+    /// leak into a key or resolver; a URL fragment (`#probe`) has no space
+    /// before the hash and is kept.
+    private func strippingInlineComment(_ value: String) -> String {
+        guard let range = value.range(of: " #") else { return value }
+        return String(value[..<range.lowerBound])
+    }
+
+    private func yamlStringList(_ raw: String) -> [String] {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.hasPrefix("["), value.hasSuffix("]") else {
+            let scalar = unquoted(value)
+            return scalar.isEmpty ? [] : [scalar]
+        }
+        return splitYAMLValues(String(value.dropFirst().dropLast())).map(unquoted).filter { !$0.isEmpty }
+    }
+
+    private func splitYAMLValues(_ value: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        var quote: Character?
+        for character in value {
+            if character == "\"" || character == "'" {
+                if quote == character { quote = nil }
+                else if quote == nil { quote = character }
+            }
+            if character == ",", quote == nil {
+                result.append(current.trimmingCharacters(in: .whitespaces))
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        if !current.isEmpty { result.append(current.trimmingCharacters(in: .whitespaces)) }
+        return result
+    }
+
+    private func unquoted(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2,
+              let first = trimmed.first,
+              first == trimmed.last,
+              first == "\"" || first == "'" else { return trimmed }
+        return String(trimmed.dropFirst().dropLast())
+    }
+
+    private func splitYAMLPair(_ value: String) -> (String, String)? {
+        var quote: Character?
+        for index in value.indices {
+            let character = value[index]
+            if character == "\"" || character == "'" {
+                if quote == character { quote = nil }
+                else if quote == nil { quote = character }
+            } else if character == ":", quote == nil {
+                let key = String(value[..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let next = value.index(after: index)
+                return key.isEmpty ? nil : (key, String(value[next...]).trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+        }
+        return nil
     }
 
     private func parseInlineYAMLMap(_ value: String) -> [String: String] {
@@ -650,11 +835,8 @@ struct SubscriptionParser {
     }
 
     private func parseYAMLPair(_ value: String) -> (String, String)? {
-        guard let separator = value.firstIndex(of: ":") else { return nil }
-        let key = value[..<separator].trimmingCharacters(in: .whitespacesAndNewlines)
-        let raw = value[value.index(after: separator)...].trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleaned = raw.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-        return key.isEmpty ? nil : (key.lowercased(), cleaned)
+        guard let pair = splitYAMLPair(value) else { return nil }
+        return (unquoted(pair.0).lowercased(), unquoted(pair.1))
     }
 
     private func clashKind(_ value: String) -> ProxyKind? {

@@ -222,6 +222,21 @@ final class SubscriptionUsageTests: XCTestCase {
         XCTAssertEqual(restored.usage?.notices, ["剩余流量：50 GB"])
     }
 
+    func testNameserverPolicySurvivesEncoding() throws {
+        let source = SubscriptionSource(
+            name: "Airport",
+            urlString: "https://example.com/sub",
+            dnsConfiguration: SubscriptionDNSConfiguration(nameserverPolicy: [
+                .init(matcher: "geosite:cn", nameservers: ["https://dns.alidns.com/dns-query"])
+            ])
+        )
+
+        let data = try JSONEncoder().encode(source)
+        let restored = try JSONDecoder().decode(SubscriptionSource.self, from: data)
+
+        XCTAssertEqual(restored.dnsConfiguration, source.dnsConfiguration)
+    }
+
     func testSourceSavedBeforeThisFeatureStillDecodes() throws {
         let legacy = """
         {
@@ -236,5 +251,49 @@ final class SubscriptionUsageTests: XCTestCase {
         let restored = try JSONDecoder().decode(SubscriptionSource.self, from: Data(legacy.utf8))
 
         XCTAssertNil(restored.usage)
+        XCTAssertNil(restored.dnsConfiguration)
+    }
+
+    func testDNSMergeFirstNonEmptyWinsPerGlobalField() {
+        let first = SubscriptionDNSConfiguration(
+            defaultNameservers: ["223.5.5.5"],
+            nameservers: ["https://dns.alidns.com/dns-query"]
+        )
+        let second = SubscriptionDNSConfiguration(
+            defaultNameservers: ["1.1.1.1"],
+            nameservers: ["https://1.1.1.1/dns-query"],
+            fallbacks: ["https://dns.google/dns-query"]
+        )
+
+        let merged = SubscriptionDNSConfiguration.merged([first, second])
+
+        XCTAssertEqual(merged?.defaultNameservers, ["223.5.5.5"])
+        XCTAssertEqual(merged?.nameservers, ["https://dns.alidns.com/dns-query"])
+        XCTAssertEqual(merged?.fallbacks, ["https://dns.google/dns-query"])
+    }
+
+    func testDNSMergeFirstOccurrenceWinsPerMatcher() {
+        let first = SubscriptionDNSConfiguration(nameserverPolicy: [
+            .init(matcher: "geosite:cn", nameservers: ["https://dns.alidns.com/dns-query"])
+        ])
+        let second = SubscriptionDNSConfiguration(nameserverPolicy: [
+            .init(matcher: "geosite:cn", nameservers: ["https://8.8.8.8/dns-query"]),
+            .init(matcher: "+.example.com", nameservers: ["tls://1.1.1.1"])
+        ])
+
+        let merged = SubscriptionDNSConfiguration.merged([first, second])
+
+        XCTAssertEqual(merged?.nameserverPolicy, [
+            .init(matcher: "geosite:cn", nameservers: ["https://dns.alidns.com/dns-query"]),
+            .init(matcher: "+.example.com", nameservers: ["tls://1.1.1.1"])
+        ])
+    }
+
+    func testDNSMergeOfEmptyConfigsIsNil() {
+        XCTAssertNil(SubscriptionDNSConfiguration.merged([]))
+        XCTAssertNil(SubscriptionDNSConfiguration.merged([
+            SubscriptionDNSConfiguration(),
+            SubscriptionDNSConfiguration()
+        ]))
     }
 }

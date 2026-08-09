@@ -35,6 +35,10 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
     var lastError: String?
     /// Plan usage reported by the airport, when it reports any.
     var usage: SubscriptionUsage?
+    /// The Clash `dns:` block the airport supplied. Tower carries this metadata
+    /// into generated configurations instead of silently discarding it; the
+    /// node list from the subscription remains authoritative.
+    var dnsConfiguration: SubscriptionDNSConfiguration?
 
     init(
         id: UUID = UUID(),
@@ -44,7 +48,8 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
         createdAt: Date = .now,
         lastUpdatedAt: Date? = nil,
         lastError: String? = nil,
-        usage: SubscriptionUsage? = nil
+        usage: SubscriptionUsage? = nil,
+        dnsConfiguration: SubscriptionDNSConfiguration? = nil
     ) {
         self.id = id
         self.name = name
@@ -54,10 +59,78 @@ struct SubscriptionSource: Identifiable, Codable, Hashable {
         self.lastUpdatedAt = lastUpdatedAt
         self.lastError = lastError
         self.usage = usage
+        self.dnsConfiguration = dnsConfiguration
     }
 
     var safeHost: String {
         URL(string: urlString)?.host ?? "私密订阅"
+    }
+}
+
+struct NameserverPolicyEntry: Codable, Hashable, Sendable {
+    let matcher: String
+    let nameservers: [String]
+}
+
+/// The `dns:` block a Clash/Mihomo subscription carries, read verbatim and
+/// re-emitted per target. The node list stays authoritative; this is metadata
+/// Tower would otherwise silently discard. Fields absent from the airport's
+/// block stay empty and fall back to each target's built-in defaults.
+struct SubscriptionDNSConfiguration: Codable, Hashable, Sendable {
+    /// `enable`
+    var enable: Bool? = nil
+    /// `default-nameserver` — plain resolvers used to bootstrap the DoH/DoT
+    /// server hostnames in `nameservers`.
+    var defaultNameservers: [String] = []
+    /// `nameserver` — the resolvers ordinary domains are sent to.
+    var nameservers: [String] = []
+    /// `fallback` — resolvers used when the primary group fails.
+    var fallbacks: [String] = []
+    /// `nameserver-policy` — matcher to resolver routing.
+    var nameserverPolicy: [NameserverPolicyEntry] = []
+    /// `proxy-server-nameserver` — resolvers for proxy node hostnames.
+    var proxyServerNameservers: [String] = []
+    /// `proxy-server-nameserver-policy` — per-matcher proxy node resolution.
+    var proxyServerNameserverPolicy: [NameserverPolicyEntry] = []
+
+    var isEmpty: Bool {
+        defaultNameservers.isEmpty && nameservers.isEmpty && fallbacks.isEmpty
+            && nameserverPolicy.isEmpty && proxyServerNameservers.isEmpty
+            && proxyServerNameserverPolicy.isEmpty
+    }
+
+    /// Multi-subscription merge in list order. Every global field keeps its
+    /// first non-empty value (upstream servers from different airports are
+    /// never mixed), and each matcher keeps the first policy that mentions it.
+    /// Disabled subscriptions never reach this point.
+    static func merged(_ configs: [SubscriptionDNSConfiguration]) -> SubscriptionDNSConfiguration? {
+        var result = SubscriptionDNSConfiguration()
+        for config in configs {
+            if result.enable == nil { result.enable = config.enable }
+            if result.defaultNameservers.isEmpty { result.defaultNameservers = config.defaultNameservers }
+            if result.nameservers.isEmpty { result.nameservers = config.nameservers }
+            if result.fallbacks.isEmpty { result.fallbacks = config.fallbacks }
+            if result.proxyServerNameservers.isEmpty { result.proxyServerNameservers = config.proxyServerNameservers }
+            result.nameserverPolicy = Self.mergePolicies(result.nameserverPolicy, config.nameserverPolicy)
+            result.proxyServerNameserverPolicy = Self.mergePolicies(
+                result.proxyServerNameserverPolicy,
+                config.proxyServerNameserverPolicy
+            )
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func mergePolicies(
+        _ current: [NameserverPolicyEntry],
+        _ incoming: [NameserverPolicyEntry]
+    ) -> [NameserverPolicyEntry] {
+        var result = current
+        var seen = Set(current.map(\.matcher))
+        for entry in incoming where !seen.contains(entry.matcher) {
+            seen.insert(entry.matcher)
+            result.append(entry)
+        }
+        return result
     }
 }
 
@@ -832,6 +905,9 @@ struct ImportResult: Sendable {
     let nodes: [ProxyNode]
     let rejectedLineCount: Int
     var usage: SubscriptionUsage?
+    /// DNS metadata parsed from the subscription body. `nil` when the airport
+    /// shipped none, which keeps every generator on its built-in defaults.
+    var dnsConfiguration: SubscriptionDNSConfiguration?
 }
 
 struct GeneratedConfiguration {
@@ -840,6 +916,10 @@ struct GeneratedConfiguration {
     let supportedNodeCount: Int
     let skippedNodeCount: Int
     let ruleCount: Int
+    /// DNS entries that could not be carried into this target's format,
+    /// deduplicated and shown in the export summary. Never blocks preview,
+    /// copy or import.
+    var conversionWarnings: [String] = []
 
     var fileName: String {
         "塔台-\(target.name)-\(Self.timestamp).\(target.fileExtension)"
