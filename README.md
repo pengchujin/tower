@@ -11,6 +11,7 @@
 ## 当前能力
 
 - 添加、启用、更新和删除 HTTPS 订阅
+- 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、AnyTLS、Snell、SOCKS5、HTTP(S) 节点
 - 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5 自有节点；Snell 粘贴 Surge 配置行添加
 - 首页节点与订阅都可展开查看地址、协议、地区和测试方式
 - 节点行使用服务器 IP 的离线国家识别结果显示地区 Logo，并列出协议、传输、TLS 与 UDP 能力

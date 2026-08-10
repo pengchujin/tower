@@ -406,7 +406,8 @@ private struct NodeRegionLogo: View {
         case .shadowsocks, .shadowsocksR: .blue
         case .vmess, .vless: .indigo
         case .trojan: .red
-        case .hysteria2: .orange
+        case .hysteria, .hysteria2: .orange
+        case .tuic: .pink
         case .anytls: .mint
         case .snell: .brown
         case .socks5: .teal

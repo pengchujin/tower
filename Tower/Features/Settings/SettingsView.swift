@@ -312,11 +312,11 @@ private struct RenewalReminderDetailRow: View {
                     .font(.caption)
                     .foregroundStyle(isExpired ? .red : .secondary)
                 if !isExpired {
-                    Label("将在到期前一天通知", systemImage: "clock")
+                    Label("到期前一天通知", systemImage: "clock")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.orange)
                 } else {
-                    Label("需要续费或删除该订阅", systemImage: "exclamationmark.triangle.fill")
+                    Label("续费提醒", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.red)
                 }

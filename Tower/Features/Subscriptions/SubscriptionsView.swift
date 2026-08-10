@@ -5,6 +5,8 @@ struct SubscriptionsView: View {
     @State private var isAddSourcePresented = false
     @State private var pendingDeletion: PendingDeletion?
     @State private var nodeFilterRoute: NodeFilterRoute?
+    @State private var editingSubscription: SubscriptionSource?
+    @State private var editingLocalNode: ProxyNode?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -63,6 +65,12 @@ struct SubscriptionsView: View {
             .sheet(isPresented: $isAddSourcePresented) {
                 AddSourceSheet()
             }
+            .sheet(item: $editingSubscription) { source in
+                EditSubscriptionSheet(source: source)
+            }
+            .sheet(item: $editingLocalNode) { node in
+                AddSourceSheet(editingNode: node)
+            }
             .navigationDestination(item: $nodeFilterRoute) { route in
                 NodeFilterView(initialFocus: route)
             }
@@ -94,6 +102,12 @@ struct SubscriptionsView: View {
                 ForEach(model.subscriptions) { source in
                     SubscriptionCard(source: source) {
                         Task { await model.updateSubscription(id: source.id) }
+                    } onEdit: {
+                        editingSubscription = source
+                    } onMoveUp: {
+                        model.moveSubscription(source, by: -1)
+                    } onMoveDown: {
+                        model.moveSubscription(source, by: 1)
                     } onDelete: {
                         pendingDeletion = .subscription(source)
                     }
@@ -111,6 +125,12 @@ struct SubscriptionsView: View {
                 SectionHeading(title: "自有节点", detail: String(localized: "\(model.localNodes.count) 个"))
                 ForEach(model.localNodes) { node in
                     LocalNodeCard(node: node) {
+                        editingLocalNode = node
+                    } onMoveUp: {
+                        model.moveLocalNode(node, by: -1)
+                    } onMoveDown: {
+                        model.moveLocalNode(node, by: 1)
+                    } onDelete: {
                         pendingDeletion = .node(node)
                     }
                 }
@@ -159,6 +179,94 @@ private enum PendingDeletion {
         switch self {
         case .subscription: String(localized: "该订阅及已读取的节点会从这台设备移除。")
         case .node: String(localized: "这个自有节点会从这台设备移除。")
+        }
+    }
+}
+
+private struct EditSubscriptionSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let source: SubscriptionSource
+    @State private var name: String
+    @State private var urlString: String
+    @State private var userAgent: String
+    @State private var dnsOverHTTPSURL: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(source: SubscriptionSource) {
+        self.source = source
+        _name = State(initialValue: source.name)
+        _urlString = State(initialValue: source.urlString)
+        _userAgent = State(initialValue: source.requestOptions?.userAgent ?? "")
+        _dnsOverHTTPSURL = State(initialValue: source.requestOptions?.dnsOverHTTPSURL ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("订阅") {
+                    TextField("名称（可选）", text: $name)
+                        .textContentType(.organizationName)
+                    TextField("订阅链接", text: $urlString, axis: .vertical)
+                        .lineLimit(2...5)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+                Section {
+                    TextField("自定义 User-Agent（可选）", text: $userAgent)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("DNS-over-HTTPS 地址（可选）", text: $dnsOverHTTPSURL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("高级请求设置")
+                }
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+            .navigationTitle("编辑")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving || urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .interactiveDismissDisabled(isSaving)
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        guard !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        do {
+            try await model.updateSubscriptionDetails(
+                source,
+                name: name,
+                urlString: urlString,
+                userAgent: userAgent,
+                dnsOverHTTPSURL: dnsOverHTTPSURL
+            )
+            dismiss()
+        } catch {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -267,6 +375,9 @@ private struct SubscriptionCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let source: SubscriptionSource
     let onRefresh: () -> Void
+    let onEdit: () -> Void
+    let onMoveUp: () -> Void
+    let onMoveDown: () -> Void
     let onDelete: () -> Void
     @State private var isExpanded = false
     @State private var sharePayload: SharePayload?
@@ -327,6 +438,11 @@ private struct SubscriptionCard: View {
             // subscription into the preview, which read as the card turning
             // into a delete affordance.
             .contextMenu {
+                Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
+                Button(action: onMoveUp) { Label("上移", systemImage: "arrow.up") }
+                    .disabled(!model.canMoveSubscription(source, by: -1))
+                Button(action: onMoveDown) { Label("下移", systemImage: "arrow.down") }
+                    .disabled(!model.canMoveSubscription(source, by: 1))
                 Button(action: onRefresh) { Label("更新订阅", systemImage: "arrow.triangle.2.circlepath") }
                 Button {
                     sharePayload = SharePayloadFactory.subscription(source)
@@ -413,7 +529,11 @@ private struct SubscriptionCard: View {
 }
 
 private struct LocalNodeCard: View {
+    @Environment(AppModel.self) private var model
     let node: ProxyNode
+    let onEdit: () -> Void
+    let onMoveUp: () -> Void
+    let onMoveDown: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -421,6 +541,11 @@ private struct LocalNodeCard: View {
             .padding(5)
             .towerCard()
         .contextMenu {
+            Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
+            Button(action: onMoveUp) { Label("上移", systemImage: "arrow.up") }
+                .disabled(!model.canMoveLocalNode(node, by: -1))
+            Button(action: onMoveDown) { Label("下移", systemImage: "arrow.down") }
+                .disabled(!model.canMoveLocalNode(node, by: 1))
             Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
         }
     }

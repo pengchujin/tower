@@ -70,7 +70,7 @@ python3 Scripts/update_ip_country_db.py --help
 
 ## 改动验收
 
-- 每次提交至少通过 TowerTests；配置生成相关修改要覆盖全部五种目标客户端。
+- 每次提交至少通过 TowerTests；配置生成相关修改要覆盖全部七种目标客户端。
 - 涉及导入、分享、剪贴板、地图、ICMP、动画或大文本预览时，模拟器结果只算基础验证，必须再用真机验收。
 - 发布新包前递增 `CURRENT_PROJECT_VERSION`，归档并核对 Bundle ID、版本号和签名团队。
 - 不提交 `.artifacts`、DerivedData、归档、IPA、证书、描述文件、App Store Connect API Key 或任何密码。

@@ -381,6 +381,11 @@ struct SubscriptionParser {
         if lowercased.hasPrefix("hysteria2://") || lowercased.hasPrefix("hy2://") {
             return parseStandardURL(value, kind: .hysteria2, sourceID: sourceID)
         }
+        // Checked after hysteria2 so `hysteria2://` never falls in here.
+        if lowercased.hasPrefix("hysteria://") || lowercased.hasPrefix("hy://") {
+            return parseStandardURL(value, kind: .hysteria, sourceID: sourceID)
+        }
+        if lowercased.hasPrefix("tuic://") { return parseStandardURL(value, kind: .tuic, sourceID: sourceID) }
         if lowercased.hasPrefix("socks5://") || lowercased.hasPrefix("socks://") {
             return parseStandardURL(value, kind: .socks5, sourceID: sourceID)
         }
@@ -708,6 +713,8 @@ struct SubscriptionParser {
         var normalized = raw
         if normalized.lowercased().hasPrefix("hy2://") {
             normalized = "hysteria2://" + normalized.dropFirst("hy2://".count)
+        } else if normalized.lowercased().hasPrefix("hy://") {
+            normalized = "hysteria://" + normalized.dropFirst("hy://".count)
         } else if normalized.lowercased().hasPrefix("socks://") {
             normalized = "socks5://" + normalized.dropFirst("socks://".count)
         }
@@ -729,11 +736,20 @@ struct SubscriptionParser {
             name: name,
             server: server,
             port: port,
-            password: [.trojan, .hysteria2, .anytls].contains(kind) ? credential : components.password?.removingPercentEncoding,
-            uuid: [.vmess, .vless].contains(kind) ? credential : nil,
+            // TUIC v5 writes `tuic://uuid:password@host`, so unlike every
+            // other scheme here both halves of the userinfo are meaningful.
+            // Hysteria 1 puts its secret in the query instead of the userinfo.
+            password: kind == .tuic
+                ? components.password?.removingPercentEncoding
+                : (kind == .hysteria
+                    ? (credential ?? query["auth"] ?? query["auth_str"] ?? query["authstr"])
+                    : ([.trojan, .hysteria2, .anytls].contains(kind)
+                        ? credential
+                        : components.password?.removingPercentEncoding)),
+            uuid: [.vmess, .vless, .tuic].contains(kind) ? credential : nil,
             username: [.socks5, .http].contains(kind) ? credential : nil,
             transport: transport,
-            tls: kind == .trojan || kind == .hysteria2 || kind == .anytls || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
+            tls: [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(kind) || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
             hostHeader: query["host"],
             path: query["path"],
@@ -745,9 +761,20 @@ struct SubscriptionParser {
             realityShortID: security == "reality" ? query["sid"] : nil,
             fingerprint: query["fp"],
             flow: query["flow"],
-            skipCertificateVerification: ["1", "true"].contains(query["allowinsecure"] ?? query["insecure"] ?? ""),
-            obfs: kind == .hysteria2 ? query["obfs"] : nil,
-            obfsParam: kind == .hysteria2 ? query["obfs-password"] ?? query["obfspassword"] : nil,
+            skipCertificateVerification: ["1", "true"].contains(
+                query["allowinsecure"] ?? query["insecure"] ?? query["allow_insecure"] ?? ""
+            ),
+            protocolName: kind == .hysteria ? query["protocol"] : nil,
+            // Hysteria 1's obfs is a single shared string, not Hysteria 2's
+            // (method, password) pair, so it lives in `obfs` alone.
+            // With `obfs=xplus` the shared key is in `obfsParam`; Mihomo and
+            // sing-box both want that key, not the mode name.
+            obfs: kind == .hysteria
+                ? query["obfsparam"] ?? query["obfs"]
+                : (kind == .hysteria2 ? query["obfs"] : nil),
+            obfsParam: kind == .hysteria2
+                ? query["obfs-password"] ?? query["obfspassword"] ?? query["obfs_password"]
+                : nil,
             idleSessionCheckInterval: kind == .anytls
                 ? Int(query["idle-session-check-interval"] ?? query["idlesessioncheckinterval"] ?? "")
                 : nil,
@@ -757,6 +784,12 @@ struct SubscriptionParser {
             minIdleSession: kind == .anytls
                 ? Int(query["min-idle-session"] ?? query["minidlesession"] ?? "")
                 : nil,
+            congestionControl: kind == .tuic
+                ? query["congestion_control"] ?? query["congestion-controller"]
+                : nil,
+            udpRelayMode: kind == .tuic ? query["udp_relay_mode"] ?? query["udp-relay-mode"] : nil,
+            upMbps: kind == .hysteria ? mbps(query["upmbps"] ?? query["up"]) : nil,
+            downMbps: kind == .hysteria ? mbps(query["downmbps"] ?? query["down"]) : nil,
             rawURI: raw
         )
     }
@@ -770,6 +803,15 @@ struct SubscriptionParser {
         var dictionaries: [[String: String]] = []
         var current: [String: String] = [:]
         var inside = false
+        // A proxy starts at the indentation of the first `-` under `proxies:`.
+        // Deeper `-` lines are a nested sequence — `http-opts: path: - /` is
+        // the common one — and treating those as a new proxy both invents a
+        // junk entry and truncates the real node at that line, dropping
+        // whatever follows. One real list loses 28 nodes' `reality-opts` that
+        // way: they import looking healthy and never connect.
+        var itemIndentation: Int?
+        // The key a bare sequence element belongs to, for the same reason.
+        var pendingSequenceKey: String?
 
         for rawLine in lines.dropFirst(start + 1) {
             let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -777,18 +819,32 @@ struct SubscriptionParser {
             let indentation = rawLine.prefix { $0 == " " }.count
             if indentation == 0 && !trimmed.hasPrefix("-") { break }
 
-            if trimmed.hasPrefix("-") {
+            if trimmed.hasPrefix("-"), indentation <= (itemIndentation ?? indentation) {
+                itemIndentation = indentation
                 if !current.isEmpty { dictionaries.append(current) }
                 current = [:]
                 inside = true
+                pendingSequenceKey = nil
                 let remainder = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
                 if remainder.hasPrefix("{") {
                     current.merge(parseInlineYAMLMap(String(remainder))) { _, new in new }
                 } else if let pair = parseYAMLPair(String(remainder)) {
                     current[pair.0] = pair.1
+                    if pair.1.isEmpty { pendingSequenceKey = pair.0 }
                 }
+            } else if inside, trimmed.hasPrefix("-") {
+                // A nested element. Collected comma-joined so a multi-value
+                // `alpn` survives in the one form ProxyNode and the generators
+                // already use.
+                guard let key = pendingSequenceKey else { continue }
+                let element = trimmed.dropFirst()
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " \t\"'"))
+                guard !element.isEmpty else { continue }
+                let existing = current[key] ?? ""
+                current[key] = existing.isEmpty ? element : existing + "," + element
             } else if inside, let pair = parseYAMLPair(trimmed) {
                 current[pair.0] = pair.1
+                pendingSequenceKey = pair.1.isEmpty ? pair.0 : nil
             }
         }
         if !current.isEmpty { dictionaries.append(current) }
@@ -809,7 +865,13 @@ struct SubscriptionParser {
             // anything else would import as a node that looks healthy and never
             // connects, so it is rejected and counted instead.
             var obfsMode = dictionary["obfs"]
+            // `obfs-param` is ShadowsocksR's key. Hysteria 2 spells the same
+            // slot `obfs-password`, and reading only the SSR name left every
+            // salamander node with a type and no password — which makes Mihomo
+            // reject the whole profile, not just that node.
             var obfsHost = dictionary["obfs-param"]
+                ?? dictionary["obfs-password"]
+                ?? dictionary["obfs_password"]
             if kind == .shadowsocks, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
                 guard plugin == "obfs" || plugin == "obfs-local" || plugin == "simple-obfs" else {
                     rejected += 1
@@ -833,7 +895,13 @@ struct SubscriptionParser {
                 server: server,
                 port: port,
                 cipher: dictionary["cipher"],
-                password: dictionary["password"],
+                // Hysteria 1 calls it `auth-str` and Snell calls it `psk`;
+                // both are the single shared secret ProxyNode stores.
+                password: dictionary["password"]
+                    ?? dictionary["auth-str"]
+                    ?? dictionary["auth_str"]
+                    ?? dictionary["auth"]
+                    ?? dictionary["psk"],
                 uuid: dictionary["uuid"],
                 username: dictionary["username"],
                 transport: dictionary["network"],
@@ -858,6 +926,12 @@ struct SubscriptionParser {
                 protocolParam: dictionary["protocol-param"],
                 obfs: obfsMode,
                 obfsParam: obfsHost,
+                version: Int(dictionary["version"] ?? ""),
+                congestionControl: dictionary["congestion-controller"]
+                    ?? dictionary["congestion_control"],
+                udpRelayMode: dictionary["udp-relay-mode"],
+                upMbps: kind == .hysteria ? mbps(dictionary["up"] ?? dictionary["up-speed"]) : nil,
+                downMbps: kind == .hysteria ? mbps(dictionary["down"] ?? dictionary["down-speed"]) : nil,
                 rawURI: "clash://local/\(UUID().uuidString)"
             ))
         }
@@ -923,6 +997,10 @@ struct SubscriptionParser {
         case "vless": .vless
         case "trojan": .trojan
         case "hysteria2", "hy2": .hysteria2
+        case "hysteria": .hysteria
+        case "tuic": .tuic
+        case "anytls": .anytls
+        case "snell": .snell
         case "socks5", "socks": .socks5
         case "http", "https": .http
         default: nil
@@ -966,7 +1044,8 @@ struct SubscriptionParser {
         let lowercased = value.lowercased()
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "anytls://", "socks5://", "socks://", "http://", "https://"
+            "hysteria2://", "hy2://", "hysteria://", "tuic://",
+            "anytls://", "socks5://", "socks://", "http://", "https://"
         ]
             .contains(where: lowercased.contains)
     }
@@ -1016,6 +1095,18 @@ struct SubscriptionParser {
     private func boolString(_ value: String?) -> Bool {
         guard let value else { return false }
         return ["true", "1", "yes", "tls"].contains(value.lowercased())
+    }
+
+    /// Reads a Hysteria 1 bandwidth field.
+    ///
+    /// Airports write these as a bare number, as `100 Mbps`, and occasionally
+    /// as `100mbps`, so the digits are taken and the unit ignored. Zero and
+    /// negative values mean "unset" rather than "no bandwidth".
+    private func mbps(_ value: String?) -> Int? {
+        guard let value else { return nil }
+        let digits = value.prefix { $0.isNumber }
+        guard let number = Int(digits), number > 0 else { return nil }
+        return number
     }
 
     private func deduplicated(_ nodes: [ProxyNode]) -> [ProxyNode] {

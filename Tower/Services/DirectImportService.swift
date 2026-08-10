@@ -66,12 +66,12 @@ struct ClientImportURLBuilder {
             // literally by current Hiddify releases.
             value = "hiddify://import/\(configurationURL.absoluteString)"
         case .quanx:
-            guard [.nodesOnly, .rulesOnly].contains(contentMode) else {
+            guard contentMode == .nodesOnly else {
                 throw DirectImportError.unsupportedTarget(target)
             }
-            let resource: [String: [String]] = contentMode == .nodesOnly
-                ? ["server_remote": ["\(configurationURL.absoluteString), tag=\(displayName), as-policy=static"]]
-                : ["filter_remote": ["\(configurationURL.absoluteString), tag=\(displayName), enabled=true"]]
+            let resource: [String: [String]] = [
+                "server_remote": ["\(configurationURL.absoluteString), tag=\(displayName), as-policy=static"]
+            ]
             guard let data = try? JSONSerialization.data(withJSONObject: resource, options: [.sortedKeys]),
                   let json = String(data: data, encoding: .utf8) else {
                 throw DirectImportError.invalidSchemeURL

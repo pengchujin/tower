@@ -56,6 +56,16 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(try value(for: "我的订阅", locale: "zh-Hant", in: catalog), "我的訂閱")
         XCTAssertEqual(try value(for: "塔台", locale: "en", in: catalog), "Tower")
         XCTAssertEqual(try value(for: "塔台", locale: "zh-Hans", in: catalog), "塔台")
+        XCTAssertEqual(
+            try value(for: "默认保持原始订阅", locale: "en", in: catalog),
+            "Original subscription by default"
+        )
+        XCTAssertEqual(try value(for: "上移", locale: "en", in: catalog), "Move Up")
+        XCTAssertEqual(try value(for: "下移", locale: "en", in: catalog), "Move Down")
+        XCTAssertEqual(
+            try value(for: "%@ 已过期 %lld 天", locale: "en", in: catalog),
+            "%1$@ expired %2$lld days ago"
+        )
     }
 
     func testPrimaryExportLabelsAreConciseAndHumanReviewed() throws {

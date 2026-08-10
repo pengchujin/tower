@@ -89,7 +89,7 @@ struct SectionHeading: View {
                 .font(.title3.weight(.semibold))
             Spacer()
             if let detail {
-                Text(detail)
+                Text(LocalizedStringKey(detail))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }

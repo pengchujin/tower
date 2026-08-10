@@ -379,3 +379,47 @@ extension ConfigurationCredentialTests {
         XCTAssertTrue(content.contains("［BETA］ HK"), content)
     }
 }
+
+/// Quantumult X imported Tower's rules but none of its policy groups. Its own
+/// converters all emit `[policy]` before the server and filter sections;
+/// Tower emitted four hundred nodes between `[dns]` and `[policy]`.
+extension ConfigurationCredentialTests {
+    func testQuanXDeclaresPoliciesBeforeServersAndFilters() {
+        let nodes = (0..<3).map { index in
+            ProxyNode(kind: .shadowsocks, name: "HK 0\(index)", server: "h\(index).example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")
+        }
+        let content = ConfigurationGenerator()
+            .generate(nodes: nodes, preset: RulePreset.builtIns[0], target: .quanx).content
+
+        let order = content.split(separator: "\n")
+            .map(String.init)
+            .filter { $0.hasPrefix("[") && $0.hasSuffix("]") }
+
+        guard let policy = order.firstIndex(of: "[policy]"),
+              let serverLocal = order.firstIndex(of: "[server_local]"),
+              let filterLocal = order.firstIndex(of: "[filter_local]") else {
+            return XCTFail("段落不全：\(order)")
+        }
+
+        XCTAssertLessThan(policy, serverLocal, "[policy] 必须在 [server_local] 之前：\(order)")
+        XCTAssertLessThan(policy, filterLocal, "[policy] 必须在 [filter_local] 之前：\(order)")
+        // Exactly one of each — an earlier attempt emitted server_local twice.
+        XCTAssertEqual(order.filter { $0 == "[server_local]" }.count, 1, "\(order)")
+    }
+
+    func testQuanXStillDeclaresEverySection() {
+        let node = ProxyNode(kind: .shadowsocks, name: "HK", server: "h.example.com",
+                             port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")
+        let content = ConfigurationGenerator()
+            .generate(nodes: [node], preset: RulePreset.builtIns[0], target: .quanx).content
+
+        for section in ["[general]", "[dns]", "[policy]", "[server_remote]", "[filter_remote]",
+                        "[rewrite_remote]", "[server_local]", "[filter_local]", "[rewrite_local]",
+                        "[task_local]", "[http_backend]", "[mitm]"] {
+            XCTAssertTrue(content.contains(section), "缺少 \(section)")
+        }
+        // And the nodes still land in server_local, not somewhere else.
+        XCTAssertTrue(content.contains("shadowsocks=h.example.com"), content)
+    }
+}

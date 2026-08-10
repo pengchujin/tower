@@ -161,7 +161,7 @@ private struct ExportContentModePicker: View {
         case .nodesOnly:
             return String(localized: "只添加节点订阅，不替换客户端现有的规则和策略组。")
         case .rulesOnly:
-            return String(localized: "只添加分流规则。请先把塔台节点导入 QuanX，规则会使用同名节点策略。")
+            return String(localized: "导入节点、规则和策略组组成的完整配置。")
         case .fullConfiguration:
             return String(localized: "导入节点、规则和策略组组成的完整配置。")
         }
@@ -371,7 +371,7 @@ private struct ConversionSummary: View {
             HStack(spacing: 16) {
                 MetricPill(
                     value: configuration.supportedNodeCount,
-                    label: configuration.contentMode == .rulesOnly ? "节点资源" : "兼容节点"
+                    label: configuration.contentMode == .rulesOnly ? "本地规则" : "兼容节点"
                 )
                 Divider().frame(height: 38)
                 MetricPill(value: configuration.ruleCount, label: "本地规则")
@@ -396,7 +396,7 @@ private struct ConversionSummary: View {
         case .nodesOnly:
             String(localized: "仅节点 · \(model.selectedTarget.name)")
         case .rulesOnly:
-            String(localized: "仅规则 · \(model.selectedTarget.name)")
+            String(localized: "本地规则")
         case .fullConfiguration:
             "\(model.activeRuleName) · \(model.selectedTarget.name)"
         }
@@ -503,7 +503,7 @@ private struct ImportPrivacyNote: View {
             return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
         }
         if contentMode == .rulesOnly {
-            return String(localized: "塔台会把分流规则作为 QuanX 的 filter_remote 资源添加，不会重复添加节点。请先导入同名节点资源。")
+            return String(localized: "导入节点、规则和策略组组成的完整配置。")
         }
         if target.supportsDirectConfigurationImport {
             return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
@@ -572,7 +572,7 @@ private struct ImportActionBar: View {
         case .nodesOnly:
             return String(localized: "仅导入节点到 \(target.name)")
         case .rulesOnly:
-            return String(localized: "仅导入规则到 \(target.name)")
+            return String(localized: "本地规则")
         case .fullConfiguration:
             return target.primaryImportTitle
         }

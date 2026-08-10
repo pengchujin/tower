@@ -273,6 +273,15 @@ struct ConfigurationGenerator {
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
+        // Surge and Shadowrocket carry Hysteria 2's obfuscator in the key name
+        // — `salamander-password` and a bare `obfsParam` — so neither has any
+        // way to say "some other obfuscator". (Surge also documents its own
+        // `gecko-password`, but nothing Tower parses produces that name.)
+        // Writing one anyway would hand the password to Salamander and produce
+        // the "looks right, never connects" outcome, so the node is skipped and
+        // counted instead.
+        if node.kind == .hysteria2, [.surge, .shadowrocket].contains(target),
+           let obfs = hysteria2Obfs(node), obfs.type.lowercased() != "salamander" { return false }
         return true
     }
 
@@ -572,12 +581,13 @@ struct ConfigurationGenerator {
         no-system
         server = 223.5.5.5
         server = 1.1.1.1
-
-        [server_local]
         """
-        output += "\n"
-        for node in nodes { output += quanXNode(node) + "\n" }
-        output += "\n[policy]\n"
+        // Section order follows subconverter's QuanX template, which is what
+        // every working converter emits: `[policy]` comes before the server and
+        // filter sections, not after them. Tower used to put the whole node
+        // list between `[dns]` and `[policy]`, and Quantumult X imported the
+        // rules while dropping every policy group.
+        output += "\n\n[policy]\n"
         for group in groups {
             switch group.kind {
             case .select:
@@ -592,12 +602,24 @@ struct ConfigurationGenerator {
                 output += ", tolerance=\(group.tolerance)\n"
             }
         }
-        output += "\n[filter_local]\n"
-        output += localSchemeRules(rulePlan, target: .quanx)
+        // Every module is emitted exactly once and in this order. Quantumult X
+        // rejects the whole file for either mistake: a missing module is
+        // `配置文件缺少模块 [server_remote]`, and a repeated one is
+        // `配置文件语法错误, duplicated section, [server_remote]`.
         let remoteRules = rulePlan.remoteResources.map {
             "\($0.url.absoluteString), tag=\($0.identifier), force-policy=\(confName($0.policyName)), enabled=true"
         }
-        output += quanXTrailingSections(filterRemote: remoteRules)
+        output += "\n[server_remote]\n"
+        output += "\n[filter_remote]\n"
+        if !remoteRules.isEmpty { output += remoteRules.joined(separator: "\n") + "\n" }
+        output += "\n[rewrite_remote]\n"
+        output += "\n[server_local]\n"
+        for node in nodes { output += quanXNode(node) + "\n" }
+        output += "\n[filter_local]\n"
+        output += localSchemeRules(rulePlan, target: .quanx)
+        for section in ["rewrite_local", "task_local", "http_backend", "mitm"] {
+            output += "\n[\(section)]\n"
+        }
         return output
     }
 
@@ -735,12 +757,41 @@ struct ConfigurationGenerator {
         case .hysteria2:
             values += ["    password: \(yaml(node.password ?? ""))", "    skip-cert-verify: \(node.skipCertificateVerification)"]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            if let obfs = hysteria2Obfs(node) {
+                values.append("    obfs: \(yaml(obfs.type))")
+                values.append("    obfs-password: \(yaml(obfs.password))")
+            }
+        case .hysteria:
+            // Hysteria 1's congestion control is rate-based, so `up`/`down`
+            // are load-bearing rather than hints. Mihomo's own defaults are
+            // what an airport that omitted them expects.
+            values += [
+                "    auth-str: \(yaml(node.password ?? ""))",
+                "    up: \(node.upMbps ?? 50)",
+                "    down: \(node.downMbps ?? 100)",
+                "    skip-cert-verify: \(node.skipCertificateVerification)"
+            ]
+            if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
             if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
                 values.append("    obfs: \(yaml(obfs))")
-                if let password = node.obfsParam, !password.isEmpty {
-                    values.append("    obfs-password: \(yaml(password))")
-                }
             }
+            if let name = node.protocolName, !name.isEmpty { values.append("    protocol: \(yaml(name))") }
+            appendClashALPN(node, to: &values)
+        case .tuic:
+            values += [
+                "    uuid: \(yaml(node.exportableUUID ?? ""))",
+                "    password: \(yaml(node.password ?? ""))",
+                "    skip-cert-verify: \(node.skipCertificateVerification)",
+                "    udp: true"
+            ]
+            if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            if let value = node.congestionControl, !value.isEmpty {
+                values.append("    congestion-controller: \(yaml(value))")
+            }
+            if let value = node.udpRelayMode, !value.isEmpty {
+                values.append("    udp-relay-mode: \(yaml(value))")
+            }
+            appendClashALPN(node, to: &values)
         case .anytls:
             values += [
                 "    password: \(yaml(node.password ?? ""))",
@@ -786,6 +837,20 @@ struct ConfigurationGenerator {
         // absent, so send whatever the airport specified.
         values.append("    client-fingerprint: \(yaml(node.fingerprint ?? "chrome"))")
         if let flow = node.flow, !flow.isEmpty { values.append("    flow: \(yaml(flow))") }
+    }
+
+    /// Writes `alpn` as the YAML list Mihomo expects.
+    ///
+    /// A URI carries it as one comma-joined string; written back as a scalar
+    /// the client reads `h3,h2` as a single protocol name and the handshake
+    /// never matches.
+    private func appendClashALPN(_ node: ProxyNode, to values: inout [String]) {
+        let entries = (node.alpn ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !entries.isEmpty else { return }
+        values.append("    alpn: [\(entries.map(yaml).joined(separator: ", "))]")
     }
 
     private func appendClashTransport(_ node: ProxyNode, to values: inout [String]) {
@@ -973,8 +1038,55 @@ struct ConfigurationGenerator {
             components = ["trojan", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTransport(node, includeTLSFlag: false, to: &components)
         case .hysteria2:
+            // `password=` is deliberate for both clients, even though
+            // Shadowrocket's manual writes Hysteria 2 as `auth=`. The manual
+            // listing one spelling does not mean the app rejects the other:
+            // Shadowrocket was checked on device with a Tower-generated
+            // profile, and it fills the password field and connects from
+            // `password=`. See docs/HANDOFF.md — do not "fix" this to `auth=`
+            // from the manual alone.
             components = ["hysteria2", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
+            // The Salamander layer is not optional decoration: a server that
+            // runs it drops every packet that arrives unobfuscated, so a node
+            // written without this key imports cleanly and never connects.
+            // The obfuscator is named by the key rather than carried as a
+            // value — `salamander-password` in Surge's manual, a bare
+            // `obfsParam` in Shadowrocket's.
+            if let obfs = hysteria2Obfs(node) {
+                let key = shadowrocket ? "obfsParam" : "salamander-password"
+                components.append("\(key)=\(confValue(obfs.password))")
+            }
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+        case .hysteria:
+            // Shadowrocket only; Surge has no Hysteria 1 server type and
+            // writes(_:to:excluding:) drops these before generation.
+            components = ["hysteria", node.server, "\(node.port)", "auth=\(confValue(node.password ?? ""))"]
+            if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
+                components.append("obfsParam=\(confValue(obfs))")
+            }
+            appendValue(node.protocolName, key: "protocol", to: &components)
+            components.append("upmbps=\(node.upMbps ?? 50)")
+            components.append("downmbps=\(node.downMbps ?? 100)")
+            appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+            components.append("udp=1")
+        case .tuic:
+            if shadowrocket {
+                // Shadowrocket's own vocabulary: the UUID is `user`, the SNI is
+                // `peer`, and UDP is the numeric `udp=1` rather than Surge's
+                // `udp-relay=true`.
+                components = ["tuic", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
+                appendValue(node.exportableUUID, key: "user", to: &components)
+                appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+                components.append("udp=1")
+            } else {
+                // Surge distinguishes the two TUIC versions by server type and
+                // only ever gets v5 from a `tuic://uuid:password@` URI.
+                components = ["tuic-v5", node.server, "\(node.port)"]
+                appendValue(node.exportableUUID, key: "uuid", to: &components)
+                components.append("password=\(confValue(node.password ?? ""))")
+                appendSurgeTLS(node, includeTLSFlag: false, to: &components)
+                components.append("udp-relay=true")
+            }
         case .anytls:
             components = ["anytls", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
@@ -1203,7 +1315,7 @@ struct ConfigurationGenerator {
             }
         // Loon implements neither, and writes(_:to:excluding:) filters them
         // out before generation, so this branch is defensive only.
-        case .snell, .unknown:
+        case .hysteria, .tuic, .snell, .unknown:
             values = ["Direct"]
         }
         return "\(name) = \(values.joined(separator: ","))"
@@ -1249,12 +1361,13 @@ struct ConfigurationGenerator {
         no-system
         server = 223.5.5.5
         server = 1.1.1.1
-
-        [server_local]
         """
-        output += "\n"
-        for node in nodes { output += quanXNode(node) + "\n" }
-        output += "\n[policy]\n"
+        // Section order follows subconverter's QuanX template, which is what
+        // every working converter emits: `[policy]` comes before the server and
+        // filter sections, not after them. Tower used to put the whole node
+        // list between `[dns]` and `[policy]`, and Quantumult X imported the
+        // rules while dropping every policy group.
+        output += "\n\n[policy]\n"
         let selectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ", ")
@@ -1294,6 +1407,9 @@ struct ConfigurationGenerator {
             output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
             output += "url-latency-benchmark=\(group.automaticName), server-tag-regex=\(quanXServerTagRegex(group.nodeNames)), check-interval=300, alive-checking=false, tolerance=50\n"
         }
+        output += "\n[server_remote]\n\n[filter_remote]\n\n[rewrite_remote]\n"
+        output += "\n[server_local]\n"
+        for node in nodes { output += quanXNode(node) + "\n" }
         output += "\n[filter_local]\n"
         for assignment in preset.assignments {
             for rule in rules.lines(for: assignment) {
@@ -1302,7 +1418,9 @@ struct ConfigurationGenerator {
         }
         if preset.includeGeoIPCN { output += "geoip, cn, direct\n" }
         output += "final, \(quanXPolicyName(preset.finalPolicy))\n"
-        output += quanXTrailingSections()
+        for section in ["rewrite_local", "task_local", "http_backend", "mitm"] {
+            output += "\n[\(section)]\n"
+        }
         return output
     }
 
@@ -1352,7 +1470,7 @@ struct ConfigurationGenerator {
             if node.tls { values.append("over-tls=true") }
         // Quantumult X implements none of these, and writes(_:to:excluding:)
         // filters them out before generation, so this is defensive only.
-        case .hysteria2, .snell, .unknown:
+        case .hysteria, .hysteria2, .tuic, .snell, .unknown:
             prefix = "http"
         }
         values.append("tag=\(confName(NodeRegionResolver.displayName(for: node)))")
@@ -1389,22 +1507,22 @@ struct ConfigurationGenerator {
     // Quantumult X names the VMess cipher with the same method key it uses for
     // Shadowsocks. "auto" is not one of its accepted values, so it is mapped to
     // the AEAD cipher that its VMess implementation negotiates by default.
-    /// Quantumult X validates a complete configuration against its full module
-    /// list on import and refuses the file when one is missing — it reported
-    /// `配置文件缺少模块 [server_remote]`. Tower has nothing to put in the remote
-    /// and rewrite modules, so they are emitted empty rather than omitted.
-    private func quanXTrailingSections(filterRemote: [String] = []) -> String {
-        var output = "\n[server_remote]\n"
-        output += "\n[filter_remote]\n"
-        if !filterRemote.isEmpty {
-            output += filterRemote.joined(separator: "\n") + "\n"
-        }
-        for section in [
-            "rewrite_local", "rewrite_remote", "task_local", "http_backend", "mitm"
-        ] {
-            output += "\n[\(section)]\n"
-        }
-        return output
+    /// Hysteria 2's obfs layer, only when both halves of it survived.
+    ///
+    /// The type and the password are one thing, not two optional ones:
+    /// `obfs: salamander` on its own makes Mihomo refuse the entire profile —
+    /// "proxy 301: hysteria2 obfs: salamander requires obfs-password" — and
+    /// takes every other node in the file down with it. sing-box is the same.
+    /// Without the password the node could not have connected either way, so
+    /// the obfs layer is dropped rather than half-written.
+    func hysteria2Obfs(_ node: ProxyNode) -> (type: String, password: String)? {
+        guard node.kind == .hysteria2,
+              let type = node.obfs?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !type.isEmpty,
+              type.lowercased() != "none",
+              let password = node.obfsParam?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !password.isEmpty else { return nil }
+        return (type, password)
     }
 
     /// The simple-obfs mode of a Shadowsocks node, or nil when it carries no
@@ -1954,11 +2072,25 @@ extension ConfigurationGenerator {
         case .hysteria2:
             outbound["type"] = "hysteria2"
             outbound["password"] = node.password ?? ""
-            if let type = node.obfs, !type.isEmpty, type.lowercased() != "none" {
-                var obfs: [String: Any] = ["type": type]
-                if let password = node.obfsParam, !password.isEmpty { obfs["password"] = password }
+            if let obfs = hysteria2Obfs(node) {
+                outbound["obfs"] = ["type": obfs.type, "password": obfs.password]
+            }
+        case .hysteria:
+            outbound["type"] = "hysteria"
+            outbound["auth_str"] = node.password ?? ""
+            outbound["up_mbps"] = node.upMbps ?? 50
+            outbound["down_mbps"] = node.downMbps ?? 100
+            if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
                 outbound["obfs"] = obfs
             }
+        case .tuic:
+            outbound["type"] = "tuic"
+            outbound["uuid"] = node.exportableUUID ?? ""
+            outbound["password"] = node.password ?? ""
+            if let value = node.congestionControl, !value.isEmpty {
+                outbound["congestion_control"] = value
+            }
+            if let value = node.udpRelayMode, !value.isEmpty { outbound["udp_relay_mode"] = value }
         case .anytls:
             outbound["type"] = "anytls"
             outbound["password"] = node.password ?? ""
@@ -1994,7 +2126,7 @@ extension ConfigurationGenerator {
     /// Trojan, Hysteria 2 and AnyTLS are TLS by definition, so they carry the
     /// block whether or not the node bothered to say `tls=1`.
     private func singBoxTLS(_ node: ProxyNode) -> [String: Any]? {
-        let alwaysSecure: Set<ProxyKind> = [.trojan, .hysteria2, .anytls]
+        let alwaysSecure: Set<ProxyKind> = [.trojan, .hysteria, .hysteria2, .tuic, .anytls]
         guard node.tls || alwaysSecure.contains(node.kind) else { return nil }
 
         var tls: [String: Any] = [
@@ -2365,6 +2497,18 @@ extension ConfigurationGenerator {
             endpoint()
             body.append("      auth: \(yaml(node.password ?? ""))")
             if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
+        case .tuic:
+            type = "tuic"
+            endpoint()
+            body.append("      uuid: \(yaml(node.exportableUUID ?? ""))")
+            body.append("      password: \(yaml(node.password ?? ""))")
+            if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
+            // Egern wants a list here even for the single value a URI carries.
+            let alpn = (node.alpn?.split(separator: ",").map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }.filter { !$0.isEmpty }) ?? []
+            body.append("      alpn: [\((alpn.isEmpty ? ["h3"] : alpn).map(yaml).joined(separator: ", "))]")
+            if node.skipCertificateVerification { body.append("      skip_tls_verify: true") }
         case .vmess:
             type = "vmess"
             endpoint()
@@ -2388,7 +2532,7 @@ extension ConfigurationGenerator {
             if let password = node.password, !password.isEmpty {
                 body.append("      password: \(yaml(password))")
             }
-        case .shadowsocksR, .unknown:
+        case .hysteria, .shadowsocksR, .unknown:
             // supports(_:) filters these out; this keeps the switch total.
             return nil
         }

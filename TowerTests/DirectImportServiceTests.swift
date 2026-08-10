@@ -92,28 +92,26 @@ final class DirectImportServiceTests: XCTestCase {
         XCTAssertTrue(first.absoluteString.contains("tower-import%3Dfirst"), first.absoluteString)
     }
 
-    func testQuanXBuildsSeparateNodeAndRuleResources() throws {
+    func testQuanXOnlyOffersNodeResourceImportBecausePoliciesAreNotRemoteResources() throws {
         let nodes = try ClientImportURLBuilder.make(
             target: .quanx,
             configurationURL: localURL,
             displayName: "塔台",
             contentMode: .nodesOnly
         )
-        let rules = try ClientImportURLBuilder.make(
-            target: .quanx,
-            configurationURL: localURL,
-            displayName: "塔台",
-            contentMode: .rulesOnly
-        )
-
         let nodeJSON = try decodedQuanXResource(nodes)
-        let ruleJSON = try decodedQuanXResource(rules)
         XCTAssertNotNil(nodeJSON["server_remote"])
         XCTAssertNil(nodeJSON["filter_remote"])
         XCTAssertTrue(nodeJSON["server_remote"]?.first?.contains("as-policy=static") == true)
-        XCTAssertNotNil(ruleJSON["filter_remote"])
-        XCTAssertNil(ruleJSON["server_remote"])
-        XCTAssertTrue(ruleJSON["filter_remote"]?.first?.contains("tag=塔台") == true)
+        XCTAssertFalse(ClientTarget.quanx.supportedContentModes.contains(.rulesOnly))
+        XCTAssertFalse(ClientTarget.quanx.supportsDirectImport(mode: .rulesOnly))
+        XCTAssertThrowsError(
+            try ClientImportURLBuilder.make(
+                target: .quanx,
+                configurationURL: localURL,
+                contentMode: .rulesOnly
+            )
+        )
     }
 
     func testLoopbackServerServesGeneratedConfiguration() async throws {

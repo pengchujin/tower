@@ -258,7 +258,9 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
     case vmess
     case vless
     case trojan
+    case hysteria
     case hysteria2
+    case tuic
     case anytls
     case snell
     case socks5
@@ -274,7 +276,9 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .vmess: "VMess"
         case .vless: "VLESS"
         case .trojan: "Trojan"
+        case .hysteria: "Hysteria"
         case .hysteria2: "Hysteria 2"
+        case .tuic: "TUIC"
         case .anytls: "AnyTLS"
         case .snell: "Snell"
         case .socks5: "SOCKS5"
@@ -288,7 +292,8 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .shadowsocks, .shadowsocksR: "bolt.horizontal.circle.fill"
         case .vmess, .vless: "point.3.filled.connected.trianglepath.dotted"
         case .trojan: "shield.lefthalf.filled"
-        case .hysteria2: "hare.fill"
+        case .hysteria, .hysteria2: "hare.fill"
+        case .tuic: "bolt.horizontal.fill"
         case .anytls: "lock.shield.fill"
         // Snell is Surge's own protocol, so this echoes the rounded-square app
         // icon it ships under, with an S for the name. Not Surge's actual mark:
@@ -339,6 +344,16 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// Snell's protocol version. It decides both what a client accepts and
     /// whether the node can carry UDP.
     var version: Int?
+    /// TUIC's QUIC tuning. `congestionControl` is `bbr`/`cubic`/`new_reno`
+    /// and `udpRelayMode` is `native`/`quic`; both are per-server choices the
+    /// airport makes, so a wrong guess costs UDP or throughput.
+    var congestionControl: String?
+    var udpRelayMode: String?
+    /// Hysteria 1's bandwidth budget in Mbps. Unlike Hysteria 2 these are not
+    /// optional hints: the protocol's congestion control is rate-based, so a
+    /// node without them either fails to load or crawls.
+    var upMbps: Int?
+    var downMbps: Int?
     var rawURI: String
     /// Airports often encode quota, expiry, web site, or support text as fake
     /// proxy entries. Keeping the marker optional preserves old snapshots while
@@ -376,6 +391,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         idleSessionTimeout: Int? = nil,
         minIdleSession: Int? = nil,
         version: Int? = nil,
+        congestionControl: String? = nil,
+        udpRelayMode: String? = nil,
+        upMbps: Int? = nil,
+        downMbps: Int? = nil,
         rawURI: String,
         isSubscriptionMetadata: Bool? = nil
     ) {
@@ -409,6 +428,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.idleSessionTimeout = idleSessionTimeout
         self.minIdleSession = minIdleSession
         self.version = version
+        self.congestionControl = congestionControl
+        self.udpRelayMode = udpRelayMode
+        self.upMbps = upMbps
+        self.downMbps = downMbps
         self.rawURI = rawURI
         self.isSubscriptionMetadata = isSubscriptionMetadata
     }
@@ -508,7 +531,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
             parts.append(transportDisplayName)
         }
 
-        if tls, ![.trojan, .hysteria2, .anytls, .http].contains(kind), !parts.contains("TLS") {
+        if tls, ![.trojan, .hysteria, .hysteria2, .tuic, .anytls, .http].contains(kind), !parts.contains("TLS") {
             parts.append("TLS")
         }
 
@@ -525,7 +548,9 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         case .vmess: "VMESS"
         case .vless: "VLESS"
         case .trojan: "TROJAN"
+        case .hysteria: "HYSTERIA"
         case .hysteria2: "HYSTERIA 2"
+        case .tuic: "TUIC"
         case .anytls: "ANYTLS"
         case .snell: version.map { "SNELL V\($0)" } ?? "SNELL"
         case .socks5: "SOCKS5"
@@ -870,15 +895,17 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch mode {
         case .fullConfiguration: supportsDirectConfigurationImport
         case .nodesOnly: supportsNodesOnlyImport
-        case .rulesOnly: self == .quanx
+        // Quantumult X has remote node and filter resources, but policy groups
+        // only exist in the full configuration's [policy] section. A filter
+        // resource alone can therefore reference policy names that do not
+        // exist, so Tower never presents it as a complete import operation.
+        case .rulesOnly: false
         }
     }
 
     var supportedContentModes: [ExportContentMode] {
         guard supportsNodesOnlyImport else { return [.fullConfiguration] }
-        return self == .quanx
-            ? [.fullConfiguration, .nodesOnly, .rulesOnly]
-            : [.fullConfiguration, .nodesOnly]
+        return [.fullConfiguration, .nodesOnly]
     }
 
     var primaryImportTitle: String {
@@ -892,23 +919,29 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .clash:
             kind != .unknown
         case .surge:
-            [.shadowsocks, .vmess, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
+            // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
+            // shipped a Hysteria 1 server type.
+            [.shadowsocks, .vmess, .trojan, .hysteria2, .tuic, .anytls, .snell, .socks5, .http].contains(kind)
         case .shadowrocket:
             kind != .unknown
         case .loon:
+            // Neither TUIC nor Hysteria 1 has a Loon server type; both are
+            // skipped and counted rather than written as something else.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
         case .quanx:
             // No Hysteria 2: Quantumult X has no `hysteria2=` server type, and
             // writing one fails the whole import with "配置文件语法错误". Its
             // sample.conf documents ss2022, REALITY, vless-flow and AnyTLS but
             // no Hysteria at all.
+            // TUIC and Hysteria 1 are absent for the same reason.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .anytls, .socks5, .http].contains(kind)
         case .hiddify:
             // No Snell: sing-box the project implements it, but the core
             // Hiddify ships does not, so those nodes are skipped and counted.
             kind != .unknown && kind != .snell
         case .egern:
-            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
+            // Egern's own producer lists tuic but no hysteria 1.
+            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .anytls, .snell, .socks5, .http].contains(kind)
         }
     }
 }
@@ -924,7 +957,9 @@ enum ExportContentMode: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .fullConfiguration: String(localized: "完整配置")
         case .nodesOnly: String(localized: "仅节点")
-        case .rulesOnly: String(localized: "仅规则")
+        // Kept for decoding older snapshots. No current client exposes this
+        // mode because a remote rule resource cannot carry its policy groups.
+        case .rulesOnly: String(localized: "本地规则")
         }
     }
 }
@@ -1043,6 +1078,12 @@ struct ImportResult: Sendable {
 enum TowerBrand {
     static var localizedName: String {
         String(localized: "塔台")
+    }
+
+    static func migratedDefaultName(_ candidate: String?) -> String {
+        let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if ["Tower", "塔台", "塔臺"].contains(trimmed) { return localizedName }
+        return ExportFilePresentation.profileName(trimmed)
     }
 }
 

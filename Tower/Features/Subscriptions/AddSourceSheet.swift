@@ -4,6 +4,7 @@ import UIKit
 struct AddSourceSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    private let editingNode: ProxyNode?
     @State private var name = ""
     @State private var sourceValue = ""
     @State private var isSaving = false
@@ -46,6 +47,12 @@ struct AddSourceSheet: View {
         }
     }
 
+    init(editingNode: ProxyNode? = nil) {
+        self.editingNode = editingNode
+        _entryMode = State(initialValue: editingNode == nil ? .paste : .manual)
+        _manualDraft = State(initialValue: editingNode.map { ManualNodeDraft(node: $0) } ?? ManualNodeDraft())
+    }
+
     private var detectedKind: SourceInputKind {
         detector.detect(sourceValue)
     }
@@ -53,7 +60,9 @@ struct AddSourceSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                sourceModePicker
+                if editingNode == nil {
+                    sourceModePicker
+                }
 
                 switch entryMode {
                 case .paste:
@@ -79,7 +88,7 @@ struct AddSourceSheet: View {
                     Text("订阅内容、节点凭据和转换结果都只保存在这台设备上。")
                 }
             }
-            .navigationTitle("添加订阅或节点")
+            .navigationTitle(editingNode == nil ? String(localized: "添加订阅或节点") : String(localized: "编辑"))
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
@@ -101,7 +110,7 @@ struct AddSourceSheet: View {
             }
             .interactiveDismissDisabled(isSaving)
             .onAppear {
-                requestClipboardContent()
+                if editingNode == nil { requestClipboardContent() }
             }
             .onChange(of: sourceValue) {
                 errorMessage = nil
@@ -467,6 +476,7 @@ struct AddSourceSheet: View {
     }
 
     private var saveButtonTitle: String {
+        if editingNode != nil { return String(localized: "保存") }
         guard isSaving else { return String(localized: "添加") }
         switch detectedKind {
         case .subscription, .subscriptionBatch: return String(localized: "正在读取…")
@@ -509,7 +519,7 @@ struct AddSourceSheet: View {
         let clipboardValue = UIPasteboard.general.string?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !clipboardValue.isEmpty else {
-            errorMessage = "剪贴板里没有可粘贴的文字"
+            errorMessage = String(localized: "等待有效的订阅链接或节点协议")
             return
         }
         sourceValue = clipboardValue
@@ -524,7 +534,11 @@ struct AddSourceSheet: View {
 
         do {
             if entryMode == .manual {
-                try model.addManualNode(manualDraft)
+                if let editingNode {
+                    try model.updateLocalNode(editingNode, with: manualDraft)
+                } else {
+                    try model.addManualNode(manualDraft)
+                }
             } else {
                 switch detectedKind {
                 case .subscription:

@@ -49,7 +49,7 @@ struct ProxyNodeShareLinkGenerator {
         case .shadowsocks: shadowsocksLink(for: node) ?? original
         case .shadowsocksR: shadowsocksRLink(for: node) ?? original
         case .vmess: vmessLink(for: node) ?? original
-        case .vless, .trojan, .hysteria2, .anytls, .socks5, .http:
+        case .vless, .trojan, .hysteria, .hysteria2, .tuic, .anytls, .socks5, .http:
             standardLink(for: node) ?? original
         // Snell has no URI form, so share its portable Surge proxy line.
         case .snell: original.isEmpty ? snellLine(for: node) : original
@@ -62,7 +62,8 @@ struct ProxyNodeShareLinkGenerator {
         guard !lowercased.hasPrefix("clash://local/") else { return false }
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "anytls://", "socks5://", "socks://", "http://", "https://"
+            "hysteria2://", "hy2://", "hysteria://", "tuic://",
+            "anytls://", "socks5://", "socks://", "http://", "https://"
         ].contains(where: lowercased.hasPrefix)
     }
 
@@ -132,6 +133,8 @@ struct ProxyNodeShareLinkGenerator {
         case .vless: "vless"
         case .trojan: "trojan"
         case .hysteria2: "hysteria2"
+        case .hysteria: "hysteria"
+        case .tuic: "tuic"
         case .anytls: "anytls"
         case .socks5: "socks5"
         case .http: node.tls ? "https" : "http"
@@ -144,7 +147,11 @@ struct ProxyNodeShareLinkGenerator {
         switch node.kind {
         case .vless:
             components.user = node.uuid
-        case .trojan, .hysteria2, .anytls:
+        // TUIC v5 is the one scheme here that puts a pair in the userinfo.
+        case .tuic:
+            components.user = node.uuid
+            components.password = node.password
+        case .trojan, .hysteria, .hysteria2, .anytls:
             components.user = node.password
         case .socks5, .http:
             components.user = node.username
@@ -169,7 +176,7 @@ struct ProxyNodeShareLinkGenerator {
             if let flow = node.flow, !flow.isEmpty {
                 queryItems.append(URLQueryItem(name: "flow", value: flow))
             }
-        } else if node.tls && ![.trojan, .hysteria2, .anytls, .http].contains(node.kind) {
+        } else if node.tls && ![.trojan, .hysteria, .hysteria2, .tuic, .anytls, .http].contains(node.kind) {
             queryItems.append(URLQueryItem(name: "security", value: "tls"))
         }
         if let sni = node.sni, !sni.isEmpty {
@@ -193,6 +200,26 @@ struct ProxyNodeShareLinkGenerator {
                 queryItems.append(URLQueryItem(name: "obfs-password", value: password))
             }
         }
+        if node.kind == .hysteria {
+            if let protocolName = node.protocolName, !protocolName.isEmpty {
+                queryItems.append(URLQueryItem(name: "protocol", value: protocolName))
+            }
+            if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
+                queryItems.append(URLQueryItem(name: "obfs", value: obfs))
+            }
+            if let value = node.upMbps { queryItems.append(URLQueryItem(name: "upmbps", value: String(value))) }
+            if let value = node.downMbps {
+                queryItems.append(URLQueryItem(name: "downmbps", value: String(value)))
+            }
+        }
+        if node.kind == .tuic {
+            if let value = node.congestionControl, !value.isEmpty {
+                queryItems.append(URLQueryItem(name: "congestion_control", value: value))
+            }
+            if let value = node.udpRelayMode, !value.isEmpty {
+                queryItems.append(URLQueryItem(name: "udp_relay_mode", value: value))
+            }
+        }
         if node.kind == .anytls {
             if let value = node.idleSessionCheckInterval {
                 queryItems.append(URLQueryItem(name: "idle-session-check-interval", value: String(value)))
@@ -205,7 +232,9 @@ struct ProxyNodeShareLinkGenerator {
             }
         }
         if node.skipCertificateVerification {
-            let name = [.hysteria2, .anytls].contains(node.kind) ? "insecure" : "allowInsecure"
+            let name = [.hysteria, .hysteria2, .anytls].contains(node.kind)
+                ? "insecure"
+                : (node.kind == .tuic ? "allow_insecure" : "allowInsecure")
             queryItems.append(URLQueryItem(name: name, value: "1"))
         }
         components.queryItems = queryItems.isEmpty ? nil : queryItems

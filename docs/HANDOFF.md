@@ -206,6 +206,104 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 - 地图上方有 54pt 的“测试全部节点”主按钮和测速方式菜单；逐节点重测仍在展开后的节点详情里。
 - 订阅套餐流量：按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表公告行取值。节点始终以订阅原地址返回体为准，`flag=clash` 只在缺结构化配额时补发一次且只读响应头——机场的 Clash 转换器会丢掉它表达不了的协议（实测少 12 个 AnyTLS 节点）。
 
+## 1.5 2026-08-10 协议补齐与首启引导
+
+### 对照 Clash Meta 协议表的结论
+
+拿 [mihomo 的 proxies 文档](https://wiki.metacubex.one/config/proxies/) 逐项对过塔台已有的十种协议，缺的是：
+tuic、hysteria（v1）、wireguard、ssh、mieru、shadowquic、masque、trusttunnel、openvpn、sudoku、tailscale。
+
+判断标准只有一条：**目标客户端能不能忠实写出来**。写不出来就不能导入，否则等于生产一批看着正常、连不上的节点（约束 12）。
+
+| 协议 | 能表达的目标 | 处置 |
+| --- | --- | --- |
+| TUIC | Surge、Shadowrocket、Clash/Stash、Egern、Hiddify（5/7） | 已补 |
+| Hysteria v1 | Shadowrocket、Clash/Stash、Hiddify（3/7） | 已补 |
+| WireGuard | Surge、Shadowrocket、Clash/Stash、Egern、Hiddify（缺 QuanX） | 未做，见下 |
+| ssh / mieru / shadowquic / masque / trusttunnel / openvpn / sudoku / tailscale | 0～1 个 | 不做 |
+
+WireGuard 暂缓的原因不是客户端支持不够，而是它和其余十二种协议的形状不一样：没有「服务器 + 一个密钥」，需要本机私钥、对端公钥、本地 IP/IPv6、预共享密钥、`reserved`、MTU、DNS，`wireguard://` 也没有统一写法。这要给 `ProxyNode` 加一整组字段并给六个生成器各写一套，不适合和这次的改动混在一起。机场订阅里出现 WireGuard 的比例也远低于 TUIC。
+
+### 每个客户端的写法来源
+
+不是猜的，各自有出处：
+
+- **Surge**：`tuic-v5, 服务器, 端口, uuid=, password=, sni=`。Sub-Store 的 `surge.js` 里 `token` 为空就写 `tuic-v5`；Surge 没有 Hysteria v1 的服务器类型。
+- **Shadowrocket**：`tuic, 服务器, 端口, password=, user=<uuid>, peer=<sni>, udp=1`，Hysteria v1 是 `hysteria, …, auth=, obfsParam=, protocol=, upmbps=, downmbps=, udp=1`。来自其使用手册的「编写本地节点」一节，和 REALITY 那次一样，它的字段名是自己的一套。
+- **Clash / Stash**：`type: tuic` 用 `uuid`/`password`/`congestion-controller`/`udp-relay-mode`；`type: hysteria` 用 `auth-str`/`up`/`down`。
+- **Egern**：`- tuic:` 用 `uuid`/`password`/`sni`/`alpn`（列表）/`skip_tls_verify`；其 producer 的类型白名单里有 tuic 没有 hysteria。
+- **Hiddify（sing-box）**：`type: tuic` 用 `congestion_control`/`udp_relay_mode`；`type: hysteria` 用 `auth_str`/`up_mbps`/`down_mbps`。
+- **Loon、Quantumult X**：两种都没有，按约束 12 跳过并计数。
+
+### 解析上的几个坑
+
+- `tuic://` 是唯一一个 userinfo 两半都有意义的 scheme：`tuic://<uuid>:<password>@host:port`。
+- Hysteria v1 的密钥在 query 里（`auth=`），不在 userinfo。
+- Hysteria v1 的 `up`/`down` 不是可选提示。它的拥塞控制是速率型的，没有带宽预算的节点要么加载失败要么极慢，所以缺省补 50/100。
+- Hysteria v1 的 obfs 是一个共享字符串（`obfs=xplus` 时真正的密钥在 `obfsParam`），和 Hysteria 2 的「方法 + 密码」两件事不一样。
+- `alpn` 从 URI 里拿到的是逗号拼接的一个字符串，写进 Clash/Egern 必须还原成 YAML 列表，否则 `h3,h2` 会被当成一个协议名。
+- 顺手补齐了 Clash YAML 解析：`clashKind` 之前没有 anytls 和 snell，机场发的 Clash 订阅里这两种一直被算成无法识别。`auth-str`/`auth_str`/`psk` 现在都能落到 `password`。
+
+### Shadowrocket 的 Hysteria 2 用 `password=`，不要改成 `auth=`（2026-08-10 真机确认）
+
+Shadowrocket 手册的「编写本地节点」一节把 Hysteria 2 写成 `auth=密码`，和塔台实际写的 `password=` 不一致，一度怀疑是又一次「字段名猜错」。**真机验过了：不是。** 导入塔台生成的配置后，节点详情页的密码栏正常填好，节点也能连上——Shadowrocket 收 `password=`，这条不用动。
+
+留这段是为了别再翻一次案：它的手册只列了一种写法，不代表另一种不被接受。要判断 Shadowrocket 认哪个字段，看它自己写出来的配置或详情页回填的值，不要只看手册。
+
+（对比 REALITY 那次：手册和 producer 都没提，但节点详情页能证明它支持，判断依据是同一个。）
+
+外部资料也和真机结论一致，可以一并留档：公开仓库里能找到的 Hysteria 2 `.conf` 行，凡是写 `password=` 的都在 Surge 配置里，写 `auth=` 的都在 Shadowrocket 模板里——两边各写各的，没有哪一份能证明另一种被拒。Sub-Store 的 `shadowrocket.js` 帮不上忙，它产出的是 URI 节点列表，根本不写 `[Proxy]` 本地节点行。
+
+代码里 `case .hysteria2` 和 `writes(_:to:excluding:)` 都留了注释指回这一节，别再翻案。
+
+#### 但 Salamander 混淆之前是真的丢了（2026-08-10）
+
+同一行还有个没被发现的洞：`hysteria2Obfs(node)` 拿到的混淆密码只写进了 Clash 和 sing-box，Surge / Shadowrocket 那条线一个字都没写。服务端开了 Salamander 就会把没混淆的包全丢掉，所以这类节点导进去看着完全正常、永远连不上，正好是约束 12 说的那种。
+
+两边的写法都有出处，且混淆器的名字是**写在键名里**的，不作为值传：
+
+- **Surge**：`salamander-password=`（官方手册 Hysteria 2 页；同页还有它自己的 `gecko-password=`）。
+- **Shadowrocket**：`obfsParam=`（手册「编写本地节点」一节，Hysteria 2 那行没有 obfs 类型字段，因为协议只有 Salamander 一种）。
+
+因此混淆器名字不是 `salamander` 的节点，在这两个目标下按约束 12 跳过并计数——写出去等于宣称它是 Salamander。塔台的解析器目前也产不出别的名字。
+
+Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次真机回归时，用一个开了 Salamander 的 Hysteria 2 节点确认它能连上**，别默认它对。
+
+### 两个「一个节点毁掉整份配置」的真机报错（2026-08-10）
+
+- **QuanX：`配置文件语法错误, duplicated section, [server_remote]`**。这是调整模块顺序时自己引入的：`quanXScheme` 先写了一遍 `[server_remote]/[filter_remote]/[rewrite_remote]`，结尾又调 `quanXTrailingSections` 写了第二遍。QuanX 对重复模块和缺失模块一样零容忍。已把该辅助函数删掉，改成在 `quanXScheme` 里按固定顺序各写一次；`ProfileRejectionTests` 断言两条 QuanX 生成路径的模块序列都恰好等于那 12 个、顺序一致。
+- **Stash：`proxy 301: hysteria2 obfs: salamander requires obfs-password`**。根因在解析：Clash YAML 的 obfs 密码之前只读 `obfs-param`，那是 SSR 的键名，Hysteria 2 叫 `obfs-password`。于是节点带着 obfs 类型、没有密码进来，生成器把 `obfs:` 单独写出去，Mihomo 直接拒掉整份配置——不是拒那一个节点。两头都修了：解析补 `obfs-password` / `obfs_password`，生成侧新增 `hysteria2Obfs(_:)`，类型和密码要么都写要么都不写。没有密码的 obfs 层本来也连不上，丢掉它至少不牵连同文件里其余几百个节点。
+
+### Clash YAML：嵌套序列会把节点截断（2026-08-10）
+
+`parseClashYAML` 判断「新节点开始」只看 `trimmed.hasPrefix("-")`，不看缩进。机场写的
+
+```yaml
+    http-opts:
+      path:
+        - /
+```
+
+里那个 `- /` 因此被当成新节点，后果有两个，第二个更严重：
+
+1. 凭空多出一条没有 `type`/`server` 的条目，被计入「跳过/无法识别」；
+2. **真节点在那一行被截断**，后面的 `reality-opts`、`skip-cert-verify`、`udp` 全部落进那条垃圾条目。这些 VLESS 节点会以「纯 TLS 借用 SNI」的形式导入——看着正常，永远连不上，正是约束 12 要避免的那种。
+
+实测某公开列表 475 个条目里有 28 处这种嵌套，即 28 条 REALITY 节点丢了 `public-key`。修完后 447 个节点、0 跳过、117 条带 `reality-opts` 的全部拿到了 public-key。
+
+修法：记住 `proxies:` 下第一个 `-` 的缩进作为条目缩进，只有缩进不深于它的 `-` 才开新条目；更深的 `-` 当成上一个空值键的序列元素，用逗号拼接——`alpn:` 下的多个元素因此也能完整保留，而且拼出来正好是 `ProxyNode.alpn` 和各生成器已经在用的那种形式。顺带把之前一直丢掉的 `http-opts`/`ws-opts` 里的 `path` 也接上了。
+
+### 首启引导页
+
+`Tower/Features/Onboarding/WelcomeView.swift`，`@AppStorage("hasSeenWelcome")` 控制只出现一次。
+
+放在这里的原因：塔台要用户交出订阅地址，那是机场给的最敏感的东西——一条带账号的链接。先要东西再解释去向是错的顺序。
+
+四条各自点名机制而不是形容词：本机转换、代码公开、地区识别不联网、只在用户按下时联网。仓库那条排在第二位、紧跟它能验证的第一条，地址写全而不是藏在一个词后面——不能核对的开源声明没有意义。文案一律从简，四条都压到一行以内。
+
+动效按 `apple-design` 的默认：临界阻尼、无回弹（这里没有任何手势动量可继承），逐条 0.06s 错峰；`accessibilityReduceMotion` 打开时退化为纯交叉淡入。底部按钮条是 `.regularMaterial`，内容从下面滚过去。十五种语言的文案已进 `Localizable.xcstrings`。
+
+
 ## 2. 产品目标与确定的交互
 
 ### 首页

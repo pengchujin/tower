@@ -83,6 +83,99 @@ struct ManualNodeDraft: Equatable {
     /// Used by the form. Imported callers that only set `tls` remain valid.
     var security = "none"
 
+    init(
+        kind: ProxyKind = .shadowsocks,
+        name: String = "",
+        server: String = "",
+        port: String = "",
+        username: String = "",
+        secret: String = "",
+        cipher: String = "aes-256-gcm",
+        transport: String = "tcp",
+        tls: Bool = false,
+        sni: String = "",
+        hostHeader: String = "",
+        path: String = "",
+        alpn: String = "",
+        realityPublicKey: String = "",
+        realityShortID: String = "",
+        fingerprint: String = "chrome",
+        flow: String = "",
+        skipCertificateVerification: Bool = false,
+        alterID: String = "0",
+        protocolName: String = "origin",
+        protocolParam: String = "",
+        obfs: String = "none",
+        obfsParam: String = "",
+        idleSessionCheckInterval: String = "30",
+        idleSessionTimeout: String = "30",
+        minIdleSession: String = "0",
+        version: String = "4",
+        security: String = "none"
+    ) {
+        self.kind = kind
+        self.name = name
+        self.server = server
+        self.port = port
+        self.username = username
+        self.secret = secret
+        self.cipher = cipher
+        self.transport = transport
+        self.tls = tls
+        self.sni = sni
+        self.hostHeader = hostHeader
+        self.path = path
+        self.alpn = alpn
+        self.realityPublicKey = realityPublicKey
+        self.realityShortID = realityShortID
+        self.fingerprint = fingerprint
+        self.flow = flow
+        self.skipCertificateVerification = skipCertificateVerification
+        self.alterID = alterID
+        self.protocolName = protocolName
+        self.protocolParam = protocolParam
+        self.obfs = obfs
+        self.obfsParam = obfsParam
+        self.idleSessionCheckInterval = idleSessionCheckInterval
+        self.idleSessionTimeout = idleSessionTimeout
+        self.minIdleSession = minIdleSession
+        self.version = version
+        self.security = security
+    }
+
+    init(node: ProxyNode) {
+        kind = node.kind
+        name = node.name
+        server = node.server
+        port = String(node.port)
+        username = node.username ?? ""
+        secret = [.vmess, .vless].contains(node.kind)
+            ? (node.uuid ?? "")
+            : (node.password ?? "")
+        cipher = node.cipher ?? (node.kind == .vmess ? "auto" : "aes-256-gcm")
+        transport = node.transport ?? "tcp"
+        tls = node.tls
+        sni = node.sni ?? ""
+        hostHeader = node.hostHeader ?? ""
+        path = node.path ?? ""
+        alpn = node.alpn ?? ""
+        realityPublicKey = node.realityPublicKey ?? ""
+        realityShortID = node.realityShortID ?? ""
+        fingerprint = node.fingerprint ?? "chrome"
+        flow = node.flow ?? ""
+        skipCertificateVerification = node.skipCertificateVerification
+        alterID = String(node.alterID ?? 0)
+        protocolName = node.protocolName ?? "origin"
+        protocolParam = node.protocolParam ?? ""
+        obfs = node.obfs ?? "none"
+        obfsParam = node.obfsParam ?? ""
+        idleSessionCheckInterval = String(node.idleSessionCheckInterval ?? 30)
+        idleSessionTimeout = String(node.idleSessionTimeout ?? 30)
+        minIdleSession = String(node.minIdleSession ?? 0)
+        version = String(node.version ?? 4)
+        security = node.realityPublicKey == nil ? (node.tls ? "tls" : "none") : "reality"
+    }
+
     mutating func applyDefaults(for selectedKind: ProxyKind) {
         kind = selectedKind
         switch selectedKind {
@@ -118,12 +211,16 @@ struct ManualNodeDraft: Equatable {
             obfs = "none"
         case .socks5, .http:
             security = "none"
-        case .unknown:
+        // Not offered by the manual form: TUIC needs a UUID *and* a password
+        // and Hysteria 1 needs a bandwidth budget, neither of which this
+        // one-secret draft can express. Both still import from a URI or a
+        // subscription. `supportedKinds` keeps them off the picker.
+        case .tuic, .hysteria, .unknown:
             break
         }
     }
 
-    func makeNode() throws -> ProxyNode {
+    func makeNode(id: UUID = UUID(), sourceID: UUID? = nil) throws -> ProxyNode {
         guard Self.supportedKinds.contains(kind) else {
             throw ManualNodeValidationError.unsupportedProtocol
         }
@@ -198,6 +295,8 @@ struct ManualNodeDraft: Equatable {
         let enablesTLS = requiresTLS || tls || ["tls", "reality"].contains(normalizedSecurity) || usesReality
 
         var node = ProxyNode(
+            id: id,
+            sourceID: sourceID,
             kind: kind,
             name: normalizedName.isEmpty ? "\(kind.title) · \(normalizedServer)" : normalizedName,
             server: normalizedServer,

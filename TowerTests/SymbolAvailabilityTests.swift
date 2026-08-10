@@ -25,6 +25,12 @@ final class SymbolAvailabilityTests: XCTestCase {
         }
     }
 
+    func testEveryWelcomeSymbolExists() {
+        for symbol in WelcomeView.promises.map(\.symbol) + ["lock.iphone", "arrow.right"] {
+            XCTAssertNotNil(UIImage(systemName: symbol), "引导页用了不存在的 SF Symbol：\(symbol)")
+        }
+    }
+
     func testProtocolSymbolsAreDistinctEnoughToTellApart() {
         // Trojan, AnyTLS and Snell all mean "encrypted", and three shields in a
         // row would make the filter list unreadable.

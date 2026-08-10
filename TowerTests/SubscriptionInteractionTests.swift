@@ -1,7 +1,98 @@
 import XCTest
 @testable import Tower
 
+private struct EditingSubscriptionFetcher: SubscriptionFetching {
+    func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
+        ImportResult(nodes: [], rejectedLineCount: 0, usage: source.usage)
+    }
+}
+
 final class SubscriptionInteractionTests: XCTestCase {
+    @MainActor
+    func testSubscriptionsCanBeEditedAndReorderedPersistently() async throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-subscription-edit-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let first = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let second = SubscriptionSource(name: "二", urlString: "https://two.example/sub")
+        let firstNode = ProxyNode(
+            sourceID: first.id, kind: .shadowsocks, name: "一号节点",
+            server: "one.example", port: 8388, cipher: "aes-256-gcm", password: "one",
+            rawURI: "ss://one"
+        )
+        let secondNode = ProxyNode(
+            sourceID: second.id, kind: .shadowsocks, name: "二号节点",
+            server: "two.example", port: 8388, cipher: "aes-256-gcm", password: "two",
+            rawURI: "ss://two"
+        )
+        try store.save(AppSnapshot(
+            subscriptions: [first, second], nodes: [firstNode, secondNode],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(
+            persistence: store,
+            subscriptionService: EditingSubscriptionFetcher(),
+            arguments: []
+        )
+
+        try await model.updateSubscriptionDetails(
+            first,
+            name: "第一机场",
+            urlString: first.urlString,
+            userAgent: nil,
+            dnsOverHTTPSURL: nil
+        )
+        model.moveSubscription(first, by: 1)
+
+        XCTAssertEqual(model.subscriptions.map(\.id), [second.id, first.id])
+        XCTAssertEqual(model.availableNodes.map(\.id), [secondNode.id, firstNode.id])
+        XCTAssertEqual(model.subscriptions[1].name, "第一机场")
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.subscriptions.map(\.id), [second.id, first.id])
+        XCTAssertEqual(reloaded.availableNodes.map(\.id), [secondNode.id, firstNode.id])
+        XCTAssertEqual(reloaded.subscriptions[1].name, "第一机场")
+    }
+
+    @MainActor
+    func testLocalNodesCanBeEditedAndReorderedPersistently() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-local-node-edit-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let first = ProxyNode(
+            kind: .shadowsocks, name: "本地一", server: "one.example", port: 8388,
+            cipher: "aes-256-gcm", password: "one", rawURI: "ss://one"
+        )
+        let airport = ProxyNode(
+            sourceID: UUID(), kind: .shadowsocks, name: "机场节点", server: "airport.example",
+            port: 8388, cipher: "aes-256-gcm", password: "airport", rawURI: "ss://airport"
+        )
+        let second = ProxyNode(
+            kind: .shadowsocks, name: "本地二", server: "two.example", port: 8388,
+            cipher: "aes-256-gcm", password: "two", rawURI: "ss://two"
+        )
+        try store.save(AppSnapshot(
+            subscriptions: [], nodes: [first, airport, second],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+        var draft = ManualNodeDraft(node: first)
+        draft.name = "编辑后的节点"
+        draft.server = "edited.example"
+
+        try model.updateLocalNode(first, with: draft)
+        model.moveLocalNode(first, by: 1)
+
+        XCTAssertEqual(model.localNodes.map(\.id), [second.id, first.id])
+        XCTAssertEqual(model.localNodes[1].name, "编辑后的节点")
+        XCTAssertEqual(model.localNodes[1].server, "edited.example")
+        XCTAssertEqual(model.nodes[1].id, airport.id, "重排自有节点不能移动机场节点")
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.localNodes.map(\.id), [second.id, first.id])
+        XCTAssertEqual(reloaded.localNodes[1].name, "编辑后的节点")
+    }
+
     func testAddSourceSheetRequestsClipboardWhenPresented() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
@@ -9,11 +100,21 @@ final class SubscriptionInteractionTests: XCTestCase {
             .deletingLastPathComponent()
             .appendingPathComponent("Tower/Features/Subscriptions/AddSourceSheet.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
-        let presentationRequest = #"\.onAppear\s*\{\s*requestClipboardContent\(\)"#
+        // Matched loosely on purpose: the call may be guarded — editing an
+        // existing node opens the same sheet and must not read the clipboard,
+        // since that is not a paste and would raise iOS's paste banner for
+        // nothing. What the constraint requires is that presenting the sheet
+        // to ADD something still asks once.
+        let presentationRequest = #"\.onAppear\s*\{[^}]*requestClipboardContent\(\)"#
 
         XCTAssertNotNil(
             source.range(of: presentationRequest, options: .regularExpression),
             "打开添加面板时应主动请求受支持的剪贴板内容"
+        )
+        // And the read stays single-shot within one presentation.
+        XCTAssertNotNil(
+            source.range(of: #"guard\s*!didReadPasteboard\s*else\s*\{\s*return\s*\}"#, options: .regularExpression),
+            "同一次面板展示不应重复读取剪贴板"
         )
         #else
         throw XCTSkip("该测试检查开发源码中的 SwiftUI 触发器，只在模拟器构建环境运行")
@@ -198,6 +299,44 @@ final class SubscriptionInteractionTests: XCTestCase {
         #else
         throw XCTSkip("该测试检查订阅卡片的动画作用域，只在模拟器构建环境运行")
         #endif
+    }
+
+    func testSubscriptionAndLocalNodeLongPressMenusOfferEditAndSorting() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        for action in ["编辑", "上移", "下移"] {
+            XCTAssertTrue(source.contains("Label(\"\(action)\""), "长按菜单缺少 \(action)")
+        }
+        XCTAssertTrue(source.contains("model.moveSubscription"))
+        XCTAssertTrue(source.contains("model.moveLocalNode"))
+        XCTAssertTrue(source.contains("AddSourceSheet(editingNode:"))
+        #else
+        throw XCTSkip("该测试检查首页长按菜单，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSectionHeadingLocalizesStaticDetailText() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Design/TowerTheme.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(source.contains("Text(LocalizedStringKey(detail))"))
+        #else
+        throw XCTSkip("该测试检查自定义标题组件，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testLocalizedDefaultProfileNamesFollowTheCurrentAppLanguage() {
+        XCTAssertEqual(TowerBrand.migratedDefaultName("塔台"), TowerBrand.localizedName)
+        XCTAssertEqual(TowerBrand.migratedDefaultName("Tower"), TowerBrand.localizedName)
+        XCTAssertEqual(TowerBrand.migratedDefaultName("My Profile"), "My Profile")
     }
 
     func testAvailableNodesAndRegionsOpenTheNodeFilterPage() throws {
