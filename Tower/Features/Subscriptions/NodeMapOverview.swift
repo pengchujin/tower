@@ -388,8 +388,7 @@ private struct NodeRegionLogo: View {
         ZStack {
             // The node's own name decides the flag; the IP database only
             // answers for names that say nothing about where they are.
-            if let countryCode = NodeRegionResolver.countryCode(for: node)
-                ?? model.ipCountryCode(for: node) {
+            if let countryCode = model.countryCode(for: node) {
                 CountryFlagEmoji(countryCode: countryCode, size: 27)
             } else {
                 Image(systemName: node.kind.symbol)

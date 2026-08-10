@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  塔台不做任何追踪，也不收集任何数据。订阅内容、节点和生成的配置
+	  只在本机处理，不会离开设备（见 README 的隐私模型一节）。
+	  下面三条「必需理由 API」是唯一需要向 Apple 声明的用法，逐条对应
+	  代码里的实际调用点。
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+			  DirectImportAccessTokenStore、LANSubscriptionAccessTokenStore
+			  和 @AppStorage("hasSeenWelcome")。三处都只读写塔台自己的数据，
+			  不与任何其他 App 或 App Group 共享。
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!--
+			  ExportFileService.purge(in:olderThan:now:) 读取导出目录里文件的
+			  修改时间，用来清掉过期的临时导出文件。只涉及 App 容器内的文件。
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!--
+			  NodeLatencyService 用 ProcessInfo.processInfo.systemUptime 的差值
+			  计算节点延迟。只测量 App 内两个事件之间经过的时间。
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

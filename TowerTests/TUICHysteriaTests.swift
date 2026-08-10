@@ -478,3 +478,155 @@ final class ProfileRejectionTests: XCTestCase {
         haystack.components(separatedBy: needle).count - 1
     }
 }
+
+/// Panels that serialise their YAML rather than write it by hand escape every
+/// non-ASCII character. Stripping the quotes without decoding leaves the escape
+/// text itself as the node name — in the list, and in every generated file.
+final class YAMLScalarEscapeTests: XCTestCase {
+    private let parser = SubscriptionParser()
+
+    func testDecodesEscapedNamesInDoubleQuotedScalars() throws {
+        let yaml = """
+        proxies:
+        - name: "\\U0001F1ED\\U0001F1F0 香港 01"
+          type: anytls
+          server: a.example.com
+          port: 27002
+          password: pw
+        - name: "\\uD83C\\uDDFA\\uD83C\\uDDF8 美国 01"
+          type: trojan
+          server: b.example.com
+          port: 443
+          password: pw
+        """
+
+        let nodes = parser.parse(data: Data(yaml.utf8)).nodes
+
+        XCTAssertEqual(nodes.count, 2)
+        XCTAssertEqual(nodes[0].name, "🇭🇰 香港 01")
+        // The same flag written as a UTF-16 surrogate pair.
+        XCTAssertEqual(nodes[1].name, "🇺🇸 美国 01")
+    }
+
+    /// A single-quoted scalar has no escapes at all: a backslash there is a
+    /// backslash, and decoding one would corrupt a name rather than fix it.
+    func testSingleQuotedScalarsAreLeftAlone() throws {
+        let yaml = """
+        proxies:
+        - {name: 'a\\Ub', type: trojan, server: a.example.com, port: 443, password: pw}
+        """
+
+        let node = try XCTUnwrap(parser.parse(data: Data(yaml.utf8)).nodes.first)
+
+        XCTAssertEqual(node.name, "a\\Ub")
+    }
+
+    /// A decoded flag has to reach the region resolver, not just the label:
+    /// the name is what decides the country before the offline IP database is
+    /// ever consulted.
+    func testDecodedFlagDrivesTheRegion() throws {
+        let yaml = """
+        proxies:
+        - name: "\\U0001F1EF\\U0001F1F5 Tokyo"
+          type: trojan
+          server: a.example.com
+          port: 443
+          password: pw
+        """
+
+        let node = try XCTUnwrap(parser.parse(data: Data(yaml.utf8)).nodes.first)
+
+        XCTAssertEqual(NodeRegionResolver.countryCode(for: node), "JP")
+    }
+}
+
+/// The manual-add form, which is the only path into Tower that does not start
+/// from a link someone else wrote.
+final class ManualNodeDraftTests: XCTestCase {
+    func testEveryProtocolAtLeastOneClientCanWriteIsOffered() {
+        let expressible = ProxyKind.allCases.filter { kind in
+            kind != .unknown && ClientTarget.allCases.contains { $0.supports(kind) }
+        }
+
+        XCTAssertEqual(
+            Set(ManualNodeDraft.supportedKinds),
+            Set(expressible),
+            "手动添加的协议列表和客户端实际支持的协议不一致"
+        )
+    }
+
+    func testBuildsTUICWithBothHalvesOfItsCredential() throws {
+        var draft = ManualNodeDraft()
+        draft.applyDefaults(for: .tuic)
+        draft.server = "a.example.com"
+        draft.port = "44300"
+        draft.secret = "3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47"
+        draft.password = "pw"
+        draft.congestionControl = "bbr"
+        draft.udpRelayMode = "native"
+
+        let node = try draft.makeNode()
+
+        XCTAssertEqual(node.kind, .tuic)
+        XCTAssertEqual(node.uuid, "3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47")
+        XCTAssertEqual(node.password, "pw")
+        XCTAssertEqual(node.congestionControl, "bbr")
+        XCTAssertEqual(node.udpRelayMode, "native")
+        XCTAssertTrue(node.tls)
+    }
+
+    /// A UUID with no password authenticates nothing, so the form refuses it
+    /// rather than producing a node that looks complete.
+    func testTUICWithoutAPasswordIsRejected() {
+        var draft = ManualNodeDraft()
+        draft.applyDefaults(for: .tuic)
+        draft.server = "a.example.com"
+        draft.port = "44300"
+        draft.secret = "3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47"
+
+        XCTAssertThrowsError(try draft.makeNode()) { error in
+            XCTAssertEqual(error as? ManualNodeValidationError, .missingTUICPassword)
+        }
+    }
+
+    func testHysteriaRequiresABandwidthBudget() throws {
+        var draft = ManualNodeDraft()
+        draft.applyDefaults(for: .hysteria)
+        draft.server = "a.example.com"
+        draft.port = "36712"
+        draft.secret = "pw"
+
+        // The defaults are usable, so a node built straight from them works.
+        let node = try draft.makeNode()
+        XCTAssertEqual(node.upMbps, 50)
+        XCTAssertEqual(node.downMbps, 100)
+        XCTAssertEqual(node.protocolName, "udp")
+
+        draft.upMbps = "0"
+        XCTAssertThrowsError(try draft.makeNode()) { error in
+            XCTAssertEqual(error as? ManualNodeValidationError, .invalidBandwidth)
+        }
+    }
+
+    /// Editing an existing node has to round-trip every field the form shows,
+    /// or opening and saving quietly erases what it did not carry.
+    func testEditingRoundTripsTheNewFields() throws {
+        let parser = SubscriptionParser()
+        for uri in [
+            "tuic://3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47:pw@a.example.com:44300"
+                + "?congestion_control=bbr&udp_relay_mode=native&sni=c.example.com#T",
+            "hysteria://b.example.com:36712?auth=pw&upmbps=80&downmbps=240&protocol=udp#H"
+        ] {
+            let original = try XCTUnwrap(parser.parseURI(uri), uri)
+            let rebuilt = try ManualNodeDraft(node: original).makeNode()
+
+            XCTAssertEqual(rebuilt.kind, original.kind, uri)
+            XCTAssertEqual(rebuilt.uuid, original.uuid, uri)
+            XCTAssertEqual(rebuilt.password, original.password, uri)
+            XCTAssertEqual(rebuilt.congestionControl, original.congestionControl, uri)
+            XCTAssertEqual(rebuilt.udpRelayMode, original.udpRelayMode, uri)
+            XCTAssertEqual(rebuilt.upMbps, original.upMbps, uri)
+            XCTAssertEqual(rebuilt.downMbps, original.downMbps, uri)
+        }
+    }
+}

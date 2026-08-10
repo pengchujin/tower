@@ -174,7 +174,12 @@ struct WelcomeView: View {
     ]
 }
 
-private struct PromiseRow: View {
+/// One claim: an icon, a title, and the mechanism behind it.
+///
+/// Shared with Settings so the first-launch page and the "安全与开源" card
+/// cannot drift apart — a privacy promise that says two different things in
+/// two places is worse than one that is only shown once.
+struct PromiseRow: View {
     let promise: WelcomeView.Promise
     /// Shown verbatim under the detail. Only the source row uses it, to print
     /// the repository address in full rather than hide it behind a word.

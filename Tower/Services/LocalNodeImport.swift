@@ -9,6 +9,8 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
     case missingRealityPublicKey
     case incompatibleRealityTransport
     case invalidSessionSettings
+    case missingTUICPassword
+    case invalidBandwidth
     case unsupportedProtocol
 
     var errorDescription: String? {
@@ -21,6 +23,8 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
         case .missingRealityPublicKey: String(localized: "REALITY 必须填写服务器公钥")
         case .incompatibleRealityTransport: String(localized: "REALITY 当前只支持 TCP 或 gRPC 传输")
         case .invalidSessionSettings: String(localized: "AnyTLS 会话参数必须是大于或等于 0 的整数")
+        case .missingTUICPassword: String(localized: "TUIC 需要同时填写 UUID 和密码")
+        case .invalidBandwidth: String(localized: "Hysteria 上下行带宽必须是大于 0 的整数")
         case .unsupportedProtocol: String(localized: "该协议请改用协议链接导入")
         }
     }
@@ -49,7 +53,7 @@ struct LocalNodeImporter {
 struct ManualNodeDraft: Equatable {
     static let supportedKinds: [ProxyKind] = [
         .shadowsocks, .shadowsocksR, .vmess, .vless, .trojan,
-        .hysteria2, .anytls, .snell, .socks5, .http
+        .hysteria, .hysteria2, .tuic, .anytls, .snell, .socks5, .http
     ]
 
     var kind: ProxyKind = .shadowsocks
@@ -57,8 +61,20 @@ struct ManualNodeDraft: Equatable {
     var server = ""
     var port = ""
     var username = ""
-    /// Password, PSK or UUID depending on `kind`.
+    /// The protocol's identity: its UUID where it has one, its password or PSK
+    /// where it does not.
     var secret = ""
+    /// TUIC is the only protocol here that authenticates with a UUID *and* a
+    /// password, so it is the only one that fills this in.
+    var password = ""
+    /// Hysteria 1's bandwidth budget. Not a hint — its congestion control is
+    /// rate-based, so a node without one either fails to load or crawls.
+    var upMbps = "50"
+    var downMbps = "100"
+    /// TUIC's QUIC tuning. Empty means "let the client decide"; both are
+    /// per-server choices, so guessing them costs UDP or throughput.
+    var congestionControl = ""
+    var udpRelayMode = ""
     var cipher = "aes-256-gcm"
     var transport = "tcp"
     var tls = false
@@ -90,6 +106,11 @@ struct ManualNodeDraft: Equatable {
         port: String = "",
         username: String = "",
         secret: String = "",
+        password: String = "",
+        upMbps: String = "50",
+        downMbps: String = "100",
+        congestionControl: String = "",
+        udpRelayMode: String = "",
         cipher: String = "aes-256-gcm",
         transport: String = "tcp",
         tls: Bool = false,
@@ -119,6 +140,11 @@ struct ManualNodeDraft: Equatable {
         self.port = port
         self.username = username
         self.secret = secret
+        self.password = password
+        self.upMbps = upMbps
+        self.downMbps = downMbps
+        self.congestionControl = congestionControl
+        self.udpRelayMode = udpRelayMode
         self.cipher = cipher
         self.transport = transport
         self.tls = tls
@@ -149,9 +175,14 @@ struct ManualNodeDraft: Equatable {
         server = node.server
         port = String(node.port)
         username = node.username ?? ""
-        secret = [.vmess, .vless].contains(node.kind)
+        secret = [.vmess, .vless, .tuic].contains(node.kind)
             ? (node.uuid ?? "")
             : (node.password ?? "")
+        password = node.kind == .tuic ? (node.password ?? "") : ""
+        upMbps = String(node.upMbps ?? 50)
+        downMbps = String(node.downMbps ?? 100)
+        congestionControl = node.congestionControl ?? ""
+        udpRelayMode = node.udpRelayMode ?? ""
         cipher = node.cipher ?? (node.kind == .vmess ? "auto" : "aes-256-gcm")
         transport = node.transport ?? "tcp"
         tls = node.tls
@@ -209,13 +240,18 @@ struct ManualNodeDraft: Equatable {
         case .snell:
             version = "4"
             obfs = "none"
+        case .tuic:
+            security = "tls"
+            alpn = "h3"
+        case .hysteria:
+            security = "tls"
+            obfs = ""
+            protocolName = "udp"
+            upMbps = "50"
+            downMbps = "100"
         case .socks5, .http:
             security = "none"
-        // Not offered by the manual form: TUIC needs a UUID *and* a password
-        // and Hysteria 1 needs a bandwidth budget, neither of which this
-        // one-secret draft can express. Both still import from a URI or a
-        // subscription. `supportedKinds` keeps them off the picker.
-        case .tuic, .hysteria, .unknown:
+        case .unknown:
             break
         }
     }
@@ -251,9 +287,29 @@ struct ManualNodeDraft: Equatable {
         let normalizedSecurity = security.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let usesReality = normalizedSecurity == "reality"
 
-        if [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .snell].contains(kind),
-           normalizedSecret.isEmpty {
+        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if [
+            .shadowsocks, .shadowsocksR, .vmess, .vless, .trojan,
+            .hysteria, .hysteria2, .tuic, .anytls, .snell
+        ].contains(kind), normalizedSecret.isEmpty {
             throw ManualNodeValidationError.missingSecret
+        }
+        // TUIC needs both halves; a UUID on its own authenticates nothing.
+        if kind == .tuic, normalizedPassword.isEmpty {
+            throw ManualNodeValidationError.missingTUICPassword
+        }
+        let parsedUpMbps: Int?
+        let parsedDownMbps: Int?
+        if kind == .hysteria {
+            guard let up = Int(upMbps), up > 0, let down = Int(downMbps), down > 0 else {
+                throw ManualNodeValidationError.invalidBandwidth
+            }
+            parsedUpMbps = up
+            parsedDownMbps = down
+        } else {
+            parsedUpMbps = nil
+            parsedDownMbps = nil
         }
         if [.shadowsocks, .shadowsocksR].contains(kind), normalizedCipher.isEmpty {
             throw ManualNodeValidationError.missingCipher
@@ -291,7 +347,7 @@ struct ManualNodeDraft: Equatable {
             parsedVersion = nil
         }
         let parsedAlterID = kind == .vmess ? max(Int(alterID) ?? 0, 0) : nil
-        let requiresTLS = [.trojan, .hysteria2, .anytls].contains(kind)
+        let requiresTLS = [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(kind)
         let enablesTLS = requiresTLS || tls || ["tls", "reality"].contains(normalizedSecurity) || usesReality
 
         var node = ProxyNode(
@@ -304,10 +360,17 @@ struct ManualNodeDraft: Equatable {
             cipher: [.shadowsocks, .shadowsocksR].contains(kind)
                 ? normalizedCipher
                 : (kind == .vmess ? (normalizedCipher.isEmpty ? "auto" : normalizedCipher) : nil),
-            password: [.shadowsocks, .shadowsocksR, .trojan, .hysteria2, .anytls, .snell, .socks5, .http].contains(kind)
-                ? (normalizedSecret.isEmpty ? nil : normalizedSecret)
-                : nil,
-            uuid: [.vmess, .vless].contains(kind) ? normalizedSecret : nil,
+            // TUIC is the one protocol whose identity and secret are separate
+            // fields; everywhere else `secret` is whichever one the protocol has.
+            password: kind == .tuic
+                ? normalizedPassword
+                : ([
+                    .shadowsocks, .shadowsocksR, .trojan,
+                    .hysteria, .hysteria2, .anytls, .snell, .socks5, .http
+                ].contains(kind)
+                    ? (normalizedSecret.isEmpty ? nil : normalizedSecret)
+                    : nil),
+            uuid: [.vmess, .vless, .tuic].contains(kind) ? normalizedSecret : nil,
             username: [.socks5, .http].contains(kind) && !normalizedUsername.isEmpty
                 ? normalizedUsername
                 : nil,
@@ -327,11 +390,14 @@ struct ManualNodeDraft: Equatable {
             alterID: parsedAlterID,
             protocolName: kind == .shadowsocksR
                 ? (normalizedProtocolName.isEmpty ? "origin" : normalizedProtocolName)
-                : nil,
+                : (kind == .hysteria && !normalizedProtocolName.isEmpty ? normalizedProtocolName : nil),
             protocolParam: kind == .shadowsocksR && !normalizedProtocolParam.isEmpty
                 ? normalizedProtocolParam
                 : nil,
-            obfs: [.shadowsocks, .shadowsocksR, .hysteria2, .snell].contains(kind) && !normalizedObfs.isEmpty
+            // Hysteria 1's obfs is one shared string rather than Hysteria 2's
+            // method-plus-password pair, so it uses `obfs` alone.
+            obfs: [.shadowsocks, .shadowsocksR, .hysteria, .hysteria2, .snell].contains(kind)
+                && !normalizedObfs.isEmpty
                 ? normalizedObfs
                 : nil,
             obfsParam: [.shadowsocks, .shadowsocksR, .hysteria2, .snell].contains(kind) && !normalizedObfsParam.isEmpty
@@ -341,6 +407,10 @@ struct ManualNodeDraft: Equatable {
             idleSessionTimeout: parsedIdleSessionTimeout,
             minIdleSession: parsedMinIdleSession,
             version: parsedVersion,
+            congestionControl: kind == .tuic && !congestionControl.isEmpty ? congestionControl : nil,
+            udpRelayMode: kind == .tuic && !udpRelayMode.isEmpty ? udpRelayMode : nil,
+            upMbps: parsedUpMbps,
+            downMbps: parsedDownMbps,
             rawURI: ""
         )
         node.rawURI = ProxyNodeShareLinkGenerator().link(for: node)

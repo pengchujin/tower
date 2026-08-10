@@ -265,11 +265,19 @@ struct AddSourceSheet: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
-            if [.vmess, .vless].contains(manualDraft.kind) {
+            if [.vmess, .vless, .tuic].contains(manualDraft.kind) {
                 TextField("UUID", text: $manualDraft.secret)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-            } else {
+            }
+            // TUIC authenticates with a UUID and a password, so it is the one
+            // protocol that needs both fields rather than either one.
+            if manualDraft.kind == .tuic {
+                SecureField("密码", text: $manualDraft.password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            if ![.vmess, .vless, .tuic].contains(manualDraft.kind) {
                 SecureField(secretPrompt, text: $manualDraft.secret)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -338,6 +346,47 @@ struct AddSourceSheet: View {
                 Text("QUIC 混淆")
             } footer: {
                 Text("混淆方式和密码必须与 Hysteria 2 服务端一致。")
+            }
+        }
+
+        if manualDraft.kind == .hysteria {
+            Section {
+                TextField("上行带宽（Mbps）", text: $manualDraft.upMbps)
+                    .keyboardType(.numberPad)
+                TextField("下行带宽（Mbps）", text: $manualDraft.downMbps)
+                    .keyboardType(.numberPad)
+                Picker("传输协议", selection: $manualDraft.protocolName) {
+                    Text("UDP").tag("udp")
+                    Text("wechat-video").tag("wechat-video")
+                    Text("faketcp").tag("faketcp")
+                }
+                TextField("混淆字符串（可选）", text: $manualDraft.obfs)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("带宽与混淆")
+            } footer: {
+                Text("Hysteria 按带宽控制发送速率，上下行必须填写，按你的实际线路填。填错会明显变慢。")
+            }
+        }
+
+        if manualDraft.kind == .tuic {
+            Section {
+                Picker("拥塞控制", selection: $manualDraft.congestionControl) {
+                    Text("默认").tag("")
+                    Text("BBR").tag("bbr")
+                    Text("Cubic").tag("cubic")
+                    Text("New Reno").tag("new_reno")
+                }
+                Picker("UDP 中继", selection: $manualDraft.udpRelayMode) {
+                    Text("默认").tag("")
+                    Text("native").tag("native")
+                    Text("quic").tag("quic")
+                }
+            } header: {
+                Text("QUIC 参数")
+            } footer: {
+                Text("不确定就保持默认，由客户端决定。")
             }
         }
 
@@ -447,7 +496,7 @@ struct AddSourceSheet: View {
     }
 
     private var usesMandatoryTLS: Bool {
-        [.trojan, .hysteria2, .anytls].contains(manualDraft.kind)
+        [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(manualDraft.kind)
     }
 
     private var usesTLSSettings: Bool {
@@ -489,13 +538,42 @@ struct AddSourceSheet: View {
         if entryMode == .paste { return !detectedKind.isSupported }
         if entryMode == .scan { return !detectedKind.isSupported }
         return manualDraft.server.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || manualDraft.port.isEmpty
+            || (Int(manualDraft.port).map { !(1 ... 65535).contains($0) } ?? true)
+            || isMissingRequiredCredential
+    }
+
+    /// Whether the protocol's own required fields are still blank.
+    ///
+    /// The form used to enable 添加 as soon as a server and port were typed and
+    /// then throw the real requirement back as an error afterwards. Validating
+    /// inline is the same check, made before the tap instead of after it.
+    private var isMissingRequiredCredential: Bool {
+        func blank(_ value: String) -> Bool {
+            value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        let needsSecret: [ProxyKind] = [
+            .shadowsocks, .shadowsocksR, .vmess, .vless, .trojan,
+            .hysteria, .hysteria2, .tuic, .anytls, .snell
+        ]
+        if needsSecret.contains(manualDraft.kind), blank(manualDraft.secret) { return true }
+        if manualDraft.kind == .tuic, blank(manualDraft.password) { return true }
+        if [.shadowsocks, .shadowsocksR].contains(manualDraft.kind), blank(manualDraft.cipher) {
+            return true
+        }
+        if manualDraft.security == "reality", blank(manualDraft.realityPublicKey) { return true }
+        if manualDraft.kind == .hysteria {
+            let up = Int(manualDraft.upMbps) ?? 0
+            let down = Int(manualDraft.downMbps) ?? 0
+            if up <= 0 || down <= 0 { return true }
+        }
+        return false
     }
 
     private var secretPrompt: String {
         switch manualDraft.kind {
         case .shadowsocks, .shadowsocksR: String(localized: "密码")
         case .trojan, .hysteria2, .anytls, .snell: String(localized: "密码或 PSK")
+        case .hysteria: String(localized: "认证密码")
         case .socks5, .http: String(localized: "密码（可选）")
         default: String(localized: "认证信息")
         }

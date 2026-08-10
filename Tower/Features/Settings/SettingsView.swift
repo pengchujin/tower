@@ -16,6 +16,7 @@ struct SettingsView: View {
                     isConfirmingTokenRotation: $isConfirmingTokenRotation
                 )
                 LANSharingGuide()
+                SecurityAndSourceLink()
             }
             .padding(.horizontal, TowerTheme.pagePadding)
             .padding(.top, 12)
@@ -35,6 +36,84 @@ struct SettingsView: View {
         } message: {
             Text("所有已经添加到电脑或路由器的塔台订阅链接都会失效。")
         }
+    }
+}
+
+/// The first-launch promises, kept somewhere permanent.
+///
+/// That page is shown once and then never again, so the claims it makes about
+/// where a subscription goes would otherwise be unreadable the moment someone
+/// wants to check them. Settings carries one quiet row instead of a fifth
+/// full-width card: this is reference material, not a setting anyone acts on
+/// every visit, and the page behind it holds the same four rows.
+private struct SecurityAndSourceLink: View {
+    var body: some View {
+        NavigationLink {
+            SecurityAndSourceView()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        Color.accentColor.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("安全与开源")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text("全部在这台设备上处理")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+            .towerCard()
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+    }
+}
+
+struct SecurityAndSourceView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(WelcomeView.promises) { promise in
+                    if promise.id == WelcomeView.sourceRowID {
+                        Link(destination: WelcomeView.repositoryURL) {
+                            PromiseRow(
+                                promise: promise,
+                                trailing: WelcomeView.repositoryURL.absoluteString
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(ResponsivePressButtonStyle())
+                        .accessibilityLabel(Text("在浏览器中打开源代码仓库"))
+                    } else {
+                        PromiseRow(promise: promise)
+                    }
+                }
+            }
+            .padding(18)
+            .towerCard()
+            .padding(.horizontal, TowerTheme.pagePadding)
+            .padding(.top, 14)
+            .padding(.bottom, 28)
+        }
+        .background(TowerTheme.background.ignoresSafeArea())
+        .navigationTitle("安全与开源")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

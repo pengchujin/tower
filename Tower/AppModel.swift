@@ -350,9 +350,7 @@ final class AppModel {
     var localNodes: [ProxyNode] { nodes.filter(\.isLocal) }
     var enabledSubscriptionCount: Int { subscriptions.filter(\.isEnabled).count }
     var coveredCountryCount: Int {
-        Set(enabledNodes.compactMap { node in
-            nodeIPCountryCodes[node.id] ?? NodeRegionResolver.countryCode(for: node)
-        }).count
+        Set(enabledNodes.compactMap(countryCode(for:))).count
     }
     var currentRuleCount: Int { ruleRepository.count(for: selectedPreset) }
 
@@ -455,6 +453,18 @@ final class AppModel {
 
     func ipCountryCode(for node: ProxyNode) -> String? {
         nodeIPCountryCodes[node.id]
+    }
+
+    /// The one place that decides which country a node belongs to.
+    ///
+    /// Name first, offline IP database only when the name says nothing — the
+    /// order the map already used, and the order the policy groups are built
+    /// with. The metric pill and the filter used to ask the other way round,
+    /// and the IP lookup is asynchronous: every result that landed *replaced* a
+    /// country the name had already settled, so the region count visibly
+    /// climbed past its answer and came back down while resolution finished.
+    func countryCode(for node: ProxyNode) -> String? {
+        NodeRegionResolver.countryCode(for: node) ?? nodeIPCountryCodes[node.id]
     }
 
     func hasResolvedIPCountry(for node: ProxyNode) -> Bool {

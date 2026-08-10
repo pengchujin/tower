@@ -837,8 +837,9 @@ struct SubscriptionParser {
                 // `alpn` survives in the one form ProxyNode and the generators
                 // already use.
                 guard let key = pendingSequenceKey else { continue }
-                let element = trimmed.dropFirst()
-                    .trimmingCharacters(in: CharacterSet(charactersIn: " \t\"'"))
+                let element = yamlScalar(
+                    String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+                )
                 guard !element.isEmpty else { continue }
                 let existing = current[key] ?? ""
                 current[key] = existing.isEmpty ? element : existing + "," + element
@@ -985,8 +986,112 @@ struct SubscriptionParser {
         guard let separator = value.firstIndex(of: ":") else { return nil }
         let key = value[..<separator].trimmingCharacters(in: .whitespacesAndNewlines)
         let raw = value[value.index(after: separator)...].trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleaned = raw.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-        return key.isEmpty ? nil : (key.lowercased(), cleaned)
+        return key.isEmpty ? nil : (key.lowercased(), yamlScalar(raw))
+    }
+
+    /// Unwraps a YAML scalar, decoding escapes when the quoting style has them.
+    ///
+    /// Panels that emit YAML from a serialiser rather than by hand write
+    /// non-ASCII as escapes: one airport sends every node as
+    /// `name: "\U0001F1ED\U0001F1F0 香港 01"`. Stripping the quotes without
+    /// decoding leaves the escape text itself as the node name, which is what
+    /// the list then displays and what every generated configuration carries.
+    ///
+    /// Only double quotes process escapes. In a single-quoted scalar a
+    /// backslash is a literal backslash and `''` is the only escape there is,
+    /// so the two styles cannot share one code path.
+    private func yamlScalar(_ raw: String) -> String {
+        guard raw.count >= 2 else {
+            return raw.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        }
+        if raw.hasPrefix("'"), raw.hasSuffix("'") {
+            return String(raw.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
+        }
+        guard raw.hasPrefix("\""), raw.hasSuffix("\"") else {
+            return raw.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        }
+        return decodeYAMLEscapes(String(raw.dropFirst().dropLast()))
+    }
+
+    private func decodeYAMLEscapes(_ body: String) -> String {
+        guard body.contains("\\") else { return body }
+        var output = ""
+        let scalars = Array(body.unicodeScalars)
+        var index = 0
+        // A `\uD83C\uDDED` pair has to be combined before it can be appended;
+        // appending a lone surrogate is not representable in a Swift string.
+        var pendingHighSurrogate: UInt32?
+
+        func flushSurrogate() {
+            if let high = pendingHighSurrogate, let scalar = Unicode.Scalar(high) {
+                output.unicodeScalars.append(scalar)
+            }
+            pendingHighSurrogate = nil
+        }
+
+        func hex(_ count: Int) -> UInt32? {
+            guard index + count <= scalars.count else { return nil }
+            let digits = String(String.UnicodeScalarView(scalars[index ..< index + count]))
+            guard digits.count == count, let value = UInt32(digits, radix: 16) else { return nil }
+            index += count
+            return value
+        }
+
+        while index < scalars.count {
+            let scalar = scalars[index]
+            guard scalar == "\\", index + 1 < scalars.count else {
+                flushSurrogate()
+                output.unicodeScalars.append(scalar)
+                index += 1
+                continue
+            }
+            let marker = scalars[index + 1]
+            index += 2
+
+            let width: Int
+            switch marker {
+            case "x": width = 2
+            case "u": width = 4
+            case "U": width = 8
+            default:
+                flushSurrogate()
+                switch marker {
+                case "n": output.append("\n")
+                case "t": output.append("\t")
+                case "r": output.append("\r")
+                case "0": output.append("\0")
+                case "a": output.unicodeScalars.append(Unicode.Scalar(7))
+                case "b": output.unicodeScalars.append(Unicode.Scalar(8))
+                case "e": output.unicodeScalars.append(Unicode.Scalar(27))
+                // `\/` and `\_` are YAML's, `\\` and `\"` are shared with JSON.
+                default: output.unicodeScalars.append(marker)
+                }
+                continue
+            }
+
+            guard let value = hex(width) else {
+                flushSurrogate()
+                output.append("\\")
+                output.unicodeScalars.append(marker)
+                continue
+            }
+            if let high = pendingHighSurrogate {
+                pendingHighSurrogate = nil
+                if (0xDC00 ... 0xDFFF).contains(value) {
+                    let combined = 0x10000 + ((high - 0xD800) << 10) + (value - 0xDC00)
+                    if let scalar = Unicode.Scalar(combined) { output.unicodeScalars.append(scalar) }
+                    continue
+                }
+                if let scalar = Unicode.Scalar(high) { output.unicodeScalars.append(scalar) }
+            }
+            if (0xD800 ... 0xDBFF).contains(value) {
+                pendingHighSurrogate = value
+            } else if let decoded = Unicode.Scalar(value) {
+                output.unicodeScalars.append(decoded)
+            }
+        }
+        flushSurrogate()
+        return output
     }
 
     private func clashKind(_ value: String) -> ProxyKind? {

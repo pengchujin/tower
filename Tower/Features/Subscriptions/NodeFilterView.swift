@@ -15,7 +15,9 @@ struct NodeFilterCriteria: Equatable {
 
     func matches(_ node: ProxyNode, countryCodes: [UUID: String]) -> Bool {
         if let countryCode {
-            let resolved = countryCodes[node.id] ?? NodeRegionResolver.countryCode(for: node)
+            // Name first, IP database only as a fallback — the same order the
+            // map, the metric pill and the policy groups use.
+            let resolved = NodeRegionResolver.countryCode(for: node) ?? countryCodes[node.id]
             guard resolved?.uppercased() == countryCode.uppercased() else { return false }
         }
         if let kind, node.kind != kind { return false }
@@ -134,7 +136,7 @@ struct NodeFilterView: View {
 
     private var countryOptions: [(code: String, name: String)] {
         let codes = Set(model.availableNodes.compactMap { node in
-            model.nodeIPCountryCodes[node.id] ?? NodeRegionResolver.countryCode(for: node)
+            model.countryCode(for: node)
         })
         return codes.map { code in
             (code.uppercased(), AppLocalization.regionName(for: code))

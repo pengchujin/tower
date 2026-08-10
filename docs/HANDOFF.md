@@ -244,6 +244,54 @@ WireGuard 暂缓的原因不是客户端支持不够，而是它和其余十二�
 - `alpn` 从 URI 里拿到的是逗号拼接的一个字符串，写进 Clash/Egern 必须还原成 YAML 列表，否则 `h3,h2` 会被当成一个协议名。
 - 顺手补齐了 Clash YAML 解析：`clashKind` 之前没有 anytls 和 snell，机场发的 Clash 订阅里这两种一直被算成无法识别。`auth-str`/`auth_str`/`psk` 现在都能落到 `password`。
 
+### Stash 每次导入都新建一条配置：塔台这边没有可改的地方（2026-08-10）
+
+现象是 Stash 的配置列表里堆了一串 `08-10-214146 塔台`、`08-10-214149 塔台`，相差几秒。
+
+先排除掉的：**名字是对的**，「塔台」就是设置里那个导出名。前面的 `MM-DD-HHMMSS` 是 Stash 自己拼的。
+
+Stash 的 [URL Schema 文档](https://stash.wiki/en/faq/url-schema) 里 `install-config` 只有一个参数：
+
+```
+stash://install-config?url=${url-encoded}
+clash://install-config?url=${url-encoded}
+```
+
+没有 `name`，也没有任何「替换已有配置」的语义。而两次导入的下载地址其实完全一样（一键导入的服务是固定端口 65172 + 持久化 token + 稳定文件名），仍然生成两条。
+
+真机进一步确认了去重规则：**第一次导入名字是对的（`塔台`），第二次才变成 `08-10-220528 塔台`**，换一种导入方式重来也是同样的节奏。所以 Stash 是**按名字建、重名加时间戳前缀**，既不认 URL 也从不更新已有配置——只要再导一次就一定多一条，塔台无论怎么写都改变不了。
+
+用户的用法是：Stash 里只留一条，需要新配置时删掉旧的再导，或者接受多出来的那几条。
+
+试过一版「给本机客户端一个常驻的稳定订阅地址（127.0.0.1 固定端口），导入一次之后靠 Stash 自己的更新按钮刷新」，代码能跑、测试也过，但按用户要求整个撤掉了——导出页保持只有一键导入。要是以后再有人提这个想法，先去看这段：可行，但会在导出页多两个入口、并且让局域网订阅多一个常驻监听，用户不要这个复杂度。
+
+### 首页「地区」数字来回跳的原因不是动画（2026-08-10）
+
+现象是 50 → 64 →回落到 60。第一反应会去查 `MetricPill` 的弹簧，但那里 `dampingFraction` 是 1，临界阻尼不会过冲——**数字真的到过 64**。
+
+`coveredCountryCount` 原来是这么算的：
+
+```swift
+nodeIPCountryCodes[node.id] ?? NodeRegionResolver.countryCode(for: node)
+```
+
+IP 在前、名字在后，正好和约束 19 反着。IP 查询是异步的，所以每落地一个结果就**顶掉**名字已经定好的国家，集合里的元素在解析过程中反复增删，数字自然先冲高再回落。地图（`NodeMapOverview`）用的是名字优先，筛选器（`NodeFilterView`）跟统计一样是 IP 优先——三处两种顺序，也正是约束 19 说的「不要让两边给出不同的国家」。
+
+改成 `AppModel.countryCode(for:)` 一个入口，名字优先、IP 兜底，三处全部走它。数字现在只会随着「名字看不出来的节点」拿到 IP 结果而单调增长，不会冲高回落。
+
+以后再看到界面数字抖动，先确认数据本身抖不抖，再去怀疑动画。
+
+### 手动添加：协议列表要和客户端支持对齐
+
+手动添加原来漏了 TUIC 和 Hysteria 1。补的时候顺带把几件事定下来：
+
+- `secret` 的含义统一为「协议的身份」——有 UUID 的填 UUID，没有的填密码/PSK。TUIC 是唯一两者都要的，多出来的密码放在新的 `password` 字段。
+- Hysteria 1 的上下行带宽在表单里是必填，默认 50/100。它按带宽控速，填 0 或留空不是「不限速」而是不能用。
+- TUIC 的拥塞控制和 UDP 中继给了独立字段（`congestionControl` / `udpRelayMode`），没有挪用 `protocolParam` / `flow`——那两个字段有各自的协议含义，借用会在编辑已有节点时把值写串。
+- 「添加」按钮以前只看服务器和端口填没填，协议自己的必填项要等点下去才抛错。改成 `isMissingRequiredCredential` 提前判断，错误在点之前就体现为按钮不可用。
+
+`ManualNodeDraftTests.testEveryProtocolAtLeastOneClientCanWriteIsOffered` 断言手动添加的协议集合恒等于「至少一个目标客户端能写出来的协议」集合，以后再加协议时忘了这里会直接挂测试。
+
 ### Shadowrocket 的 Hysteria 2 用 `password=`，不要改成 `auth=`（2026-08-10 真机确认）
 
 Shadowrocket 手册的「编写本地节点」一节把 Hysteria 2 写成 `auth=密码`，和塔台实际写的 `password=` 不一致，一度怀疑是又一次「字段名猜错」。**真机验过了：不是。** 导入塔台生成的配置后，节点详情页的密码栏正常填好，节点也能连上——Shadowrocket 收 `password=`，这条不用动。
@@ -274,6 +322,24 @@ Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次
 - **QuanX：`配置文件语法错误, duplicated section, [server_remote]`**。这是调整模块顺序时自己引入的：`quanXScheme` 先写了一遍 `[server_remote]/[filter_remote]/[rewrite_remote]`，结尾又调 `quanXTrailingSections` 写了第二遍。QuanX 对重复模块和缺失模块一样零容忍。已把该辅助函数删掉，改成在 `quanXScheme` 里按固定顺序各写一次；`ProfileRejectionTests` 断言两条 QuanX 生成路径的模块序列都恰好等于那 12 个、顺序一致。
 - **Stash：`proxy 301: hysteria2 obfs: salamander requires obfs-password`**。根因在解析：Clash YAML 的 obfs 密码之前只读 `obfs-param`，那是 SSR 的键名，Hysteria 2 叫 `obfs-password`。于是节点带着 obfs 类型、没有密码进来，生成器把 `obfs:` 单独写出去，Mihomo 直接拒掉整份配置——不是拒那一个节点。两头都修了：解析补 `obfs-password` / `obfs_password`，生成侧新增 `hysteria2Obfs(_:)`，类型和密码要么都写要么都不写。没有密码的 obfs 层本来也连不上，丢掉它至少不牵连同文件里其余几百个节点。
 
+### Clash YAML：双引号标量里的转义没有解码（2026-08-10）
+
+有机场的 YAML 是序列化器生成的，非 ASCII 一律写成转义：
+
+```yaml
+- name: "\U0001F1ED\U0001F1F0 香港 01"
+```
+
+`parseYAMLPair` 只把引号 trim 掉，从不解码，于是节点名字就是那串转义文本本身——列表里显示成 `\U0001F1ED\U0...`，生成的每一份配置里也是这个。
+
+修法是新增 `yamlScalar(_:)`：双引号标量走 `decodeYAMLEscapes`（`\xXX` / `\uXXXX` / `\UXXXXXXXX` 以及 `\n` `\t` 这些，并把 `\uD83C\uDDED` 这种代理对合并成一个码点）；单引号标量**不能**走同一条路，YAML 里单引号内的反斜杠就是反斜杠、`''` 是唯一的转义，解码它只会把名字改坏。上一条修的嵌套序列元素也共用这个函数。
+
+顺带一提这个 bug 的连带影响：地区识别是「名字优先」的，名字里的国旗没解码出来就只能回退查离线 IP 库，所以地区可能对、也可能不对，但一定绕了远路。
+
+### 设置页的「安全与开源」
+
+引导页只出现一次，之后想核对它的说法就没地方看了，所以设置页底部放一条可点的小行进去，点开是同样四条。做成一行而不是第五张整宽卡片：这是需要时才查的说明，不是每次进设置都要看的开关。两处共用 `WelcomeView.promises` 和 `PromiseRow`——隐私声明在两个地方说得不一样，比只说一次更糟。
+
 ### Clash YAML：嵌套序列会把节点截断（2026-08-10）
 
 `parseClashYAML` 判断「新节点开始」只看 `trimmed.hasPrefix("-")`，不看缩进。机场写的
@@ -303,6 +369,49 @@ Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次
 
 动效按 `apple-design` 的默认：临界阻尼、无回弹（这里没有任何手势动量可继承），逐条 0.06s 错峰；`accessibilityReduceMotion` 打开时退化为纯交叉淡入。底部按钮条是 `.regularMaterial`，内容从下面滚过去。十五种语言的文案已进 `Localizable.xcstrings`。
 
+
+## 1.6 上架前审核（2026-08-10）
+
+### 隐私清单 `Tower/PrivacyInfo.xcprivacy`
+
+之前完全没有这个文件。Apple 从 2024-05 起强制要求，缺了会在上传后收到 ITMS-91053 并被退回。
+
+清单本身不被 App 读取，所以**它过期不会有任何症状**——不会崩、不会报错，只会在几周后变成一封审核邮件。`PrivacyManifestTests` 因此不只是校验字段，还会扫 `Tower/` 下所有 Swift 源码里的必需理由 API 符号，发现有用到但没声明的直接挂测试。
+
+塔台实际用到三类，逐条对应真实调用点：
+
+| 类别 | 理由码 | 调用点 |
+| --- | --- | --- |
+| `UserDefaults` | `CA92.1` | `DirectImportAccessTokenStore`、`LANSubscriptionAccessTokenStore`、`@AppStorage("hasSeenWelcome")` |
+| `FileTimestamp` | `C617.1` | `ExportFileService.purge(in:olderThan:now:)` 读导出目录里文件的修改时间，清理过期临时文件 |
+| `SystemBootTime` | `35F9.1` | `NodeLatencyService` 用 `ProcessInfo.processInfo.systemUptime` 差值算延迟 |
+
+只声明 `UserDefaults` 是不够的——后两个是审的时候翻源码才发现的，漏掉照样退回。
+
+`NSPrivacyTracking = false`、`NSPrivacyTrackingDomains` 和 `NSPrivacyCollectedDataTypes` 都是空的：塔台一条数据都不收集，这和引导页那四条承诺是同一件事，只是换成 Apple 的格式再声明一遍。
+
+### ATS：`NSAllowsArbitraryLoads` 必须保留，不要「整理」掉
+
+`Tower/Info.plist` 里的全局 ATS 例外看着很粗，但在保留 HTTP 订阅支持的前提下**没有更窄的写法**：
+
+- 用户填的订阅地址是任意主机，无法预先列进 `NSExceptionDomains`。
+- `NSAllowsArbitraryLoadsInWebContent` 只作用于 WebView，塔台不用 WebView。
+- **`NSAllowsLocalNetworking` 不能加**。iOS 10 以上只要同时出现这两个键，系统就会**忽略** `NSAllowsArbitraryLoads` 只认 `NSAllowsLocalNetworking`。塔台最低 iOS 17，加上去等于当场关掉 HTTP 订阅支持。这是最容易被当成「顺手收紧一下」而写坏的地方。
+
+塔台自己的三个本地监听（127.0.0.1 的一键导入 65172、局域网订阅 65171）也是明文 HTTP，同样依赖这个例外。
+
+#### App Review 备注可以直接用这段
+
+> 塔台是本地的订阅转换工具，不含任何服务端。需要明文 HTTP 有两个原因：
+> 一、用户输入的机场订阅地址由用户自己提供，其中一部分机场只提供 HTTP，主机名无法预先枚举成 ATS 例外域名；添加界面会明确提示 HTTP 订阅以明文传输。
+> 二、把转换结果交给同机的代理客户端（Surge、Stash、Shadowrocket 等）时，配置通过仅绑定 127.0.0.1、45 秒后自动失效的本地 HTTP 服务传递，不经过任何网络。
+> App 不收集、不上传任何用户数据，订阅内容与生成的配置只在设备本机处理。
+
+如果哪天决定只收 HTTPS，那时才可以把 `NSAllowsArbitraryLoads` 换成 `NSAllowsLocalNetworking`，两件事必须一起做。
+
+### 这次没能覆盖的
+
+代码层面审完了，下面这些只有真机能确认，发版前建议逐项过一遍：七种客户端的实际导入（这一轮动了 QuanX 模块顺序、Hysteria 2 obfs、YAML 转义解码）、TUIC 与 Hysteria 1 能否真正连通、ICMP 测速与点阵地图、以及引导页在小屏和大字号下的排版。
 
 ## 2. 产品目标与确定的交互
 
