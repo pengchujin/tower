@@ -585,7 +585,7 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`，当前已使用 build 3。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。已上传过 build 11；当前工程里是 **12**，即下一次上传要用的那个。build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
 
