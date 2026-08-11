@@ -425,6 +425,41 @@ Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次
 
 代码层面审完了，下面这些只有真机能确认，发版前建议逐项过一遍：七种客户端的实际导入（这一轮动了 QuanX 模块顺序、Hysteria 2 obfs、YAML 转义解码）、TUIC 与 Hysteria 1 能否真正连通、ICMP 测速与点阵地图、以及引导页在小屏和大字号下的排版。
 
+## 1.7 DNS 默认值（2026-08-11）
+
+TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比反馈说得更糟：**Surge / Shadowrocket / Loon 三家写的是 `dns-server = system, …`**——`system` 不是「没配」，是明确要求优先使用运营商解析器，比留空还差。Clash/Stash 和 Egern 则完全没有 DNS 段。只有 Hiddify（sing-box 的 schema 逼着你声明 servers 和 detour）是对的。
+
+### 为什么客户端必须自己做 DNS
+
+规则按域名匹配，但连接到达时往往只剩 IP——域名早被系统解析掉了，那次解析既泄漏了查询、又可能拿回污染结果。所以 `dns:` 块不是可选优化，是分流能否成立的前提。
+
+`fake-ip` 是「防泄漏」的实际机制：客户端立刻返回保留段里的假地址并记下映射，流量到达时反查回域名再匹配规则，**真实解析交给节点那一侧完成**——本地从来没发出过那个查询。代价是假地址对需要真 IP 的场景无效，所以 `fake-ip-filter` 要放行局域网和探测类域名。
+
+### 三条互相独立、缺一漏一段
+
+1. **`nameserver` 列表内不能混明文。** mihomo 对列表里所有解析器**并发查询**取最快，所以一条明文会把整列表的加密配置作废——查询照样以明文发出去了。`fallback` 同理：`fallback-filter` 只决定采用哪个结果，不阻止发出。因此通用列表全部用 DoH，明文只允许出现在 `default-nameserver`（它只解析 DoH 服务商自己的域名，泄漏的信息仅是「在用 DoH」）。
+2. **`proxy-server-nameserver` 必须写。** 解析节点域名不能走节点本身。开了 fake-ip 又漏了这条，节点域名会被答成假地址，结果是全盘连不上——这是唯一一个把 DNS 改进变成彻底断网的错误。
+3. **IP 类规则要带 `no-resolve`。** 没有它，引擎为了判断 `GEOIP,CN` 必须先在本地把域名解析成 IP，而且发生在域名规则匹配之前。中招的正是「所有域名规则都没覆盖到」的那批域名——也就是最值得保护的那批。Clash 和 Surge 原本带了，**Loon、Quantumult X、Egern 三家漏了**，已补。
+
+### 这次改了什么
+
+| 目标 | 改动 |
+| --- | --- |
+| Clash / Stash | 新增完整 `dns:` 块：fake-ip + 全加密 `nameserver`/`fallback` + `proxy-server-nameserver` + `fallback-filter` 按 GeoIP 分流 |
+| Surge | 去掉 `system`，补 `encrypted-dns-server`（字段名有官方文档佐证） |
+| Shadowrocket / Loon | **只**去掉 `system`。两家的加密 DNS 字段名没有可靠出处，不猜——这个项目在客户端字段名上猜错过不止一次 |
+| Quantumult X | 原本就有 `no-system`，只补 `no-resolve` |
+| Egern | 补 `no_resolve: true` |
+| Hiddify | 不动，原本就对 |
+
+用 `fallback-filter` 的 GeoIP 判断而不是 `geosite:cn`，是因为后者要客户端运行时去拉 geosite 数据——和塔台自包含、不依赖运行时下载的立场冲突。
+
+### 还没做的
+
+机场订阅自带的 `dns:` 块目前仍被丢弃。[PR #5](https://github.com/pengchujin/tower/pull/5) 做的是这件事，和本节是正交的两件事：本节管「机场没给时塔台自己给」，PR 管「机场给了就转过去」。该 PR 基于旧 main，已冲突，且会与本次改动重叠（它有两条断言 `dns-server = system` 存在的测试，rebase 时要一并删除）。
+
+真机未验证：各客户端对新 DNS 段的接受情况，尤其 Surge 的 `encrypted-dns-server` 和 Clash 的 fake-ip 是否影响节点连通。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页

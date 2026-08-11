@@ -428,6 +428,30 @@ struct ConfigurationGenerator {
         log-level: warning
         ipv6: true
 
+        dns:
+          enable: true
+          enhanced-mode: fake-ip
+          fake-ip-range: 198.18.0.1/16
+          fake-ip-filter:
+            - "*.lan"
+            - "+.local"
+            - "+.msftconnecttest.com"
+            - "+.msftncsi.com"
+          default-nameserver:
+            - 223.5.5.5
+            - 119.29.29.29
+          proxy-server-nameserver:
+            - https://223.5.5.5/dns-query
+          nameserver:
+            - https://223.5.5.5/dns-query
+            - https://doh.pub/dns-query
+          fallback:
+            - https://1.1.1.1/dns-query
+            - https://dns.google/dns-query
+          fallback-filter:
+            geoip: true
+            geoip-code: CN
+
         proxies:
         """
         output += "\n"
@@ -489,7 +513,8 @@ struct ConfigurationGenerator {
         [General]
         loglevel = notify
         ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
+        dns-server = 223.5.5.5, 119.29.29.29
+        encrypted-dns-server = https://223.5.5.5/dns-query, https://doh.pub/dns-query
         skip-proxy = 127.0.0.1, localhost, *.local
         test-timeout = 5
 
@@ -535,7 +560,7 @@ struct ConfigurationGenerator {
         output += """
         [General]
         ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
+        dns-server = 223.5.5.5, 119.29.29.29
 
         [Proxy]
         """
@@ -639,6 +664,30 @@ struct ConfigurationGenerator {
         mode: rule
         log-level: warning
         ipv6: true
+
+        dns:
+          enable: true
+          enhanced-mode: fake-ip
+          fake-ip-range: 198.18.0.1/16
+          fake-ip-filter:
+            - "*.lan"
+            - "+.local"
+            - "+.msftconnecttest.com"
+            - "+.msftncsi.com"
+          default-nameserver:
+            - 223.5.5.5
+            - 119.29.29.29
+          proxy-server-nameserver:
+            - https://223.5.5.5/dns-query
+          nameserver:
+            - https://223.5.5.5/dns-query
+            - https://doh.pub/dns-query
+          fallback:
+            - https://1.1.1.1/dns-query
+            - https://dns.google/dns-query
+          fallback-filter:
+            geoip: true
+            geoip-code: CN
 
         proxies:
         """
@@ -917,7 +966,10 @@ struct ConfigurationGenerator {
         [General]
         loglevel = notify
         ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
+        # `system` first meant the carrier's resolver got every query. Removed.
+        # No encrypted-DNS key is written here: Shadowrocket's manual documents
+        # none, and this project does not guess a client's field names.
+        dns-server = 223.5.5.5, 119.29.29.29
         skip-proxy = 127.0.0.1, localhost, *.local
         test-timeout = 5
 
@@ -1188,7 +1240,7 @@ struct ConfigurationGenerator {
         output += """
         [General]
         ipv6 = true
-        dns-server = system, 223.5.5.5, 1.1.1.1
+        dns-server = 223.5.5.5, 119.29.29.29
 
         [Proxy]
         """
@@ -1240,7 +1292,12 @@ struct ConfigurationGenerator {
                 if let mapped = mappedRule(rule, policy: assignment.policy, target: .loon) { output += mapped + "\n" }
             }
         }
-        if preset.includeGeoIPCN { output += "GEOIP,CN,DIRECT\n" }
+        // Without `no-resolve` this rule forces a local lookup of every domain
+        // no earlier rule matched, purely to test its country — and those are
+        // exactly the domains no rule list bothered to cover. With it the rule
+        // simply does not match a domain, the request falls through to the
+        // final policy, and the node resolves it instead.
+        if preset.includeGeoIPCN { output += "GEOIP,CN,DIRECT,no-resolve\n" }
         output += "FINAL,\(surgePolicyName(preset.finalPolicy))\n"
         return output
     }
@@ -1416,7 +1473,7 @@ struct ConfigurationGenerator {
                 if let mapped = mappedRule(rule, policy: assignment.policy, target: .quanx) { output += mapped + "\n" }
             }
         }
-        if preset.includeGeoIPCN { output += "geoip, cn, direct\n" }
+        if preset.includeGeoIPCN { output += "geoip, cn, direct, no-resolve\n" }
         output += "final, \(quanXPolicyName(preset.finalPolicy))\n"
         for section in ["rewrite_local", "task_local", "http_backend", "mitm"] {
             output += "\n[\(section)]\n"
@@ -2381,7 +2438,7 @@ extension ConfigurationGenerator {
             }
         }
         if preset.includeGeoIPCN {
-            output += "  - geoip:\n      match: CN\n      policy: \(Self.egernDirect)\n"
+            output += "  - geoip:\n      match: CN\n      no_resolve: true\n      policy: \(Self.egernDirect)\n"
         }
         output += "  - default:\n      policy: \(yaml(preset.finalPolicy.configurationName))\n"
         return output
