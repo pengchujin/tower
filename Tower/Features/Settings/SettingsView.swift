@@ -728,7 +728,7 @@ private struct URLPanel: View {
                     .padding(13)
                     .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .shadow(color: .black.opacity(0.08), radius: 12, y: 5)
-                Text("用电脑上的客户端扫这个码")
+                Text("用客户端扫这个码")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
