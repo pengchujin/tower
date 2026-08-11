@@ -592,26 +592,50 @@ private struct LANSharingCard: View {
         .accessibilityIdentifier("lan-subscription-card")
     }
 
-    /// Label on the left, current value on the right — the arrangement every
-    /// other settings row on iOS uses. The previous version left-aligned the
-    /// value inside a full-width control, which left most of the row empty and
-    /// put the chevron in the middle of nowhere.
+    /// Label on the left, the current value as a button on the right.
+    ///
+    /// Rendered as a tinted chip rather than plain trailing text: as grey text
+    /// it read as a caption and gave no sign it could be tapped at all. The
+    /// menu opens in place instead of pushing a screen, because picking a
+    /// format is one tap of context, not a destination.
     private var clientPicker: some View {
-        Picker(selection: $selectedClient) {
-            Text("自动识别客户端").tag(ClientTarget?.none)
-            ForEach(ClientTarget.allCases) { target in
-                Text(lanDisplayName(target)).tag(Optional(target))
-            }
-        } label: {
+        HStack(spacing: 12) {
             Text("链接格式")
                 .font(.subheadline.weight(.semibold))
+
+            Spacer(minLength: 8)
+
+            Menu {
+                Picker("链接格式", selection: $selectedClient) {
+                    Label("自动识别客户端", systemImage: "wand.and.stars")
+                        .tag(ClientTarget?.none)
+                    ForEach(ClientTarget.allCases) { target in
+                        Text(lanDisplayName(target)).tag(Optional(target))
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedClient.map(lanDisplayName) ?? String(localized: "自动识别客户端"))
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.bold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 8)
+                .background(
+                    Color.accentColor.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .accessibilityLabel(Text("链接格式"))
+            .accessibilityValue(Text(selectedClient.map(lanDisplayName) ?? String(localized: "自动识别客户端")))
+            .accessibilityIdentifier("lan-client-picker")
         }
-        .pickerStyle(.navigationLink)
-        // Without this the label takes the accent colour and the value stays
-        // grey, which is the wrong way round: the label names the row, the
-        // value is what changed.
-        .tint(.primary)
-        .accessibilityIdentifier("lan-client-picker")
     }
 
     private func lanDisplayName(_ target: ClientTarget) -> String {
