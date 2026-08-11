@@ -592,25 +592,26 @@ private struct LANSharingCard: View {
         .accessibilityIdentifier("lan-subscription-card")
     }
 
+    /// Label on the left, current value on the right — the arrangement every
+    /// other settings row on iOS uses. The previous version left-aligned the
+    /// value inside a full-width control, which left most of the row empty and
+    /// put the chevron in the middle of nowhere.
     private var clientPicker: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("链接格式")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Picker("链接格式", selection: $selectedClient) {
-                Text("自动识别客户端").tag(ClientTarget?.none)
-                ForEach(ClientTarget.allCases) { target in
-                    Text(lanDisplayName(target)).tag(Optional(target))
-                }
+        Picker(selection: $selectedClient) {
+            Text("自动识别客户端").tag(ClientTarget?.none)
+            ForEach(ClientTarget.allCases) { target in
+                Text(lanDisplayName(target)).tag(Optional(target))
             }
-            .pickerStyle(.menu)
-            .tint(.primary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .accessibilityIdentifier("lan-client-picker")
+        } label: {
+            Text("链接格式")
+                .font(.subheadline.weight(.semibold))
         }
+        .pickerStyle(.navigationLink)
+        // Without this the label takes the accent colour and the value stays
+        // grey, which is the wrong way round: the label names the row, the
+        // value is what changed.
+        .tint(.primary)
+        .accessibilityIdentifier("lan-client-picker")
     }
 
     private func lanDisplayName(_ target: ClientTarget) -> String {
@@ -624,10 +625,16 @@ private struct LANSharingCard: View {
 
 private struct URLPanel: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let url: URL
 
+    @State private var isShowingQRCode = false
+    @State private var qrImage: UIImage?
+    @State private var qrFailed = false
+    @State private var didCopy = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 11) {
             Text(url.absoluteString)
                 .font(.caption.monospaced())
                 .foregroundStyle(.primary)
@@ -635,26 +642,136 @@ private struct URLPanel: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("lan-subscription-url")
 
-            HStack(spacing: 10) {
-                Button {
+            // Three equal columns rather than a wide primary beside a narrow
+            // secondary: none of these is the one right answer — which one you
+            // want depends on whether the other machine is in front of you.
+            HStack(spacing: 9) {
+                action("复制", symbol: "doc.on.doc", isOn: false) {
                     UIPasteboard.general.string = url.absoluteString
+                    didCopy.toggle()
                     model.showToast(String(localized: "局域网订阅链接已复制"), symbol: "doc.on.doc.fill")
-                } label: {
-                    Label("复制", systemImage: "doc.on.doc")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-
+                action("二维码", symbol: "qrcode", isOn: isShowingQRCode) {
+                    withAnimation(
+                        reduceMotion
+                            ? .easeOut(duration: 0.18)
+                            // Nothing here was thrown by a gesture, so the
+                            // panel settles without overshoot.
+                            : .spring(response: 0.34, dampingFraction: 1)
+                    ) {
+                        isShowingQRCode.toggle()
+                    }
+                }
                 ShareLink(item: url) {
-                    Label("分享", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
+                    actionLabel("分享", symbol: "square.and.arrow.up", isOn: false)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ResponsivePressButtonStyle())
             }
-            .font(.subheadline.weight(.semibold))
+            .sensoryFeedback(.success, trigger: didCopy)
+
+            if isShowingQRCode {
+                qrCode
+                    .frame(maxWidth: .infinity)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
         .padding(13)
         .background(Color.accentColor.opacity(0.075), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        // Rendered only once opened, and re-rendered if the address changes —
+        // rotating the access key produces a different URL, and a stale code
+        // would send the other machine to a dead link.
+        .task(id: qrTaskID) {
+            guard isShowingQRCode, qrImage == nil else { return }
+            await renderQRCode()
+        }
+        .onChange(of: url) { _, _ in
+            qrImage = nil
+            qrFailed = false
+        }
+    }
+
+    private var qrTaskID: String { "\(url.absoluteString)-\(isShowingQRCode)" }
+
+    @ViewBuilder
+    private var qrCode: some View {
+        if let qrImage {
+            VStack(spacing: 8) {
+                Image(uiImage: qrImage)
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 190, height: 190)
+                    .padding(13)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: .black.opacity(0.08), radius: 12, y: 5)
+                Text("用电脑上的客户端扫这个码")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("局域网订阅地址的二维码")
+        } else if qrFailed {
+            Label("无法生成二维码", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 120)
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 120)
+        }
+    }
+
+    private func action(
+        _ title: LocalizedStringKey,
+        symbol: String,
+        isOn: Bool,
+        perform: @escaping () -> Void
+    ) -> some View {
+        Button(action: perform) { actionLabel(title, symbol: symbol, isOn: isOn) }
+            .buttonStyle(ResponsivePressButtonStyle())
+    }
+
+    private func actionLabel(
+        _ title: LocalizedStringKey,
+        symbol: String,
+        isOn: Bool
+    ) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.subheadline.weight(.semibold))
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 11)
+        .foregroundStyle(isOn ? Color.white : Color.accentColor)
+        .background(
+            isOn ? Color.accentColor : Color.accentColor.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+        )
+        .contentShape(Rectangle())
+    }
+
+    @MainActor
+    private func renderQRCode() async {
+        qrFailed = false
+        // The address carries the access key, so the PNG is as sensitive as the
+        // link. The shared builder writes it with complete protection into a
+        // folder it purges before each render.
+        guard let artifact = await QRCodeShareArtifactBuilder.make(value: url.absoluteString, id: UUID()) else {
+            guard !Task.isCancelled else { return }
+            qrFailed = true
+            return
+        }
+        guard !Task.isCancelled else { return }
+        if reduceMotion {
+            qrImage = artifact.image
+        } else {
+            withAnimation(.easeOut(duration: 0.16)) { qrImage = artifact.image }
+        }
     }
 }
 
