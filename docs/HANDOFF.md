@@ -636,6 +636,33 @@ xcodebuild -project Tower.xcodeproj \
 
 ## 6. 优先任务
 
+### 待决策：规则集为什么在 Stash 上没生效（2026-08-11 搁置）
+
+**现象**：开了「优先使用规则集」，Surge 输出 `RULE-SET`，Stash 仍然逐条内联。
+
+**原因**：`RuleSetEmissionPlanner.nativeFormat(for:url:lines:isClashProviderYAML:)` 给每个目标一份类型白名单，规则是**整份列表里只要有一条白名单外的类型，整份退回内联**。`clashRuleTypes` 不含 `URL-REGEX`（那是 Surge / QuanX 的概念，Clash 内核没有等价物），而内置的三份列表各夹了几条：
+
+| 列表 | 总条数 | URL-REGEX |
+| --- | --- | --- |
+| `ACL4SSR_ProxyMedia.list` | 372 | **1** |
+| `ACL4SSR_ChinaMedia.list` | 38 | **1** |
+| `ACL4SSR_Download.list` | 22 | 7 |
+
+判断标准没错，粒度太粗——372 条里 1 条不兼容就全部内联。
+
+**subconverter 怎么做的**（`src/generator/config/ruleconvert.cpp`，同一套白名单，`ClashRuleTypes` 同样不含 `URL-REGEX`）：逐行循环里 `continue` 跳过那一行，**不是** `return` 掉整份。所以它的 Clash 输出是 371 条 + 丢 1 条。
+
+**但塔台不能照抄。** subconverter 输出的是内联规则，逐行筛完直接写进配置；塔台想输出的是 `rule-providers`，只写一个 URL，内容由客户端自己去拉——**塔台没有机会筛掉那一行**。客户端拿到的仍是原文。
+
+所以可选项只有两条：
+
+- **A. 接受客户端静默忽略。** 照常引用原 URL，那条 `URL-REGEX` 由 Clash 自己跳过。依据：ACL4SSR 官方放在 `Clash/config/` 下的 `ACL4SSR_Mini_Fallback.ini` 就引用了含 `URL-REGEX` 的 ProxyMedia——上游根本没为 Clash 清洗过，说明「Clash 忽略一条不认识的规则」在这个生态里是常态，不会导致配置被拒。改动只是把这类「已知会被静默忽略」的类型放进容忍列表，并在导出摘要里提示「N 条规则会被 X 忽略」。
+- **B. 维持内联但按行筛。** 放弃规则集，逐条写入并丢掉不认的类型。完全自洽，但文件仍然几千行——用户开这个开关就是为了避免这个。
+
+**倾向 A**，但有个前提必须逐客户端确认：只对「客户端确认会**静默忽略**」的类型放宽。若某类型会让客户端**拒绝整份配置**（QuanX 就是这种脾气，见 §1.4 的模块顺序和 `tls-verification` 两次教训），那仍然必须退回内联。这个区别不能一概而论。
+
+**已确认的事实**（不用重查）：肥羊的 `sub-web-modify` 前端没有任何规则集逻辑，只是选远程配置 URL 的 Vue 界面，逻辑全在 subconverter 后端。
+
 ### P0：发布闭环
 
 1. 在至少一台 iOS 17+ 真机完成启动、订阅导入、平面点阵地图、测速、规则和导出主流程。
