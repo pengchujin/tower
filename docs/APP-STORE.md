@@ -180,4 +180,6 @@ https://github.com/pengchujin/tower/blob/main/docs/privacy.md
 
 ### 截图
 
-工程当前是 `TARGETED_DEVICE_FAMILY = "1,2"`，**支持 iPad，因此 iPad 截图是必填项**。如果不打算认真适配 iPad，改成 `"1"` 只发 iPhone 会省掉一整类截图和一类审核风险。
+只需要 iPhone 截图。工程已改为 `TARGETED_DEVICE_FAMILY = "1"`，产物里 `UIDeviceFamily` 是 `[1]`。
+
+以后要加 iPad 支持，那是「新增功能」，用户欢迎；反过来发过 iPad 版再撤掉是「砍功能」。所以先只发 iPhone 是可逆的那一边。

@@ -409,6 +409,18 @@ Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次
 
 如果哪天决定只收 HTTPS，那时才可以把 `NSAllowsArbitraryLoads` 换成 `NSAllowsLocalNetworking`，两件事必须一起做。
 
+### 1.0 只发 iPhone
+
+工程原本是 `TARGETED_DEVICE_FAMILY = "1,2"`，也就是**声称支持 iPad**——但代码里一处 iPad 适配都没有：没有 `horizontalSizeClass`、没有 `NavigationSplitView`、没有任何 idiom 判断。
+
+在 iPad Pro 13" 上实际跑过：内容挤在屏幕上方 40%，下面一大片空白，而且引导页顶部有一处「开始使用」文字错位（iPhone 上不出现，是 regular size class 才有的问题）。
+
+这个状态下声称支持 iPad 有两个代价：iPad 截图变成必填，以及 Guideline 2.4.1 / 4.0 的拒审风险——审核员是会在 iPad 上测的。
+
+已改为 `"1"`，并删掉了随之失效的 `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad`。
+
+方向上这也是可逆的那一边：以后加 iPad 支持是新增功能，撤掉已发布的 iPad 支持是砍功能。真要做的话不是改一行——至少要把三个 Tab 换成 `NavigationSplitView` 侧栏、地图和节点列表分栏、固定的 26pt 边距改成随宽度自适应，顺带修掉上面那处错位。
+
 ### 这次没能覆盖的
 
 代码层面审完了，下面这些只有真机能确认，发版前建议逐项过一遍：七种客户端的实际导入（这一轮动了 QuanX 模块顺序、Hysteria 2 obfs、YAML 转义解码）、TUIC 与 Hysteria 1 能否真正连通、ICMP 测速与点阵地图、以及引导页在小屏和大字号下的排版。
