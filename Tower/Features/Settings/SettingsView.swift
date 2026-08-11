@@ -654,6 +654,9 @@ private struct URLPanel: View {
 
     @State private var isShowingQRCode = false
     @State private var qrImage: UIImage?
+    /// Which address the image on screen encodes. Without it there is no way
+    /// to tell a current code from one left over by a format change.
+    @State private var qrRenderedURL: URL?
     @State private var qrFailed = false
     @State private var didCopy = false
 
@@ -701,16 +704,18 @@ private struct URLPanel: View {
         }
         .padding(13)
         .background(Color.accentColor.opacity(0.075), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        // Rendered only once opened, and re-rendered if the address changes —
-        // rotating the access key produces a different URL, and a stale code
-        // would send the other machine to a dead link.
+        // One place owns the whole lifecycle. Splitting it between this task
+        // and an `onChange` that cleared the image raced: whichever ran first
+        // decided the outcome, and when the task won it saw the previous
+        // image, skipped rendering, and was then cleared — leaving the panel
+        // permanently blank after switching client format.
         .task(id: qrTaskID) {
-            guard isShowingQRCode, qrImage == nil else { return }
-            await renderQRCode()
-        }
-        .onChange(of: url) { _, _ in
+            guard isShowingQRCode, qrRenderedURL != url else { return }
+            // A code for the previous address is worse than no code: it looks
+            // right and sends the other machine somewhere else.
             qrImage = nil
             qrFailed = false
+            await renderQRCode()
         }
     }
 
@@ -791,6 +796,7 @@ private struct URLPanel: View {
             return
         }
         guard !Task.isCancelled else { return }
+        qrRenderedURL = url
         if reduceMotion {
             qrImage = artifact.image
         } else {
