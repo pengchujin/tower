@@ -6,10 +6,12 @@ import Observation
 final class AppModel {
     static let defaultRuleSchemeID = "acl4ssr-default"
 
-    var subscriptions: [SubscriptionSource]
-    var nodes: [ProxyNode]
-    var selectedPresetID: String
-    var selectedTarget: ClientTarget
+    // Defaults so `apply(_:)` can be an instance method: a class cannot call
+    // one until every stored property is initialised.
+    var subscriptions: [SubscriptionSource] = []
+    var nodes: [ProxyNode] = []
+    var selectedPresetID: String = AppModel.defaultRuleSchemeID
+    var selectedTarget: ClientTarget = .surge
     var selectedTab: AppTab = .subscriptions
     var refreshingSourceIDs: Set<UUID> = []
     var nodeLatencies: [UUID: NodeLatencyMeasurement] = [:]
@@ -54,6 +56,15 @@ final class AppModel {
     var excludedKinds: [ClientTarget: Set<ProxyKind>] = [:]
 
     private let persistence: PersistenceStore
+    private let cloudSync: CloudSyncStore
+    /// Off until the user turns it on. Enabling it is the moment subscription
+    /// URLs and node passwords first leave the device, so it is never a
+    /// default and never silently re-enabled.
+    private(set) var iCloudSyncEnabled = CloudSyncPreference.isEnabled()
+    private(set) var isCloudSyncing = false
+    private(set) var lastCloudSyncAt: Date?
+    @ObservationIgnored private var cloudUploadTask: Task<Void, Never>?
+    @ObservationIgnored private var lastLocalEditAt: Date?
     private let subscriptionService: any SubscriptionFetching
     private let ruleRepository: RuleRepository
     private let schemeRepository: RuleSchemeRepository
@@ -73,6 +84,7 @@ final class AppModel {
 
     init(
         persistence: PersistenceStore = PersistenceStore(),
+        cloudSync: CloudSyncStore = CloudSyncStore(),
         subscriptionService: any SubscriptionFetching = SubscriptionService(),
         ruleRepository: RuleRepository = RuleRepository(),
         schemeRepository: RuleSchemeRepository? = nil,
@@ -85,6 +97,7 @@ final class AppModel {
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) {
         self.persistence = persistence
+        self.cloudSync = cloudSync
         self.subscriptionService = subscriptionService
         self.ruleRepository = ruleRepository
         self.downloadStore = downloadStore
@@ -105,37 +118,9 @@ final class AppModel {
             selectedPresetID = demo.selectedPresetID
             selectedTarget = demo.selectedTarget
         } else if let snapshot = try? persistence.load() {
-            subscriptions = snapshot.subscriptions.map { source in
-                var source = source
-                if Self.isCancellationMessage(source.lastError) { source.lastError = nil }
-                return source
-            }
-            nodes = snapshot.nodes
-            importedSchemes = snapshot.importedSchemes ?? []
-            selectedRuleGroups = snapshot.selectedRuleGroups?.mapValues(Set.init) ?? [:]
-            ruleGroupEmojisEnabled = snapshot.ruleGroupEmojisEnabled ?? [:]
-            excludedNodeIDs = Set(snapshot.excludedNodeIDs ?? [])
-            customRuleFlows = snapshot.customRuleFlows ?? []
-            excludedKinds = Self.decodeExcludedKinds(snapshot.excludedKinds)
-            renewalRemindersEnabled = snapshot.renewalRemindersEnabled ?? false
-            clientOrder = ClientTargetOrder.normalized(rawValues: snapshot.clientOrder)
-            appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
-            filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
-            configurationName = TowerBrand.migratedDefaultName(snapshot.configurationName)
-            let ruleSetPreferenceWasExplicit = snapshot.preferRuleSetsWasExplicitlySet ?? false
-            preferRuleSetsWasExplicitlySet = ruleSetPreferenceWasExplicit
-            preferRuleSets = ruleSetPreferenceWasExplicit
-                ? (snapshot.preferRuleSets ?? false)
-                : false
-            exportContentModes = Self.decodeExportContentModes(snapshot.exportContentModes)
-            selectedPresetID = snapshot.selectedPresetID
-            selectedTarget = snapshot.selectedTarget
-        } else {
-            subscriptions = []
-            nodes = []
-            selectedPresetID = Self.defaultRuleSchemeID
-            selectedTarget = .surge
+            apply(snapshot)
         }
+
 
         // Old builds stored this now-removed bundled preset id. Migrate it
         // without parsing every bundled scheme on the launch path.
@@ -1194,40 +1179,159 @@ final class AppModel {
         toast = nil
     }
 
+    // MARK: - iCloud
+
+    var isCloudAccountAvailable: Bool { cloudSync.isAccountAvailable }
+
+    /// Turning sync on is the moment this data first leaves the device, so it
+    /// is an explicit act with an explicit result — never a silent background
+    /// migration.
+    func setICloudSyncEnabled(_ enabled: Bool) async {
+        guard enabled != iCloudSyncEnabled else { return }
+
+        if enabled {
+            guard cloudSync.isAccountAvailable else {
+                showToast(CloudSyncError.unavailable.localizedDescription, symbol: "exclamationmark.icloud.fill")
+                return
+            }
+            iCloudSyncEnabled = true
+            CloudSyncPreference.setEnabled(true)
+            await synchronizeWithCloud(showResult: true)
+        } else {
+            iCloudSyncEnabled = false
+            CloudSyncPreference.setEnabled(false)
+            cloudUploadTask?.cancel()
+            cloudUploadTask = nil
+            showToast(String(localized: "已关闭 iCloud 同步"), symbol: "icloud.slash")
+        }
+    }
+
+    /// Pulls whichever copy is newer, then makes sure iCloud holds it.
+    func synchronizeWithCloud(showResult: Bool = false) async {
+        guard iCloudSyncEnabled, !isDemoMode, !isCloudSyncing else { return }
+        isCloudSyncing = true
+        defer { isCloudSyncing = false }
+
+        let local = currentSnapshot(updatedAt: lastLocalEditAt ?? .distantPast)
+        do {
+            let remote = try await cloudSync.download()
+            switch CloudSyncResolution.resolve(local: local.updatedAt, remote: remote?.updatedAt) {
+            case .takeRemote:
+                if let remote {
+                    apply(remote)
+                    lastLocalEditAt = remote.updatedAt
+                    try? persistence.save(remote)
+                    if showResult {
+                        showToast(String(localized: "已从 iCloud 取回配置"), symbol: "icloud.and.arrow.down")
+                    }
+                }
+            case .keepLocal:
+                try await cloudSync.upload(local)
+                if showResult {
+                    showToast(String(localized: "已同步到 iCloud"), symbol: "icloud.and.arrow.up")
+                }
+            }
+            lastCloudSyncAt = .now
+        } catch {
+            if showResult {
+                showToast(error.localizedDescription, symbol: "exclamationmark.icloud.fill")
+            }
+        }
+    }
+
+    /// Uploads after edits settle, so a burst of changes costs one write.
+    private func scheduleCloudUpload(_ snapshot: AppSnapshot) {
+        lastLocalEditAt = snapshot.updatedAt
+        guard iCloudSyncEnabled else { return }
+        cloudUploadTask?.cancel()
+        cloudUploadTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let self else { return }
+            do {
+                try await self.cloudSync.upload(snapshot)
+                self.lastCloudSyncAt = .now
+            } catch {
+                // Silent: an edit should not raise an alert because iCloud was
+                // briefly unreachable. The next edit, or a foreground sync,
+                // retries with newer content anyway.
+            }
+        }
+    }
+
+    /// Puts a snapshot into effect, wherever it came from.
+    ///
+    /// Shared by launch and by an iCloud pull so a synced snapshot cannot be
+    /// applied differently from a local one.
+    private func apply(_ snapshot: AppSnapshot) {
+        subscriptions = snapshot.subscriptions.map { source in
+            var source = source
+            if Self.isCancellationMessage(source.lastError) { source.lastError = nil }
+            return source
+        }
+        nodes = snapshot.nodes
+        importedSchemes = snapshot.importedSchemes ?? []
+        selectedRuleGroups = snapshot.selectedRuleGroups?.mapValues(Set.init) ?? [:]
+        ruleGroupEmojisEnabled = snapshot.ruleGroupEmojisEnabled ?? [:]
+        excludedNodeIDs = Set(snapshot.excludedNodeIDs ?? [])
+        customRuleFlows = snapshot.customRuleFlows ?? []
+        excludedKinds = Self.decodeExcludedKinds(snapshot.excludedKinds)
+        renewalRemindersEnabled = snapshot.renewalRemindersEnabled ?? false
+        clientOrder = ClientTargetOrder.normalized(rawValues: snapshot.clientOrder)
+        appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
+        filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
+        configurationName = TowerBrand.migratedDefaultName(snapshot.configurationName)
+        let ruleSetPreferenceWasExplicit = snapshot.preferRuleSetsWasExplicitlySet ?? false
+        preferRuleSetsWasExplicitlySet = ruleSetPreferenceWasExplicit
+        preferRuleSets = ruleSetPreferenceWasExplicit
+            ? (snapshot.preferRuleSets ?? false)
+            : false
+        exportContentModes = Self.decodeExportContentModes(snapshot.exportContentModes)
+        selectedPresetID = snapshot.selectedPresetID
+        selectedTarget = snapshot.selectedTarget
+    }
+
+    /// The snapshot both the local file and iCloud are written from, so the
+    /// two can never describe different states.
+    private func currentSnapshot(updatedAt: Date = .now) -> AppSnapshot {
+        AppSnapshot(
+            subscriptions: subscriptions,
+            nodes: nodes,
+            selectedPresetID: selectedPresetID,
+            selectedTarget: selectedTarget,
+            importedSchemes: importedSchemes,
+            selectedRuleGroups: selectedRuleGroups.isEmpty
+                ? nil
+                : selectedRuleGroups.mapValues { $0.sorted() },
+            ruleGroupEmojisEnabled: ruleGroupEmojisEnabled.isEmpty
+                ? nil
+                : ruleGroupEmojisEnabled,
+            excludedNodeIDs: excludedNodeIDs.isEmpty
+                ? nil
+                : excludedNodeIDs.sorted { $0.uuidString < $1.uuidString },
+            customRuleFlows: customRuleFlows.isEmpty ? nil : customRuleFlows,
+            excludedKinds: Self.encodeExcludedKinds(excludedKinds),
+            renewalRemindersEnabled: renewalRemindersEnabled,
+            clientOrder: clientOrder.map(\.rawValue),
+            appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
+            filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
+            configurationName: configurationName,
+            preferRuleSets: preferRuleSets,
+            preferRuleSetsWasExplicitlySet: preferRuleSetsWasExplicitlySet,
+            exportContentModes: Self.encodeExportContentModes(exportContentModes),
+            updatedAt: updatedAt
+        )
+    }
+
     private func persist() {
         guard !isDemoMode else { return }
+        let snapshot = currentSnapshot()
         do {
-            try persistence.save(
-                AppSnapshot(
-                    subscriptions: subscriptions,
-                    nodes: nodes,
-                    selectedPresetID: selectedPresetID,
-                    selectedTarget: selectedTarget,
-                    importedSchemes: importedSchemes,
-                    selectedRuleGroups: selectedRuleGroups.isEmpty
-                        ? nil
-                        : selectedRuleGroups.mapValues { $0.sorted() },
-                    ruleGroupEmojisEnabled: ruleGroupEmojisEnabled.isEmpty
-                        ? nil
-                        : ruleGroupEmojisEnabled,
-                    excludedNodeIDs: excludedNodeIDs.isEmpty
-                        ? nil
-                        : excludedNodeIDs.sorted { $0.uuidString < $1.uuidString },
-                    customRuleFlows: customRuleFlows.isEmpty ? nil : customRuleFlows,
-                    excludedKinds: Self.encodeExcludedKinds(excludedKinds),
-                    renewalRemindersEnabled: renewalRemindersEnabled,
-                    clientOrder: clientOrder.map(\.rawValue),
-                    appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
-                    filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
-                    configurationName: configurationName,
-                    preferRuleSets: preferRuleSets,
-                    preferRuleSetsWasExplicitlySet: preferRuleSetsWasExplicitlySet,
-                    exportContentModes: Self.encodeExportContentModes(exportContentModes)
-                )
-            )
+            try persistence.save(snapshot)
         } catch {
             toast = ToastMessage(text: String(localized: "保存失败：\(error.localizedDescription)"), symbol: "exclamationmark.triangle.fill")
+            return
         }
+        scheduleCloudUpload(snapshot)
     }
 
     private static var demoSnapshot: AppSnapshot {

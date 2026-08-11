@@ -16,6 +16,7 @@ struct SettingsView: View {
                     isConfirmingTokenRotation: $isConfirmingTokenRotation
                 )
                 LANSharingGuide()
+                CloudSyncCard()
                 SecurityAndSourceLink()
             }
             .padding(.horizontal, TowerTheme.pagePadding)
@@ -46,6 +47,86 @@ struct SettingsView: View {
 /// wants to check them. Settings carries one quiet row instead of a fifth
 /// full-width card: this is reference material, not a setting anyone acts on
 /// every visit, and the page behind it holds the same four rows.
+/// Off by default, and deliberately not phrased as a convenience.
+///
+/// Everything else in Tower keeps the subscription on the device. Turning this
+/// on is the one action that changes that, so the card says what actually
+/// happens rather than "sync your settings" — the user is agreeing to put
+/// subscription URLs and node passwords in their iCloud account.
+private struct CloudSyncCard: View {
+    @Environment(AppModel.self) private var model
+    @State private var isConfirming = false
+
+    private var binding: Binding<Bool> {
+        Binding(
+            get: { model.iCloudSyncEnabled },
+            set: { wantsOn in
+                if wantsOn {
+                    isConfirming = true
+                } else {
+                    Task { await model.setICloudSyncEnabled(false) }
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "iCloud 同步", detail: "默认关闭")
+            VStack(alignment: .leading, spacing: 13) {
+                Toggle(isOn: binding) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("同步到我的 iCloud")
+                            .font(.subheadline.weight(.semibold))
+                        Text(statusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(model.isCloudSyncing)
+
+                if model.iCloudSyncEnabled {
+                    Divider()
+                    Button {
+                        Task { await model.synchronizeWithCloud(showResult: true) }
+                    } label: {
+                        Label(
+                            model.isCloudSyncing ? "正在同步…" : "立即同步",
+                            systemImage: "arrow.triangle.2.circlepath"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                    }
+                    .disabled(model.isCloudSyncing)
+                }
+
+                Divider()
+                Label(
+                    "开启后，订阅地址和节点密码会存进你的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(17)
+            .towerCard()
+        }
+        .alert("开启 iCloud 同步？", isPresented: $isConfirming) {
+            Button("开启") { Task { await model.setICloudSyncEnabled(true) } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("你的订阅地址和节点密码会上传到你自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。")
+        }
+    }
+
+    private var statusText: LocalizedStringKey {
+        if !model.isCloudAccountAvailable { return "此设备未登录 iCloud" }
+        guard model.iCloudSyncEnabled else { return "配置只保存在这台设备上" }
+        guard let at = model.lastCloudSyncAt else { return "已开启" }
+        return "上次同步 \(at.formatted(date: .omitted, time: .shortened))"
+    }
+}
+
 private struct SecurityAndSourceLink: View {
     var body: some View {
         NavigationLink {

@@ -4,7 +4,7 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 # 塔台隐私政策
 
-最后更新：2026 年 8 月 10 日
+最后更新：2026 年 8 月 11 日
 
 塔台（Tower）是一个在 iPhone 本机运行的**配置文件转换工具**。它把你已有的订阅文本转换成各个客户端能读的配置文件格式。
 
@@ -46,7 +46,8 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 ## 四、设备上的存储
 
-- 订阅、节点和设置保存在 App 自己的沙盒里，不同步到 iCloud，不备份到任何服务器。
+- 订阅、节点和设置保存在 App 自己的沙盒里。**默认不同步、不备份到任何地方。**
+- 设置里有一个默认关闭的「iCloud 同步」开关。**只有你主动开启后**，配置才会存入**你自己的** iCloud 账户，用于在同一 Apple 账户的设备之间同步。这份数据存在你的 iCloud 里，不经过塔台的任何服务器，开发者无法访问。开启前会明确告知订阅地址和节点密码会被上传。关闭同步不会删除 iCloud 上已有的副本，你可以在系统的 iCloud 云盘里自行删除。
 - 写到磁盘的凭据类文件——包括导出的配置文件和二维码图片——使用 iOS 的**完整文件保护**（`.completeFileProtection`），设备锁定时无法被读取。
 - 临时导出文件会自动清理。
 - 删除 App 会一并删除全部数据。
@@ -73,7 +74,7 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 # Tower Privacy Policy
 
-Last updated: 10 August 2026
+Last updated: 11 August 2026
 
 Tower is a **configuration file converter** that runs entirely on your iPhone. It turns subscription text you already have into the configuration formats other client apps can read.
 
@@ -107,7 +108,7 @@ To hand a configuration to another client on the same device, Tower starts a loc
 
 ## 4. Storage
 
-Data lives in the app's own sandbox — not in iCloud, not on any server. Credential-bearing files written to disk, including exported configurations and QR images, use iOS **complete file protection** and cannot be read while the device is locked. Temporary exports are cleaned up automatically. Deleting the app deletes everything.
+Data lives in the app's own sandbox and, by default, goes nowhere else. Settings carries an iCloud sync switch that is off until you turn it on; only then is the configuration written to **your own** iCloud account so devices on the same Apple Account can share it. It never passes through a Tower server and the developer cannot read it. You are told before enabling it that subscription URLs and node passwords will be uploaded. Turning sync off does not delete the copy already in iCloud — remove it from iCloud Drive yourself. Credential-bearing files written to disk, including exported configurations and QR images, use iOS **complete file protection** and cannot be read while the device is locked. Temporary exports are cleaned up automatically. Deleting the app deletes everything.
 
 ## 5. Permissions
 

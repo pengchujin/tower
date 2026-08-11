@@ -1020,6 +1020,12 @@ struct AppSnapshot: Codable {
     /// This marker lets that implicit value migrate back to the safer disabled
     /// default without overwriting a choice the user makes afterwards.
     var preferRuleSetsWasExplicitlySet: Bool?
+    /// When this snapshot was written, used to decide which of two devices'
+    /// copies wins. Optional so every snapshot written before iCloud sync
+    /// existed still decodes; a missing value loses to any dated one, which is
+    /// the right way round — a snapshot from before sync cannot have been the
+    /// more recent edit on another device.
+    var updatedAt: Date?
     /// Per-client import mode. New or unsupported clients fall back to full.
     var exportContentModes: [String: String]?
 
@@ -1041,7 +1047,8 @@ struct AppSnapshot: Codable {
         configurationName: String? = nil,
         preferRuleSets: Bool? = nil,
         preferRuleSetsWasExplicitlySet: Bool? = nil,
-        exportContentModes: [String: String]? = nil
+        exportContentModes: [String: String]? = nil,
+        updatedAt: Date? = nil
     ) {
         self.subscriptions = subscriptions
         self.nodes = nodes
@@ -1061,6 +1068,7 @@ struct AppSnapshot: Codable {
         self.preferRuleSets = preferRuleSets
         self.preferRuleSetsWasExplicitlySet = preferRuleSetsWasExplicitlySet
         self.exportContentModes = exportContentModes
+        self.updatedAt = updatedAt
     }
 }
 
