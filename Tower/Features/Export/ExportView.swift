@@ -179,6 +179,7 @@ private struct ExportSettingsSheet: View {
                         Button("完成") { dismiss() }
                     }
                 }
+                .towerToast()
         }
     }
 }

@@ -3,11 +3,22 @@ import SwiftUI
 @main
 struct TowerApp: App {
     @State private var model = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             AppRootView()
                 .environment(model)
+                // The real use is "added a subscription on the other phone,
+                // now picked this one up", which is exactly a return to the
+                // foreground. Uploads were already automatic; without this the
+                // other device only ever saw changes if someone opened
+                // Settings and tapped a button, which is not sync.
+                .task { await model.synchronizeWithCloud() }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await model.synchronizeWithCloud() }
+                }
         }
     }
 }
@@ -61,9 +72,17 @@ struct AppRootView: View {
         }
         .tint(.accentColor)
         .sensoryFeedback(.selection, trigger: model.selectedTab)
-        .overlay(alignment: .top) {
-            ToastOverlay()
-        }
+        .towerToast()
+    }
+}
+
+extension View {
+    /// Toasts render into whatever layer this is attached to, so a sheet needs
+    /// its own. Settings is presented as a sheet over the tab view, and for a
+    /// while every message it produced — LAN sharing started, access key
+    /// rotated, iCloud synced — was drawn underneath it and never seen.
+    func towerToast() -> some View {
+        overlay(alignment: .top) { ToastOverlay() }
     }
 }
 

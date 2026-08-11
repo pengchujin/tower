@@ -75,3 +75,55 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNil(snapshot.updatedAt)
     }
 }
+
+/// A pull that happens on its own must never surprise the user with a toast,
+/// and must never lose an edit they just made.
+final class CloudSyncTriggerTests: XCTestCase {
+    /// Automatic pulls pass no `showResult`, so the default has to be silent.
+    /// Returning to the foreground several times a minute is normal use; a
+    /// message each time would train people to ignore the ones that matter.
+    func testAutomaticSyncIsSilentByDefault() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("Tower/AppModel.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("func synchronizeWithCloud(showResult: Bool = false)"),
+            "自动拉取默认必须静默"
+        )
+    }
+
+    /// Both the launch pull and the foreground pull have to exist, or an upload
+    /// that already happened never reaches the other device and "sync" means
+    /// opening Settings and pressing a button.
+    func testLaunchAndForegroundBothTriggerAPull() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("Tower/TowerApp.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains(".task { await model.synchronizeWithCloud() }"), source)
+        XCTAssertTrue(source.contains("onChange(of: scenePhase)"), source)
+        XCTAssertTrue(source.contains("phase == .active"), source)
+    }
+
+    /// An edit made locally after the remote copy was written must survive a
+    /// foreground pull. This is the case that would silently eat someone's
+    /// work, so it is pinned rather than left to the general ordering test.
+    func testAFreshLocalEditIsNotOverwrittenByAnOlderRemote() {
+        let remoteWritten = Date(timeIntervalSince1970: 1_000)
+        let localEditedAfter = Date(timeIntervalSince1970: 1_001)
+
+        XCTAssertEqual(
+            CloudSyncResolution.resolve(local: localEditedAfter, remote: remoteWritten),
+            .keepLocal
+        )
+    }
+}
