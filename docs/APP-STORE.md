@@ -135,11 +135,29 @@ https://github.com/pengchujin/tower
 | 字段 | 值 |
 | --- | --- |
 | 类别 | 工具（已在工程里设为 `public.app-category.utilities`） |
-| 隐私政策 URL | `docs/privacy.md` 挂 GitHub Pages 后的地址 |
-| 支持 URL | `https://github.com/pengchujin/tower/issues` |
+| 技术支持 URL（必填） | `https://pengchujin.github.io/tower/support.html` |
+| 隐私政策 URL（必填） | `https://pengchujin.github.io/tower/privacy.html` |
+| 营销 URL（选填） | **留空**。见下 |
 | 演示账号 | 不需要 |
 | 出口合规 | 已声明 `ITSAppUsesNonExemptEncryption = NO` |
 | App 隐私问卷 | 全部选「不收集数据」，与 `PrivacyInfo.xcprivacy` 保持一致 |
+
+### 技术支持 / 营销网址
+
+**技术支持 URL 是必填的，营销 URL 不是。**
+
+支持页写在 `docs/support.md`，不是直接指向 issues 列表——审核员点进来要能看懂这个 App 是干什么的、用户遇到问题怎么办。页面里有常见问题（协议被跳过、重复配置、地区识别、乱码）和提交入口。
+
+**营销 URL 建议留空。** 它是给有独立产品官网的 App 用的。塔台没有官网，填个仓库地址等于把同一个链接填两遍，对用户没有帮助，也不会让审核加分。空着完全正常。
+
+两个页面都要先启用 GitHub Pages 才有 URL：仓库 Settings → Pages → Source 选 `main` 分支 `/docs` 目录。**提交前务必自己打开确认能访问**——填一个打不开的支持 URL 会被直接退回。
+
+没启用 Pages 之前，可以先用 GitHub 的渲染页顶上，Apple 也接受：
+
+```
+https://github.com/pengchujin/tower/blob/main/docs/support.md
+https://github.com/pengchujin/tower/blob/main/docs/privacy.md
+```
 
 ### 销售范围
 
