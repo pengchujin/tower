@@ -597,7 +597,7 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。已上传过 build 11；当前工程里是 **12**，即下一次上传要用的那个。build 号复用会被 App Store Connect 直接拒收。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **13**。build 12 是 iPad/iPhone 通用的构建，13 是第一个只发 iPhone 的构建——**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建要 iPad 截图。build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
 
