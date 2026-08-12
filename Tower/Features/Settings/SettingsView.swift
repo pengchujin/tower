@@ -60,24 +60,23 @@ private struct AutoRefreshSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             SettingsSectionLabel(title: "自动更新", detail: String(localized: "默认关闭"))
             VStack(alignment: .leading, spacing: 13) {
                 Toggle(isOn: binding) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("打开塔台时更新订阅")
-                            .font(.subheadline.weight(.semibold))
-                        Text(model.autoRefreshOnOpen
+                    SettingsRowLabel(
+                        symbol: "arrow.clockwise",
+                        color: .green,
+                        title: "打开塔台时更新订阅",
+                        resolvedDetail: model.autoRefreshOnOpen
                             ? String(localized: "每次打开或切回塔台时刷新一次")
-                            : String(localized: "只在你下拉刷新时更新"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                            : String(localized: "只在您下拉刷新时更新")
+                    )
                 }
 
                 Divider()
                 Label(
-                    "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。",
+                    "塔台不在后台运行，所以只有您打开它时才会更新。更新失败不会打扰您，订阅那一行会显示原因。",
                     systemImage: "info.circle"
                 )
                 .font(.caption)
@@ -163,7 +162,7 @@ private struct CloudSyncCard: View {
 
                 Divider()
                 Label(
-                    "开启后，订阅地址和节点密码会存进你的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
+                    "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
                     systemImage: "info.circle"
                 )
                 .font(.caption)
@@ -177,7 +176,7 @@ private struct CloudSyncCard: View {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("你的订阅地址和节点密码会上传到你自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。")
+            Text("您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。")
         }
     }
 
@@ -299,7 +298,7 @@ private struct NodeAndExportSettingsCard: View {
             Divider()
 
             Toggle(isOn: appendNameBinding) {
-                settingsLabel(
+                SettingsRowLabel(
                     symbol: "tag.fill",
                     color: .blue,
                     title: "节点附加订阅名称",
@@ -311,7 +310,7 @@ private struct NodeAndExportSettingsCard: View {
             Divider()
 
             Toggle(isOn: filterInfoBinding) {
-                settingsLabel(
+                SettingsRowLabel(
                     symbol: "line.3.horizontal.decrease.circle.fill",
                     color: .orange,
                     title: "过滤订阅节点信息",
@@ -323,7 +322,7 @@ private struct NodeAndExportSettingsCard: View {
             Divider()
 
             Toggle(isOn: preferRuleSetsBinding) {
-                settingsLabel(
+                SettingsRowLabel(
                     symbol: "square.stack.3d.up.fill",
                     color: .purple,
                     title: "优先使用规则集",
@@ -383,12 +382,38 @@ private struct NodeAndExportSettingsCard: View {
         configurationNameDraft.text = model.configurationName
     }
 
-    private func settingsLabel(
-        symbol: String,
-        color: Color,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey
-    ) -> some View {
+}
+
+/// One row of the settings cards: an icon tile, a title, and a line of detail.
+///
+/// A view rather than a helper method so the sections that live in their own
+/// structs can use it too. It used to be a private method on the card, which is
+/// exactly how the rows drifted apart — the renewal section hand-rolled a
+/// slightly larger tile and the auto-refresh section had no icon at all.
+struct SettingsRowLabel: View {
+    let symbol: String
+    let color: Color
+    let title: LocalizedStringKey
+    private let detail: Text
+
+    init(symbol: String, color: Color, title: LocalizedStringKey, detail: LocalizedStringKey) {
+        self.symbol = symbol
+        self.color = color
+        self.title = title
+        self.detail = Text(detail)
+    }
+
+    /// For a detail chosen at runtime. Such a string has already been through
+    /// `String(localized:)`, and handing it back as a key would look it up a
+    /// second time — against itself.
+    init(symbol: String, color: Color, title: LocalizedStringKey, resolvedDetail: String) {
+        self.symbol = symbol
+        self.color = color
+        self.title = title
+        self.detail = Text(verbatim: resolvedDetail)
+    }
+
+    var body: some View {
         HStack(spacing: 13) {
             Image(systemName: symbol)
                 .font(.system(size: 20, weight: .semibold))
@@ -397,7 +422,7 @@ private struct NodeAndExportSettingsCard: View {
                 .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
-                Text(detail)
+                detail
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -437,20 +462,12 @@ private struct RenewalReminderSection: View {
             )
 
             Toggle(isOn: reminderBinding) {
-                HStack(spacing: 13) {
-                    Image(systemName: "bell.badge.fill")
-                        .font(.system(size: 23, weight: .semibold))
-                        .foregroundStyle(.orange)
-                        .frame(width: 48, height: 48)
-                        .background(.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("到期前一天通知")
-                            .font(.headline)
-                        Text("按机场返回的到期时间自动更新")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                SettingsRowLabel(
+                    symbol: "bell.badge.fill",
+                    color: .orange,
+                    title: "到期前一天通知",
+                    detail: "按机场返回的到期时间自动更新"
+                )
             }
             .tint(.orange)
             .disabled(model.isUpdatingRenewalReminders)
@@ -605,7 +622,7 @@ private struct LANSharingCard: View {
                         .font(.headline)
                     Text(model.isLANSharingActive
                         ? String(localized: "共享的是转换结果，不含机场原始链接")
-                        : String(localized: "只有你主动开启后才会监听局域网"))
+                        : String(localized: "只有您主动开启后才会监听局域网"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -887,7 +904,7 @@ private struct LANSharingGuide: View {
                 GuideRow(number: "2", text: "开启服务，优先复制“自动识别客户端”链接。")
                 GuideRow(number: "3", text: "把链接作为订阅地址添加到客户端，刷新时保持塔台在前台打开。")
                 Divider()
-                Label("高级机场仍由塔台使用你设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。", systemImage: "lock.shield.fill")
+                Label("高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。", systemImage: "lock.shield.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
