@@ -11,8 +11,8 @@
 ## 当前能力
 
 - 添加、启用、更新和删除 HTTPS 订阅
-- 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、AnyTLS、Snell、SOCKS5、HTTP(S) 节点
-- 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5 自有节点；Snell 粘贴 Surge 配置行添加
+- 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S) 节点
+- 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S) 自有节点
 - 首页节点与订阅都可展开查看地址、协议、地区和测试方式
 - 节点行使用服务器 IP 的离线国家识别结果显示地区 Logo，并列出协议、传输、TLS 与 UDP 能力
 - 首页使用自绘的平面点阵世界地图，保留完整日期变更线范围；节点按名称优先、服务器主机名其次、离线 IP 回退的统一结果聚合，密集地区标签会按权重多方向避让
@@ -93,6 +93,7 @@ App 内置简体中文、繁体中文、英语、日语、韩语、西班牙语�
 
 - Shadowsocks 的 SIP003 插件只支持 simple-obfs（`obfs`/`obfs-local`）。`v2ray-plugin` 等其余插件会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
 - Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，Hiddify（sing-box）反过来只支持 v4 以上，Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
+- WireGuard 只接受能够完整保留密钥、本机地址、对端和路由的单 Peer 配置；多 Peer 配置会明确计入“跳过”，不会静默压成错误节点。QuanX 不支持 WireGuard，Shadowrocket 的仅节点订阅也会跳过它，完整配置仍可写入。
 - Hiddify 运行的是 sing-box 内核，因此导出的是 sing-box JSON；sing-box 自身在 App Store 没有独立客户端，所以这个格式以实际运行它的 App 命名。
 - 机场厂商自定义的非标准节点字段可能需要增加兼容适配。
 - 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。

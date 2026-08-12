@@ -97,6 +97,29 @@ final class TUICHysteriaTests: XCTestCase {
         XCTAssertEqual(result.rejectedLineCount, 0)
     }
 
+    /// These values change the actual QUIC/Hysteria connection. Two entries
+    /// sharing a front door and credentials are not duplicates when any one of
+    /// these tuning parameters differs.
+    func testCanonicalIdentityIncludesTUICAndHysteriaTuning() {
+        let tuic = tuicNode()
+        var changed = tuic
+        changed.congestionControl = "cubic"
+        XCTAssertNotEqual(changed.canonicalKey, tuic.canonicalKey)
+
+        changed = tuic
+        changed.udpRelayMode = "quic"
+        XCTAssertNotEqual(changed.canonicalKey, tuic.canonicalKey)
+
+        let hysteria = hysteriaNode()
+        changed = hysteria
+        changed.upMbps = 81
+        XCTAssertNotEqual(changed.canonicalKey, hysteria.canonicalKey)
+
+        changed = hysteria
+        changed.downMbps = 241
+        XCTAssertNotEqual(changed.canonicalKey, hysteria.canonicalKey)
+    }
+
     /// A nested sequence used to end the node it belonged to.
     ///
     /// `http-opts: path: - /` is written by real airports, and the reader
@@ -186,6 +209,44 @@ final class TUICHysteriaTests: XCTestCase {
 
             XCTAssertEqual(result.skippedNodeCount, 2, "\(target.name) 应跳过并计数")
             XCTAssertFalse(result.content.contains("node.example.com"), "\(target.name) 不应写出跳过的节点")
+        }
+    }
+
+    /// Tower supports TUIC v5, whose UUID and password are both mandatory.
+    /// A legacy v4 token or a half-filled v5 entry must not be emitted as a
+    /// profile line that imports successfully but can never authenticate.
+    func testIncompleteOrLegacyTUICIsSkippedByEverySupportingTarget() {
+        let missingPassword = ProxyNode(
+            kind: .tuic,
+            name: "Missing password",
+            server: "missing.example.com",
+            port: 443,
+            uuid: "3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47",
+            tls: true,
+            rawURI: "tuic://missing"
+        )
+        let legacyToken = ProxyNode(
+            kind: .tuic,
+            name: "Legacy v4 token",
+            server: "legacy.example.com",
+            port: 443,
+            password: "pw",
+            uuid: "legacy-token",
+            tls: true,
+            rawURI: "tuic://legacy"
+        )
+
+        for target in [ClientTarget.surge, .shadowrocket, .clash, .hiddify, .egern] {
+            let result = ConfigurationGenerator().generate(
+                nodes: [missingPassword, legacyToken],
+                preset: RulePreset.builtIns[0],
+                target: target
+            )
+
+            XCTAssertEqual(result.supportedNodeCount, 0, target.name)
+            XCTAssertEqual(result.skippedNodeCount, 2, target.name)
+            XCTAssertFalse(result.content.contains("missing.example.com"), target.name)
+            XCTAssertFalse(result.content.contains("legacy.example.com"), target.name)
         }
     }
 

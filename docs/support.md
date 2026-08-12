@@ -22,11 +22,11 @@ Surge、Stash、Shadowrocket、Loon、Quantumult X、Hiddify、Egern，共七种
 
 ### 支持哪些协议？
 
-Shadowsocks、ShadowsocksR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、AnyTLS、Snell、SOCKS5、HTTP(S)，共十二种。
+Shadowsocks、ShadowsocksR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S)，共十三种。
 
 ### 为什么有节点被跳过了？
 
-因为你选的那个客户端**没有实现**这个协议。比如 Quantumult X 没有 Hysteria，Loon 没有 TUIC，Hiddify 用的内核不含 Snell。
+因为你选的那个客户端**没有实现**这个协议，或该节点缺少生成可用配置所需的关键字段。比如 Quantumult X 没有 WireGuard，Loon 没有 TUIC，Hiddify 用的内核不含 Snell；WireGuard 多 Peer 配置也不会被有损压成一个节点。
 
 塔台在这种情况下会跳过并计数，而不是把它写成别的协议。写进去的话，配置看着正常，那个节点却永远连不上——这比少一个节点更麻烦。换一个支持该协议的客户端即可。
 

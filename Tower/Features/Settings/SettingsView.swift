@@ -3,13 +3,14 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @Binding var configurationNameDraft: ConfigurationNameDraft
     @State private var selectedClient: ClientTarget?
     @State private var isConfirmingTokenRotation = false
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 22) {
-                NodeAndExportSettingsCard()
+                NodeAndExportSettingsCard(configurationNameDraft: $configurationNameDraft)
                 LANSharingCard(
                     selectedClient: $selectedClient,
                     isConfirmingTokenRotation: $isConfirmingTokenRotation
@@ -225,9 +226,8 @@ struct SecurityAndSourceView: View {
 }
 
 private struct NodeAndExportSettingsCard: View {
+    @Binding var configurationNameDraft: ConfigurationNameDraft
     @Environment(AppModel.self) private var model
-    @State private var configurationNameDraft = ConfigurationNameDraft()
-    @FocusState private var isConfigurationNameFocused: Bool
 
     private var appendNameBinding: Binding<Bool> {
         Binding(
@@ -298,61 +298,59 @@ private struct NodeAndExportSettingsCard: View {
 
             Divider()
 
-            // The field stays a full-width child of the card, exactly where it
-            // was before it wore a tile. Nesting it inside an HStack beside the
-            // tile stopped it accepting input; the cause is not yet understood,
-            // so this keeps the layout that is known to work and takes the
-            // shared tile only for the heading.
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 13) {
-                    SettingsIconTile(symbol: "doc.badge.gearshape", color: .teal)
-                    Text("配置名称")
-                        .font(.headline)
-                    Spacer()
-                    if model.configurationName != TowerBrand.localizedName {
-                        Button("恢复默认") {
-                            configurationNameDraft.text = TowerBrand.localizedName
-                            model.setConfigurationName(TowerBrand.localizedName)
-                        }
-                        .font(.caption.weight(.semibold))
-                    }
-                }
-                TextField("配置名称", text: $configurationNameDraft.text)
-                    .focused($isConfigurationNameFocused)
-                    .submitLabel(.done)
-                    .onSubmit(commitConfigurationName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, 13)
-                    .frame(height: 46)
-                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                    .accessibilityIdentifier("configuration-name-field")
-                Text("导出的文件、本机导入和客户端订阅会使用同一个名称。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            ConfigurationNameSettingsRow(configurationNameDraft: $configurationNameDraft)
         }
         .padding(17)
         .towerCard()
         .accessibilityIdentifier("node-export-settings-card")
-        .onAppear {
-            configurationNameDraft.text = model.configurationName
-        }
-        .onChange(of: isConfigurationNameFocused) { _, isFocused in
-            if !isFocused { commitConfigurationName() }
-        }
-        .onChange(of: model.configurationName) { _, name in
-            if !isConfigurationNameFocused { configurationNameDraft.text = name }
-        }
-        .onDisappear(perform: commitConfigurationName)
     }
+}
 
-    private func commitConfigurationName() {
-        model.setConfigurationName(configurationNameDraft.committedName)
-        configurationNameDraft.text = model.configurationName
+private struct ConfigurationNameSettingsRow: View {
+    @Binding var configurationNameDraft: ConfigurationNameDraft
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 13) {
+            SettingsIconTile(symbol: "doc.badge.gearshape", color: .teal)
+            Text("配置名称")
+                .font(.headline)
+                .lineLimit(1)
+            Spacer(minLength: 12)
+            HStack(spacing: 8) {
+                TextField("配置名称", text: $configurationNameDraft.text)
+                    .focused($isFocused)
+                    .multilineTextAlignment(.trailing)
+                    .submitLabel(.done)
+                    .onSubmit { isFocused = false }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .lineLimit(1)
+                    .frame(minWidth: 96, maxWidth: 190)
+                    .accessibilityIdentifier("configuration-name-field")
+
+                // Emptying the field cannot mean "back to 塔台": a blank value
+                // is deliberately ignored, because SwiftUI publishes one while
+                // tearing a focused field down. So getting back to the default
+                // needs a control of its own, small enough not to crowd a row
+                // whose neighbours carry only a switch.
+                if configurationNameDraft.committedName != TowerBrand.localizedName {
+                    Button {
+                        configurationNameDraft.text = TowerBrand.localizedName
+                        isFocused = false
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityLabel(Text("恢复默认配置名称"))
+                    .accessibilityIdentifier("configuration-name-reset")
+                }
+            }
+        }
+        .frame(minHeight: 44)
     }
-
 }
 
 /// The tinted square every settings row is introduced by.

@@ -3483,6 +3483,100 @@
         }
       }
     },
+    "DNS（可选）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نظام أسماء النطاقات (اختياري)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (optional)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (opcional)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (facultatif)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (opsional)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (オプション)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS(선택사항)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (opcional)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (необязательно)"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (ไม่จำเป็น)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (isteğe bağlı)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS (tùy chọn)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS（可选）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS（可選）"
+          }
+        }
+      }
+    },
     "HTTP": {
       "localizations": {
         "ar": {
@@ -4043,6 +4137,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "IP 地區"
+          }
+        }
+      }
+    },
+    "MTU": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "МТУ"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "มธ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTU"
           }
         }
       }
@@ -4889,6 +5077,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "REALITY 伺服器公鑰"
+          }
+        }
+      }
+    },
+    "Reserved，例如 1,2,3（可选）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محفوظة، مثل 1،2،3 (اختياري)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reserviert, z. B. 1,2,3 (optional)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reserved bytes, for example 1,2,3 (optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reservado, como 1,2,3 (opcional)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réservé, tel que 1,2,3 (facultatif)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dicadangkan, seperti 1,2,3 (opsional)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1、2、3 などの予約済み (オプション)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1,2,3과 같은 예약됨(선택 사항)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reservado, como 1,2,3 (opcional)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зарезервировано, например 1,2,3 (необязательно)."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สงวนไว้ เช่น 1,2,3 (ไม่บังคับ)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1,2,3 gibi ayrılmıştır (isteğe bağlı)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dành riêng, chẳng hạn như 1,2,3 (tùy chọn)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reserved，例如 1,2,3（可选）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reserved，例如 1,2,3（可選）"
           }
         }
       }
@@ -6206,6 +6488,288 @@
           "stringUnit": {
             "state": "translated",
             "value": "WebSocket"
+          }
+        }
+      }
+    },
+    "WireGuard 密钥": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح WireGuard"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard-Schlüssel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard Keys"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave WireGuard"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé WireGuard"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci WireGuard"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワイヤーガードキー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 키"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave WireGuard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ WireGuard"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปุ่ม WireGuard"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard anahtarı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa WireGuard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 密鑰"
+          }
+        }
+      }
+    },
+    "WireGuard 隧道": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نفق WireGuard"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard-Tunnel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard Tunnel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Túnel WireGuard"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnel WireGuard"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terowongan WireGuard"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワイヤーガードトンネル"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "와이어가드 터널"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Túnel WireGuard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard Туннель"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อุโมงค์ WireGuard"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard Tüneli"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đường hầm WireGuard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 隧道"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 隧道"
+          }
+        }
+      }
+    },
+    "WireGuard 需要私钥、公钥、本机地址和允许的网段": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتطلب WireGuard مفتاحًا خاصًا ومفتاحًا عامًا وعنوانًا محليًا وقطاعات الشبكة المسموح بها"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard erfordert einen privaten Schlüssel, einen öffentlichen Schlüssel, eine lokale Adresse und erlaubte Netzwerksegmente"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard requires a private key, peer public key, local address, and allowed IPs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard requiere clave privada, clave pública, dirección local y segmentos de red permitidos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard nécessite une clé privée, une clé publique, une adresse locale et des segments de réseau autorisés"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard memerlukan kunci pribadi, kunci publik, alamat lokal, dan segmen jaringan yang diizinkan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard には秘密キー、公開キー、ローカル アドレス、および許可されたネットワーク セグメントが必要です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard에는 개인 키, 공개 키, 로컬 주소 및 허용된 네트워크 세그먼트가 필요합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard requer chave privada, chave pública, endereço local e segmentos de rede permitidos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard требует закрытый ключ, открытый ключ, локальный адрес и разрешенные сегменты сети."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard ต้องใช้คีย์ส่วนตัว คีย์สาธารณะ ที่อยู่ภายในเครื่อง และส่วนเครือข่ายที่อนุญาต"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard özel anahtar, genel anahtar, yerel adres ve izin verilen ağ bölümleri gerektirir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard yêu cầu khóa riêng, khóa chung, địa chỉ cục bộ và các phân đoạn mạng được phép"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 需要私钥、公钥、本机地址和允许的网段"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 需要私鑰、公鑰、本機位址和允許的網段"
           }
         }
       }
@@ -10160,6 +10724,100 @@
         }
       }
     },
+    "保活间隔（秒）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحفاظ على الفاصل الزمني (ثواني)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep-Alive-Intervall (Sekunden)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Persistent Keepalive (seconds)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalo de mantenimiento (segundos)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalle de maintien en vie (secondes)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval tetap hidup (detik)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キープアライブ間隔 (秒)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 유지 간격(초)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantenha o intervalo ativo (segundos)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Интервал поддержания активности (секунды)"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep ALIVE ช่วงเวลา (วินาที)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hayatta kalma aralığı (saniye)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giữ khoảng thời gian sống (giây)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保活间隔（秒）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保活間隔（秒）"
+          }
+        }
+      }
+    },
     "保留空闲会话数": {
       "localizations": {
         "ar": {
@@ -10438,6 +11096,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "允許不安全證書"
+          }
+        }
+      }
+    },
+    "允许的网段": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قطاعات الشبكة المسموح بها"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zulässige Netzwerksegmente"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowed IPs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segmentos de red permitidos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segments de réseau autorisés"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segmen jaringan yang diizinkan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可されたネットワークセグメント"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "허용된 네트워크 세그먼트"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segmentos de rede permitidos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешенные сегменты сети"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่วนเครือข่ายที่อนุญาต"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzin verilen ağ segmentleri"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phân đoạn mạng được phép"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许的网段"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許的網段"
+          }
+        }
+      }
+    },
+    "允许的网段决定哪些目标进入隧道；代理用途通常填写 0.0.0.0/0,::/0。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحدد قطاعات الشبكة المسموح بها الأهداف التي تدخل النفق؛ عادةً ما يتم ملء استخدام الوكيل بالرقم 0.0.0.0/0,::/0."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die erlaubten Netzwerksegmente bestimmen, welche Ziele den Tunnel betreten; Die Proxy-Nutzung wird normalerweise mit 0.0.0.0/0,::/0 ausgefüllt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowed IPs determine which destinations enter the tunnel. For proxy use, this is usually 0.0.0.0/0,::/0."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los segmentos de red permitidos determinan qué objetivos ingresan al túnel; El uso del proxy generalmente se completa con 0.0.0.0/0,::/0."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les segments de réseau autorisés déterminent quelles cibles entrent dans le tunnel ; l'utilisation du proxy est généralement renseignée 0.0.0.0/0,::/0."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segmen jaringan yang diperbolehkan menentukan target mana yang memasuki terowongan; penggunaan proxy biasanya diisi 0.0.0.0/0,::/0."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可されたネットワーク セグメントによって、どのターゲットがトンネルに入るのかが決まります。プロキシの使用状況は通常、0.0.0.0/0,::/0 に入力されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "허용된 네트워크 세그먼트에 따라 터널에 들어가는 대상이 결정됩니다. 프록시 사용법은 일반적으로 0.0.0.0/0,::/0으로 채워집니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os segmentos de rede permitidos determinam quais alvos entram no túnel; o uso de proxy geralmente é preenchido em 0.0.0.0/0,::/0."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешенные сегменты сети определяют, какие цели входят в туннель; использование прокси обычно заполняется 0.0.0.0/0,::/0."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่วนเครือข่ายที่ได้รับอนุญาตจะกำหนดว่าเป้าหมายใดเข้าสู่อุโมงค์ การใช้งานพรอกซีมักจะเต็มไปด้วย 0.0.0.0/0,::/0"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzin verilen ağ bölümleri tünele hangi hedeflerin gireceğini belirler; Proxy kullanımı genellikle 0.0.0.0/0,::/0 şeklinde doldurulur."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các phân đoạn mạng được phép xác định mục tiêu nào đi vào đường hầm; việc sử dụng proxy thường được điền vào 0.0.0.0/0,::/0."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许的网段决定哪些目标进入隧道；代理用途通常填写 0.0.0.0/0,::/0。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許的網段決定哪些目標進入隧道；代理用途通常填入 0.0.0.0/0,::/0。"
           }
         }
       }
@@ -14957,100 +15803,6 @@
         }
       }
     },
-    "只在您按下时联网": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "لا اتصال إلا حين تطلبه"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Netz nur, wenn Sie es auslösen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It goes online only when you say so"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solo se conecta cuando usted lo pide"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ne se connecte que si vous le demandez"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terhubung hanya saat Anda memintanya"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通信はあなたが操作したときだけ"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "네트워크는 사용자가 누를 때만"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Só vai à rede quando você manda"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Выходит в сеть только по вашей команде"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ต่อเน็ตเฉพาะตอนที่คุณสั่ง"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yalnızca siz istediğinizde çevrimiçi olur"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chỉ kết nối mạng khi bạn yêu cầu"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "只在您按下时联网"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "只在您按下時連網"
-          }
-        }
-      }
-    },
     "只对这个订阅生效。DNS 请填写 https://…/dns-query 形式的加密解析地址。": {
       "localizations": {
         "ar": {
@@ -18715,6 +19467,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "客戶端指紋"
+          }
+        }
+      }
+    },
+    "客户端私钥": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المفتاح الخاص للعميل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privater Clientschlüssel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client private key"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "clave privada del cliente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé privée client"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci pribadi klien"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアントの秘密鍵"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 개인 키"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave privada do cliente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрытый ключ клиента"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รหัสส่วนตัวของลูกค้า"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemci özel anahtarı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa riêng của khách hàng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端私钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客戶端私鑰"
           }
         }
       }
@@ -26431,96 +27277,96 @@
         }
       }
     },
-    "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 节点二维码。": {
+    "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يدعم رموز QR للاشتراك، بالإضافة إلى رموز QR لعقدة SS وSSR وVMess وVLESS وTrojan وHysteria 2 وAnyTLS وSOCKS5 وHTTP(S)."
+            "value": "يدعم رموز QR للاشتراك، بالإضافة إلى رموز QR لعقدة SS وSSR وVMess وVLESS وTrojan وHysteria وTUIC وWireGuard وAnyTLS وSOCKS5 وHTTP(S)."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unterstützt Abonnement-QR-Codes sowie SS-, SSR-, VMess-, VLESS-, Trojan-, Hysteria 2-, AnyTLS-, SOCKS5- und HTTP(S)-Knoten-QR-Codes."
+            "value": "Unterstützt Abonnement-QR-Codes sowie SS-, SSR-, VMess-, VLESS-, Trojan-, Hysteria-, TUIC-, WireGuard-, AnyTLS-, SOCKS5- und HTTP(S)-Knoten-QR-Codes."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Supports subscription QR codes, as well as SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S) node QR codes."
+            "value": "Supports subscription QR codes and SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, and HTTP(S) node QR codes."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Admite códigos QR de suscripción, así como códigos QR de nodo SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5 y HTTP(S)."
+            "value": "Admite códigos QR de suscripción, así como códigos QR de nodo SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prend en charge les codes QR d'abonnement, ainsi que les codes QR de nœud SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)."
+            "value": "Prend en charge les codes QR d'abonnement, ainsi que les codes QR de nœud SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mendukung kode QR berlangganan, serta kode QR node SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)."
+            "value": "Mendukung kode QR berlangganan, serta kode QR node SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サブスクリプション QR コード、SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) ノード QR コードをサポートします。"
+            "value": "サブスクリプション QR コード、SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) ノード QR コードをサポートします。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "구독 QR 코드는 물론 SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S) 노드 QR 코드도 지원합니다."
+            "value": "구독 QR 코드는 물론 SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S) 노드 QR 코드도 지원합니다."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suporta códigos QR de assinatura, bem como códigos QR de nó SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)."
+            "value": "Suporta códigos QR de assinatura, bem como códigos QR de nó SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Поддерживает QR-коды подписки, а также QR-коды узлов SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)."
+            "value": "Поддерживает QR-коды подписки, а также QR-коды узлов SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "รองรับรหัส QR การสมัครสมาชิก เช่นเดียวกับรหัส QR โหนด SS, SSR, VMess, VLESS, โทรจัน, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)"
+            "value": "รองรับรหัส QR การสมัครสมาชิก เช่นเดียวกับรหัส QR โหนด SS, SSR, VMess, VLESS, โทรจัน, ฮิสทีเรีย, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abonelik QR kodlarının yanı sıra SS, SSR, VMess, VLESS, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S) düğüm QR kodlarını destekler."
+            "value": "Abonelik QR kodlarının yanı sıra SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S) düğüm QR kodlarını destekler."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hỗ trợ mã QR đăng ký, cũng như mã QR nút SS, SSR, VMess, VLES, Trojan, Hysteria 2, AnyTLS, SOCKS5, HTTP(S)."
+            "value": "Hỗ trợ mã QR đăng ký, cũng như mã QR nút SS, SSR, VMess, VLES, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, HTTP(S)."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 节点二维码。"
+            "value": "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "支援訂閱二維碼，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 節點二維碼。"
+            "value": "支援訂閱二維碼，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 節點二維碼。"
           }
         }
       }
@@ -29253,6 +30099,100 @@
         }
       }
     },
+    "服务端公钥": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المفتاح العام للخادم"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffentlicher Serverschlüssel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server public key"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "clave pública del servidor"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé publique du serveur"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci publik server"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー公開鍵"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 공개 키"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave pública do servidor"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открытый ключ сервера"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รหัสสาธารณะของเซิร์ฟเวอร์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu ortak anahtarı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa công khai của máy chủ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务端公钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服務端公鑰"
+          }
+        }
+      }
+    },
     "未启用": {
       "localizations": {
         "ar": {
@@ -30002,6 +30942,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "本機"
+          }
+        }
+      }
+    },
+    "本机 IPv4，例如 10.0.0.2/32": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 الأصلي، على سبيل المثال 10.0.0.2/32"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natives IPv4, zum Beispiel 10.0.0.2/32"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local IPv4, for example 10.0.0.2/32"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 nativo, por ejemplo 10.0.0.2/32"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 natif, par exemple 10.0.0.2/32"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 asli, misalnya 10.0.0.2/32"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネイティブ IPv4 (例: 10.0.0.2/32)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 IPv4(예: 10.0.0.2/32)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 nativo, por exemplo 10.0.0.2/32"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Родной IPv4, например 10.0.0.2/32"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 ดั้งเดิม เช่น 10.0.0.2/32"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel IPv4, örneğin 10.0.0.2/32"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv4 gốc, ví dụ 10.0.0.2/32"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机 IPv4，例如 10.0.0.2/32"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機 IPv4，例如 10.0.0.2/32"
+          }
+        }
+      }
+    },
+    "本机 IPv6（可选）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 الأصلي (اختياري)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natives IPv6 (optional)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local IPv6 (optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 nativo (opcional)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 natif (facultatif)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 asli (opsional)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネイティブIPv6 (オプション)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 IPv6(선택 사항)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 nativo (opcional)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Собственный IPv6 (опционально)"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 ดั้งเดิม (ไม่จำเป็น)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel IPv6 (isteğe bağlı)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPv6 gốc (tùy chọn)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机 IPv6（可选）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機 IPv6（可選）"
           }
         }
       }
@@ -35083,6 +36211,100 @@
         }
       }
     },
+    "私钥只保存在这台设备及您主动开启的 iCloud 同步中。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتم حفظ المفتاح الخاص فقط على هذا الجهاز ومزامنة iCloud التي تقوم بتشغيلها بشكل نشط."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der private Schlüssel wird nur auf diesem Gerät gespeichert und die iCloud-Synchronisierung aktivieren Sie aktiv."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The private key stays on this device unless you explicitly enable iCloud sync."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave privada solo se guarda en este dispositivo y la sincronización de iCloud la activas activamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé privée n'est enregistrée que sur cet appareil et la synchronisation iCloud que vous activez activement."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci pribadi hanya disimpan di perangkat ini dan sinkronisasi iCloud yang Anda aktifkan secara aktif."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "秘密キーは、このデバイスとアクティブにオンにしている iCloud 同期にのみ保存されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인 키는 이 기기와 귀하가 활성화한 iCloud 동기화에만 저장됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A chave privada é salva apenas neste dispositivo e na sincronização do iCloud que você ativa ativamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрытый ключ сохраняется только на этом устройстве, и вы активно включаете синхронизацию с iCloud."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รหัสส่วนตัวจะถูกบันทึกไว้ในอุปกรณ์นี้เท่านั้นและการซิงค์ iCloud ที่คุณเปิดอยู่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özel anahtar yalnızca bu cihaza ve aktif olarak açtığınız iCloud senkronizasyonuna kaydedilir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa riêng tư chỉ được lưu trên thiết bị này và tính năng đồng bộ hóa iCloud mà bạn chủ động bật."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私钥只保存在这台设备及您主动开启的 iCloud 同步中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私鑰只保存在這台裝置及您主動開啟的 iCloud 同步中。"
+          }
+        }
+      }
+    },
     "空闲超时（秒）": {
       "localizations": {
         "ar": {
@@ -36399,6 +37621,100 @@
         }
       }
     },
+    "联网选项由您决定": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خيارات الاتصال بالشبكة بيدك"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie bestimmen die Netzwerkoptionen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You Control Network Access"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tú controlas el acceso a la red"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous contrôlez l’accès au réseau"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anda mengendalikan akses jaringan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネットワーク接続は自分で選択"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "네트워크 연결은 사용자가 선택"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você controla o acesso à rede"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доступ к сети выбираете вы"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คุณเป็นผู้เลือกการเชื่อมต่อเครือข่าย"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ erişimini siz kontrol edersiniz"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bạn kiểm soát quyền truy cập mạng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联网选项由您决定"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連網選項由您決定"
+          }
+        }
+      }
+    },
     "自动": {
       "localizations": {
         "ar": {
@@ -36583,6 +37899,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "自動更新"
+          }
+        }
+      }
+    },
+    "自动更新和 iCloud 同步默认关闭，只有您主动开启后才运行。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحديث التلقائي ومزامنة iCloud متوقفان افتراضيًا، ولا يعملان إلا بعد تشغيلهما بنفسك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Aktualisierung und iCloud-Sync sind standardmäßig aus und laufen erst, nachdem Sie sie aktiviert haben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic refresh and iCloud sync are off by default and run only after you enable them."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La actualización automática y la sincronización con iCloud están desactivadas por defecto y solo funcionan cuando las activas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’actualisation automatique et la synchronisation iCloud sont désactivées par défaut et ne fonctionnent qu’après votre activation."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pembaruan otomatis dan sinkronisasi iCloud nonaktif secara bawaan dan hanya berjalan setelah Anda mengaktifkannya."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動更新とiCloud同期は初期状態ではオフで、自分で有効にした後だけ動作します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 업데이트와 iCloud 동기화는 기본적으로 꺼져 있으며 직접 켠 후에만 작동합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A atualização automática e a sincronização do iCloud vêm desativadas e só funcionam após você ativá-las."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автообновление и синхронизация iCloud по умолчанию выключены и работают только после того, как вы их включите."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การอัปเดตอัตโนมัติและการซิงค์ iCloud ปิดไว้เป็นค่าเริ่มต้น และจะทำงานหลังจากคุณเปิดเท่านั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otomatik güncelleme ve iCloud eşzamanlama varsayılan olarak kapalıdır ve yalnızca siz açtıktan sonra çalışır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tự động cập nhật và đồng bộ iCloud mặc định tắt, chỉ chạy sau khi bạn chủ động bật."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动更新和 iCloud 同步默认关闭，只有您主动开启后才运行。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動更新和 iCloud 同步預設關閉，只有您主動開啟後才會執行。"
           }
         }
       }
@@ -45142,6 +46552,100 @@
         }
       }
     },
+    "预共享密钥（可选）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المفتاح المشترك مسبقًا (اختياري)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorinstallierter Schlüssel (optional)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preshared key (optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave previamente compartida (opcional)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé pré-partagée (facultatif)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci yang dibagikan sebelumnya (opsional)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "事前共有キー (オプション)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사전 공유 키(선택사항)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave pré-compartilhada (opcional)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Общий ключ (необязательно)"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คีย์ที่แชร์ล่วงหน้า (ไม่บังคับ)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önceden paylaşılmış anahtar (isteğe bağlı)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa chia sẻ trước (tùy chọn)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预共享密钥（可选）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預共享金鑰（可選）"
+          }
+        }
+      }
+    },
     "高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。": {
       "localizations": {
         "ar": {
@@ -45703,100 +47207,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "預設關閉"
-          }
-        }
-      }
-    },
-    "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "افتراضيًا لا يُرسل طلب إلا عند جلب الاشتراك أو تحديثك اليدوي؛ التحديث التلقائي تفعّله بنفسك."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Standardmäßig nur beim Abo-Abruf und wenn Sie selbst aktualisieren; automatisches Aktualisieren schalten Sie selbst ein."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "By default only when fetching a subscription or when you refresh; automatic refresh is yours to switch on."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Por defecto solo al obtener una suscripción o cuando actualizas; la actualización automática la activas tú."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Par défaut uniquement lors de la récupération d'un abonnement ou quand vous actualisez ; l'actualisation automatique, c'est vous qui l'activez."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Secara bawaan hanya saat mengambil langganan atau saat Anda menyegarkan; pembaruan otomatis Anda sendiri yang menyalakan."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "既定では購読の取得とご自身の更新操作のときだけです。自動更新はご自分でオンにします。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "기본적으로 구독을 가져올 때와 직접 새로 고칠 때만 요청합니다. 자동 업데이트는 직접 켜세요."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Por padrão só ao buscar uma assinatura ou quando você atualiza; a atualização automática é você quem liga."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "По умолчанию только при получении подписки и когда вы обновляете сами; автообновление включаете вы."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "โดยค่าเริ่มต้นจะส่งคำขอเฉพาะตอนดึงการสมัครสมาชิกหรือตอนคุณรีเฟรชเอง การอัปเดตอัตโนมัติคุณเปิดเอง"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Varsayılan olarak yalnızca abonelik alınırken ve siz yenilerken; otomatik güncellemeyi kendiniz açarsınız."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mặc định chỉ khi lấy gói đăng ký hoặc khi bạn tự làm mới; tự động cập nhật do bạn bật."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "預設只有取訂閱和您主動重新整理時才發出請求，自動更新要自己開。"
           }
         }
       }

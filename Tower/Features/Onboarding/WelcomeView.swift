@@ -17,6 +17,11 @@ struct WelcomeView: View {
 
     var onContinue: () -> Void
 
+    /// Keeps the introduction readable in full-screen iPad windows while the
+    /// surrounding surface still expands naturally in Split View and Stage
+    /// Manager. Narrow iPhone windows remain unaffected by `maxWidth`.
+    private let readableContentWidth: CGFloat = 680
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hasAppeared = false
     @State private var didContinue = false
@@ -42,7 +47,8 @@ struct WelcomeView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: readableContentWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, 26)
                 .padding(.bottom, 28)
             }
@@ -120,6 +126,8 @@ struct WelcomeView: View {
             // The commit moment, and the only haptic on this screen.
             .sensoryFeedback(.success, trigger: didContinue)
             .padding(.horizontal, 26)
+            .frame(maxWidth: readableContentWidth)
+            .frame(maxWidth: .infinity)
             .padding(.top, 14)
             .padding(.bottom, 10)
         }
@@ -168,8 +176,8 @@ struct WelcomeView: View {
         Promise(
             id: "network",
             symbol: "antenna.radiowaves.left.and.right",
-            title: "只在您按下时联网",
-            detail: "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。"
+            title: "联网选项由您决定",
+            detail: "自动更新和 iCloud 同步默认关闭，只有您主动开启后才运行。"
         )
     ]
 }

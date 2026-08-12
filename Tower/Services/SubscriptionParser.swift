@@ -386,6 +386,9 @@ struct SubscriptionParser {
             return parseStandardURL(value, kind: .hysteria, sourceID: sourceID)
         }
         if lowercased.hasPrefix("tuic://") { return parseStandardURL(value, kind: .tuic, sourceID: sourceID) }
+        if lowercased.hasPrefix("wireguard://") || lowercased.hasPrefix("wg://") {
+            return parseWireGuardURL(value, sourceID: sourceID)
+        }
         if lowercased.hasPrefix("socks5://") || lowercased.hasPrefix("socks://") {
             return parseStandardURL(value, kind: .socks5, sourceID: sourceID)
         }
@@ -393,6 +396,42 @@ struct SubscriptionParser {
             return parseStandardURL(value, kind: .http, sourceID: sourceID)
         }
         return nil
+    }
+
+    /// Sub-Store's portable single-peer URI. A WireGuard endpoint is not a
+    /// generic username/password proxy: the local address and allowed routes
+    /// are required to make the tunnel meaningful, so every field is retained.
+    private func parseWireGuardURL(_ raw: String, sourceID: UUID?) -> ProxyNode? {
+        let normalized = raw.lowercased().hasPrefix("wg://")
+            ? "wireguard://" + raw.dropFirst("wg://".count)
+            : raw
+        guard let components = URLComponents(string: normalized),
+              let rawHost = components.host else { return nil }
+        let query = Dictionary((components.queryItems ?? []).map {
+            ($0.name.lowercased(), $0.value ?? "")
+        }) { _, new in new }
+        let addresses = csvValues(query["address"] ?? query["addresses"] ?? "")
+        let ipv4 = addresses.first { !$0.contains(":") }
+        let ipv6 = addresses.first { $0.contains(":") }
+        let server = normalizedHost(rawHost)
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .wireguard,
+            name: normalizedName(components.fragment?.removingPercentEncoding, fallback: "WireGuard · \(server)"),
+            server: server,
+            port: components.port ?? 51_820,
+            wireGuardPrivateKey: components.user?.removingPercentEncoding,
+            wireGuardPublicKey: query["publickey"] ?? query["public-key"],
+            wireGuardPreSharedKey: query["presharedkey"] ?? query["pre-shared-key"] ?? query["preshared-key"],
+            wireGuardIPv4: ipv4,
+            wireGuardIPv6: ipv6,
+            wireGuardAllowedIPs: csvValues(query["allowedips"] ?? query["allowed-ips"] ?? "0.0.0.0/0,::/0").joined(separator: ","),
+            wireGuardReserved: csvValues(query["reserved"] ?? "").joined(separator: ","),
+            wireGuardMTU: Int(query["mtu"] ?? ""),
+            wireGuardPersistentKeepalive: Int(query["keepalive"] ?? query["persistent-keepalive"] ?? ""),
+            wireGuardDNS: csvValues(query["dns"] ?? query["dns-server"] ?? "").joined(separator: ","),
+            rawURI: raw
+        )
     }
 
     private func parseShadowsocks(_ raw: String, sourceID: UUID?) -> ProxyNode? {
@@ -836,11 +875,23 @@ struct SubscriptionParser {
                 // A nested element. Collected comma-joined so a multi-value
                 // `alpn` survives in the one form ProxyNode and the generators
                 // already use.
-                guard let key = pendingSequenceKey else { continue }
                 let element = yamlScalar(
                     String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
                 )
                 guard !element.isEmpty else { continue }
+                // A single WireGuard peer begins with `- server: …`; that is a
+                // nested map entry, not a scalar belonging to `peers`.
+                if let pair = parseYAMLPair(element), !pair.1.isEmpty {
+                    if pair.0 == "server",
+                       current["type"]?.lowercased() == "wireguard" {
+                        let peerCount = Int(current["__wireguard-peer-count"] ?? "0") ?? 0
+                        current["__wireguard-peer-count"] = String(peerCount + 1)
+                    }
+                    current[pair.0] = pair.1
+                    pendingSequenceKey = nil
+                    continue
+                }
+                guard let key = pendingSequenceKey else { continue }
                 let existing = current[key] ?? ""
                 current[key] = existing.isEmpty ? element : existing + "," + element
             } else if inside, let pair = parseYAMLPair(trimmed) {
@@ -857,6 +908,15 @@ struct SubscriptionParser {
                   let kind = clashKind(type),
                   let rawServer = dictionary["server"],
                   let port = Int(dictionary["port"] ?? "") else {
+                rejected += 1
+                continue
+            }
+            // ProxyNode intentionally models one WireGuard endpoint. Flattening
+            // multiple peers would silently keep only the final peer and can
+            // route traffic to the wrong endpoint, so preserve integrity by
+            // rejecting that one proxy instead.
+            if kind == .wireguard,
+               (Int(dictionary["__wireguard-peer-count"] ?? "0") ?? 0) > 1 {
                 rejected += 1
                 continue
             }
@@ -933,6 +993,26 @@ struct SubscriptionParser {
                 udpRelayMode: dictionary["udp-relay-mode"],
                 upMbps: kind == .hysteria ? mbps(dictionary["up"] ?? dictionary["up-speed"]) : nil,
                 downMbps: kind == .hysteria ? mbps(dictionary["down"] ?? dictionary["down-speed"]) : nil,
+                wireGuardPrivateKey: kind == .wireguard ? dictionary["private-key"] : nil,
+                wireGuardPublicKey: kind == .wireguard ? dictionary["public-key"] : nil,
+                wireGuardPreSharedKey: kind == .wireguard
+                    ? dictionary["pre-shared-key"] ?? dictionary["preshared-key"]
+                    : nil,
+                wireGuardIPv4: kind == .wireguard ? dictionary["ip"] : nil,
+                wireGuardIPv6: kind == .wireguard ? dictionary["ipv6"] : nil,
+                wireGuardAllowedIPs: kind == .wireguard
+                    ? csvValues(dictionary["allowed-ips"] ?? "0.0.0.0/0,::/0").joined(separator: ",")
+                    : nil,
+                wireGuardReserved: kind == .wireguard
+                    ? csvValues(dictionary["reserved"] ?? "").joined(separator: ",")
+                    : nil,
+                wireGuardMTU: kind == .wireguard ? Int(dictionary["mtu"] ?? "") : nil,
+                wireGuardPersistentKeepalive: kind == .wireguard
+                    ? Int(dictionary["persistent-keepalive"] ?? dictionary["keepalive"] ?? "")
+                    : nil,
+                wireGuardDNS: kind == .wireguard
+                    ? csvValues(dictionary["dns"] ?? "").joined(separator: ",")
+                    : nil,
                 rawURI: "clash://local/\(UUID().uuidString)"
             ))
         }
@@ -1104,6 +1184,7 @@ struct SubscriptionParser {
         case "hysteria2", "hy2": .hysteria2
         case "hysteria": .hysteria
         case "tuic": .tuic
+        case "wireguard", "wg": .wireguard
         case "anytls": .anytls
         case "snell": .snell
         case "socks5", "socks": .socks5
@@ -1149,10 +1230,19 @@ struct SubscriptionParser {
         let lowercased = value.lowercased()
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "hysteria://", "tuic://",
+            "hysteria2://", "hy2://", "hysteria://", "tuic://", "wireguard://", "wg://",
             "anytls://", "socks5://", "socks://", "http://", "https://"
         ]
             .contains(where: lowercased.contains)
+    }
+
+    /// Normalises YAML/URI list scalars (`[a, b]`, `a,b`) without touching
+    /// colons inside IPv6 addresses.
+    private func csvValues(_ value: String) -> [String] {
+        value.trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n\"'"))
+            .split(separator: ",", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'")) }
+            .filter { !$0.isEmpty }
     }
 
     private func decodeBase64String(_ value: String) -> String? {

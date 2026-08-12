@@ -208,6 +208,14 @@ Egern 也已支持（含 `egern:/profiles/new` 一键导入，注意是**单**�
 
 ## 1.5 2026-08-10 协议补齐与首启引导
 
+### 2026-08-12 P0 / P1 修复（build 17）
+
+- **iCloud 冲突**：从磁盘恢复快照时同步恢复 `updatedAt`，旧云端副本不会再因为本机时间戳退回 `.distantPast` 而覆盖新数据。
+- **首启联网与隐私文案**：欢迎页出现期间不会启动自动更新或 iCloud 前台同步；欢迎页与隐私政策明确区分本机默认处理和用户主动开启的 iCloud 同步。
+- **去重与 TUIC**：节点身份键纳入 TUIC/Hysteria 调优字段；TUIC v5 必须同时具备合法 UUID 和密码，旧式或不完整节点统一跳过。
+- **WireGuard**：新增 URI、Mihomo 单 Peer YAML、手动添加、分享和六个目标生成器。支持 Surge、Shadowrocket 完整配置、Clash/Stash、Loon、Hiddify、Egern；QuanX 与 Shadowrocket 仅节点订阅跳过。多 Peer YAML 会拒绝并计数，不做有损压平。
+- 新增回归测试覆盖云端时间戳、后台触发守卫、隐私政策、协议身份、TUIC 严格校验和 WireGuard 全链路。
+
 ### 对照 Clash Meta 协议表的结论
 
 拿 [mihomo 的 proxies 文档](https://wiki.metacubex.one/config/proxies/) 逐项对过塔台已有的十种协议，缺的是：
@@ -219,10 +227,10 @@ tuic、hysteria（v1）、wireguard、ssh、mieru、shadowquic、masque、trustt
 | --- | --- | --- |
 | TUIC | Surge、Shadowrocket、Clash/Stash、Egern、Hiddify（5/7） | 已补 |
 | Hysteria v1 | Shadowrocket、Clash/Stash、Hiddify（3/7） | 已补 |
-| WireGuard | Surge、Shadowrocket、Clash/Stash、Egern、Hiddify（缺 QuanX） | 未做，见下 |
+| WireGuard | Surge、Shadowrocket、Clash/Stash、Loon、Egern、Hiddify（缺 QuanX） | 已补；只接受完整单 Peer |
 | ssh / mieru / shadowquic / masque / trusttunnel / openvpn / sudoku / tailscale | 0～1 个 | 不做 |
 
-WireGuard 暂缓的原因不是客户端支持不够，而是它和其余十二种协议的形状不一样：没有「服务器 + 一个密钥」，需要本机私钥、对端公钥、本地 IP/IPv6、预共享密钥、`reserved`、MTU、DNS，`wireguard://` 也没有统一写法。这要给 `ProxyNode` 加一整组字段并给六个生成器各写一套，不适合和这次的改动混在一起。机场订阅里出现 WireGuard 的比例也远低于 TUIC。
+WireGuard 使用独立字段保存本机私钥、对端公钥、本地 IP/IPv6、预共享密钥、`reserved`、MTU、DNS、Allowed IPs 和保活间隔。URI 采用 Sub-Store 常见参数；Mihomo YAML 同时兼容旧式扁平写法与官方单 Peer `peers` 写法。`ProxyNode` 无法忠实表达多 Peer，因此这类条目明确拒绝并计数。
 
 ### 每个客户端的写法来源
 
@@ -462,7 +470,7 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 
 ## 1.8 Mac 上的局域网共享（2026-08-12，未验证）
 
-塔台以 "Designed for iPhone" 出现在 Apple 芯片 Mac 上（`TARGETED_DEVICE_FAMILY = "1"`，Mac 可用性是 App Store Connect 里的单独开关）。用户报告：Mac 上装得上，但局域网共享给出的链接打不开。
+塔台当时以 "Designed for iPhone" 出现在 Apple 芯片 Mac 上。工程现已恢复 iPhone + iPad 通用支持（`TARGETED_DEVICE_FAMILY = "1,2"`），Mac 可用性仍是 App Store Connect 里的单独开关。用户曾报告：Mac 上装得上，但局域网共享给出的链接打不开。
 
 ### 两个已定位的原因
 
@@ -578,7 +586,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 已上传的构建：`1.0 (3)`（2026-08-07），含本文 §1.4 的全部修复。此前为 `1.0 (1)`（2026-08-03）。
+- 仓库当前构建号：`1.0 (18)`；下次上传 TestFlight 必须先改为 `19` 或更大的未用号码。
 
 ### 归档只能在图形会话里做
 
@@ -589,16 +597,16 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 ```sh
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-N.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=<TEAM_ID> CODE_SIGN_STYLE=Automatic archive
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcrun agvtool new-version -all 19 && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-N.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
 ```
 
 `DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`UploadOptions-TestFlight.plist` 是 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
 ### 代码与已上传版本
 
-工程和已上传构建均为 **`1.0 (3)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。下次归档前必须先递增 `CURRENT_PROJECT_VERSION`，不要重复上传 build 3。
+工程当前为 **`1.0 (18)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。下次归档前必须先递增 `CURRENT_PROJECT_VERSION`，不要重复上传 build 18。
 
 ### 外部测试还需要补的材料
 
@@ -660,7 +668,7 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **15**。13 是第一个只发 iPhone 的构建，14 是第一个带 DNS 默认值和 iCloud 同步的构建——**13 里一条 DNS 修复都没有**，反馈人提的问题在那个包里仍然存在——**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建要 iPad 截图。build 号复用会被 App Store Connect 直接拒收。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **18**，下次上传使用 **19**。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
 

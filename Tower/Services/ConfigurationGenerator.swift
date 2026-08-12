@@ -150,11 +150,11 @@ struct ConfigurationGenerator {
             },
             reservedNames: []
         )
-        // Snell has no subscription URI and is unsupported by Loon, QuanX and
-        // Hiddify. Shadowrocket can read it in a full Surge-style profile, but
-        // not from a node-only subscription resource.
+        // Snell has no subscription URI. WireGuard URI conventions also vary
+        // between producers, so Shadowrocket receives both only in the full
+        // profile form that carries their complete settings.
         if target == .shadowrocket {
-            supported.removeAll { $0.kind == .snell }
+            supported.removeAll { $0.kind == .snell || $0.kind == .wireguard }
         }
 
         let content: String
@@ -266,6 +266,23 @@ struct ConfigurationGenerator {
         // has no faithful form; writing it blank would look fine and never
         // connect.
         if [.vmess, .vless].contains(node.kind), node.exportableUUID == nil { return false }
+        // Tower implements TUIC v5. Both parts of its credential are required;
+        // a v4 token or half-filled v5 entry may import, but can never
+        // authenticate. Skip and count it instead of poisoning the profile.
+        if node.kind == .tuic {
+            guard node.uuid.flatMap({ UUID(uuidString: $0.trimmingCharacters(in: .whitespacesAndNewlines)) }) != nil,
+                  !(node.password ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return false
+            }
+        }
+        if node.kind == .wireguard {
+            guard !(node.wireGuardPrivateKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !(node.wireGuardPublicKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !(node.wireGuardAllowedIPs ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !((node.wireGuardIPv4 ?? "").isEmpty && (node.wireGuardIPv6 ?? "").isEmpty) else {
+                return false
+            }
+        }
         // REALITY needs the server's public key. A client with no field for it
         // would get plain TLS aimed at a borrowed SNI — the exact "looks right,
         // never connects" outcome, so those nodes are skipped and counted.
@@ -524,6 +541,7 @@ struct ConfigurationGenerator {
         for node in nodes {
             output += surgeNode(node, shadowrocket: target == .shadowrocket) + "\n"
         }
+        output += surgeWireGuardSections(nodes)
         output += "\n[Proxy Group]\n"
         for group in groups {
             switch group.kind {
@@ -841,6 +859,28 @@ struct ConfigurationGenerator {
                 values.append("    udp-relay-mode: \(yaml(value))")
             }
             appendClashALPN(node, to: &values)
+        case .wireguard:
+            values += [
+                "    private-key: \(yaml(node.wireGuardPrivateKey ?? ""))",
+                "    public-key: \(yaml(node.wireGuardPublicKey ?? ""))"
+            ]
+            if let value = node.wireGuardIPv4 { values.append("    ip: \(yaml(value))") }
+            if let value = node.wireGuardIPv6 { values.append("    ipv6: \(yaml(value))") }
+            values.append("    allowed-ips: \(yamlList(csv(node.wireGuardAllowedIPs)))")
+            if let value = node.wireGuardPreSharedKey, !value.isEmpty {
+                values.append("    pre-shared-key: \(yaml(value))")
+            }
+            if let bytes = wireGuardReservedBytes(node), !bytes.isEmpty {
+                values.append("    reserved: [\(bytes.map(String.init).joined(separator: ", "))]")
+            }
+            if let value = node.wireGuardPersistentKeepalive {
+                values.append("    persistent-keepalive: \(value)")
+            }
+            if let value = node.wireGuardMTU { values.append("    mtu: \(value)") }
+            if !csv(node.wireGuardDNS).isEmpty {
+                values.append("    dns: \(yamlList(csv(node.wireGuardDNS)))")
+            }
+            values.append("    udp: true")
         case .anytls:
             values += [
                 "    password: \(yaml(node.password ?? ""))",
@@ -979,6 +1019,7 @@ struct ConfigurationGenerator {
         for node in nodes {
             output += surgeNode(node, shadowrocket: shadowrocket) + "\n"
         }
+        output += surgeWireGuardSections(nodes)
         output += "\n[Proxy Group]\n"
         output += surgeSelect(
             name: RulePolicy.select.configurationName,
@@ -1139,6 +1180,8 @@ struct ConfigurationGenerator {
                 appendSurgeTLS(node, includeTLSFlag: false, to: &components)
                 components.append("udp-relay=true")
             }
+        case .wireguard:
+            components = ["wireguard", "section-name=\(wireGuardSectionName(node))"]
         case .anytls:
             components = ["anytls", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
@@ -1175,6 +1218,51 @@ struct ConfigurationGenerator {
         let password = node.password ?? ""
         guard !username.isEmpty || !password.isEmpty else { return [] }
         return [confValue(username), confValue(password)]
+    }
+
+    private func wireGuardSectionName(_ node: ProxyNode) -> String {
+        "tower-\(node.id.uuidString.lowercased())"
+    }
+
+    private func surgeWireGuardSections(_ nodes: [ProxyNode]) -> String {
+        var output = ""
+        for node in nodes where node.kind == .wireguard {
+            output += "\n[WireGuard \(wireGuardSectionName(node))]\n"
+            output += "private-key = \(node.wireGuardPrivateKey ?? "")\n"
+            if let value = node.wireGuardIPv4, !value.isEmpty { output += "self-ip = \(value)\n" }
+            if let value = node.wireGuardIPv6, !value.isEmpty { output += "self-ip-v6 = \(value)\n" }
+            if let value = node.wireGuardDNS, !value.isEmpty { output += "dns-server = \(value)\n" }
+            if let value = node.wireGuardMTU { output += "mtu = \(value)\n" }
+            var peer = [
+                "public-key = \(node.wireGuardPublicKey ?? "")",
+                "allowed-ips = \"\(node.wireGuardAllowedIPs ?? "0.0.0.0/0, ::/0")\"",
+                "endpoint = \(node.endpoint)"
+            ]
+            if let value = node.wireGuardPreSharedKey, !value.isEmpty { peer.append("preshared-key = \(value)") }
+            if let value = node.wireGuardPersistentKeepalive { peer.append("keepalive = \(value)") }
+            if let bytes = wireGuardReservedBytes(node), bytes.count == 3 {
+                peer.append("client-id = \(bytes.map(String.init).joined(separator: "/"))")
+            }
+            output += "peer = (\(peer.joined(separator: ", ")))\n"
+        }
+        return output
+    }
+
+    private func csv(_ value: String?) -> [String] {
+        (value ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n\"'"))
+            .split(separator: ",", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'")) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func wireGuardReservedBytes(_ node: ProxyNode) -> [Int]? {
+        let bytes = csv(node.wireGuardReserved).compactMap(Int.init)
+        guard bytes.allSatisfy({ (0 ... 255).contains($0) }) else { return nil }
+        return bytes
+    }
+
+    private func yamlList(_ values: [String]) -> String {
+        "[\(values.map(yaml).joined(separator: ", "))]"
     }
 
     /// Shadowrocket numbers the XTLS flow instead of naming it: 2 is vision,
@@ -1354,6 +1442,27 @@ struct ConfigurationGenerator {
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
             appendValue(node.sni, key: "tls-name", to: &values)
             values += ["udp=true", "fast-open=true"]
+        case .wireguard:
+            values = [
+                "wireguard",
+                "interface-ip=\(node.wireGuardIPv4 ?? "")",
+                "private-key=\(loonQuoted(node.wireGuardPrivateKey ?? ""))"
+            ]
+            if let value = node.wireGuardIPv6, !value.isEmpty { values.append("interface-ipv6=\(value)") }
+            if let value = node.wireGuardMTU { values.append("mtu=\(value)") }
+            if let value = node.wireGuardDNS, !value.isEmpty { values.append("dns=\(value)") }
+            if let value = node.wireGuardPersistentKeepalive { values.append("keepalive=\(value)") }
+            var peer = [
+                "public-key=\(loonQuoted(node.wireGuardPublicKey ?? ""))",
+                "allowed-ips=\(loonQuoted(node.wireGuardAllowedIPs ?? "0.0.0.0/0,::/0"))",
+                "endpoint=\(node.endpoint)"
+            ]
+            if let value = node.wireGuardReserved, !value.isEmpty { peer.append("reserved=[\(value)]") }
+            if let value = node.wireGuardPreSharedKey, !value.isEmpty {
+                peer.append("preshared-key=\(loonQuoted(value))")
+            }
+            values.append("peers=[{\(peer.joined(separator: ","))}]")
+            values.append("udp=true")
         case .anytls:
             values = ["anytls", node.server, "\(node.port)", loonQuoted(node.password ?? "")]
             if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
@@ -1527,7 +1636,7 @@ struct ConfigurationGenerator {
             if node.tls { values.append("over-tls=true") }
         // Quantumult X implements none of these, and writes(_:to:excluding:)
         // filters them out before generation, so this is defensive only.
-        case .hysteria, .hysteria2, .tuic, .snell, .unknown:
+        case .hysteria, .hysteria2, .tuic, .wireguard, .snell, .unknown:
             prefix = "http"
         }
         values.append("tag=\(confName(NodeRegionResolver.displayName(for: node)))")
@@ -2148,6 +2257,17 @@ extension ConfigurationGenerator {
                 outbound["congestion_control"] = value
             }
             if let value = node.udpRelayMode, !value.isEmpty { outbound["udp_relay_mode"] = value }
+        case .wireguard:
+            outbound["type"] = "wireguard"
+            var addresses: [String] = []
+            if let value = node.wireGuardIPv4, !value.isEmpty { addresses.append(value) }
+            if let value = node.wireGuardIPv6, !value.isEmpty { addresses.append(value) }
+            outbound["address"] = addresses
+            outbound["private_key"] = node.wireGuardPrivateKey ?? ""
+            outbound["peer_public_key"] = node.wireGuardPublicKey ?? ""
+            if let value = node.wireGuardPreSharedKey, !value.isEmpty { outbound["pre_shared_key"] = value }
+            if let value = wireGuardReservedBytes(node), !value.isEmpty { outbound["reserved"] = value }
+            if let value = node.wireGuardMTU { outbound["mtu"] = value }
         case .anytls:
             outbound["type"] = "anytls"
             outbound["password"] = node.password ?? ""
@@ -2566,6 +2686,22 @@ extension ConfigurationGenerator {
             }.filter { !$0.isEmpty }) ?? []
             body.append("      alpn: [\((alpn.isEmpty ? ["h3"] : alpn).map(yaml).joined(separator: ", "))]")
             if node.skipCertificateVerification { body.append("      skip_tls_verify: true") }
+        case .wireguard:
+            type = "wireguard"
+            endpoint()
+            body.append("      private_key: \(yaml(node.wireGuardPrivateKey ?? ""))")
+            body.append("      peer_public_key: \(yaml(node.wireGuardPublicKey ?? ""))")
+            if let value = node.wireGuardIPv4 { body.append("      local_ipv4: \(yaml(value))") }
+            if let value = node.wireGuardIPv6 { body.append("      local_ipv6: \(yaml(value))") }
+            if let value = node.wireGuardPreSharedKey, !value.isEmpty {
+                body.append("      preshared_key: \(yaml(value))")
+            }
+            if let bytes = wireGuardReservedBytes(node), !bytes.isEmpty {
+                body.append("      reserved: [\(bytes.map(String.init).joined(separator: ", "))]")
+            }
+            if !csv(node.wireGuardDNS).isEmpty { body.append("      dns_servers: \(yamlList(csv(node.wireGuardDNS)))") }
+            if let value = node.wireGuardMTU { body.append("      mtu: \(value)") }
+            if let value = node.wireGuardPersistentKeepalive { body.append("      keepalive: \(value)") }
         case .vmess:
             type = "vmess"
             endpoint()

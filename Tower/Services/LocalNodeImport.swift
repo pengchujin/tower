@@ -11,6 +11,7 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
     case invalidSessionSettings
     case missingTUICPassword
     case invalidBandwidth
+    case incompleteWireGuard
     case unsupportedProtocol
 
     var errorDescription: String? {
@@ -25,6 +26,7 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
         case .invalidSessionSettings: String(localized: "AnyTLS 会话参数必须是大于或等于 0 的整数")
         case .missingTUICPassword: String(localized: "TUIC 需要同时填写 UUID 和密码")
         case .invalidBandwidth: String(localized: "Hysteria 上下行带宽必须是大于 0 的整数")
+        case .incompleteWireGuard: String(localized: "WireGuard 需要私钥、公钥、本机地址和允许的网段")
         case .unsupportedProtocol: String(localized: "该协议请改用协议链接导入")
         }
     }
@@ -53,7 +55,7 @@ struct LocalNodeImporter {
 struct ManualNodeDraft: Equatable {
     static let supportedKinds: [ProxyKind] = [
         .shadowsocks, .shadowsocksR, .vmess, .vless, .trojan,
-        .hysteria, .hysteria2, .tuic, .anytls, .snell, .socks5, .http
+        .hysteria, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http
     ]
 
     var kind: ProxyKind = .shadowsocks
@@ -71,6 +73,16 @@ struct ManualNodeDraft: Equatable {
     /// rate-based, so a node without one either fails to load or crawls.
     var upMbps = "50"
     var downMbps = "100"
+    var wireGuardPrivateKey = ""
+    var wireGuardPublicKey = ""
+    var wireGuardPreSharedKey = ""
+    var wireGuardIPv4 = ""
+    var wireGuardIPv6 = ""
+    var wireGuardAllowedIPs = "0.0.0.0/0,::/0"
+    var wireGuardReserved = ""
+    var wireGuardMTU = "1280"
+    var wireGuardPersistentKeepalive = "25"
+    var wireGuardDNS = ""
     /// TUIC's QUIC tuning. Empty means "let the client decide"; both are
     /// per-server choices, so guessing them costs UDP or throughput.
     var congestionControl = ""
@@ -109,6 +121,16 @@ struct ManualNodeDraft: Equatable {
         password: String = "",
         upMbps: String = "50",
         downMbps: String = "100",
+        wireGuardPrivateKey: String = "",
+        wireGuardPublicKey: String = "",
+        wireGuardPreSharedKey: String = "",
+        wireGuardIPv4: String = "",
+        wireGuardIPv6: String = "",
+        wireGuardAllowedIPs: String = "0.0.0.0/0,::/0",
+        wireGuardReserved: String = "",
+        wireGuardMTU: String = "1280",
+        wireGuardPersistentKeepalive: String = "25",
+        wireGuardDNS: String = "",
         congestionControl: String = "",
         udpRelayMode: String = "",
         cipher: String = "aes-256-gcm",
@@ -143,6 +165,16 @@ struct ManualNodeDraft: Equatable {
         self.password = password
         self.upMbps = upMbps
         self.downMbps = downMbps
+        self.wireGuardPrivateKey = wireGuardPrivateKey
+        self.wireGuardPublicKey = wireGuardPublicKey
+        self.wireGuardPreSharedKey = wireGuardPreSharedKey
+        self.wireGuardIPv4 = wireGuardIPv4
+        self.wireGuardIPv6 = wireGuardIPv6
+        self.wireGuardAllowedIPs = wireGuardAllowedIPs
+        self.wireGuardReserved = wireGuardReserved
+        self.wireGuardMTU = wireGuardMTU
+        self.wireGuardPersistentKeepalive = wireGuardPersistentKeepalive
+        self.wireGuardDNS = wireGuardDNS
         self.congestionControl = congestionControl
         self.udpRelayMode = udpRelayMode
         self.cipher = cipher
@@ -181,6 +213,16 @@ struct ManualNodeDraft: Equatable {
         password = node.kind == .tuic ? (node.password ?? "") : ""
         upMbps = String(node.upMbps ?? 50)
         downMbps = String(node.downMbps ?? 100)
+        wireGuardPrivateKey = node.wireGuardPrivateKey ?? ""
+        wireGuardPublicKey = node.wireGuardPublicKey ?? ""
+        wireGuardPreSharedKey = node.wireGuardPreSharedKey ?? ""
+        wireGuardIPv4 = node.wireGuardIPv4 ?? ""
+        wireGuardIPv6 = node.wireGuardIPv6 ?? ""
+        wireGuardAllowedIPs = node.wireGuardAllowedIPs ?? "0.0.0.0/0,::/0"
+        wireGuardReserved = node.wireGuardReserved ?? ""
+        wireGuardMTU = node.wireGuardMTU.map(String.init) ?? "1280"
+        wireGuardPersistentKeepalive = node.wireGuardPersistentKeepalive.map(String.init) ?? "25"
+        wireGuardDNS = node.wireGuardDNS ?? ""
         congestionControl = node.congestionControl ?? ""
         udpRelayMode = node.udpRelayMode ?? ""
         cipher = node.cipher ?? (node.kind == .vmess ? "auto" : "aes-256-gcm")
@@ -243,6 +285,11 @@ struct ManualNodeDraft: Equatable {
         case .tuic:
             security = "tls"
             alpn = "h3"
+        case .wireguard:
+            security = "none"
+            wireGuardAllowedIPs = "0.0.0.0/0,::/0"
+            wireGuardMTU = "1280"
+            wireGuardPersistentKeepalive = "25"
         case .hysteria:
             security = "tls"
             obfs = ""
@@ -298,6 +345,16 @@ struct ManualNodeDraft: Equatable {
         // TUIC needs both halves; a UUID on its own authenticates nothing.
         if kind == .tuic, normalizedPassword.isEmpty {
             throw ManualNodeValidationError.missingTUICPassword
+        }
+        let trimmedWGPrivateKey = wireGuardPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedWGPublicKey = wireGuardPublicKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedWGIPv4 = wireGuardIPv4.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedWGIPv6 = wireGuardIPv6.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedWGAllowedIPs = wireGuardAllowedIPs.trimmingCharacters(in: .whitespacesAndNewlines)
+        if kind == .wireguard,
+           trimmedWGPrivateKey.isEmpty || trimmedWGPublicKey.isEmpty
+            || (trimmedWGIPv4.isEmpty && trimmedWGIPv6.isEmpty) || trimmedWGAllowedIPs.isEmpty {
+            throw ManualNodeValidationError.incompleteWireGuard
         }
         let parsedUpMbps: Int?
         let parsedDownMbps: Int?
@@ -411,9 +468,26 @@ struct ManualNodeDraft: Equatable {
             udpRelayMode: kind == .tuic && !udpRelayMode.isEmpty ? udpRelayMode : nil,
             upMbps: parsedUpMbps,
             downMbps: parsedDownMbps,
+            wireGuardPrivateKey: kind == .wireguard ? trimmedWGPrivateKey : nil,
+            wireGuardPublicKey: kind == .wireguard ? trimmedWGPublicKey : nil,
+            wireGuardPreSharedKey: kind == .wireguard ? wireGuardPreSharedKey.nilIfBlank : nil,
+            wireGuardIPv4: kind == .wireguard ? trimmedWGIPv4.nilIfBlank : nil,
+            wireGuardIPv6: kind == .wireguard ? trimmedWGIPv6.nilIfBlank : nil,
+            wireGuardAllowedIPs: kind == .wireguard ? trimmedWGAllowedIPs : nil,
+            wireGuardReserved: kind == .wireguard ? wireGuardReserved.nilIfBlank : nil,
+            wireGuardMTU: kind == .wireguard ? Int(wireGuardMTU) : nil,
+            wireGuardPersistentKeepalive: kind == .wireguard ? Int(wireGuardPersistentKeepalive) : nil,
+            wireGuardDNS: kind == .wireguard ? wireGuardDNS.nilIfBlank : nil,
             rawURI: ""
         )
         node.rawURI = ProxyNodeShareLinkGenerator().link(for: node)
         return node
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let value = trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
     }
 }

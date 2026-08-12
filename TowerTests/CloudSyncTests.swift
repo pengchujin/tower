@@ -114,9 +114,14 @@ final class CloudSyncTriggerTests: XCTestCase {
             encoding: .utf8
         )
 
-        XCTAssertTrue(source.contains(".task {"), source)
+        XCTAssertTrue(source.contains(".task(id: hasSeenWelcome)"), source)
         XCTAssertTrue(source.contains("onChange(of: scenePhase)"), source)
         XCTAssertTrue(source.contains("phase == .active"), source)
+        XCTAssertEqual(
+            occurrences(of: "guard hasSeenWelcome else { return }", in: source),
+            2,
+            "欢迎页关闭前，启动任务和前台任务都不能在遮罩下面联网：\n\(source)"
+        )
         // Two call sites each: the launch task and the foreground change.
         XCTAssertEqual(occurrences(of: "synchronizeWithCloud()", in: source), 2, source)
         XCTAssertEqual(occurrences(of: "refreshOnOpenIfEnabled()", in: source), 2, source)

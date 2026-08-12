@@ -70,6 +70,22 @@ DYNAMIC_STRINGS = (
     "仅节点 · %@",
     "塔台只会把节点订阅交给 %@，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。",
     "仅导入节点到 %@",
+    "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。",
+    "客户端私钥",
+    "服务端公钥",
+    "预共享密钥（可选）",
+    "WireGuard 密钥",
+    "私钥只保存在这台设备及您主动开启的 iCloud 同步中。",
+    "本机 IPv4，例如 10.0.0.2/32",
+    "本机 IPv6（可选）",
+    "允许的网段",
+    "DNS（可选）",
+    "Reserved，例如 1,2,3（可选）",
+    "MTU",
+    "保活间隔（秒）",
+    "WireGuard 隧道",
+    "允许的网段决定哪些目标进入隧道；代理用途通常填写 0.0.0.0/0,::/0。",
+    "WireGuard 需要私钥、公钥、本机地址和允许的网段",
 )
 
 DISPLAY_NAMES = {
@@ -93,6 +109,7 @@ DISPLAY_NAMES = {
 DEPRECATED_KEYS = {
     "节点名后显示来源，便于区分多个机场。",
     "集中管理机场订阅和自建节点，再转换成常用客户端配置。",
+    "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 节点二维码。",
 }
 
 # Keep the app name and the most prominent navigation labels consistent. The
@@ -149,6 +166,16 @@ CORE_OVERRIDES = {
         "%@ 到期还剩 %lld 天": "%@ expires in %lld days",
         "%@ 到期还剩 1 天": "%@ expires in 1 day",
         "订阅到期还剩 1 天，请及时续费。": "This subscription expires in 1 day. Renew it soon.",
+        "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。": "Supports subscription QR codes and SS, SSR, VMess, VLESS, Trojan, Hysteria, TUIC, WireGuard, AnyTLS, SOCKS5, and HTTP(S) node QR codes.",
+        "WireGuard 密钥": "WireGuard Keys",
+        "私钥只保存在这台设备及您主动开启的 iCloud 同步中。": "The private key stays on this device unless you explicitly enable iCloud sync.",
+        "本机 IPv4，例如 10.0.0.2/32": "Local IPv4, for example 10.0.0.2/32",
+        "本机 IPv6（可选）": "Local IPv6 (optional)",
+        "允许的网段": "Allowed IPs",
+        "Reserved，例如 1,2,3（可选）": "Reserved bytes, for example 1,2,3 (optional)",
+        "保活间隔（秒）": "Persistent Keepalive (seconds)",
+        "允许的网段决定哪些目标进入隧道；代理用途通常填写 0.0.0.0/0,::/0。": "Allowed IPs determine which destinations enter the tunnel. For proxy use, this is usually 0.0.0.0/0,::/0.",
+        "WireGuard 需要私钥、公钥、本机地址和允许的网段": "WireGuard requires a private key, peer public key, local address, and allowed IPs",
     },
     "zh-Hant": {
         "塔台": "塔台",
@@ -408,8 +435,9 @@ CORE_OVERRIDES = {
 
 INFO_PLIST_SOURCE = {
     "CFBundleDisplayName": "塔台",
+    "CFBundleName": "塔台",
     "NSCameraUsageDescription": "用于扫描订阅或节点二维码。",
-    "NSLocalNetworkUsageDescription": "用于在同一 Wi-Fi 中向你的电脑或路由器共享转换后的订阅配置。",
+    "NSLocalNetworkUsageDescription": "用于在同一 Wi-Fi 中向您的电脑或路由器共享转换后的订阅配置。",
 }
 
 INFO_PLIST_TRANSLATIONS = {
@@ -419,7 +447,7 @@ INFO_PLIST_TRANSLATIONS = {
     },
     "zh-Hant": {
         "NSCameraUsageDescription": "用於掃描訂閱或節點 QR Code。",
-        "NSLocalNetworkUsageDescription": "用於在同一 Wi-Fi 中向你的電腦或路由器分享轉換後的訂閱設定。",
+        "NSLocalNetworkUsageDescription": "用於在同一 Wi-Fi 中向您的電腦或路由器分享轉換後的訂閱設定。",
     },
     "ja": {
         "NSCameraUsageDescription": "サブスクリプションまたはノードのQRコードをスキャンするために使用します。",
@@ -657,12 +685,22 @@ def build_info_catalog(output: Path) -> None:
     for plist_key, source_value in INFO_PLIST_SOURCE.items():
         localizations = {"zh-Hans": string_unit(source_value)}
         for locale in LANGUAGES:
-            if plist_key == "CFBundleDisplayName":
+            if plist_key in {"CFBundleDisplayName", "CFBundleName"}:
                 localized_value = DISPLAY_NAMES[locale]
             else:
                 localized_value = INFO_PLIST_TRANSLATIONS[locale][plist_key]
             localizations[locale] = string_unit(localized_value)
-        strings[plist_key] = {"localizations": localizations}
+        entry: dict[str, object] = {"localizations": localizations}
+        if plist_key == "CFBundleDisplayName":
+            entry["comment"] = "Bundle display name"
+        elif plist_key == "CFBundleName":
+            entry["comment"] = "Bundle name"
+            entry["extractionState"] = "extracted_with_value"
+        elif plist_key == "NSCameraUsageDescription":
+            entry["comment"] = "Privacy - Camera Usage Description"
+        elif plist_key == "NSLocalNetworkUsageDescription":
+            entry["comment"] = "Privacy - Local Network Usage Description"
+        strings[plist_key] = entry
 
     output.write_text(
         json.dumps(

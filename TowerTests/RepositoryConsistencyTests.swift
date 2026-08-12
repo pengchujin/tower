@@ -10,6 +10,31 @@ final class RepositoryConsistencyTests: XCTestCase {
             .deletingLastPathComponent()
     }
 
+    func testAppKeepsUniversalIPhoneAndIPadSupport() throws {
+        let project = try sourceText("Tower.xcodeproj/project.pbxproj")
+
+        XCTAssertTrue(
+            project.contains("TARGETED_DEVICE_FAMILY = \"1,2\";"),
+            "Tower must remain available on both iPhone and iPad"
+        )
+        XCTAssertFalse(
+            project.contains("TARGETED_DEVICE_FAMILY = \"1\";"),
+            "An iPhone-only build setting silently removes iPad support"
+        )
+        XCTAssertTrue(
+            project.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"),
+            "iPad orientations should be declared explicitly"
+        )
+    }
+
+    func testWelcomeViewUsesAReadableAdaptiveWidthOnIPad() throws {
+        let source = try sourceText("Tower/Features/Onboarding/WelcomeView.swift")
+
+        XCTAssertTrue(source.contains("private let readableContentWidth"))
+        XCTAssertTrue(source.contains(".frame(maxWidth: readableContentWidth"))
+        XCTAssertFalse(source.contains("UIScreen.main.bounds"))
+    }
+
     func testNaturalEarthUpdatersDefaultToImmutableRevisions() throws {
         for relativePath in [
             "Scripts/update_country_table.py",
@@ -268,7 +293,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         let listStart = try XCTUnwrap(source.range(of: "LazyVStack(spacing: 22) {"))
         let list = String(source[listStart.upperBound...])
 
-        let nodeCard = try XCTUnwrap(list.range(of: "NodeAndExportSettingsCard()"))
+        let nodeCard = try XCTUnwrap(list.range(of: "NodeAndExportSettingsCard("))
         let sharing = try XCTUnwrap(list.range(of: "LANSharingCard("))
 
         XCTAssertLessThan(nodeCard.lowerBound, sharing.lowerBound)
@@ -280,8 +305,59 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertFalse(root.contains("AppTab.settings"))
         XCTAssertTrue(export.contains("accessibilityIdentifier(\"open-settings\")"))
-        XCTAssertTrue(export.contains("SettingsView()"))
+        XCTAssertTrue(export.contains("SettingsView(configurationNameDraft:"))
         XCTAssertTrue(export.contains("ToolbarItem(placement: .topBarTrailing)"))
+    }
+
+    func testSettingsDoneCommitsTheConfigurationNameBeforeDismissing() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let exportRootStart = try XCTUnwrap(export.range(of: "struct ExportView: View"))
+        let sheetStart = try XCTUnwrap(export.range(of: "private struct ExportSettingsSheet: View"))
+        let nextType = try XCTUnwrap(export.range(of: "private struct ExportPayload: Identifiable"))
+        let exportRoot = String(export[exportRootStart.lowerBound..<sheetStart.lowerBound])
+        let sheet = String(export[sheetStart.lowerBound..<nextType.lowerBound])
+
+        XCTAssertTrue(
+            exportRoot.contains("@State private var configurationNameDraft"),
+            "名称草稿必须由不会随弹窗重建的导出页持有"
+        )
+        XCTAssertTrue(exportRoot.contains("ExportSettingsSheet(configurationNameDraft: $configurationNameDraft)"))
+        XCTAssertFalse(
+            sheet.contains("@State private var configurationNameDraft"),
+            "弹窗根视图可能在工具栏提交前重建，不能在这里保存唯一的名称草稿"
+        )
+        XCTAssertTrue(sheet.contains("@Binding var configurationNameDraft"))
+        XCTAssertTrue(sheet.contains("SettingsView(configurationNameDraft: $configurationNameDraft)"))
+        let commit = try XCTUnwrap(sheet.range(of: "model.setConfigurationName(configurationNameDraft.committedName)"))
+        let dismiss = try XCTUnwrap(sheet.range(of: "dismiss()"))
+        XCTAssertLessThan(commit.lowerBound, dismiss.lowerBound)
+        XCTAssertFalse(
+            sheet.contains(".onDisappear"),
+            "设置页消失时不能再用可能已重置的草稿二次覆盖已保存名称"
+        )
+        XCTAssertTrue(settings.contains("@Binding var configurationNameDraft: ConfigurationNameDraft"))
+        XCTAssertFalse(
+            settings.contains("@State private var configurationNameDraft = ConfigurationNameDraft()"),
+            "名称草稿不能只存在于先于弹窗销毁的子视图里"
+        )
+    }
+
+    func testConfigurationNameUsesATrailingInlineField() throws {
+        let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let rowStart = try XCTUnwrap(settings.range(of: "private struct ConfigurationNameSettingsRow: View"))
+        let nextType = try XCTUnwrap(settings.range(of: "struct SettingsIconTile: View"))
+        let row = String(settings[rowStart.lowerBound..<nextType.lowerBound])
+
+        XCTAssertTrue(row.contains("HStack(spacing: 13)"), row)
+        XCTAssertTrue(row.contains("Text(\"配置名称\")"), row)
+        XCTAssertTrue(row.contains("TextField(\"配置名称\""), row)
+        XCTAssertTrue(row.contains(".multilineTextAlignment(.trailing)"), row)
+        XCTAssertFalse(
+            row.contains(".onChange(of: model.configurationName)"),
+            "已加载的编辑草稿必须独立，iCloud 或重绘不能在输入中把旧名称写回"
+        )
+        XCTAssertFalse(row.contains("VStack(alignment: .leading"), row)
     }
 
     func testScrollingCardsAvoidLiveBlurAndClientIconsAreEagerlyPrepared() throws {
@@ -320,6 +396,27 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(source.contains("nw_resolver_config_create_https"))
     }
 
+    /// A sheet can be dragged down as well as dismissed by its button, and a
+    /// name typed but never committed is simply gone. The button path is
+    /// covered above; this covers the other one, from the export page that owns
+    /// both the draft and the presentation flag.
+    func testClosingTheSettingsSheetAnyWayCommitsTheConfigurationName() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let rootStart = try XCTUnwrap(export.range(of: "struct ExportView: View"))
+        let sheetStart = try XCTUnwrap(export.range(of: "private struct ExportSettingsSheet: View"))
+        let root = String(export[rootStart.lowerBound..<sheetStart.lowerBound])
+
+        let observer = try XCTUnwrap(
+            root.range(of: ".onChange(of: isSettingsPresented)"),
+            "拖动关闭设置页时没有任何地方提交名称草稿"
+        )
+        let commit = try XCTUnwrap(
+            root.range(of: "model.setConfigurationName(configurationNameDraft.committedName)"),
+            "监听到关闭却没有提交草稿"
+        )
+        XCTAssertLessThan(observer.lowerBound, commit.lowerBound)
+    }
+
     /// LAN sharing on an Apple silicon Mac lives or dies by one entitlement
     /// that has no effect on iPhone at all. Nothing in an iOS test run — or in
     /// a hundred iPhone installs — would notice it going missing, so the
@@ -330,6 +427,17 @@ final class RepositoryConsistencyTests: XCTestCase {
             entitlements.contains("com.apple.security.network.server"),
             "the macOS sandbox denies incoming connections without this key"
         )
+    }
+
+    func testWelcomeNetworkPromiseIncludesOptInAutomationAndCloudSync() throws {
+        let source = try sourceText("Tower/Features/Onboarding/WelcomeView.swift")
+
+        XCTAssertTrue(source.contains("title: \"联网选项由您决定\""), source)
+        XCTAssertTrue(
+            source.contains("自动更新和 iCloud 同步默认关闭，只有您主动开启后才运行。"),
+            source
+        )
+        XCTAssertFalse(source.contains("title: \"只在您按下时联网\""), source)
     }
 
     private func sourceText(_ relativePath: String) throws -> String {

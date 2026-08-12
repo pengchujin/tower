@@ -90,6 +90,22 @@ final class PrivacyManifestTests: XCTestCase {
         )
     }
 
+    /// The public policy must describe the network behavior the shipped app
+    /// actually performs after a user opts into iCloud sync.
+    func testPrivacyPolicyListsOptInICloudSyncAsANetworkCase() throws {
+        let policy = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("docs/privacy.md"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(policy.contains("只有四种情况"), policy)
+        XCTAssertTrue(policy.contains("**iCloud 同步**"), policy)
+        XCTAssertTrue(policy.contains("Only in four cases"), policy)
+        XCTAssertTrue(policy.contains("**iCloud sync**"), policy)
+        XCTAssertFalse(policy.contains("只有三种情况"), policy)
+        XCTAssertFalse(policy.contains("Only in three cases"), policy)
+    }
+
     private func declaredReasons() throws -> [String: [String]] {
         let types = try XCTUnwrap(try manifest()["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
         return Dictionary(uniqueKeysWithValues: try types.map { entry in

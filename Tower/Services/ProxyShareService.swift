@@ -51,6 +51,7 @@ struct ProxyNodeShareLinkGenerator {
         case .vmess: vmessLink(for: node) ?? original
         case .vless, .trojan, .hysteria, .hysteria2, .tuic, .anytls, .socks5, .http:
             standardLink(for: node) ?? original
+        case .wireguard: wireGuardLink(for: node) ?? original
         // Snell has no URI form, so share its portable Surge proxy line.
         case .snell: original.isEmpty ? snellLine(for: node) : original
         case .unknown: original
@@ -62,7 +63,7 @@ struct ProxyNodeShareLinkGenerator {
         guard !lowercased.hasPrefix("clash://local/") else { return false }
         return [
             "ss://", "ssr://", "vmess://", "vless://", "trojan://",
-            "hysteria2://", "hy2://", "hysteria://", "tuic://",
+            "hysteria2://", "hy2://", "hysteria://", "tuic://", "wireguard://", "wg://",
             "anytls://", "socks5://", "socks://", "http://", "https://"
         ].contains(where: lowercased.hasPrefix)
     }
@@ -238,6 +239,40 @@ struct ProxyNodeShareLinkGenerator {
             queryItems.append(URLQueryItem(name: name, value: "1"))
         }
         components.queryItems = queryItems.isEmpty ? nil : queryItems
+        return components.string
+    }
+
+    private func wireGuardLink(for node: ProxyNode) -> String? {
+        guard let privateKey = node.wireGuardPrivateKey, !privateKey.isEmpty,
+              let publicKey = node.wireGuardPublicKey, !publicKey.isEmpty else { return nil }
+        var components = URLComponents()
+        components.scheme = "wireguard"
+        components.user = privateKey
+        components.host = node.server
+        components.port = node.port
+        components.fragment = node.name
+        var addresses: [String] = []
+        if let ipv4 = node.wireGuardIPv4, !ipv4.isEmpty { addresses.append(ipv4) }
+        if let ipv6 = node.wireGuardIPv6, !ipv6.isEmpty { addresses.append(ipv6) }
+        var items = [
+            URLQueryItem(name: "publickey", value: publicKey),
+            URLQueryItem(name: "address", value: addresses.joined(separator: ",")),
+            URLQueryItem(name: "allowedips", value: node.wireGuardAllowedIPs ?? "0.0.0.0/0,::/0")
+        ]
+        if let value = node.wireGuardReserved, !value.isEmpty {
+            items.append(URLQueryItem(name: "reserved", value: value))
+        }
+        if let value = node.wireGuardMTU { items.append(URLQueryItem(name: "mtu", value: String(value))) }
+        if let value = node.wireGuardPersistentKeepalive {
+            items.append(URLQueryItem(name: "keepalive", value: String(value)))
+        }
+        if let value = node.wireGuardPreSharedKey, !value.isEmpty {
+            items.append(URLQueryItem(name: "presharedkey", value: value))
+        }
+        if let value = node.wireGuardDNS, !value.isEmpty {
+            items.append(URLQueryItem(name: "dns", value: value))
+        }
+        components.queryItems = items
         return components.string
     }
 

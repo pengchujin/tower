@@ -261,6 +261,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
     case hysteria
     case hysteria2
     case tuic
+    case wireguard
     case anytls
     case snell
     case socks5
@@ -279,6 +280,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .hysteria: "Hysteria"
         case .hysteria2: "Hysteria 2"
         case .tuic: "TUIC"
+        case .wireguard: "WireGuard"
         case .anytls: "AnyTLS"
         case .snell: "Snell"
         case .socks5: "SOCKS5"
@@ -294,6 +296,7 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .trojan: "shield.lefthalf.filled"
         case .hysteria, .hysteria2: "hare.fill"
         case .tuic: "bolt.horizontal.fill"
+        case .wireguard: "shield.checkered"
         case .anytls: "lock.shield.fill"
         // Snell is Surge's own protocol, so this echoes the rounded-square app
         // icon it ships under, with an S for the name. Not Surge's actual mark:
@@ -354,6 +357,19 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// node without them either fails to load or crawls.
     var upMbps: Int?
     var downMbps: Int?
+    /// WireGuard's complete single-peer tunnel configuration. These cannot be
+    /// mapped onto generic proxy credentials without losing routing semantics,
+    /// so they stay explicit all the way from parser to client producer.
+    var wireGuardPrivateKey: String?
+    var wireGuardPublicKey: String?
+    var wireGuardPreSharedKey: String?
+    var wireGuardIPv4: String?
+    var wireGuardIPv6: String?
+    var wireGuardAllowedIPs: String?
+    var wireGuardReserved: String?
+    var wireGuardMTU: Int?
+    var wireGuardPersistentKeepalive: Int?
+    var wireGuardDNS: String?
     var rawURI: String
     /// Airports often encode quota, expiry, web site, or support text as fake
     /// proxy entries. Keeping the marker optional preserves old snapshots while
@@ -395,6 +411,16 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         udpRelayMode: String? = nil,
         upMbps: Int? = nil,
         downMbps: Int? = nil,
+        wireGuardPrivateKey: String? = nil,
+        wireGuardPublicKey: String? = nil,
+        wireGuardPreSharedKey: String? = nil,
+        wireGuardIPv4: String? = nil,
+        wireGuardIPv6: String? = nil,
+        wireGuardAllowedIPs: String? = nil,
+        wireGuardReserved: String? = nil,
+        wireGuardMTU: Int? = nil,
+        wireGuardPersistentKeepalive: Int? = nil,
+        wireGuardDNS: String? = nil,
         rawURI: String,
         isSubscriptionMetadata: Bool? = nil
     ) {
@@ -432,6 +458,16 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.udpRelayMode = udpRelayMode
         self.upMbps = upMbps
         self.downMbps = downMbps
+        self.wireGuardPrivateKey = wireGuardPrivateKey
+        self.wireGuardPublicKey = wireGuardPublicKey
+        self.wireGuardPreSharedKey = wireGuardPreSharedKey
+        self.wireGuardIPv4 = wireGuardIPv4
+        self.wireGuardIPv6 = wireGuardIPv6
+        self.wireGuardAllowedIPs = wireGuardAllowedIPs
+        self.wireGuardReserved = wireGuardReserved
+        self.wireGuardMTU = wireGuardMTU
+        self.wireGuardPersistentKeepalive = wireGuardPersistentKeepalive
+        self.wireGuardDNS = wireGuardDNS
         self.rawURI = rawURI
         self.isSubscriptionMetadata = isSubscriptionMetadata
     }
@@ -466,6 +502,16 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         let minimumIdle = minIdleSession.map { String($0) } ?? ""
         let protocolVersion = version.map { String($0) } ?? ""
         fields.append(contentsOf: [idleCheck, idleTimeout, minimumIdle, protocolVersion])
+        fields.append(contentsOf: [
+            congestionControl ?? "", udpRelayMode ?? "",
+            upMbps.map(String.init) ?? "", downMbps.map(String.init) ?? ""
+        ])
+        fields.append(contentsOf: [
+            wireGuardPrivateKey ?? "", wireGuardPublicKey ?? "", wireGuardPreSharedKey ?? "",
+            wireGuardIPv4 ?? "", wireGuardIPv6 ?? "", wireGuardAllowedIPs ?? "",
+            wireGuardReserved ?? "", wireGuardMTU.map(String.init) ?? "",
+            wireGuardPersistentKeepalive.map(String.init) ?? "", wireGuardDNS ?? ""
+        ])
         return fields.joined(separator: "\u{1F}")
     }
 
@@ -531,7 +577,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
             parts.append(transportDisplayName)
         }
 
-        if tls, ![.trojan, .hysteria, .hysteria2, .tuic, .anytls, .http].contains(kind), !parts.contains("TLS") {
+        if tls, ![.trojan, .hysteria, .hysteria2, .tuic, .wireguard, .anytls, .http].contains(kind), !parts.contains("TLS") {
             parts.append("TLS")
         }
 
@@ -551,6 +597,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         case .hysteria: "HYSTERIA"
         case .hysteria2: "HYSTERIA 2"
         case .tuic: "TUIC"
+        case .wireguard: "WIREGUARD"
         case .anytls: "ANYTLS"
         case .snell: version.map { "SNELL V\($0)" } ?? "SNELL"
         case .socks5: "SOCKS5"
@@ -921,13 +968,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .surge:
             // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
             // shipped a Hysteria 1 server type.
-            [.shadowsocks, .vmess, .trojan, .hysteria2, .tuic, .anytls, .snell, .socks5, .http].contains(kind)
+            [.shadowsocks, .vmess, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http].contains(kind)
         case .shadowrocket:
             kind != .unknown
         case .loon:
             // Neither TUIC nor Hysteria 1 has a Loon server type; both are
             // skipped and counted rather than written as something else.
-            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .anytls, .socks5, .http].contains(kind)
+            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria2, .wireguard, .anytls, .socks5, .http].contains(kind)
         case .quanx:
             // No Hysteria 2: Quantumult X has no `hysteria2=` server type, and
             // writing one fails the whole import with "配置文件语法错误". Its
@@ -941,7 +988,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             kind != .unknown && kind != .snell
         case .egern:
             // Egern's own producer lists tuic but no hysteria 1.
-            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .anytls, .snell, .socks5, .http].contains(kind)
+            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http].contains(kind)
         }
     }
 }
@@ -1103,14 +1150,35 @@ enum TowerBrand {
 /// Keeps raw in-progress text separate from the persisted export name. An
 /// empty draft is valid while editing; the default is restored only on commit.
 struct ConfigurationNameDraft: Equatable {
-    var text: String
+    var text: String {
+        didSet {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                lastValidText = text
+            }
+        }
+    }
+    private var hasLoadedPersistedName = false
+    /// SwiftUI can publish one transient empty string when a focused text
+    /// field is dismissed from a parent toolbar. Keep the last value the user
+    /// actually entered so that teardown event cannot reset a valid name.
+    private var lastValidText: String?
 
     init(text: String = "") {
         self.text = text
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.lastValidText = trimmed.isEmpty ? nil : text
+    }
+
+    mutating func loadPersistedNameIfNeeded(_ name: String) {
+        guard !hasLoadedPersistedName else { return }
+        text = name
+        hasLoadedPersistedName = true
     }
 
     var committedName: String {
-        ExportFilePresentation.profileName(text)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ExportFilePresentation.profileName(trimmed.isEmpty ? lastValidText : text)
     }
 }
 

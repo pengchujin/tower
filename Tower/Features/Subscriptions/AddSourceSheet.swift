@@ -219,7 +219,7 @@ struct AddSourceSheet: View {
                 }
             }
         } footer: {
-            Text("支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 节点二维码。")
+            Text("支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。")
         }
     }
 
@@ -277,7 +277,7 @@ struct AddSourceSheet: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
-            if ![.vmess, .vless, .tuic].contains(manualDraft.kind) {
+            if ![.vmess, .vless, .tuic, .wireguard].contains(manualDraft.kind) {
                 SecureField(secretPrompt, text: $manualDraft.secret)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -387,6 +387,49 @@ struct AddSourceSheet: View {
                 Text("QUIC 参数")
             } footer: {
                 Text("不确定就保持默认，由客户端决定。")
+            }
+        }
+
+        if manualDraft.kind == .wireguard {
+            Section {
+                SecureField("客户端私钥", text: $manualDraft.wireGuardPrivateKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("服务端公钥", text: $manualDraft.wireGuardPublicKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                SecureField("预共享密钥（可选）", text: $manualDraft.wireGuardPreSharedKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("WireGuard 密钥")
+            } footer: {
+                Text("私钥只保存在这台设备及您主动开启的 iCloud 同步中。")
+            }
+
+            Section {
+                TextField("本机 IPv4，例如 10.0.0.2/32", text: $manualDraft.wireGuardIPv4)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("本机 IPv6（可选）", text: $manualDraft.wireGuardIPv6)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("允许的网段", text: $manualDraft.wireGuardAllowedIPs)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("DNS（可选）", text: $manualDraft.wireGuardDNS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("Reserved，例如 1,2,3（可选）", text: $manualDraft.wireGuardReserved)
+                    .keyboardType(.numbersAndPunctuation)
+                TextField("MTU", text: $manualDraft.wireGuardMTU)
+                    .keyboardType(.numberPad)
+                TextField("保活间隔（秒）", text: $manualDraft.wireGuardPersistentKeepalive)
+                    .keyboardType(.numberPad)
+            } header: {
+                Text("WireGuard 隧道")
+            } footer: {
+                Text("允许的网段决定哪些目标进入隧道；代理用途通常填写 0.0.0.0/0,::/0。")
             }
         }
 
@@ -566,6 +609,17 @@ struct AddSourceSheet: View {
             let down = Int(manualDraft.downMbps) ?? 0
             if up <= 0 || down <= 0 { return true }
         }
+        if manualDraft.kind == .wireguard {
+            let values = [
+                manualDraft.wireGuardPrivateKey,
+                manualDraft.wireGuardPublicKey,
+                manualDraft.wireGuardAllowedIPs
+            ]
+            if values.contains(where: blank)
+                || (blank(manualDraft.wireGuardIPv4) && blank(manualDraft.wireGuardIPv6)) {
+                return true
+            }
+        }
         return false
     }
 
@@ -574,6 +628,7 @@ struct AddSourceSheet: View {
         case .shadowsocks, .shadowsocksR: String(localized: "密码")
         case .trojan, .hysteria2, .anytls, .snell: String(localized: "密码或 PSK")
         case .hysteria: String(localized: "认证密码")
+        case .wireguard: String(localized: "WireGuard 密钥")
         case .socks5, .http: String(localized: "密码（可选）")
         default: String(localized: "认证信息")
         }

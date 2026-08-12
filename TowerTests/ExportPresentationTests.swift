@@ -79,6 +79,48 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(draft.committedName, "家庭网络配置")
     }
 
+    func testConfigurationNameDraftLoadsThePersistedNameOnlyOncePerEditingSession() {
+        var draft = ConfigurationNameDraft()
+
+        draft.loadPersistedNameIfNeeded("塔台")
+        draft.text = "tower"
+        draft.loadPersistedNameIfNeeded("塔台")
+
+        XCTAssertEqual(draft.text, "tower", "视图再次出现时不能用旧配置覆盖正在输入的名称")
+    }
+
+    func testConfigurationNameDraftKeepsTheLastValidNameWhenTextFieldEndsWithATransientEmptyWrite() {
+        var draft = ConfigurationNameDraft(text: "塔台")
+
+        // This is the exact event sequence captured from the physical iPhone:
+        // the field receives the complete name, then SwiftUI writes an empty
+        // value while the focused field is being dismissed by the toolbar.
+        draft.text = "tower"
+        draft.text = ""
+
+        XCTAssertEqual(
+            draft.committedName,
+            "tower",
+            "结束编辑时的临时空值不能覆盖本次输入的最后一个有效名称"
+        )
+    }
+
+    /// The flip side of that rule: because a blank field is ignored, clearing
+    /// it can no longer mean "back to the default name". Writing the default in
+    /// has to work, which is what the reset control does.
+    func testConfigurationNameDraftCanBeReturnedToTheDefaultAfterACustomName() {
+        var draft = ConfigurationNameDraft(text: TowerBrand.localizedName)
+
+        draft.text = "tower"
+        draft.text = TowerBrand.localizedName
+
+        XCTAssertEqual(
+            draft.committedName,
+            TowerBrand.localizedName,
+            "改过名之后必须还能回到默认名称，否则默认值就成了单向门"
+        )
+    }
+
     func testGenerationCacheKeepsConfigurationsForMultipleTargets() {
         var cache = ConfigurationCache()
         let surgeKey = GenerationCacheKey(target: .surge, presetID: "rules", nodesHash: 1, countryCodesHash: 1)

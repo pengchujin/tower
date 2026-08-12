@@ -7,6 +7,7 @@ struct ExportView: View {
     @State private var directImportService = DirectImportService()
     @State private var isImporting = false
     @State private var isSettingsPresented = false
+    @State private var configurationNameDraft = ConfigurationNameDraft()
     @State private var previewPayload: ConfigurationPreviewPayload?
 
     var body: some View {
@@ -37,6 +38,7 @@ struct ExportView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    configurationNameDraft = ConfigurationNameDraft(text: model.configurationName)
                     isSettingsPresented = true
                 } label: {
                     Label("设置", systemImage: "gearshape")
@@ -64,7 +66,15 @@ struct ExportView: View {
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $isSettingsPresented) {
-            ExportSettingsSheet()
+            ExportSettingsSheet(configurationNameDraft: $configurationNameDraft)
+        }
+        // "完成" is not the only way out of that sheet — it can also be dragged
+        // down — and a name typed but never committed is simply lost. Catching
+        // the flag covers every path; committing twice is harmless because the
+        // draft is the same either way.
+        .onChange(of: isSettingsPresented) { _, isPresented in
+            guard !isPresented else { return }
+            model.setConfigurationName(configurationNameDraft.committedName)
         }
         .fullScreenCover(item: $previewPayload) { payload in
             ConfigurationPreviewSheet(configuration: payload.configuration)
@@ -170,13 +180,18 @@ private struct ExportContentModePicker: View {
 
 private struct ExportSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
+    @Binding var configurationNameDraft: ConfigurationNameDraft
 
     var body: some View {
         NavigationStack {
-            SettingsView()
+            SettingsView(configurationNameDraft: $configurationNameDraft)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("完成") { dismiss() }
+                        Button("完成") {
+                            model.setConfigurationName(configurationNameDraft.committedName)
+                            dismiss()
+                        }
                     }
                 }
                 .towerToast()

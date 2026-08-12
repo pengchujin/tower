@@ -4,6 +4,7 @@ import SwiftUI
 struct TowerApp: App {
     @State private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
 
     var body: some Scene {
         WindowGroup {
@@ -14,12 +15,14 @@ struct TowerApp: App {
                 // foreground. Uploads were already automatic; without this the
                 // other device only ever saw changes if someone opened
                 // Settings and tapped a button, which is not sync.
-                .task {
+                .task(id: hasSeenWelcome) {
+                    guard hasSeenWelcome else { return }
                     await model.synchronizeWithCloud()
                     await model.refreshOnOpenIfEnabled()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
+                    guard hasSeenWelcome else { return }
                     Task {
                         await model.synchronizeWithCloud()
                         await model.refreshOnOpenIfEnabled()

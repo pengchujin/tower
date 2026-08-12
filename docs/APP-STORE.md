@@ -68,7 +68,7 @@ converter,format,config file,nodes,rules,policy group,offline,privacy,local,yaml
 **以后发更新时换成这类**（67 字），首发不要用——1.0 没有"新增"可言：
 
 ```
-新增 TUIC 与 Hysteria 支持，配置文件转换现已覆盖十二种协议格式。全部转换在你的 iPhone 上完成，订阅内容不上传。
+新增 TUIC、Hysteria 与 WireGuard 支持，配置文件转换现已覆盖十三种协议格式。全部转换在你的 iPhone 上完成，订阅内容不上传。
 ```
 
 ---
@@ -85,7 +85,7 @@ converter,format,config file,nodes,rules,policy group,offline,privacy,local,yaml
 ■ 它做什么
 
 · 读取订阅文本，识别其中的节点条目
-· 支持十二种协议格式的解析与输出
+· 支持十三种协议格式的解析与输出
 · 生成七种客户端各自的配置文件格式
 · 按国家和地区自动分组，生成对应的策略组
 · 内置规则集，也可以导入你自己的规则

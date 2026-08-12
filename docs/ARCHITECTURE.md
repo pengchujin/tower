@@ -71,7 +71,7 @@ flowchart LR
 - 通过 `URLSession` 拉取 HTTPS 订阅。
 - 自定义 User-Agent 写入每个订阅/配额请求；可选 DoH 使用 Apple 公开的 `NWParameters.PrivacyContext` 与 `ResolverConfiguration.https`，请求由 actor 串行化并在结束后恢复默认解析设置。
 - 解析普通文本、Base64 节点列表和 Clash YAML。
-- 覆盖 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、AnyTLS、Snell、SOCKS5、HTTP(S)。
+- 覆盖 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S)。WireGuard 只建模单 Peer，避免多 Peer YAML 被有损压平。
 - 解析后标准化并去重。
 
 机场经常添加私有字段。兼容新格式时要增加最小测试样本，避免放宽解析器后把提示页或 HTML 错当成订阅。

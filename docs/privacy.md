@@ -16,7 +16,7 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 ## 一、塔台不收集什么
 
-以下内容**从不离开你的设备**：
+以下内容默认保存在你的设备上；唯一可选的例外，是你主动开启第 2 节和第 4 节说明的 iCloud 同步：
 
 - 订阅地址和订阅内容
 - 节点信息（服务器地址、端口、密码、UUID、密钥等）
@@ -28,13 +28,14 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 ## 二、塔台什么时候联网
 
-只有三种情况，全部由你主动触发：
+只有四种情况，全部来自你主动执行的操作或主动开启的设置：
 
 1. **获取订阅** —— 你添加或刷新订阅时，塔台向**你自己填写的那个地址**发起请求。设置里有一个**默认关闭**的「打开塔台时更新订阅」开关；只有你主动开启后，塔台才会在每次打开时自动取一次同一批地址。这是你和你的服务提供商之间的连接，塔台不参与，也不会把这个地址告诉任何第三方。
 2. **导入或刷新规则链接** —— 你主动导入一个规则地址时才发起。规则地址只接受 HTTPS。App 内置的规则快照任何情况下都不联网。
 3. **域名解析** —— 节点使用域名时，由系统 DNS 解析。你也可以在设置里自行指定一个 DNS-over-HTTPS 服务器，塔台会改用它。
+4. **iCloud 同步** —— 默认关闭。只有你在设置中明确开启后，塔台才会把配置存进**你自己的** iCloud 账户，并在 App 启动、回到前台和本机编辑后自动比较或上传配置。数据不经过塔台的服务器，开发者无法访问。关闭后不再同步，但不会自动删除 iCloud 中已有的副本。
 
-除此之外，塔台不会发起网络请求。塔台不在后台运行，因此即使开启了自动更新，也只在你打开 App 时发生。
+除此之外，塔台不会发起网络请求。塔台不在后台运行，因此自动更新和 iCloud 同步只会在你打开 App 时运行，或在 App 前台编辑后上传。
 
 **国家与地区识别不联网。** 塔台先看节点自己的名字判断地区；名字看不出来时，查询随 App 一起打包的**离线** IP 数据库。你的节点服务器地址不会被发送到任何 IP 查询服务。
 
@@ -84,19 +85,20 @@ Every claim below can be checked in the source: <https://github.com/pengchujin/t
 
 ## 1. What never leaves your device
 
-Subscription URLs and their contents, node details (server, port, password, UUID, keys), generated configuration files, your rule and grouping choices, and latency results. All of it stays on the device.
+Subscription URLs and their contents, node details (server, port, password, UUID, keys), generated configuration files, your rule and grouping choices, and latency results stay on the device by default. The only optional exception is iCloud sync, described in Sections 2 and 4, which runs only after you explicitly enable it.
 
 Tower uses **no third-party online conversion service**. Comparable tools often send subscription content to a remote server to be converted; Tower does the conversion on your device instead.
 
 ## 2. When Tower uses the network
 
-Only in three cases, each one started by you:
+Only in four cases, each resulting from an action you take or a setting you explicitly enable:
 
 1. **Fetching a subscription** — Tower requests the address *you* entered. That is a connection between you and your provider; the address is not shared with anyone else. Settings carries a switch, **off by default**, that fetches those same addresses once each time you open Tower.
 2. **Importing or refreshing a rule URL** — only when you ask for it, and only over HTTPS. The rule snapshots bundled with the app never go online.
 3. **DNS resolution** — through the system resolver, or through a DNS-over-HTTPS server if you configure one in Settings.
+4. **iCloud sync** — off by default. After you explicitly enable it in Settings, Tower stores the configuration in **your own** iCloud account and automatically compares or uploads it when the app opens, returns to the foreground, or saves a local edit. It never passes through a Tower server and the developer cannot access it. Turning sync off stops future syncing but does not delete the existing iCloud copy.
 
-Tower makes no other requests. It does not run in the background, so even with automatic refresh switched on, fetching happens only while you have the app open.
+Tower makes no other requests. It does not run in the background, so automatic refresh and iCloud sync run only while the app is open, including uploads after an edit made in the foreground.
 
 **Region detection stays offline.** Tower reads a node's country from its own name first; when the name says nothing, it consults an IP database bundled with the app. Your server addresses are never sent to a lookup service.
 
