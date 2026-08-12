@@ -233,12 +233,45 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(expandableContent.contains(".contextMenu"))
     }
 
-    func testRenewalReminderAppearsBeforeLANSharing() throws {
+    /// Renewal reminders and automatic refresh both answer "what should Tower
+    /// do with my subscriptions", so they live inside the node-and-export card
+    /// rather than as separate cards, and ahead of its export options.
+    ///
+    /// Compares positions only within a single construct. An earlier version
+    /// compared across structs and against a property declaration rather than
+    /// its use, which measured where the source happens to sit rather than
+    /// what the screen shows.
+    func testSubscriptionBehaviourSitsAtTheTopOfTheNodeCard() throws {
         let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
-        let reminder = try XCTUnwrap(source.range(of: "RenewalReminderCard()"))
-        let sharing = try XCTUnwrap(source.range(of: "LANSharingCard("))
 
-        XCTAssertLessThan(reminder.lowerBound, sharing.lowerBound)
+        let cardBodyStart = try XCTUnwrap(source.range(of: #"SectionHeading(title: "节点与配置""#))
+        let cardBody = String(source[cardBodyStart.lowerBound...])
+
+        let reminder = try XCTUnwrap(cardBody.range(of: "RenewalReminderSection()"))
+        let refresh = try XCTUnwrap(cardBody.range(of: "AutoRefreshSection()"))
+        // The use, not the computed property that backs it.
+        let exportOption = try XCTUnwrap(cardBody.range(of: "Toggle(isOn: appendNameBinding)"))
+
+        XCTAssertLessThan(reminder.lowerBound, refresh.lowerBound)
+        XCTAssertLessThan(refresh.lowerBound, exportOption.lowerBound)
+
+        // Neither may reappear as a card of its own, or the settings screen
+        // would show the same switch twice.
+        XCTAssertFalse(source.contains("RenewalReminderCard()"), source)
+        XCTAssertFalse(source.contains("AutoRefreshCard()"), source)
+    }
+
+    /// LAN sharing is a different subject and still comes after the card that
+    /// now carries the subscription behaviour.
+    func testNodeCardComesBeforeLANSharing() throws {
+        let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let listStart = try XCTUnwrap(source.range(of: "LazyVStack(spacing: 22) {"))
+        let list = String(source[listStart.upperBound...])
+
+        let nodeCard = try XCTUnwrap(list.range(of: "NodeAndExportSettingsCard()"))
+        let sharing = try XCTUnwrap(list.range(of: "LANSharingCard("))
+
+        XCTAssertLessThan(nodeCard.lowerBound, sharing.lowerBound)
     }
 
     func testBottomNavigationHasThreeTabsAndSettingsLivesInExportToolbar() throws {

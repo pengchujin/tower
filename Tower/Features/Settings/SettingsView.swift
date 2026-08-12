@@ -10,13 +10,11 @@ struct SettingsView: View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 NodeAndExportSettingsCard()
-                RenewalReminderCard()
                 LANSharingCard(
                     selectedClient: $selectedClient,
                     isConfirmingTokenRotation: $isConfirmingTokenRotation
                 )
                 LANSharingGuide()
-                AutoRefreshCard()
                 CloudSyncCard()
                 SecurityAndSourceLink()
             }
@@ -54,7 +52,7 @@ struct SettingsView: View {
 /// does not run the app in the background, so nothing happens until you open
 /// Tower. Calling it "auto update" without that sentence would set up an
 /// expectation the platform cannot keep.
-private struct AutoRefreshCard: View {
+private struct AutoRefreshSection: View {
     @Environment(AppModel.self) private var model
 
     private var binding: Binding<Bool> {
@@ -63,7 +61,7 @@ private struct AutoRefreshCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "自动更新", detail: "默认关闭")
+            SettingsSectionLabel(title: "自动更新", detail: String(localized: "默认关闭"))
             VStack(alignment: .leading, spacing: 13) {
                 Toggle(isOn: binding) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -86,9 +84,28 @@ private struct AutoRefreshCard: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(17)
-            .towerCard()
         }
+    }
+}
+
+/// A heading for a section inside a card, quieter than the card's own title so
+/// the card still reads as one thing rather than several.
+private struct SettingsSectionLabel: View {
+    let title: LocalizedStringKey
+    var detail: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+            Spacer()
+            if let detail {
+                Text(LocalizedStringKey(detail))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -273,6 +290,14 @@ private struct NodeAndExportSettingsCard: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeading(title: "节点与配置", detail: "默认保持原始订阅")
 
+            RenewalReminderSection()
+
+            Divider()
+
+            AutoRefreshSection()
+
+            Divider()
+
             Toggle(isOn: appendNameBinding) {
                 settingsLabel(
                     symbol: "tag.fill",
@@ -381,7 +406,12 @@ private struct NodeAndExportSettingsCard: View {
     }
 }
 
-private struct RenewalReminderCard: View {
+/// A section of the node-and-export card rather than a card of its own.
+///
+/// Renewal reminders and automatic refresh both answer "what should Tower do
+/// with my subscriptions", which is the question that card is already about.
+/// As separate cards they read as three unrelated topics stacked up.
+private struct RenewalReminderSection: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isExpanded = false
@@ -399,7 +429,7 @@ private struct RenewalReminderCard: View {
         let reminders = model.renewalReminderEntries
 
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(
+            SettingsSectionLabel(
                 title: "续费提醒",
                 detail: model.renewalRemindersEnabled
                     ? String(localized: "\(model.scheduledRenewalReminderCount) 个已安排")
@@ -473,8 +503,6 @@ private struct RenewalReminderCard: View {
                 }
             }
         }
-        .padding(17)
-        .towerCard()
         .accessibilityIdentifier("renewal-reminder-card")
         .sensoryFeedback(.selection, trigger: isExpanded)
         .onChange(of: model.renewalRemindersEnabled) { _, isEnabled in
