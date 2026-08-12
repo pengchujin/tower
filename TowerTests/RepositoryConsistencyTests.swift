@@ -320,6 +320,18 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(source.contains("nw_resolver_config_create_https"))
     }
 
+    /// LAN sharing on an Apple silicon Mac lives or dies by one entitlement
+    /// that has no effect on iPhone at all. Nothing in an iOS test run — or in
+    /// a hundred iPhone installs — would notice it going missing, so the
+    /// checkout is the only place it can be guarded.
+    func testMacLANSharingKeepsItsIncomingConnectionEntitlement() throws {
+        let entitlements = try sourceText("Tower/Tower.entitlements")
+        XCTAssertTrue(
+            entitlements.contains("com.apple.security.network.server"),
+            "the macOS sandbox denies incoming connections without this key"
+        )
+    }
+
     private func sourceText(_ relativePath: String) throws -> String {
         try String(
             contentsOf: repositoryRoot.appendingPathComponent(relativePath),

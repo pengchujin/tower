@@ -25,7 +25,10 @@ enum LANSubscriptionServerError: LocalizedError {
         case .failedToStart:
             String(localized: "局域网订阅服务启动失败")
         case .noWiFiAddress:
-            String(localized: "没有找到 Wi-Fi 局域网地址，请先连接 Wi-Fi")
+            // Says "Wi-Fi or wired" because the same message reaches a Mac on
+            // Ethernet, where telling the user to connect Wi-Fi sends them
+            // looking for a fault that is not there.
+            String(localized: "没有找到局域网地址，请先接入 Wi-Fi 或有线网络")
         }
     }
 }
@@ -245,19 +248,35 @@ struct LANSubscriptionListenerEnvironment {
     let advertisedAddress: () -> String?
     let parameters: () -> NWParameters
 
-    static let wifi = Self(
-        advertisedAddress: LANIPv4Address.currentWiFiAddress,
-        parameters: {
-            let parameters = NWParameters.tcp
-            parameters.allowLocalEndpointReuse = true
-            parameters.requiredInterfaceType = .wifi
-            parameters.requiredLocalEndpoint = .hostPort(
-                host: NWEndpoint.Host("0.0.0.0"),
-                port: NWEndpoint.Port(rawValue: fixedWiFiPort)!
-            )
-            return parameters
-        }
-    )
+    /// Listens on every LAN interface, optionally pinned to Wi-Fi.
+    ///
+    /// On iPhone the pin is a safety rail: without it the listener can settle
+    /// on cellular, where "local network" means the carrier's network. On a Mac
+    /// running this same binary the pin is actively wrong — an Ethernet or dock
+    /// connection matches no Wi-Fi interface, so the listener advertises an
+    /// address nothing can reach.
+    static func networkListening(pinnedToWiFi: Bool) -> Self {
+        Self(
+            advertisedAddress: LANIPv4Address.currentLANAddress,
+            parameters: {
+                let parameters = NWParameters.tcp
+                parameters.allowLocalEndpointReuse = true
+                if pinnedToWiFi {
+                    parameters.requiredInterfaceType = .wifi
+                }
+                parameters.requiredLocalEndpoint = .hostPort(
+                    host: NWEndpoint.Host("0.0.0.0"),
+                    port: NWEndpoint.Port(rawValue: fixedWiFiPort)!
+                )
+                return parameters
+            }
+        )
+    }
+
+    /// "Designed for iPhone" is not Mac Catalyst — it is this exact iOS binary
+    /// under the macOS sandbox — so the platform cannot be told apart at
+    /// compile time and this has to be a runtime question.
+    static let wifi = networkListening(pinnedToWiFi: !ProcessInfo.processInfo.isiOSAppOnMac)
 
     static let loopback = Self(
         advertisedAddress: { "127.0.0.1" },
@@ -373,7 +392,11 @@ final class LANSubscriptionServer: @unchecked Sendable {
 }
 
 enum LANIPv4Address {
-    static func currentWiFiAddress() -> String? {
+    /// The address to hand out for this device on its LAN.
+    ///
+    /// Named for the LAN rather than for Wi-Fi because the same code answers on
+    /// a Mac, where the interface carrying the LAN is usually Ethernet.
+    static func currentLANAddress() -> String? {
         var firstAddress: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&firstAddress) == 0, let firstAddress else { return nil }
         defer { freeifaddrs(firstAddress) }
@@ -388,8 +411,9 @@ enum LANIPv4Address {
             let flags = Int32(interface.ifa_flags)
             guard flags & IFF_UP != 0, flags & IFF_LOOPBACK == 0 else { continue }
             let name = String(cString: interface.ifa_name)
-            // iPhone Wi-Fi and Personal Hotspot LAN interfaces are `en*`.
-            // Explicitly exclude cellular `pdp_ip*` addresses.
+            // iPhone Wi-Fi and Personal Hotspot LAN interfaces are `en*`, as is
+            // Mac Ethernet. Explicitly excludes cellular `pdp_ip*` and VPN
+            // `utun*` addresses, neither of which is reachable from the LAN.
             guard name.hasPrefix("en") || name.hasPrefix("bridge") else { continue }
 
             var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))

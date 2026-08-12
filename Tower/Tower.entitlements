@@ -14,5 +14,12 @@
 	<array>
 		<string>iCloud.com.jzb.tower</string>
 	</array>
+	<!-- App Sandbox keys do nothing on iOS, where every app is sandboxed by the
+	     system regardless. This one is here for the same binary running on an
+	     Apple silicon Mac as a "Designed for iPhone" app: there the macOS
+	     sandbox applies, and accepting an incoming connection — which is the
+	     whole of LAN subscription — is denied without it. -->
+	<key>com.apple.security.network.server</key>
+	<true/>
 </dict>
 </plist>

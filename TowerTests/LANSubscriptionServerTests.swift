@@ -1,9 +1,37 @@
+import Network
 import XCTest
 @testable import Tower
 
 final class LANSubscriptionServerTests: XCTestCase {
     func testProductionLANSharingKeepsAStablePort() {
         XCTAssertEqual(LANSubscriptionListenerEnvironment.fixedWiFiPort, 65_171)
+    }
+
+    /// On a phone the pin is what keeps the listener off cellular, where
+    /// "local network" would mean the carrier's network rather than the room.
+    func testPhoneListenerStaysPinnedToWiFi() {
+        let parameters = LANSubscriptionListenerEnvironment
+            .networkListening(pinnedToWiFi: true)
+            .parameters()
+        XCTAssertEqual(parameters.requiredInterfaceType, .wifi)
+    }
+
+    /// The same binary runs on an Apple silicon Mac, which is usually on
+    /// Ethernet. Pinning to Wi-Fi there matches no interface, so the listener
+    /// hands out an address that nothing on the LAN can open.
+    func testMacListenerAcceptsAnyLANInterface() {
+        let parameters = LANSubscriptionListenerEnvironment
+            .networkListening(pinnedToWiFi: false)
+            .parameters()
+        XCTAssertNotEqual(parameters.requiredInterfaceType, .wifi)
+        XCTAssertEqual(
+            parameters.requiredLocalEndpoint,
+            .hostPort(
+                host: NWEndpoint.Host("0.0.0.0"),
+                port: NWEndpoint.Port(rawValue: LANSubscriptionListenerEnvironment.fixedWiFiPort)!
+            ),
+            "dropping the interface pin must not also drop the fixed LAN port"
+        )
     }
 
     func testExplicitTargetsAndDesktopAliasesResolve() throws {

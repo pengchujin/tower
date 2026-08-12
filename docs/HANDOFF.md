@@ -460,6 +460,34 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 
 真机未验证：各客户端对新 DNS 段的接受情况，尤其 Surge 的 `encrypted-dns-server` 和 Clash 的 fake-ip 是否影响节点连通。
 
+## 1.8 Mac 上的局域网共享（2026-08-12，未验证）
+
+塔台以 "Designed for iPhone" 出现在 Apple 芯片 Mac 上（`TARGETED_DEVICE_FAMILY = "1"`，Mac 可用性是 App Store Connect 里的单独开关）。用户报告：Mac 上装得上，但局域网共享给出的链接打不开。
+
+### 两个已定位的原因
+
+1. **沙盒缺入站权限。** iOS App 在 Mac 上跑在 macOS 沙盒里，接受入站连接需要 `com.apple.security.network.server`。`Tower/Tower.entitlements` 原来只有 iCloud 三个键。这个键在 iOS 上完全没有作用（iOS 由系统自动沙盒化），所以 iPhone 上再怎么测都不会暴露它缺失——`RepositoryConsistencyTests` 里加了一条针对 checkout 的断言看着它。
+2. **监听接口写死成 Wi-Fi。** `requiredInterfaceType = .wifi` 在 iPhone 上是防止监听落到蜂窝的安全栏，在走网线的 Mac 上则匹配不到任何接口。已改为 `LANSubscriptionListenerEnvironment.networkListening(pinnedToWiFi:)`，由 `ProcessInfo.processInfo.isiOSAppOnMac` 在运行时决定。
+
+注意 "Designed for iPhone" **不是 Mac Catalyst**，是同一个 iOS 二进制跑在 macOS 沙盒下，编译期分不出平台，只能运行时判断。
+
+顺带把地址查找改名为 `LANIPv4Address.currentLANAddress`（Mac 上它返回的通常是以太网地址），失败文案也从「请先连接 Wi-Fi」改成「请先接入 Wi-Fi 或有线网络」，否则走网线的 Mac 用户会照着错误提示去找一个不存在的故障。
+
+### 关键未知：这两处改完也可能仍然不通
+
+**没有查到 Apple 的明确说法**，说明 "Designed for iPhone" 的 App 到底允不允许监听入站连接。沙盒文档只说 `com.apple.security.*` 是 macOS 键、iOS 不适用；这类 App 处在中间地带。也就是说这有可能是平台层面就不开放的能力。
+
+除此之外还有第三个未确认点：macOS 的本地网络授权（系统设置 → 隐私与安全性 → 本地网络）是独立于 iOS 那套的，Designed for iPhone 的 App 不一定弹得出授权框。
+
+### 需要在 Mac 上做的验证（模拟器和 iPhone 都验不了）
+
+1. 归档时签名是否接受这个 entitlement（iOS profile 里没有这个键）。这是第一道真实检查。
+2. Mac 上开启局域网共享，用同网段另一台机器打开链接。
+3. Mac 走网线和走 Wi-Fi 各测一次。
+4. 看系统设置 → 隐私与安全性 → 本地网络 里有没有塔台，有没有被打开。
+
+**验证通过前，不要在 App Store Connect 打开 Mac 可用性开关。** 局域网共享是主打功能之一，带着坏的功能上架不如先不提供；关掉它是一个开关，不用重新打包。
+
 ## 2. 产品目标与确定的交互
 
 ### 首页
