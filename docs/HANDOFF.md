@@ -586,7 +586,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 仓库当前构建号：`1.0 (18)`；下次上传 TestFlight 必须先改为 `19` 或更大的未用号码。
+- TestFlight 已上传的最新构建号是 `1.0 (16)`；仓库当前构建号为 `1.0 (17)`，用于下次上传。
 
 ### 归档只能在图形会话里做
 
@@ -597,16 +597,16 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 ```sh
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcrun agvtool new-version -all 19 && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-17.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-17.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
 ```
 
 `DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`UploadOptions-TestFlight.plist` 是 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0 (18)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。下次归档前必须先递增 `CURRENT_PROJECT_VERSION`，不要重复上传 build 18。
+工程当前为 **`1.0 (17)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。TestFlight 最新已上传的是 build 16，本次归档上传 build 17。
 
 ### 外部测试还需要补的材料
 
@@ -668,7 +668,7 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **18**，下次上传使用 **19**。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **17**，对应 TestFlight 上 build 16 的下一个版本。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
 
