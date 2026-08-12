@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SubscriptionsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAddSourcePresented = false
     @State private var pendingDeletion: PendingDeletion?
     @State private var nodeFilterRoute: NodeFilterRoute?
@@ -12,6 +13,9 @@ struct SubscriptionsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 22) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id(SubscriptionScrollTarget.top)
                     SubscriptionOverviewCard { metric in
                         switch metric {
                         case .nodes:
@@ -61,6 +65,15 @@ struct SubscriptionsView: View {
             }
             .refreshable {
                 await model.refreshEnabledSubscriptions()
+                // A refresh replaces the subscription rows, and the new
+                // identities leave the scroll view holding the offset the
+                // spinner had pushed it to — so the list stays pulled down
+                // with a gap above it. Returning to the anchor is what the
+                // gesture implies anyway: you pulled from the top to see the
+                // top.
+                withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 1)) {
+                    proxy.scrollTo(SubscriptionScrollTarget.top, anchor: .top)
+                }
             }
             .sheet(isPresented: $isAddSourcePresented) {
                 AddSourceSheet()
@@ -142,6 +155,9 @@ struct SubscriptionsView: View {
 }
 
 enum SubscriptionScrollTarget: Hashable {
+    /// An anchor at the very top of the list, so a finished refresh has
+    /// somewhere to return to.
+    case top
     case subscriptions
     case nodes
     case regions

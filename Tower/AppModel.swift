@@ -30,6 +30,11 @@ final class AppModel {
     var clientOrder = ClientTarget.allCases
     var appendSubscriptionNameToNodes = false
     var filterSubscriptionInfoNodes = false
+    /// Refresh enabled subscriptions when the app opens. Off by default like
+    /// every other feature here that reaches the network — the promise the app
+    /// makes on first launch is that it goes online when you say so.
+    var autoRefreshOnOpen = false
+    @ObservationIgnored private var lastAutoRefreshAt: Date?
     var configurationName = TowerBrand.localizedName
     var preferRuleSets = false
     private var preferRuleSetsWasExplicitlySet = false
@@ -359,6 +364,24 @@ final class AppModel {
         guard appendSubscriptionNameToNodes != enabled else { return }
         appendSubscriptionNameToNodes = enabled
         persist()
+    }
+
+    func setAutoRefreshOnOpen(_ enabled: Bool) {
+        guard autoRefreshOnOpen != enabled else { return }
+        autoRefreshOnOpen = enabled
+        persist()
+    }
+
+    /// Called on launch and whenever the app returns to the foreground.
+    ///
+    /// The one-minute floor is not a user-facing interval — it exists so that
+    /// flicking to another app and straight back does not ask the provider for
+    /// the same list twice in a row.
+    func refreshOnOpenIfEnabled() async {
+        guard autoRefreshOnOpen, !isDemoMode, !subscriptions.isEmpty else { return }
+        if let last = lastAutoRefreshAt, Date.now.timeIntervalSince(last) < 60 { return }
+        lastAutoRefreshAt = .now
+        await refreshEnabledSubscriptions()
     }
 
     func setFilterSubscriptionInfoNodes(_ enabled: Bool) {
@@ -1279,6 +1302,7 @@ final class AppModel {
         clientOrder = ClientTargetOrder.normalized(rawValues: snapshot.clientOrder)
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
         filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
+        autoRefreshOnOpen = snapshot.autoRefreshOnOpen ?? false
         configurationName = TowerBrand.migratedDefaultName(snapshot.configurationName)
         let ruleSetPreferenceWasExplicit = snapshot.preferRuleSetsWasExplicitlySet ?? false
         preferRuleSetsWasExplicitlySet = ruleSetPreferenceWasExplicit
@@ -1314,6 +1338,7 @@ final class AppModel {
             clientOrder: clientOrder.map(\.rawValue),
             appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
             filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
+            autoRefreshOnOpen: autoRefreshOnOpen,
             configurationName: configurationName,
             preferRuleSets: preferRuleSets,
             preferRuleSetsWasExplicitlySet: preferRuleSetsWasExplicitlySet,

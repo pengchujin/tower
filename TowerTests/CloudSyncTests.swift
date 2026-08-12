@@ -99,8 +99,13 @@ final class CloudSyncTriggerTests: XCTestCase {
 
     /// Both the launch pull and the foreground pull have to exist, or an upload
     /// that already happened never reaches the other device and "sync" means
-    /// opening Settings and pressing a button.
-    func testLaunchAndForegroundBothTriggerAPull() throws {
+    /// opening Settings and pressing a button. Automatic refresh rides the same
+    /// two triggers, so it is pinned here too.
+    ///
+    /// Checks that the calls are present, not how the block is laid out — an
+    /// earlier version asserted the exact source line and broke the moment a
+    /// second call joined it, which says nothing about whether sync works.
+    func testLaunchAndForegroundBothTriggerTheOpenWork() throws {
         let source = try String(
             contentsOf: URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent()
@@ -109,9 +114,16 @@ final class CloudSyncTriggerTests: XCTestCase {
             encoding: .utf8
         )
 
-        XCTAssertTrue(source.contains(".task { await model.synchronizeWithCloud() }"), source)
+        XCTAssertTrue(source.contains(".task {"), source)
         XCTAssertTrue(source.contains("onChange(of: scenePhase)"), source)
         XCTAssertTrue(source.contains("phase == .active"), source)
+        // Two call sites each: the launch task and the foreground change.
+        XCTAssertEqual(occurrences(of: "synchronizeWithCloud()", in: source), 2, source)
+        XCTAssertEqual(occurrences(of: "refreshOnOpenIfEnabled()", in: source), 2, source)
+    }
+
+    private func occurrences(of needle: String, in haystack: String) -> Int {
+        haystack.components(separatedBy: needle).count - 1
     }
 
     /// An edit made locally after the remote copy was written must survive a

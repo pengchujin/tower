@@ -14,10 +14,16 @@ struct TowerApp: App {
                 // foreground. Uploads were already automatic; without this the
                 // other device only ever saw changes if someone opened
                 // Settings and tapped a button, which is not sync.
-                .task { await model.synchronizeWithCloud() }
+                .task {
+                    await model.synchronizeWithCloud()
+                    await model.refreshOnOpenIfEnabled()
+                }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
-                    Task { await model.synchronizeWithCloud() }
+                    Task {
+                        await model.synchronizeWithCloud()
+                        await model.refreshOnOpenIfEnabled()
+                    }
                 }
         }
     }

@@ -16,6 +16,7 @@ struct SettingsView: View {
                     isConfirmingTokenRotation: $isConfirmingTokenRotation
                 )
                 LANSharingGuide()
+                AutoRefreshCard()
                 CloudSyncCard()
                 SecurityAndSourceLink()
             }
@@ -47,6 +48,50 @@ struct SettingsView: View {
 /// wants to check them. Settings carries one quiet row instead of a fifth
 /// full-width card: this is reference material, not a setting anyone acts on
 /// every visit, and the page behind it holds the same four rows.
+/// Off by default, like everything else here that reaches the network.
+///
+/// The card says when it fetches rather than promising it stays current: iOS
+/// does not run the app in the background, so nothing happens until you open
+/// Tower. Calling it "auto update" without that sentence would set up an
+/// expectation the platform cannot keep.
+private struct AutoRefreshCard: View {
+    @Environment(AppModel.self) private var model
+
+    private var binding: Binding<Bool> {
+        Binding(get: { model.autoRefreshOnOpen }, set: model.setAutoRefreshOnOpen)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "自动更新", detail: "默认关闭")
+            VStack(alignment: .leading, spacing: 13) {
+                Toggle(isOn: binding) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("打开塔台时更新订阅")
+                            .font(.subheadline.weight(.semibold))
+                        Text(model.autoRefreshOnOpen
+                            ? String(localized: "每次打开或切回塔台时刷新一次")
+                            : String(localized: "只在你下拉刷新时更新"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Divider()
+                Label(
+                    "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(17)
+            .towerCard()
+        }
+    }
+}
+
 /// Off by default, and deliberately not phrased as a convenience.
 ///
 /// Everything else in Tower keeps the subscription on the device. Turning this

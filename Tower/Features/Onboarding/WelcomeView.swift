@@ -169,7 +169,7 @@ struct WelcomeView: View {
             id: "network",
             symbol: "antenna.radiowaves.left.and.right",
             title: "只在您按下时联网",
-            detail: "只有取订阅和您主动刷新规则时才发请求。"
+            detail: "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。"
         )
     ]
 }

@@ -15051,6 +15051,100 @@
         }
       }
     },
+    "只在你下拉刷新时更新": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُحدَّث فقط عند سحبك للتحديث"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur beim Herunterziehen aktualisieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updates only when you pull to refresh"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo se actualiza cuando deslizas para refrescar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne s'actualise que lorsque vous tirez pour rafraîchir"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya diperbarui saat Anda tarik untuk menyegarkan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下に引いて更新したときだけ更新します"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "당겨서 새로 고칠 때만 업데이트합니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Só atualiza quando você puxa para atualizar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновляется только при обновлении жестом"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตเฉพาะเมื่อคุณดึงลงเพื่อรีเฟรช"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca aşağı çekip yenilediğinizde güncellenir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ cập nhật khi bạn kéo xuống để làm mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只在你下拉刷新时更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只在你下拉重新整理時更新"
+          }
+        }
+      }
+    },
     "只在您按下时联网": {
       "localizations": {
         "ar": {
@@ -15423,100 +15517,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "只有你主動開啟後才會監聽區域網"
-          }
-        }
-      }
-    },
-    "只有取订阅和您主动刷新规则时才发请求。": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "لا يُرسَل طلب إلا عند جلب الاشتراك أو عند تحديثك للقواعد بنفسك."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anfragen entstehen nur beim Abo-Abruf und wenn Sie Regeln selbst aktualisieren."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Requests happen only when fetching the subscription and when you refresh rules yourself."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solo hay peticiones al obtener la suscripción y cuando usted actualiza las reglas."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Des requêtes n’ont lieu qu’au téléchargement de l’abonnement et quand vous actualisez les règles."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permintaan hanya terjadi saat mengambil langganan dan saat Anda menyegarkan aturan sendiri."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通信が起きるのは購読の取得時と、あなたが自分でルールを更新したときだけです。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "요청은 구독을 가져올 때와 직접 규칙을 새로 고칠 때만 발생합니다."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Só há requisições ao buscar a assinatura e quando você mesmo atualiza as regras."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запросы идут только при получении подписки и когда вы сами обновляете правила."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "มีการร้องขอเฉพาะตอนดึงการสมัครสมาชิกและตอนที่คุณรีเฟรชกฎเอง"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "İstekler yalnızca abonelik alınırken ve kuralları kendiniz yenilediğinizde yapılır."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chỉ có yêu cầu mạng khi lấy gói đăng ký và khi chính bạn làm mới quy tắc."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "只有取订阅和您主动刷新规则时才发请求。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "只有取訂閱和您主動重新整理規則時才發出請求。"
           }
         }
       }
@@ -17587,6 +17587,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "塔台"
+          }
+        }
+      }
+    },
+    "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يعمل Tower في الخلفية، لذا يحدث التحديث فقط عند فتحه. الإخفاق لا يقاطعك — يظهر السبب في صف الاشتراك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower läuft nicht im Hintergrund, also wird nur beim Öffnen aktualisiert. Ein Fehlschlag unterbricht dich nicht — der Grund steht in der Abo-Zeile."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower does not run in the background, so it updates only when you open it. A failure does not interrupt you — the reason appears on the subscription's row."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower no se ejecuta en segundo plano, así que solo actualiza cuando lo abres. Un fallo no te interrumpe: el motivo aparece en la fila de la suscripción."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower ne tourne pas en arrière-plan : il n'actualise qu'à l'ouverture. Un échec ne vous interrompt pas — la raison s'affiche sur la ligne de l'abonnement."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower tidak berjalan di latar belakang, jadi hanya memperbarui saat Anda membukanya. Kegagalan tidak mengganggu Anda — alasannya muncul di baris langganan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台はバックグラウンドで動かないため、開いたときだけ更新します。失敗しても通知はせず、理由は購読の行に表示されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower는 백그라운드에서 실행되지 않으므로 열었을 때만 업데이트합니다. 실패해도 방해하지 않으며, 이유는 구독 행에 표시됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Tower não roda em segundo plano, então só atualiza quando você o abre. Uma falha não interrompe você — o motivo aparece na linha da assinatura."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower не работает в фоне, поэтому обновляется только при открытии. Сбой вас не отвлекает — причина появится в строке подписки."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower ไม่ทำงานเบื้องหลัง จึงอัปเดตเฉพาะตอนที่คุณเปิดเท่านั้น หากล้มเหลวจะไม่รบกวนคุณ เหตุผลจะแสดงในแถวของการสมัครสมาชิก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower arka planda çalışmaz, bu yüzden yalnızca siz açtığınızda güncellenir. Hata sizi bölmez — nedeni aboneliğin satırında görünür."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower không chạy nền nên chỉ cập nhật khi bạn mở nó. Thất bại sẽ không làm phiền bạn — lý do hiện ở dòng của gói đăng ký."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台不在背景執行，所以只有你開啟它時才會更新。更新失敗不會打擾你，訂閱那一行會顯示原因。"
           }
         }
       }
@@ -25019,6 +25113,100 @@
         }
       }
     },
+    "打开塔台时更新订阅": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحديث الاشتراكات عند فتح Tower"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abos beim Öffnen von Tower aktualisieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh subscriptions when Tower opens"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizar suscripciones al abrir Tower"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiser les abonnements à l'ouverture de Tower"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perbarui langganan saat Tower dibuka"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台を開いたときに購読を更新"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower를 열 때 구독 새로 고침"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizar assinaturas ao abrir o Tower"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновлять подписки при открытии Tower"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตการสมัครสมาชิกเมื่อเปิด Tower"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower açıldığında abonelikleri yenile"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật gói đăng ký khi mở Tower"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开塔台时更新订阅"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟塔台時更新訂閱"
+          }
+        }
+      }
+    },
     "打开节点筛选": {
       "localizations": {
         "ar": {
@@ -31793,6 +31981,100 @@
         }
       }
     },
+    "每次打开或切回塔台时刷新一次": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُحدَّث مرة واحدة في كل مرة تفتح فيها Tower أو تعود إليه"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisiert einmal bei jedem Öffnen oder Zurückwechseln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshes once each time you open or return to Tower"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se actualiza una vez cada vez que abres o vuelves a Tower"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualise une fois à chaque ouverture ou retour dans Tower"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menyegarkan sekali setiap kali Anda membuka atau kembali ke Tower"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台を開くか切り替えて戻るたびに一度更新します"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower를 열거나 다시 돌아올 때마다 한 번 새로 고칩니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualiza uma vez cada vez que você abre ou volta ao Tower"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновляется один раз при каждом открытии или возврате в Tower"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รีเฟรชหนึ่งครั้งทุกครั้งที่คุณเปิดหรือกลับมาที่ Tower"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower'ı her açtığınızda veya geri döndüğünüzde bir kez yeniler"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Làm mới một lần mỗi khi bạn mở hoặc quay lại Tower"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每次打开或切回塔台时刷新一次"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每次開啟或切回塔台時重新整理一次"
+          }
+        }
+      }
+    },
     "每行填写 TYPE,VALUE，例如 DOMAIN-SUFFIX,tailscale.com。粘贴带旧策略的规则也可以，塔台会改用上方选择的流向，并保留 no-resolve。": {
       "localizations": {
         "ar": {
@@ -36395,6 +36677,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "自動"
+          }
+        }
+      }
+    },
+    "自动更新": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحديث التلقائي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Aktualisierung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic refresh"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualización automática"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualisation automatique"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pembaruan otomatis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動更新"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 업데이트"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualização automática"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автообновление"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตอัตโนมัติ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otomatik güncelleme"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tự động cập nhật"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動更新"
           }
         }
       }
@@ -45515,6 +45891,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "預設關閉"
+          }
+        }
+      }
+    },
+    "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتراضيًا لا يُرسل طلب إلا عند جلب الاشتراك أو تحديثك اليدوي؛ التحديث التلقائي تفعّله بنفسك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardmäßig nur beim Abo-Abruf und wenn Sie selbst aktualisieren; automatisches Aktualisieren schalten Sie selbst ein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By default only when fetching a subscription or when you refresh; automatic refresh is yours to switch on."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por defecto solo al obtener una suscripción o cuando actualizas; la actualización automática la activas tú."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par défaut uniquement lors de la récupération d'un abonnement ou quand vous actualisez ; l'actualisation automatique, c'est vous qui l'activez."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secara bawaan hanya saat mengambil langganan atau saat Anda menyegarkan; pembaruan otomatis Anda sendiri yang menyalakan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既定では購読の取得とご自身の更新操作のときだけです。自動更新はご自分でオンにします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본적으로 구독을 가져올 때와 직접 새로 고칠 때만 요청합니다. 자동 업데이트는 직접 켜세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por padrão só ao buscar uma assinatura ou quando você atualiza; a atualização automática é você quem liga."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию только при получении подписки и когда вы обновляете сами; автообновление включаете вы."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โดยค่าเริ่มต้นจะส่งคำขอเฉพาะตอนดึงการสมัครสมาชิกหรือตอนคุณรีเฟรชเอง การอัปเดตอัตโนมัติคุณเปิดเอง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varsayılan olarak yalnızca abonelik alınırken ve siz yenilerken; otomatik güncellemeyi kendiniz açarsınız."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mặc định chỉ khi lấy gói đăng ký hoặc khi bạn tự làm mới; tự động cập nhật do bạn bật."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认只有取订阅和您主动刷新时才发请求，自动更新要自己开。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設只有取訂閱和您主動重新整理時才發出請求，自動更新要自己開。"
           }
         }
       }

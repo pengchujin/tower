@@ -1012,6 +1012,9 @@ struct AppSnapshot: Codable {
     /// Optional settings keep every previously written snapshot decodable.
     var appendSubscriptionNameToNodes: Bool?
     var filterSubscriptionInfoNodes: Bool?
+    /// Optional so snapshots written before automatic refresh existed decode
+    /// unchanged, and so a missing value means off rather than on.
+    var autoRefreshOnOpen: Bool?
     var configurationName: String?
     /// Prefer native remote rule-set references when the selected client and
     /// downloaded resource use compatible syntax. Missing means disabled.
@@ -1044,6 +1047,7 @@ struct AppSnapshot: Codable {
         clientOrder: [String]? = nil,
         appendSubscriptionNameToNodes: Bool? = nil,
         filterSubscriptionInfoNodes: Bool? = nil,
+        autoRefreshOnOpen: Bool? = nil,
         configurationName: String? = nil,
         preferRuleSets: Bool? = nil,
         preferRuleSetsWasExplicitlySet: Bool? = nil,
@@ -1064,6 +1068,7 @@ struct AppSnapshot: Codable {
         self.clientOrder = clientOrder
         self.appendSubscriptionNameToNodes = appendSubscriptionNameToNodes
         self.filterSubscriptionInfoNodes = filterSubscriptionInfoNodes
+        self.autoRefreshOnOpen = autoRefreshOnOpen
         self.configurationName = configurationName
         self.preferRuleSets = preferRuleSets
         self.preferRuleSetsWasExplicitlySet = preferRuleSetsWasExplicitlySet
