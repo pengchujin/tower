@@ -105,11 +105,11 @@ final class LocalizationTests: XCTestCase {
         let expected = [
             "关掉的协议不会写进 %@ 的配置，并计入“已跳过”。其他客户端不受影响。":
                 "Disabled protocols are excluded from the %@ profile and counted as skipped. Other apps are unaffected.",
-            "目标客户端不支持、或你在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。":
+            "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。":
                 "Unsupported or disabled nodes are omitted from this profile but remain in Tower.",
             "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。":
                 "Tower opens %@ using its URL scheme. The profile stays on this iPhone at 127.0.0.1 for 45 seconds and is never uploaded. Return to Tower to import updates.",
-            "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。":
+            "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。":
                 "Quantumult X does not offer a URL scheme for full profiles. The button opens the iOS share sheet. Tower never uploads your subscription or replaces local rules with incomplete remote ones.",
             "本机一键导入": "Local Import",
             "使用本地文件导入": "File Import",

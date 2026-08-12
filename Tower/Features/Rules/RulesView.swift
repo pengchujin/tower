@@ -487,7 +487,7 @@ private struct SelfConfigurationDownloadCard: View {
             Link("查看项目来源", destination: SelfConfigurationSource.projectURL)
                 .font(.caption)
 
-            Text("规则由你直接从上游下载，不随 App 分发。下载后保存在本机。")
+            Text("规则由您直接从上游下载，不随 App 分发。下载后保存在本机。")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -381,7 +381,7 @@ private struct ConversionSummary: View {
             }
             if configuration.skippedNodeCount > 0 {
                 Label(
-                    "目标客户端不支持、或你在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。",
+                    "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。",
                     systemImage: "info.circle.fill"
                 )
                 .font(.caption)
@@ -509,7 +509,7 @@ private struct ImportPrivacyNote: View {
         if target.supportsDirectConfigurationImport {
             return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
         }
-        return String(localized: "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。")
+        return String(localized: "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。")
     }
 }
 

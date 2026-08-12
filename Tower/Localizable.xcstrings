@@ -3953,7 +3953,7 @@
         }
       }
     },
-    "Hysteria 按带宽控制发送速率，上下行必须填写，按你的实际线路填。填错会明显变慢。": {
+    "Hysteria 按带宽控制发送速率，上下行必须填写，按您的实际线路填。填错会明显变慢。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -4036,13 +4036,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hysteria 按带宽控制发送速率，上下行必须填写，按你的实际线路填。填错会明显变慢。"
+            "value": "Hysteria 按带宽控制发送速率，上下行必须填写，按您的实际线路填。填错会明显变慢。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hysteria 按頻寬控制傳送速率，上下行必須填寫，按你的實際線路填。填錯會明顯變慢。"
+            "value": "Hysteria 按頻寬控制傳送速率，上下行必須填寫，按您的實際線路填。填錯會明顯變慢。"
           }
         }
       }
@@ -4423,7 +4423,7 @@
         }
       }
     },
-    "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。": {
+    "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -4506,13 +4506,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传你的订阅，也不会用不完整的远程资源替代本地规则。"
+            "value": "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quantumult X 目前沒有公開完整配置導入的 URL Scheme。點擊下方按鈕會立即開啟系統檔案分享，不上傳你的訂閱，也不會用不完整的遠端資源取代本機規則。"
+            "value": "Quantumult X 目前沒有公開完整配置導入的 URL Scheme。點擊下方按鈕會立即開啟系統檔案分享，不上傳您的訂閱，也不會用不完整的遠端資源取代本機規則。"
           }
         }
       }
@@ -9782,100 +9782,6 @@
         }
       }
     },
-    "你的订阅地址和节点密码会上传到你自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "سيتم رفع روابط اشتراكك وكلمات مرور العقد إلى حساب iCloud الخاص بك للمزامنة بين أجهزة حساب Apple نفسه. لا تُرسل إلى Tower ولا إلى أي طرف ثالث. إيقاف المزامنة لا يحذف النسخة الموجودة في iCloud."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Abo-Links und Knoten-Passwörter werden in dein eigenes iCloud-Konto geladen, um sie zwischen Geräten desselben Apple-Accounts abzugleichen. Sie gehen weder an Tower noch an Dritte. Das Abschalten löscht die vorhandene Kopie in iCloud nicht."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your subscription URLs and node passwords will be uploaded to your own iCloud account, to sync between devices on the same Apple Account. They are not sent to Tower or any third party. Turning sync off does not delete the copy already in iCloud."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tus enlaces de suscripción y contraseñas de nodos se subirán a tu propia cuenta de iCloud para sincronizar entre dispositivos de la misma cuenta de Apple. No se envían a Tower ni a terceros. Desactivar la sincronización no borra la copia que ya está en iCloud."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vos liens d'abonnement et mots de passe de nœuds seront envoyés vers votre propre compte iCloud, pour la synchronisation entre appareils du même compte Apple. Ils ne sont transmis ni à Tower ni à un tiers. Désactiver la synchronisation ne supprime pas la copie déjà présente dans iCloud."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tautan langganan dan kata sandi node Anda akan diunggah ke akun iCloud Anda sendiri untuk disinkronkan antar perangkat pada Akun Apple yang sama. Semuanya tidak dikirim ke Tower maupun pihak ketiga. Mematikan sinkronisasi tidak menghapus salinan yang sudah ada di iCloud."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "購読リンクとノードのパスワードは、同じ Apple アカウントの端末間で同期するために、あなた自身の iCloud アカウントへアップロードされます。塔台や第三者へは送られません。同期をオフにしても iCloud 上の既存のコピーは削除されません。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "구독 주소와 노드 비밀번호가 같은 Apple 계정 기기 간 동기화를 위해 사용자 본인의 iCloud 계정에 업로드됩니다. Tower나 제3자에게는 전송되지 않습니다. 동기화를 꺼도 iCloud에 있는 사본은 삭제되지 않습니다."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Seus links de assinatura e senhas de nós serão enviados para a sua própria conta do iCloud, para sincronizar entre dispositivos da mesma Conta Apple. Não são enviados ao Tower nem a terceiros. Desativar a sincronização não apaga a cópia que já está no iCloud."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ссылки подписок и пароли узлов будут загружены в ваш собственный аккаунт iCloud для синхронизации между устройствами одного аккаунта Apple. Они не отправляются ни Tower, ни третьим лицам. Отключение синхронизации не удаляет уже имеющуюся копию в iCloud."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ลิงก์การสมัครและรหัสผ่านโหนดของคุณจะถูกอัปโหลดไปยังบัญชี iCloud ของคุณเอง เพื่อซิงก์ระหว่างอุปกรณ์ในบัญชี Apple เดียวกัน ข้อมูลจะไม่ถูกส่งให้ Tower หรือบุคคลที่สาม การปิดการซิงก์จะไม่ลบสำเนาที่มีอยู่ใน iCloud"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abonelik bağlantılarınız ve düğüm parolalarınız, aynı Apple Hesabındaki cihazlar arasında eşitlemek için kendi iCloud hesabınıza yüklenecek. Tower'a veya üçüncü taraflara gönderilmez. Eşitlemeyi kapatmak iCloud'daki mevcut kopyayı silmez."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liên kết đăng ký và mật khẩu các nút sẽ được tải lên tài khoản iCloud của chính bạn để đồng bộ giữa các thiết bị dùng chung Tài khoản Apple. Chúng không được gửi cho Tower hay bên thứ ba nào. Tắt đồng bộ không xoá bản sao đã có trên iCloud."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你的订阅地址和节点密码会上传到你自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你的訂閱網址和節點密碼會上傳到你自己的 iCloud 帳戶，用於在同一 Apple 帳戶的裝置之間同步。它們不會傳給塔台或任何第三方。關閉同步不會刪除 iCloud 上已有的副本。"
-          }
-        }
-      }
-    },
     "使用 Self-Configuration": {
       "extractionState": "stale",
       "localizations": {
@@ -12228,7 +12134,7 @@
         }
       }
     },
-    "准备你的节点": {
+    "准备您的节点": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -12311,13 +12217,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "准备你的节点"
+            "value": "准备您的节点"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "準備你的節點"
+            "value": "準備您的節點"
           }
         }
       }
@@ -15051,7 +14957,7 @@
         }
       }
     },
-    "只在你下拉刷新时更新": {
+    "只在您下拉刷新时更新": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -15134,13 +15040,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "只在你下拉刷新时更新"
+            "value": "只在您下拉刷新时更新"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "只在你下拉重新整理時更新"
+            "value": "只在您下拉重新整理時更新"
           }
         }
       }
@@ -15427,7 +15333,7 @@
         }
       }
     },
-    "只有你主动开启后才会监听局域网": {
+    "只有您主动开启后才会监听局域网": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -15510,13 +15416,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "只有你主动开启后才会监听局域网"
+            "value": "只有您主动开启后才会监听局域网"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "只有你主動開啟後才會監聽區域網"
+            "value": "只有您主動開啟後才會監聽區域網"
           }
         }
       }
@@ -17591,7 +17497,7 @@
         }
       }
     },
-    "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。": {
+    "塔台不在后台运行，所以只有您打开它时才会更新。更新失败不会打扰您，订阅那一行会显示原因。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -17674,13 +17580,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "塔台不在后台运行，所以只有你打开它时才会更新。更新失败不会打扰你，订阅那一行会显示原因。"
+            "value": "塔台不在后台运行，所以只有您打开它时才会更新。更新失败不会打扰您，订阅那一行会显示原因。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "塔台不在背景執行，所以只有你開啟它時才會更新。更新失敗不會打擾你，訂閱那一行會顯示原因。"
+            "value": "塔台不在背景執行，所以只有您開啟它時才會更新。更新失敗不會打擾您，訂閱那一行會顯示原因。"
           }
         }
       }
@@ -23608,7 +23514,7 @@
         }
       }
     },
-    "开启后，订阅地址和节点密码会存进你的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。": {
+    "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -23691,13 +23597,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "开启后，订阅地址和节点密码会存进你的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。"
+            "value": "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "開啟後，訂閱網址和節點密碼會存進你的 iCloud 帳戶。兩台裝置都改過時，以最後儲存的那份為準。"
+            "value": "開啟後，訂閱網址和節點密碼會存進您的 iCloud 帳戶。兩台裝置都改過時，以最後儲存的那份為準。"
           }
         }
       }
@@ -24639,6 +24545,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "您的節點不會被洩露"
+          }
+        }
+      }
+    },
+    "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيتم رفع روابط اشتراكك وكلمات مرور العقد إلى حساب iCloud الخاص بك للمزامنة بين أجهزة حساب Apple نفسه. لا تُرسل إلى Tower ولا إلى أي طرف ثالث. إيقاف المزامنة لا يحذف النسخة الموجودة في iCloud."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Abo-Links und Knoten-Passwörter werden in dein eigenes iCloud-Konto geladen, um sie zwischen Geräten desselben Apple-Accounts abzugleichen. Sie gehen weder an Tower noch an Dritte. Das Abschalten löscht die vorhandene Kopie in iCloud nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your subscription URLs and node passwords will be uploaded to your own iCloud account, to sync between devices on the same Apple Account. They are not sent to Tower or any third party. Turning sync off does not delete the copy already in iCloud."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus enlaces de suscripción y contraseñas de nodos se subirán a tu propia cuenta de iCloud para sincronizar entre dispositivos de la misma cuenta de Apple. No se envían a Tower ni a terceros. Desactivar la sincronización no borra la copia que ya está en iCloud."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos liens d'abonnement et mots de passe de nœuds seront envoyés vers votre propre compte iCloud, pour la synchronisation entre appareils du même compte Apple. Ils ne sont transmis ni à Tower ni à un tiers. Désactiver la synchronisation ne supprime pas la copie déjà présente dans iCloud."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tautan langganan dan kata sandi node Anda akan diunggah ke akun iCloud Anda sendiri untuk disinkronkan antar perangkat pada Akun Apple yang sama. Semuanya tidak dikirim ke Tower maupun pihak ketiga. Mematikan sinkronisasi tidak menghapus salinan yang sudah ada di iCloud."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "購読リンクとノードのパスワードは、同じ Apple アカウントの端末間で同期するために、あなた自身の iCloud アカウントへアップロードされます。塔台や第三者へは送られません。同期をオフにしても iCloud 上の既存のコピーは削除されません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 주소와 노드 비밀번호가 같은 Apple 계정 기기 간 동기화를 위해 사용자 본인의 iCloud 계정에 업로드됩니다. Tower나 제3자에게는 전송되지 않습니다. 동기화를 꺼도 iCloud에 있는 사본은 삭제되지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seus links de assinatura e senhas de nós serão enviados para a sua própria conta do iCloud, para sincronizar entre dispositivos da mesma Conta Apple. Não são enviados ao Tower nem a terceiros. Desativar a sincronização não apaga a cópia que já está no iCloud."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ссылки подписок и пароли узлов будут загружены в ваш собственный аккаунт iCloud для синхронизации между устройствами одного аккаунта Apple. Они не отправляются ни Tower, ни третьим лицам. Отключение синхронизации не удаляет уже имеющуюся копию в iCloud."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลิงก์การสมัครและรหัสผ่านโหนดของคุณจะถูกอัปโหลดไปยังบัญชี iCloud ของคุณเอง เพื่อซิงก์ระหว่างอุปกรณ์ในบัญชี Apple เดียวกัน ข้อมูลจะไม่ถูกส่งให้ Tower หรือบุคคลที่สาม การปิดการซิงก์จะไม่ลบสำเนาที่มีอยู่ใน iCloud"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik bağlantılarınız ve düğüm parolalarınız, aynı Apple Hesabındaki cihazlar arasında eşitlemek için kendi iCloud hesabınıza yüklenecek. Tower'a veya üçüncü taraflara gönderilmez. Eşitlemeyi kapatmak iCloud'daki mevcut kopyayı silmez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liên kết đăng ký và mật khẩu các nút sẽ được tải lên tài khoản iCloud của chính bạn để đồng bộ giữa các thiết bị dùng chung Tài khoản Apple. Chúng không được gửi cho Tower hay bên thứ ba nào. Tắt đồng bộ không xoá bản sao đã có trên iCloud."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您的訂閱網址和節點密碼會上傳到您自己的 iCloud 帳戶，用於在同一 Apple 帳戶的裝置之間同步。它們不會傳給塔台或任何第三方。關閉同步不會刪除 iCloud 上已有的副本。"
           }
         }
       }
@@ -32357,100 +32357,6 @@
         }
       }
     },
-    "没有找到 Wi-Fi 局域网地址，请先连接 Wi-Fi": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "لم يتم العثور على عنوان Wi-Fi LAN، يرجى الاتصال بشبكة Wi-Fi أولاً"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die WLAN-LAN-Adresse wurde nicht gefunden. Bitte stellen Sie zunächst eine WLAN-Verbindung her"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wi-Fi LAN address not found, please connect to Wi-Fi first"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se encontró la dirección LAN de Wi-Fi; conéctese primero a Wi-Fi"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adresse LAN Wi-Fi introuvable, veuillez d'abord vous connecter au Wi-Fi"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alamat LAN Wi-Fi tidak ditemukan, harap sambungkan ke Wi-Fi terlebih dahulu"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wi-Fi LAN アドレスが見つかりません。まず Wi-Fi に接続してください"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wi-Fi LAN 주소를 찾을 수 없습니다. 먼저 Wi-Fi에 연결하세요."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Endereço LAN Wi-Fi não encontrado, conecte-se primeiro ao Wi-Fi"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Адрес Wi-Fi LAN не найден, сначала подключитесь к Wi-Fi"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ไม่พบที่อยู่ Wi-Fi LAN โปรดเชื่อมต่อกับ Wi-Fi ก่อน"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wi-Fi LAN adresi bulunamadı, lütfen önce Wi-Fi'ye bağlanın"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không tìm thấy địa chỉ mạng LAN Wi-Fi, trước tiên hãy kết nối với Wi-Fi"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有找到 Wi-Fi 局域网地址，请先连接 Wi-Fi"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "沒有找到 Wi-Fi 區域網路位址，請先連接 Wi-Fi"
-          }
-        }
-      }
-    },
     "没有找到可识别的节点": {
       "localizations": {
         "ar": {
@@ -32541,6 +32447,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "沒有找到可識別的節點"
+          }
+        }
+      }
+    },
+    "没有找到局域网地址，请先接入 Wi-Fi 或有线网络": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يتم العثور على عنوان شبكة محلية، يرجى الاتصال بشبكة Wi-Fi أو شبكة سلكية أولاً"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Adresse im lokalen Netzwerk gefunden, bitte zuerst mit WLAN oder Ethernet verbinden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No local network address found, please connect to Wi-Fi or Ethernet first"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró una dirección de red local, conéctate primero a Wi-Fi o a una red por cable"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune adresse de réseau local trouvée, connectez-vous d'abord au Wi-Fi ou à Ethernet"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alamat jaringan lokal tidak ditemukan, hubungkan ke Wi-Fi atau jaringan kabel terlebih dahulu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカルネットワークのアドレスが見つかりません。先に Wi-Fi または有線ネットワークに接続してください"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로컬 네트워크 주소를 찾을 수 없습니다. 먼저 Wi-Fi 또는 유선 네트워크에 연결하세요"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum endereço de rede local encontrado, conecte-se primeiro ao Wi-Fi ou à rede cabeada"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Адрес локальной сети не найден, сначала подключитесь к Wi-Fi или проводной сети"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่พบที่อยู่เครือข่ายภายใน กรุณาเชื่อมต่อ Wi-Fi หรือเครือข่ายแบบมีสายก่อน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel ağ adresi bulunamadı, önce Wi-Fi veya kablolu ağa bağlanın"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tìm thấy địa chỉ mạng nội bộ, vui lòng kết nối Wi-Fi hoặc mạng dây trước"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有找到局域网地址，请先接入 Wi-Fi 或有线网络"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有找到區域網路位址，請先接入 Wi-Fi 或有線網路"
           }
         }
       }
@@ -34895,7 +34895,7 @@
         }
       }
     },
-    "目标客户端不支持、或你在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。": {
+    "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -34978,13 +34978,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "目标客户端不支持、或你在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。"
+            "value": "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "目標客戶端不支援、或你在協定篩選裡關掉的節點不會寫入配置，原節點仍保留在塔台中。"
+            "value": "目標客戶端不支援、或您在協定篩選裡關掉的節點不會寫入配置，原節點仍保留在塔台中。"
           }
         }
       }
@@ -39501,7 +39501,7 @@
         }
       }
     },
-    "规则由你直接从上游下载，不随 App 分发。下载后保存在本机。": {
+    "规则由您直接从上游下载，不随 App 分发。下载后保存在本机。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -39584,13 +39584,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "规则由你直接从上游下载，不随 App 分发。下载后保存在本机。"
+            "value": "规则由您直接从上游下载，不随 App 分发。下载后保存在本机。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "規則由你直接從上游下載，不隨 App 分發。下載後儲存在本機。"
+            "value": "規則由您直接從上游下載，不隨 App 分發。下載後儲存在本機。"
           }
         }
       }
@@ -45330,7 +45330,7 @@
         }
       }
     },
-    "高级机场仍由塔台使用你设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。": {
+    "高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -45413,13 +45413,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "高级机场仍由塔台使用你设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。"
+            "value": "高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "高級機場仍由塔台使用你設定的 UA 和 DNS 取得；桌面端只讀取塔台產生的結果，不會拿到機場訂閱金鑰。"
+            "value": "高級機場仍由塔台使用您設定的 UA 和 DNS 取得；桌面端只讀取塔台產生的結果，不會拿到機場訂閱金鑰。"
           }
         }
       }

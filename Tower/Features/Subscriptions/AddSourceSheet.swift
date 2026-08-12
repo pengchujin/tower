@@ -366,7 +366,7 @@ struct AddSourceSheet: View {
             } header: {
                 Text("带宽与混淆")
             } footer: {
-                Text("Hysteria 按带宽控制发送速率，上下行必须填写，按你的实际线路填。填错会明显变慢。")
+                Text("Hysteria 按带宽控制发送速率，上下行必须填写，按您的实际线路填。填错会明显变慢。")
             }
         }
 

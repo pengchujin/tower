@@ -371,13 +371,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用于在同一 Wi-Fi 中向你的电脑或路由器共享转换后的订阅配置。"
+            "value": "用于在同一 Wi-Fi 中向您的电脑或路由器共享转换后的订阅配置。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "用於在同一 Wi-Fi 中向你的電腦或路由器分享轉換後的訂閱設定。"
+            "value": "用於在同一 Wi-Fi 中向您的電腦或路由器分享轉換後的訂閱設定。"
           }
         }
       }

@@ -295,7 +295,7 @@ private struct SubscriptionOverviewCard: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 7) {
-                    Text("准备你的节点")
+                    Text("准备您的节点")
                         .font(.title2.weight(.bold))
                     Text("集中管理代理订阅和自建节点，再转换成常用客户端配置。")
                         .font(.subheadline)
