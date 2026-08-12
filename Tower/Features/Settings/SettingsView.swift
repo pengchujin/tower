@@ -39,19 +39,12 @@ struct SettingsView: View {
     }
 }
 
-/// The first-launch promises, kept somewhere permanent.
-///
-/// That page is shown once and then never again, so the claims it makes about
-/// where a subscription goes would otherwise be unreadable the moment someone
-/// wants to check them. Settings carries one quiet row instead of a fifth
-/// full-width card: this is reference material, not a setting anyone acts on
-/// every visit, and the page behind it holds the same four rows.
 /// Off by default, like everything else here that reaches the network.
 ///
-/// The card says when it fetches rather than promising it stays current: iOS
-/// does not run the app in the background, so nothing happens until you open
-/// Tower. Calling it "auto update" without that sentence would set up an
-/// expectation the platform cannot keep.
+/// iOS does not run Tower in the background, so this fetches when the app is
+/// opened or comes back to the foreground, never on a schedule. The row is
+/// named for that moment — "打开塔台时" — rather than promising the
+/// subscription stays current on its own.
 private struct AutoRefreshSection: View {
     @Environment(AppModel.self) private var model
 
@@ -60,51 +53,16 @@ private struct AutoRefreshSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SettingsSectionLabel(title: "自动更新", detail: String(localized: "默认关闭"))
-            VStack(alignment: .leading, spacing: 13) {
-                Toggle(isOn: binding) {
-                    SettingsRowLabel(
-                        symbol: "arrow.clockwise",
-                        color: .green,
-                        title: "打开塔台时更新订阅",
-                        resolvedDetail: model.autoRefreshOnOpen
-                            ? String(localized: "每次打开或切回塔台时刷新一次")
-                            : String(localized: "只在您下拉刷新时更新")
-                    )
-                }
-
-                Divider()
-                Label(
-                    "塔台不在后台运行，所以只有您打开它时才会更新。更新失败不会打扰您，订阅那一行会显示原因。",
-                    systemImage: "info.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
+        Toggle(isOn: binding) {
+            SettingsRowLabel(
+                symbol: "arrow.clockwise",
+                color: .green,
+                title: "打开塔台时更新订阅",
+                resolvedDetail: model.autoRefreshOnOpen
+                    ? String(localized: "每次打开或切回塔台时刷新一次")
+                    : String(localized: "只在您下拉刷新时更新")
+            )
         }
-    }
-}
-
-/// A heading for a section inside a card, quieter than the card's own title so
-/// the card still reads as one thing rather than several.
-private struct SettingsSectionLabel: View {
-    let title: LocalizedStringKey
-    var detail: String?
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(.subheadline.weight(.bold))
-            Spacer()
-            if let detail {
-                Text(LocalizedStringKey(detail))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -188,6 +146,13 @@ private struct CloudSyncCard: View {
     }
 }
 
+/// The first-launch promises, kept somewhere permanent.
+///
+/// That page is shown once and then never again, so the claims it makes about
+/// where a subscription goes would otherwise be unreadable the moment someone
+/// wants to check them. Settings carries one quiet row instead of a fifth
+/// full-width card: this is reference material, not a setting anyone acts on
+/// every visit, and the page behind it holds the same four rows.
 private struct SecurityAndSourceLink: View {
     var body: some View {
         NavigationLink {
@@ -333,9 +298,15 @@ private struct NodeAndExportSettingsCard: View {
 
             Divider()
 
+            // The field stays a full-width child of the card, exactly where it
+            // was before it wore a tile. Nesting it inside an HStack beside the
+            // tile stopped it accepting input; the cause is not yet understood,
+            // so this keeps the layout that is known to work and takes the
+            // shared tile only for the heading.
             VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    Label("配置名称", systemImage: "doc.badge.gearshape")
+                HStack(spacing: 13) {
+                    SettingsIconTile(symbol: "doc.badge.gearshape", color: .teal)
+                    Text("配置名称")
                         .font(.headline)
                     Spacer()
                     if model.configurationName != TowerBrand.localizedName {
@@ -384,6 +355,24 @@ private struct NodeAndExportSettingsCard: View {
 
 }
 
+/// The tinted square every settings row is introduced by.
+///
+/// Its own view because a third row now wants one — the configuration name
+/// field — and hand-copying these five modifiers is precisely how the tiles
+/// drifted to three different sizes the last time.
+struct SettingsIconTile: View {
+    let symbol: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 44, height: 44)
+            .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+}
+
 /// One row of the settings cards: an icon tile, a title, and a line of detail.
 ///
 /// A view rather than a helper method so the sections that live in their own
@@ -415,11 +404,7 @@ struct SettingsRowLabel: View {
 
     var body: some View {
         HStack(spacing: 13) {
-            Image(systemName: symbol)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            SettingsIconTile(symbol: symbol, color: color)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
                 detail
@@ -454,13 +439,6 @@ private struct RenewalReminderSection: View {
         let reminders = model.renewalReminderEntries
 
         VStack(alignment: .leading, spacing: 14) {
-            SettingsSectionLabel(
-                title: "续费提醒",
-                detail: model.renewalRemindersEnabled
-                    ? String(localized: "\(model.scheduledRenewalReminderCount) 个已安排")
-                    : String(localized: "默认关闭")
-            )
-
             Toggle(isOn: reminderBinding) {
                 SettingsRowLabel(
                     symbol: "bell.badge.fill",
