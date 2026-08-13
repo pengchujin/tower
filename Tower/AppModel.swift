@@ -20,6 +20,7 @@ final class AppModel {
     var nodeIPCountryCodes: [UUID: String] = [:]
     var countryResolutionCompletedNodeIDs: Set<UUID> = []
     var toast: ToastMessage?
+    var subscriptionRefreshReport: SubscriptionRefreshReport?
     /// The persistent service credential is deliberately unrelated to every
     /// airport URL. Only this random token appears in LAN sharing links.
     var lanSharingToken = LANSubscriptionAccessTokenStore.loadOrCreate()
@@ -381,7 +382,7 @@ final class AppModel {
         guard autoRefreshOnOpen, !isDemoMode, !subscriptions.isEmpty else { return }
         if let last = lastAutoRefreshAt, Date.now.timeIntervalSince(last) < 60 { return }
         lastAutoRefreshAt = .now
-        await refreshEnabledSubscriptions()
+        await refreshAllSubscriptions()
     }
 
     func setFilterSubscriptionInfoNodes(_ enabled: Bool) {
@@ -716,7 +717,12 @@ final class AppModel {
     }
 
     @discardableResult
-    func updateSubscription(id: UUID) async -> Bool {
+    func updateSubscription(
+        id: UUID,
+        showResult: Bool = true,
+        synchronizeReminders: Bool = true,
+        commitImmediately: Bool = true
+    ) async -> Bool {
         guard let index = subscriptions.firstIndex(where: { $0.id == id }),
               !refreshingSourceIDs.contains(id) else { return true }
         refreshingSourceIDs.insert(id)
@@ -740,7 +746,6 @@ final class AppModel {
                 countryResolutionCompletedNodeIDs.remove(id)
             }
             nodes.append(contentsOf: result.nodes)
-            sortNodesToMatchSubscriptionOrder()
             excludedNodeIDs.formUnion(
                 result.nodes
                     .filter { excludedKeys.contains(Self.nodeRefreshIdentity($0)) }
@@ -753,26 +758,110 @@ final class AppModel {
                let suggestedName = result.suggestedName {
                 subscriptions[index].name = suggestedName
             }
-            persist()
-            await synchronizeRenewalReminders(showFailure: false)
-            showToast(importSummary(String(localized: "已更新"), result: result), symbol: "arrow.triangle.2.circlepath.circle.fill")
+            if commitImmediately {
+                sortNodesToMatchSubscriptionOrder()
+                persist()
+            }
+            if synchronizeReminders, commitImmediately {
+                await synchronizeRenewalReminders(showFailure: false)
+            }
+            if showResult {
+                showToast(importSummary(String(localized: "已更新"), result: result), symbol: "arrow.triangle.2.circlepath.circle.fill")
+            }
             return true
         } catch {
             if Self.isCancellationError(error) { return false }
             subscriptions[index].lastError = error.localizedDescription
-            persist()
-            showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
+            if commitImmediately { persist() }
+            if showResult {
+                showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
+            }
             return false
         }
     }
 
-    /// Pull-to-refresh is intentionally sequential: subscription providers
-    /// often rate-limit bursts, and after the first failure continuing only
-    /// hides the error beneath later success toasts while the spinner lingers.
-    func refreshEnabledSubscriptions() async {
-        for source in subscriptions where source.isEnabled {
-            guard await updateSubscription(id: source.id) else { break }
+    /// Match pressing each subscription's manual update button while keeping
+    /// the request burst small enough for airport panels that rate-limit a
+    /// single client. A failure is recorded on that source but never stops the
+    /// queue, so every saved subscription still gets one attempt.
+    func refreshAllSubscriptions() async {
+        // `.refreshable` owns a gesture-scoped task. Replacing the first
+        // subscription row can make SwiftUI cancel that task as the view tree
+        // changes. An unstructured task keeps the actual queue alive; awaiting
+        // its non-throwing value still lets the pull indicator follow progress
+        // when SwiftUI leaves the gesture task intact.
+        let refreshTask = Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.performRefreshAllSubscriptions()
         }
+        await refreshTask.value
+    }
+
+    private func performRefreshAllSubscriptions() async {
+        let sourceIDs = subscriptions.map(\.id)
+        guard !sourceIDs.isEmpty else { return }
+
+        subscriptionRefreshReport = nil
+        toast = nil
+
+        let refreshResults = await withTaskGroup(of: (UUID, Bool).self) { group in
+            // Each saved URL represents an independent provider request. Start
+            // all of them immediately; the URLSession connection pool still
+            // applies its normal per-host limits when two URLs share a host.
+            for id in sourceIDs {
+                group.addTask { [weak self] in
+                    guard let self else { return (id, false) }
+                    return (
+                        id,
+                        await self.updateSubscription(
+                            id: id,
+                            showResult: false,
+                            synchronizeReminders: false,
+                            commitImmediately: false
+                        )
+                    )
+                }
+            }
+
+            var collected: [(UUID, Bool)] = []
+            for await result in group {
+                collected.append(result)
+            }
+            return collected
+        }
+        var results: [UUID: Bool] = [:]
+        for (id, succeeded) in refreshResults {
+            results[id] = succeeded
+        }
+
+        let succeeded = results.values.filter { $0 }.count
+        sortNodesToMatchSubscriptionOrder()
+        persist()
+        await synchronizeRenewalReminders(showFailure: false)
+        let failures = sourceIDs.compactMap { id -> SubscriptionRefreshFailure? in
+            guard results[id] != true,
+                  let source = subscriptions.first(where: { $0.id == id }) else { return nil }
+            return SubscriptionRefreshFailure(
+                id: id,
+                sourceName: source.name,
+                message: source.lastError ?? String(localized: "更新失败")
+            )
+        }
+        if failures.isEmpty {
+            showToast(
+                String(localized: "\(succeeded) 个订阅已全部更新"),
+                symbol: "arrow.triangle.2.circlepath.circle.fill"
+            )
+        } else {
+            subscriptionRefreshReport = SubscriptionRefreshReport(
+                succeededCount: succeeded,
+                totalCount: sourceIDs.count,
+                failures: failures
+            )
+        }
+    }
+
+    func dismissSubscriptionRefreshReport() {
+        subscriptionRefreshReport = nil
     }
 
     func addLocalNode(name: String, uri: String) throws {
@@ -1512,4 +1601,17 @@ struct ToastMessage: Identifiable, Equatable {
     let id = UUID()
     let text: String
     let symbol: String
+}
+
+struct SubscriptionRefreshFailure: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let sourceName: String
+    let message: String
+}
+
+struct SubscriptionRefreshReport: Identifiable, Equatable, Sendable {
+    let id = UUID()
+    let succeededCount: Int
+    let totalCount: Int
+    let failures: [SubscriptionRefreshFailure]
 }

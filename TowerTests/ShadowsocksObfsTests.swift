@@ -50,10 +50,11 @@ final class ShadowsocksObfsTests: XCTestCase {
         XCTAssertEqual(node.obfsParam, "cover.example.com")
     }
 
-    func testUnsupportedPluginIsStillRejected() {
-        // v2ray-plugin changes the transport in ways these five formats cannot
-        // all express, so importing it would produce a broken node.
-        let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388?plugin=v2ray-plugin%3Bmode%3Dwebsocket#HK"
+    func testUnsupportedPluginModeIsStillRejected() {
+        // Tower models v2ray-plugin's widely supported WebSocket mode. QUIC
+        // cannot be reproduced by the configured targets and must not flatten
+        // into plain Shadowsocks.
+        let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388?plugin=v2ray-plugin%3Bmode%3Dquic#HK"
 
         XCTAssertNil(parser.parseURI(uri))
     }

@@ -1,6 +1,20 @@
 import XCTest
 @testable import Tower
 
+private actor RequestConcurrencyProbe {
+    private var active = 0
+    private(set) var maximumActive = 0
+
+    func entered() {
+        active += 1
+        maximumActive = max(maximumActive, active)
+    }
+
+    func exited() {
+        active -= 1
+    }
+}
+
 private struct HTTPSubscriptionFixtureLoader: SubscriptionHTTPDataLoading {
     var headerFields: [String: String] = ["Content-Type": "text/plain"]
 
@@ -22,6 +36,27 @@ private struct HTTPSubscriptionFixtureLoader: SubscriptionHTTPDataLoading {
 }
 
 final class SubscriptionRequestOptionsTests: XCTestCase {
+    func testOrdinarySubscriptionHTTPRequestsAreNotGloballySerialized() async throws {
+        let gate = SubscriptionRequestGate()
+        let probe = RequestConcurrencyProbe()
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 1...4 {
+                group.addTask {
+                    await gate.acquire(needsExclusiveAccess: false)
+                    await probe.entered()
+                    try await Task.sleep(for: .milliseconds(50))
+                    await probe.exited()
+                    await gate.release(wasExclusiveAccess: false)
+                }
+            }
+            try await group.waitForAll()
+        }
+
+        let maximumActive = await probe.maximumActive
+        XCTAssertEqual(maximumActive, 4)
+    }
+
     func testFetcherAcceptsHTTPSubscriptionURL() async throws {
         let source = SubscriptionSource(
             name: "HTTP Airport",

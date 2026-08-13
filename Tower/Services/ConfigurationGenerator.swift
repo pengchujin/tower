@@ -299,7 +299,41 @@ struct ConfigurationGenerator {
         // counted instead.
         if node.kind == .hysteria2, [.surge, .shadowrocket].contains(target),
            let obfs = hysteria2Obfs(node), obfs.type.lowercased() != "salamander" { return false }
+        if node.plugin == "v2ray-plugin" {
+            // Only the WebSocket mode is modelled. These clients either expose
+            // SIP003 directly or have a documented equivalent; the others must
+            // skip instead of silently exporting plain Shadowsocks.
+            guard node.transport == "ws",
+                  [.clash, .shadowrocket, .quanx, .hiddify].contains(target) else { return false }
+        }
+        if !canExpressTransport(of: node, on: target) { return false }
         return true
+    }
+
+    private func canExpressTransport(of node: ProxyNode, on target: ClientTarget) -> Bool {
+        guard [.vmess, .vless, .trojan].contains(node.kind) else { return true }
+        let transport = node.transport?.lowercased() ?? "tcp"
+        if transport == "tcp" || transport.isEmpty { return true }
+        switch target {
+        case .clash:
+            if transport == "xhttp" { return node.kind == .vless }
+            return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
+        case .surge:
+            return transport == "ws" && [.vmess, .trojan].contains(node.kind)
+        case .shadowrocket:
+            return ["ws", "http", "h2", "grpc", "httpupgrade", "xhttp"].contains(transport)
+                && (transport != "xhttp" || node.kind == .vless)
+        case .loon:
+            if node.kind == .trojan { return transport == "ws" }
+            return ["ws", "http"].contains(transport)
+        case .quanx:
+            return transport == "ws"
+        case .hiddify:
+            return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
+        case .egern:
+            if node.kind == .trojan { return ["ws", "http"].contains(transport) }
+            return ["ws", "http", "h2", "grpc"].contains(transport)
+        }
     }
 
     struct ResolvedSchemeGroup {
@@ -790,7 +824,14 @@ struct ConfigurationGenerator {
         switch node.kind {
         case .shadowsocks:
             values += ["    cipher: \(yaml(node.cipher ?? "aes-256-gcm"))", "    password: \(yaml(node.password ?? ""))", "    udp: true"]
-            if let mode = simpleObfsMode(node) {
+            if node.plugin == "v2ray-plugin" {
+                values.append("    plugin: v2ray-plugin")
+                values.append("    plugin-opts:")
+                values.append("      mode: websocket")
+                if node.tls { values.append("      tls: true") }
+                if let host = node.hostHeader, !host.isEmpty { values.append("      host: \(yaml(host))") }
+                if let path = node.exportablePath { values.append("      path: \(yaml(path))") }
+            } else if let mode = simpleObfsMode(node) {
                 values.append("    plugin: obfs")
                 values.append("    plugin-opts:")
                 values.append("      mode: \(yaml(mode))")
@@ -948,14 +989,42 @@ struct ConfigurationGenerator {
         if let sni = node.sni, !sni.isEmpty { values.append("    servername: \(yaml(sni))") }
         appendClashReality(node, to: &values)
         if let transport = node.transport, !transport.isEmpty, transport != "tcp" {
-            values.append("    network: \(yaml(transport))")
-            if transport == "ws" {
+            values.append("    network: \(yaml(transport == "httpupgrade" ? "ws" : transport))")
+            switch transport {
+            case "ws", "httpupgrade":
                 values.append("    ws-opts:")
                 values.append("      path: \(yaml(node.exportablePath ?? "/"))")
                 if let host = node.hostHeader, !host.isEmpty {
                     values.append("      headers:")
                     values.append("        Host: \(yaml(host))")
                 }
+                if transport == "httpupgrade" { values.append("      v2ray-http-upgrade: true") }
+            case "grpc":
+                values.append("    grpc-opts:")
+                if let service = node.path, !service.isEmpty {
+                    let normalized = service.hasPrefix("/") ? String(service.dropFirst()) : service
+                    values.append("      grpc-service-name: \(yaml(normalized))")
+                }
+            case "http":
+                values.append("    http-opts:")
+                values.append("      path: [\(yaml(node.exportablePath ?? "/"))]")
+                if let host = node.hostHeader, !host.isEmpty {
+                    values.append("      headers:")
+                    values.append("        Host: [\(yaml(host))]")
+                }
+            case "h2":
+                values.append("    h2-opts:")
+                values.append("      path: \(yaml(node.exportablePath ?? "/"))")
+                if let host = node.hostHeader, !host.isEmpty {
+                    values.append("      host: [\(yaml(host))]")
+                }
+            case "xhttp":
+                values.append("    xhttp-opts:")
+                values.append("      path: \(yaml(node.exportablePath ?? "/"))")
+                if let host = node.hostHeader, !host.isEmpty { values.append("      host: \(yaml(host))") }
+                if let mode = node.transportMode, !mode.isEmpty { values.append("      mode: \(yaml(mode))") }
+            default:
+                break
             }
         }
     }
@@ -1093,7 +1162,11 @@ struct ConfigurationGenerator {
         switch node.kind {
         case .shadowsocks:
             components = ["ss", node.server, "\(node.port)", "encrypt-method=\(node.cipher ?? "aes-256-gcm")", "password=\(confValue(node.password ?? ""))", "udp-relay=true"]
-            if let mode = simpleObfsMode(node) {
+            if shadowrocket, node.plugin == "v2ray-plugin" {
+                components.append("obfs=\(node.tls ? "wss" : "ws")")
+                appendValue(node.hostHeader, key: "obfs-host", to: &components)
+                appendValue(node.exportablePath, key: "obfs-uri", to: &components)
+            } else if let mode = simpleObfsMode(node) {
                 components.append("obfs=\(mode)")
                 appendValue(node.obfsParam, key: "obfs-host", to: &components)
             }
@@ -1113,10 +1186,10 @@ struct ConfigurationGenerator {
                ["aes-128-gcm", "chacha20-ietf-poly1305"].contains(cipher.lowercased()) {
                 components.append("encrypt-method=\(cipher)")
             }
-            appendSurgeTransport(node, includeTLSFlag: true, to: &components)
+            appendSurgeTransport(node, includeTLSFlag: true, shadowrocket: shadowrocket, to: &components)
         case .vless:
             components = ["vless", node.server, "\(node.port)", "username=\(node.exportableUUID ?? "")"]
-            appendSurgeTransport(node, includeTLSFlag: true, to: &components)
+            appendSurgeTransport(node, includeTLSFlag: true, shadowrocket: shadowrocket, to: &components)
             // Shadowrocket only — Surge takes no VLESS and rejects REALITY.
             // Its vocabulary is its own: `pbk`/`sid`/`fingerprint` rather than
             // Loon's public-key/short-id/fp, and the flow is an enum (`xtls=2`
@@ -1129,7 +1202,7 @@ struct ConfigurationGenerator {
             }
         case .trojan:
             components = ["trojan", node.server, "\(node.port)", "password=\(confValue(node.password ?? ""))"]
-            appendSurgeTransport(node, includeTLSFlag: false, to: &components)
+            appendSurgeTransport(node, includeTLSFlag: false, shadowrocket: shadowrocket, to: &components)
         case .hysteria2:
             // `password=` is deliberate for both clients, even though
             // Shadowrocket's manual writes Hysteria 2 as `auth=`. The manual
@@ -1277,6 +1350,7 @@ struct ConfigurationGenerator {
     private func appendSurgeTransport(
         _ node: ProxyNode,
         includeTLSFlag: Bool,
+        shadowrocket: Bool,
         to values: inout [String]
     ) {
         appendSurgeTLS(node, includeTLSFlag: includeTLSFlag, to: &values)
@@ -1284,6 +1358,16 @@ struct ConfigurationGenerator {
             values.append("ws=true")
             appendValue(node.exportablePath ?? "/", key: "ws-path", to: &values)
             if let host = node.hostHeader, !host.isEmpty { values.append("ws-headers=Host:\(confValue(host))") }
+        } else if shadowrocket, let transport = node.transport, transport != "tcp" {
+            values.append("transport=\(transport)")
+            if transport == "grpc" {
+                appendValue(node.path?.hasPrefix("/") == true ? String(node.path!.dropFirst()) : node.path,
+                            key: "serviceName", to: &values)
+            } else {
+                appendValue(node.exportablePath, key: "path", to: &values)
+            }
+            appendValue(node.hostHeader, key: "host", to: &values)
+            if transport == "xhttp" { appendValue(node.transportMode, key: "mode", to: &values) }
         }
     }
 
@@ -1597,7 +1681,11 @@ struct ConfigurationGenerator {
         case .shadowsocks:
             prefix = "shadowsocks"
             values += ["method=\(node.cipher ?? "aes-256-gcm")", "password=\(confValue(node.password ?? ""))", "udp-relay=true"]
-            if let mode = simpleObfsMode(node) {
+            if node.plugin == "v2ray-plugin" {
+                values.append("obfs=\(node.tls ? "wss" : "ws")")
+                appendValue(node.hostHeader, key: "obfs-host", to: &values)
+                appendValue(node.exportablePath, key: "obfs-uri", to: &values)
+            } else if let mode = simpleObfsMode(node) {
                 values.append("obfs=\(mode)")
                 appendValue(node.obfsParam, key: "obfs-host", to: &values)
             }
@@ -1616,9 +1704,8 @@ struct ConfigurationGenerator {
             appendQuanXTransport(node, to: &values)
         case .trojan:
             prefix = "trojan"
-            values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
-            appendValue(node.sni, key: "tls-host", to: &values)
-            appendQuanXCertificatePolicy(node, to: &values)
+            values.append("password=\(confValue(node.password ?? ""))")
+            appendQuanXTransport(node, to: &values)
         case .anytls:
             prefix = "anytls"
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]
@@ -2209,7 +2296,14 @@ extension ConfigurationGenerator {
             outbound["type"] = "shadowsocks"
             outbound["method"] = node.cipher ?? "aes-256-gcm"
             outbound["password"] = node.password ?? ""
-            if let mode = simpleObfsMode(node) {
+            if node.plugin == "v2ray-plugin" {
+                outbound["plugin"] = "v2ray-plugin"
+                var options = ["mode=websocket"]
+                if node.tls { options.append("tls") }
+                if let host = node.hostHeader, !host.isEmpty { options.append("host=\(host)") }
+                if let path = node.exportablePath { options.append("path=\(path)") }
+                outbound["plugin_opts"] = options.joined(separator: ";")
+            } else if let mode = simpleObfsMode(node) {
                 outbound["plugin"] = "obfs-local"
                 var options = ["obfs=\(mode)"]
                 if let host = node.obfsParam, !host.isEmpty { options.append("obfs-host=\(host)") }
@@ -2303,6 +2397,10 @@ extension ConfigurationGenerator {
     /// Trojan, Hysteria 2 and AnyTLS are TLS by definition, so they carry the
     /// block whether or not the node bothered to say `tls=1`.
     private func singBoxTLS(_ node: ProxyNode) -> [String: Any]? {
+        // SIP003 plugin TLS belongs to the plugin itself. Emitting a second
+        // outbound TLS block would turn a valid Shadowsocks + v2ray-plugin
+        // node into a different (and invalid) protocol stack.
+        guard node.kind != .shadowsocks else { return nil }
         let alwaysSecure: Set<ProxyKind> = [.trojan, .hysteria, .hysteria2, .tuic, .anytls]
         guard node.tls || alwaysSecure.contains(node.kind) else { return nil }
 
@@ -2343,6 +2441,11 @@ extension ConfigurationGenerator {
             if let path = node.exportablePath { http["path"] = path }
             if let host = node.hostHeader, !host.isEmpty { http["host"] = [host] }
             return http
+        case "httpupgrade":
+            var upgrade: [String: Any] = ["type": "httpupgrade"]
+            if let path = node.exportablePath { upgrade["path"] = path }
+            if let host = node.hostHeader, !host.isEmpty { upgrade["host"] = host }
+            return upgrade
         default:
             return nil
         }
@@ -2748,14 +2851,42 @@ extension ConfigurationGenerator {
     /// Websocket nests under `transport`, keyed `ws` or `wss` by whether the
     /// node negotiates TLS.
     private func egernTransport(_ node: ProxyNode) -> [String]? {
-        guard node.transport == "ws" else { return nil }
-        var lines = ["      transport:", "        \(node.tls ? "wss" : "ws"):"]
-        if let path = node.exportablePath { lines.append("          path: \(yaml(path))") }
-        if let host = node.hostHeader, !host.isEmpty {
-            lines.append("          headers:")
-            lines.append("            Host: \(yaml(host))")
+        guard let transport = node.transport, transport != "tcp" else { return nil }
+        var lines = ["      transport:"]
+        switch transport {
+        case "ws":
+            lines.append("        \(node.tls ? "wss" : "ws"):")
+            if let path = node.exportablePath { lines.append("          path: \(yaml(path))") }
+            if let host = node.hostHeader, !host.isEmpty {
+                lines.append("          headers:")
+                lines.append("            Host: \(yaml(host))")
+            }
+            if node.tls, let sni = node.sni, !sni.isEmpty { lines.append("          sni: \(yaml(sni))") }
+        case "http":
+            lines.append("        http1:")
+            lines.append("          path: \(yaml(node.exportablePath ?? "/"))")
+            if let host = node.hostHeader, !host.isEmpty {
+                lines.append("          headers:")
+                lines.append("            Host: \(yaml(host))")
+            }
+        case "h2":
+            lines.append("        http2:")
+            lines.append("          path: \(yaml(node.exportablePath ?? "/"))")
+            if let host = node.hostHeader, !host.isEmpty {
+                lines.append("          headers:")
+                lines.append("            Host: \(yaml(host))")
+            }
+            if let sni = node.sni, !sni.isEmpty { lines.append("          sni: \(yaml(sni))") }
+        case "grpc":
+            lines.append("        grpc:")
+            if let service = node.path, !service.isEmpty {
+                lines.append("          service_name: \(yaml(service.hasPrefix("/") ? String(service.dropFirst()) : service))")
+            }
+            if let sni = node.sni, !sni.isEmpty { lines.append("          sni: \(yaml(sni))") }
+        default:
+            return nil
         }
-        if node.tls, let sni = node.sni, !sni.isEmpty { lines.append("          sni: \(yaml(sni))") }
+        if node.skipCertificateVerification { lines.append("          skip_tls_verify: true") }
         return lines
     }
 

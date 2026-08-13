@@ -122,6 +122,23 @@ final class RepositoryConsistencyTests: XCTestCase {
         )
     }
 
+    func testSubscriptionRefreshReportUsesOneVisibilityState() throws {
+        let source = try sourceText("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let overlayStart = try XCTUnwrap(source.range(of: "private struct SubscriptionRefreshReportOverlay: View"))
+        let nextViewStart = try XCTUnwrap(source.range(of: "enum SubscriptionScrollTarget: Hashable"))
+        let overlaySource = String(source[overlayStart.lowerBound..<nextViewStart.lowerBound])
+
+        XCTAssertFalse(
+            overlaySource.contains("@State private var isVisible"),
+            "失败报告只能由 AppModel 控制显示；本地状态会与父视图 transition 叠加并造成关闭闪烁"
+        )
+        XCTAssertFalse(overlaySource.contains("if isVisible"))
+        XCTAssertEqual(
+            overlaySource.components(separatedBy: "model.dismissSubscriptionRefreshReport()").count - 1,
+            1
+        )
+    }
+
     func testRulesViewExposesSearchableGroupSelectionAndPersistentCustomFlows() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 

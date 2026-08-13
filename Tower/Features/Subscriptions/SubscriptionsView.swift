@@ -64,7 +64,7 @@ struct SubscriptionsView: View {
                 }
             }
             .refreshable {
-                await model.refreshEnabledSubscriptions()
+                await model.refreshAllSubscriptions()
                 // A refresh replaces the subscription rows, and the new
                 // identities leave the scroll view holding the offset the
                 // spinner had pushed it to — so the list stays pulled down
@@ -83,6 +83,13 @@ struct SubscriptionsView: View {
             }
             .sheet(item: $editingLocalNode) { node in
                 AddSourceSheet(editingNode: node)
+            }
+            .overlay {
+                if let report = model.subscriptionRefreshReport {
+                    SubscriptionRefreshReportOverlay(report: report)
+                        .transition(.opacity)
+                        .zIndex(10)
+                }
             }
             .navigationDestination(item: $nodeFilterRoute) { route in
                 NodeFilterView(initialFocus: route)
@@ -150,6 +157,99 @@ struct SubscriptionsView: View {
             }
             .id(SubscriptionScrollTarget.localNodes)
             .accessibilityIdentifier("local-nodes-section")
+        }
+    }
+}
+
+private struct SubscriptionRefreshReportOverlay: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let report: SubscriptionRefreshReport
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.28)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            VStack(spacing: 18) {
+                HStack(alignment: .top, spacing: 13) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .frame(width: 48, height: 48)
+                            .background(.orange.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("部分订阅更新失败")
+                                .font(.title3.weight(.bold))
+                            Text("\(report.succeededCount) 个成功，\(report.failures.count) 个失败")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(report.failures.enumerated()), id: \.element.id) { index, failure in
+                                HStack(alignment: .top, spacing: 13) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.title3)
+                                        .foregroundStyle(.red)
+                                        .accessibilityHidden(true)
+
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(failure.sourceName)
+                                            .font(.headline)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        Text(failure.message)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                }
+                                .padding(16)
+
+                                if index < report.failures.count - 1 {
+                                    Divider().padding(.leading, 52)
+                                }
+                            }
+                        }
+                        .towerCard()
+                    }
+                .frame(maxHeight: min(CGFloat(report.failures.count) * 112, 330))
+
+                Button(action: dismiss) {
+                    Text("完成")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(.white)
+                        .contentShape(Rectangle())
+                }
+                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .buttonStyle(ResponsivePressButtonStyle())
+            }
+            .padding(20)
+            .frame(maxWidth: 390)
+            .background {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(reduceTransparency ? AnyShapeStyle(Color(uiColor: .systemBackground)) : AnyShapeStyle(.regularMaterial))
+                    .shadow(color: .black.opacity(0.18), radius: 30, y: 12)
+            }
+            .padding(.horizontal, 24)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func dismiss() {
+        withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.18)) {
+            model.dismissSubscriptionRefreshReport()
         }
     }
 }

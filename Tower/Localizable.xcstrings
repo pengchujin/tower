@@ -1,6 +1,82 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "%lld 个成功，%lld 个失败": {
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "نجح %1$lld، وفشل %2$lld" } },
+        "de": { "stringUnit": { "state": "translated", "value": "%1$lld erfolgreich, %2$lld fehlgeschlagen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "%1$lld succeeded, %2$lld failed" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%1$lld correctas, %2$lld fallidas" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "%1$lld réussis, %2$lld échoués" } },
+        "id": { "stringUnit": { "state": "translated", "value": "%1$lld berhasil, %2$lld gagal" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld件成功、%2$lld件失敗" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "%1$lld개 성공, %2$lld개 실패" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "%1$lld com sucesso, %2$lld com falha" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Успешно: %1$lld, с ошибкой: %2$lld" } },
+        "th": { "stringUnit": { "state": "translated", "value": "สำเร็จ %1$lld รายการ ล้มเหลว %2$lld รายการ" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "%1$lld başarılı, %2$lld başarısız" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "%1$lld thành công, %2$lld thất bại" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld 个成功，%2$lld 个失败" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld 個成功，%2$lld 個失敗" } }
+      }
+    },
+    "部分订阅更新失败": {
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحديث بعض الاشتراكات" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Einige Abos konnten nicht aktualisiert werden" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Some Subscriptions Failed to Update" } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudieron actualizar algunas suscripciones" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Certaines sources n’ont pas été actualisées" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Beberapa langganan gagal diperbarui" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "一部のサブスクリプションを更新できませんでした" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "일부 구독을 업데이트하지 못했습니다" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Algumas assinaturas não foram atualizadas" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Некоторые подписки не обновлены" } },
+        "th": { "stringUnit": { "state": "translated", "value": "อัปเดตการสมัครบางรายการไม่สำเร็จ" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bazı abonelikler güncellenemedi" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể cập nhật một số đăng ký" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "部分订阅更新失败" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "部分訂閱更新失敗" } }
+      }
+    },
+    "更新结果": {
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "نتيجة التحديث" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aktualisierungsergebnis" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Update Results" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Resultados de la actualización" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Résultats de l’actualisation" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Hasil pembaruan" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "更新結果" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "업데이트 결과" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Resultados da atualização" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Результаты обновления" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ผลการอัปเดต" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Güncelleme Sonuçları" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Kết quả cập nhật" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新结果" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新結果" } }
+      }
+    },
+    "更新失败": {
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "فشل التحديث" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aktualisierung fehlgeschlagen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Update failed" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Error al actualizar" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Échec de l’actualisation" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Pembaruan gagal" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "更新に失敗しました" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "업데이트 실패" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Falha na atualização" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось обновить" } },
+        "th": { "stringUnit": { "state": "translated", "value": "อัปเดตไม่สำเร็จ" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Güncelleme başarısız" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Cập nhật thất bại" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新失败" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新失敗" } }
+      }
+    },
     "%@ %lld 个节点": {
       "localizations": {
         "ar": {

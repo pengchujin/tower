@@ -75,7 +75,16 @@ struct ProxyNodeShareLinkGenerator {
 
         // Dropping the plugin would hand out a link that looks fine and cannot
         // connect, which is exactly what the importer refuses to accept.
-        if let mode = node.obfs?.lowercased(), ["http", "tls"].contains(mode) {
+        if node.plugin == "v2ray-plugin" {
+            var plugin = "v2ray-plugin;mode=websocket"
+            if node.tls { plugin += ";tls" }
+            if let host = node.hostHeader, !host.isEmpty { plugin += ";host=\(host)" }
+            if let path = node.exportablePath { plugin += ";path=\(path)" }
+            let encoded = plugin.addingPercentEncoding(
+                withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            ) ?? plugin
+            link += "?plugin=\(encoded)"
+        } else if let mode = node.obfs?.lowercased(), ["http", "tls"].contains(mode) {
             var plugin = "obfs-local;obfs=\(mode)"
             if let host = node.obfsParam, !host.isEmpty { plugin += ";obfs-host=\(host)" }
             let encoded = plugin.addingPercentEncoding(
@@ -165,6 +174,9 @@ struct ProxyNodeShareLinkGenerator {
         if let transport = node.transport, !transport.isEmpty {
             queryItems.append(URLQueryItem(name: "type", value: transport))
         }
+        if node.transport == "xhttp", let mode = node.transportMode, !mode.isEmpty {
+            queryItems.append(URLQueryItem(name: "mode", value: mode))
+        }
         if node.usesReality {
             queryItems.append(URLQueryItem(name: "security", value: "reality"))
             queryItems.append(URLQueryItem(name: "pbk", value: node.realityPublicKey))
@@ -187,7 +199,7 @@ struct ProxyNodeShareLinkGenerator {
             queryItems.append(URLQueryItem(name: "host", value: host))
         }
         if let path = node.path, !path.isEmpty {
-            queryItems.append(URLQueryItem(name: "path", value: path))
+            queryItems.append(URLQueryItem(name: node.transport == "grpc" ? "serviceName" : "path", value: path))
         }
         if let alpn = node.alpn, !alpn.isEmpty {
             queryItems.append(URLQueryItem(name: "alpn", value: alpn))

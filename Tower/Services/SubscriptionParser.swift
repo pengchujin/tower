@@ -49,6 +49,10 @@ struct SubscriptionService: SubscriptionFetching {
             throw SubscriptionError.invalidURL
         }
 
+        async let fallbackUsage: SubscriptionUsage? = {
+            guard let probe = Self.quotaProbe(for: url) else { return nil }
+            return try? await quota(at: probe, source: source)
+        }()
         var result = try await load(url, source: source)
 
         // The node list is authoritative for nodes; only the quota may be
@@ -57,12 +61,14 @@ struct SubscriptionService: SubscriptionFetching {
         // but its body is not used, because the panel's Clash converter drops
         // whatever it cannot express. One real airport returns 43 of its 55
         // nodes that way, silently losing every AnyTLS entry.
-        if result.usage?.hasPlanDetail != true, let probe = Self.quotaProbe(for: url) {
-            if let usage = try? await quota(at: probe, source: source) {
+        if result.usage?.hasPlanDetail != true {
+            if let usage = await fallbackUsage {
                 var merged = usage
                 merged.notices = result.usage?.notices ?? []
                 result.usage = merged
             }
+        } else {
+            _ = await fallbackUsage
         }
         return result
     }
@@ -180,27 +186,55 @@ struct SubscriptionRequestBuilder {
     }
 }
 
-/// Serialises subscription requests while a process-wide encrypted resolver is
-/// active. Network.framework applies the default privacy context to URLSession
-/// resolutions too; without the gate, one refresh could reset another one's
-/// resolver during its request.
-private actor SubscriptionRequestGate {
-    private var isLocked = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func acquire() async {
-        if !isLocked {
-            isLocked = true
-            return
-        }
-        await withCheckedContinuation { waiters.append($0) }
+/// Allows ordinary subscription requests to run together while reserving
+/// exclusive access for a request that temporarily changes Network.framework's
+/// process-wide encrypted resolver.
+actor SubscriptionRequestGate {
+    private struct Waiter {
+        let needsExclusiveAccess: Bool
+        let continuation: CheckedContinuation<Void, Never>
     }
 
-    func release() {
-        if waiters.isEmpty {
-            isLocked = false
+    private var activeReaders = 0
+    private var hasActiveWriter = false
+    private var waiters: [Waiter] = []
+
+    func acquire(needsExclusiveAccess: Bool) async {
+        if needsExclusiveAccess {
+            if !hasActiveWriter, activeReaders == 0 {
+                hasActiveWriter = true
+                return
+            }
+        } else if !hasActiveWriter,
+                  !waiters.contains(where: \.needsExclusiveAccess) {
+            activeReaders += 1
+            return
+        }
+        await withCheckedContinuation {
+            waiters.append(Waiter(needsExclusiveAccess: needsExclusiveAccess, continuation: $0))
+        }
+    }
+
+    func release(wasExclusiveAccess: Bool) {
+        if wasExclusiveAccess {
+            hasActiveWriter = false
         } else {
-            waiters.removeFirst().resume()
+            activeReaders -= 1
+        }
+        resumeEligibleWaiters()
+    }
+
+    private func resumeEligibleWaiters() {
+        guard !hasActiveWriter, activeReaders == 0, !waiters.isEmpty else { return }
+        if waiters[0].needsExclusiveAccess {
+            hasActiveWriter = true
+            waiters.removeFirst().continuation.resume()
+            return
+        }
+
+        while !waiters.isEmpty, !waiters[0].needsExclusiveAccess {
+            activeReaders += 1
+            waiters.removeFirst().continuation.resume()
         }
     }
 }
@@ -219,7 +253,8 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
         for request: URLRequest,
         dnsOverHTTPSURL: URL?
     ) async throws -> (Data, URLResponse) {
-        await Self.gate.acquire()
+        let needsExclusiveAccess = dnsOverHTTPSURL != nil
+        await Self.gate.acquire(needsExclusiveAccess: needsExclusiveAccess)
         if let dnsOverHTTPSURL { applyDNSOverHTTPS(dnsOverHTTPSURL) }
 
         do {
@@ -229,11 +264,11 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
             let result = try await session.data(for: request)
             session.finishTasksAndInvalidate()
             if dnsOverHTTPSURL != nil { resetDNS() }
-            await Self.gate.release()
+            await Self.gate.release(wasExclusiveAccess: needsExclusiveAccess)
             return result
         } catch {
             if dnsOverHTTPSURL != nil { resetDNS() }
-            await Self.gate.release()
+            await Self.gate.release(wasExclusiveAccess: needsExclusiveAccess)
             throw error
         }
     }
@@ -442,6 +477,10 @@ struct SubscriptionParser {
         var payload = String(fragmentSplit[0]).replacingOccurrences(of: "ss://", with: "", options: [.anchored, .caseInsensitive])
         var obfsMode: String?
         var obfsHost: String?
+        var sip003Plugin: String?
+        var pluginTransport: String?
+        var pluginPath: String?
+        var pluginTLS = false
         if let queryIndex = payload.firstIndex(of: "?") {
             let query = String(payload[payload.index(after: queryIndex)...])
             // A SIP003 plugin changes how the node is dialled. simple-obfs is
@@ -450,9 +489,18 @@ struct SubscriptionParser {
             // connects, so it is rejected and counted instead.
             if let plugin = queryDictionary(query)["plugin"]?.removingPercentEncoding,
                !plugin.isEmpty {
-                guard let options = simpleObfsOptions(from: plugin) else { return nil }
-                obfsMode = options.mode
-                obfsHost = options.host
+                if let options = simpleObfsOptions(from: plugin) {
+                    obfsMode = options.mode
+                    obfsHost = options.host
+                } else if let options = v2rayPluginOptions(from: plugin) {
+                    sip003Plugin = "v2ray-plugin"
+                    pluginTransport = options.transport
+                    obfsHost = options.host
+                    pluginPath = options.path
+                    pluginTLS = options.tls
+                } else {
+                    return nil
+                }
             }
             payload = String(payload[..<queryIndex])
         }
@@ -483,8 +531,13 @@ struct SubscriptionParser {
             port: address.port,
             cipher: method,
             password: password,
+            transport: pluginTransport,
+            plugin: sip003Plugin,
+            tls: pluginTLS,
+            hostHeader: obfsHost,
+            path: pluginPath,
             obfs: obfsMode,
-            obfsParam: obfsHost,
+            obfsParam: sip003Plugin == nil ? obfsHost : nil,
             rawURI: raw
         )
     }
@@ -513,6 +566,37 @@ struct SubscriptionParser {
             }
         }
         return (mode, host)
+    }
+
+    private func v2rayPluginOptions(
+        from plugin: String
+    ) -> (transport: String, host: String?, path: String?, tls: Bool)? {
+        let parts = plugin.split(separator: ";", omittingEmptySubsequences: false).map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard parts.first?.lowercased() == "v2ray-plugin" else { return nil }
+        var mode = "websocket"
+        var host: String?
+        var path: String?
+        var tls = false
+        for part in parts.dropFirst() {
+            let pair = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            let key = pair[0].lowercased()
+            if pair.count == 1 {
+                if key == "tls" { tls = true }
+                continue
+            }
+            let value = String(pair[1])
+            switch key {
+            case "mode", "obfs": mode = value
+            case "host", "obfs-host": host = value
+            case "path": path = value
+            case "tls": tls = boolString(value)
+            default: break
+            }
+        }
+        guard ["websocket", "ws"].contains(mode.lowercased()) else { return nil }
+        return ("ws", host, path, tls)
     }
 
     private func parseShadowsocksR(_ raw: String, sourceID: UUID?) -> ProxyNode? {
@@ -554,6 +638,9 @@ struct SubscriptionParser {
         }
 
         let tlsValue = stringValue(json["tls"])?.lowercased()
+        let rawTransport = stringValue(json["net"])
+            ?? stringValue(json["network"])
+            ?? stringValue(json["type"])
         return ProxyNode(
             sourceID: sourceID,
             kind: .vmess,
@@ -562,7 +649,7 @@ struct SubscriptionParser {
             port: port,
             cipher: stringValue(json["scy"]) ?? "auto",
             uuid: uuid,
-            transport: stringValue(json["net"]) ?? "tcp",
+            transport: normalizedVMessTransport(rawTransport) ?? "tcp",
             tls: tlsValue == "tls" || tlsValue == "true",
             sni: stringValue(json["sni"]),
             hostHeader: stringValue(json["host"]),
@@ -628,7 +715,12 @@ struct SubscriptionParser {
 
         let parts = body.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
         guard let decoded = decodeBase64String(String(parts[0])) else { return nil }
-        let query = parts.count > 1 ? queryDictionary(String(parts[1])) : [:]
+        let query = parts.count > 1
+            ? Dictionary(
+                queryDictionary(String(parts[1])).map { ($0.key.lowercased(), $0.value) },
+                uniquingKeysWith: { _, new in new }
+            )
+            : [:]
 
         guard let atIndex = decoded.lastIndex(of: "@") else { return nil }
         let auth = String(decoded[..<atIndex])
@@ -648,14 +740,8 @@ struct SubscriptionParser {
         }
         guard !uuid.isEmpty else { return nil }
 
-        let obfs = query["obfs"]?.removingPercentEncoding?.lowercased()
-        let transport: String? = switch obfs {
-        case "websocket", "ws": "ws"
-        case "http": "http"
-        case "grpc": "grpc"
-        case "none", "": nil
-        default: obfs
-        }
+        let obfs = query["obfs"]?.removingPercentEncoding
+        let transport = normalizedVMessTransport(obfs)
         let name = query["remarks"]?.removingPercentEncoding
             ?? raw.split(separator: "#", maxSplits: 1).dropFirst().first
                 .map(String.init)?.removingPercentEncoding
@@ -671,15 +757,44 @@ struct SubscriptionParser {
             transport: transport,
             tls: ["1", "true", "tls"].contains(query["tls"]?.lowercased() ?? ""),
             sni: query["peer"]?.removingPercentEncoding ?? query["sni"]?.removingPercentEncoding,
-            hostHeader: query["obfsParam"]?.removingPercentEncoding
+            hostHeader: query["obfsparam"]?.removingPercentEncoding
                 ?? query["host"]?.removingPercentEncoding,
             path: query["path"]?.removingPercentEncoding,
             skipCertificateVerification: ["1", "true"].contains(
-                query["allowInsecure"]?.lowercased() ?? query["tls-verification"]?.lowercased() ?? ""
+                query["allowinsecure"]?.lowercased() ?? query["tls-verification"]?.lowercased() ?? ""
             ),
-            alterID: Int(query["alterId"] ?? query["alterid"] ?? ""),
+            alterID: Int(query["alterid"] ?? ""),
             rawURI: raw
         )
+    }
+
+    private func normalizedVMessTransport(_ value: String?) -> String? {
+        guard let value = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+              !value.isEmpty else { return nil }
+        return switch value {
+        case "websocket", "ws": "ws"
+        case "http2": "h2"
+        case "http-upgrade", "httpupgrade": "httpupgrade"
+        case "splithttp": "xhttp"
+        case "none": nil
+        default: value
+        }
+    }
+
+    private func normalizedTransport(_ value: String?) -> String? {
+        guard let value = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(), !value.isEmpty else { return nil }
+        return switch value {
+        case "tcp", "none": nil
+        case "websocket", "ws": "ws"
+        case "http2": "h2"
+        case "http-upgrade", "httpupgrade": "httpupgrade"
+        case "splithttp": "xhttp"
+        default: value
+        }
     }
 
     /// `vless://base64(uuid@host:port)?remarks=…&tls=1&pbk=…&xtls=2`.
@@ -713,11 +828,7 @@ struct SubscriptionParser {
         let tlsValue = (query["security"] ?? query["tls"] ?? "").lowercased()
         let rawTransport = (query["type"] ?? query["network"] ?? query["obfs"])?
             .removingPercentEncoding?.lowercased()
-        let transport: String? = switch rawTransport {
-        case "websocket", "ws": "ws"
-        case "none", "tcp", "": nil
-        default: rawTransport
-        }
+        let transport = normalizedTransport(rawTransport)
         let flow = query["flow"]?.removingPercentEncoding
             ?? (query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
         let name = query["remarks"]?.removingPercentEncoding ?? fragmentName
@@ -730,12 +841,13 @@ struct SubscriptionParser {
             port: address.port,
             uuid: uuid,
             transport: transport,
+            transportMode: transport == "xhttp" ? query["mode"]?.removingPercentEncoding : nil,
             tls: !((realityPublicKey ?? "").isEmpty)
                 || ["1", "true", "tls", "reality"].contains(tlsValue),
             sni: (query["peer"] ?? query["sni"] ?? query["servername"])?
                 .removingPercentEncoding,
-            hostHeader: query["host"]?.removingPercentEncoding,
-            path: query["path"]?.removingPercentEncoding,
+            hostHeader: (query["authority"] ?? query["host"])?.removingPercentEncoding,
+            path: (transport == "grpc" ? query["servicename"] ?? query["service_name"] : query["path"])?.removingPercentEncoding,
             alpn: query["alpn"]?.removingPercentEncoding,
             realityPublicKey: realityPublicKey,
             realityShortID: query["sid"]?.removingPercentEncoding,
@@ -765,7 +877,9 @@ struct SubscriptionParser {
         let query = Dictionary((components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") }) { _, new in new }
         let fallback = "\(kind.title) · \(server)"
         let name = normalizedName(components.fragment?.removingPercentEncoding, fallback: fallback)
-        let transport = query["type"] ?? query["network"] ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
+        let transport = normalizedTransport(
+            query["type"] ?? query["network"] ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
+        )
         let security = (query["security"] ?? query["tls"] ?? "").lowercased()
         let credential = components.user?.removingPercentEncoding
 
@@ -788,10 +902,13 @@ struct SubscriptionParser {
             uuid: [.vmess, .vless, .tuic].contains(kind) ? credential : nil,
             username: [.socks5, .http].contains(kind) ? credential : nil,
             transport: transport,
+            transportMode: transport == "xhttp" ? query["mode"] : nil,
             tls: [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(kind) || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
-            hostHeader: query["host"],
-            path: query["path"],
+            hostHeader: query["authority"] ?? query["host"],
+            path: transport == "grpc"
+                ? query["servicename"] ?? query["service_name"] ?? query["path"]
+                : query["path"],
             alpn: query["alpn"],
             // REALITY. `pbk` is the server public key and `sid` the short id;
             // both are required to connect, so a node carrying them is only
@@ -926,6 +1043,10 @@ struct SubscriptionParser {
             // anything else would import as a node that looks healthy and never
             // connects, so it is rejected and counted instead.
             var obfsMode = dictionary["obfs"]
+            var sip003Plugin: String?
+            var pluginTransport: String?
+            var pluginPath: String?
+            var pluginTLS = false
             // `obfs-param` is ShadowsocksR's key. Hysteria 2 spells the same
             // slot `obfs-password`, and reading only the SSR name left every
             // salamander node with a type and no password — which makes Mihomo
@@ -934,13 +1055,21 @@ struct SubscriptionParser {
                 ?? dictionary["obfs-password"]
                 ?? dictionary["obfs_password"]
             if kind == .shadowsocks, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
-                guard plugin == "obfs" || plugin == "obfs-local" || plugin == "simple-obfs" else {
+                let options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
+                if plugin == "obfs" || plugin == "obfs-local" || plugin == "simple-obfs" {
+                    obfsMode = options["mode"] ?? "http"
+                    obfsHost = options["host"]
+                } else if plugin == "v2ray-plugin",
+                          ["websocket", "ws"].contains((options["mode"] ?? "websocket").lowercased()) {
+                    sip003Plugin = "v2ray-plugin"
+                    pluginTransport = "ws"
+                    pluginPath = options["path"]
+                    pluginTLS = boolString(options["tls"])
+                    obfsHost = options["host"]
+                } else {
                     rejected += 1
                     continue
                 }
-                let options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
-                obfsMode = options["mode"] ?? "http"
-                obfsHost = options["host"]
             }
 
             let server = normalizedHost(rawServer)
@@ -965,11 +1094,17 @@ struct SubscriptionParser {
                     ?? dictionary["psk"],
                 uuid: dictionary["uuid"],
                 username: dictionary["username"],
-                transport: dictionary["network"],
-                tls: boolString(dictionary["tls"]),
+                transport: pluginTransport ?? normalizedTransport(dictionary["network"]),
+                transportMode: normalizedTransport(dictionary["network"]) == "xhttp"
+                    ? dictionary["mode"] : nil,
+                plugin: sip003Plugin,
+                tls: pluginTLS || boolString(dictionary["tls"]),
                 sni: dictionary["servername"] ?? dictionary["sni"],
-                hostHeader: dictionary["host"],
-                path: dictionary["path"],
+                hostHeader: dictionary["authority"] ?? dictionary["host"],
+                path: pluginPath
+                    ?? (normalizedTransport(dictionary["network"]) == "grpc"
+                        ? dictionary["grpc-service-name"] ?? dictionary["service-name"] ?? dictionary["path"]
+                        : dictionary["path"]),
                 alpn: dictionary["alpn"],
                 realityPublicKey: hasRealityOptions
                     ? dictionary["public-key"] ?? dictionary["pbk"]
@@ -986,7 +1121,7 @@ struct SubscriptionParser {
                 protocolName: dictionary["protocol"],
                 protocolParam: dictionary["protocol-param"],
                 obfs: obfsMode,
-                obfsParam: obfsHost,
+                obfsParam: sip003Plugin == nil ? obfsHost : nil,
                 version: Int(dictionary["version"] ?? ""),
                 congestionControl: dictionary["congestion-controller"]
                     ?? dictionary["congestion_control"],

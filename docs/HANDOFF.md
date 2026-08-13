@@ -597,12 +597,12 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 ```sh
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-17.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-17.xcarchive -exportOptionsPlist .artifacts/UploadOptions-TestFlight.plist -allowProvisioningUpdates
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -exportOptionsPlist Config/ExportOptions-TestFlight.plist -allowProvisioningUpdates
 ```
 
-`DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`UploadOptions-TestFlight.plist` 是 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
+`DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`Config/ExportOptions-TestFlight.plist` 是仓库内受版本控制的上传配置，使用 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
 ### 代码与已上传版本
 
@@ -732,6 +732,19 @@ xcodebuild -project Tower.xcodeproj \
 - 收集不能识别的真实机场样本时，先脱敏密码、UUID、token 和域名。
 - 每修复一种格式都加入最小自动测试。
 - 对 HTTP 错误页、登录页和空订阅保持明确错误，不把它们解析成节点。
+
+### P2：WireGuard / Tailscale 客户端兼容研究
+
+> 2026-08-13 仅完成公开资料调研，尚未开始实现或真机验收。后续不能仅凭生成器能输出字段就宣称支持，必须在对应客户端完成导入、连接、DNS、UDP、出口 IP 和重启恢复测试。
+
+- WireGuard：继续核对并真机验收 Surge、Shadowrocket、Clash/Mihomo、Stash、Loon、Hiddify、Egern；Quantumult X 暂按不支持处理并明确计入跳过。
+- Tailscale 可作为出站策略或节点的已确认目标：Surge、Clash/Mihomo、Stash。分别实现目标原生语法，不能把 Mihomo YAML 直接复用于 Surge。
+- Shadowrocket：新版提供全局 Tailscale 隧道模块，但尚未确认存在可由塔台直接导入的普通节点/订阅格式。先研究客户端设置与导入行为，不生成未经验证的节点。
+- Hiddify：上游 sing-box 已有 Tailscale Endpoint，但尚未确认 Hiddify 当前正式版是否完整接受、保存和运行该配置。需要实际版本测试后再决定是否开放。
+- Loon、Quantumult X、Egern：暂未发现公开的 Tailscale 节点语法，保持跳过，后续随客户端更新复查。
+- Tailscale 配置里的 `auth-key`、机器身份和自定义控制服务器属于敏感数据：全程仅本地处理；日志、预览、二维码与普通分享默认脱敏，不得进入测试夹具或 Git。
+- 设计 Tailscale 数据模型前先明确访问 Tailnet 服务、接受子网路由、使用 Exit Node 三种用途，避免把“加入 Tailnet”和“公网出口节点”混成一个开关。
+- 为每个开放的目标添加最小生成器测试、缺字段/无效 Auth Key 测试和实际客户端验收记录；测试样本只使用可撤销、短期、受限的测试 Key。
 
 ## 7. 真机回归清单
 

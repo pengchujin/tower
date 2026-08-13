@@ -78,6 +78,63 @@ final class LegacyVMessTests: XCTestCase {
         XCTAssertTrue(node.tls)
     }
 
+    func testBase64JSONNormalizesWebSocketTransportAliases() throws {
+        let variants: [[String: Any]] = [
+            ["net": "websocket"],
+            ["network": "ws"],
+            ["type": "websocket"]
+        ]
+
+        for variant in variants {
+            var object: [String: Any] = [
+                "v": "2",
+                "ps": "WS 节点",
+                "add": "198.51.100.8",
+                "port": "443",
+                "id": "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e",
+                "aid": "0",
+                "host": "edge.example.com",
+                "path": "/gateway",
+                "sni": "tls.example.com",
+                "tls": "tls"
+            ]
+            object.merge(variant) { _, new in new }
+            let data = try JSONSerialization.data(withJSONObject: object)
+            let link = "vmess://" + data.base64EncodedString()
+
+            let node = try XCTUnwrap(parser.parseURI(link), "未解析 \(variant)")
+
+            XCTAssertEqual(node.transport, "ws", "未归一化 \(variant)")
+            XCTAssertEqual(node.hostHeader, "edge.example.com")
+            XCTAssertEqual(node.path, "/gateway")
+            XCTAssertEqual(node.sni, "tls.example.com")
+            XCTAssertTrue(node.tls)
+
+            for target in ClientTarget.allCases where target.supports(.vmess) {
+                let content = ConfigurationGenerator().generate(
+                    nodes: [node],
+                    preset: RulePreset.builtIns[0],
+                    target: target
+                ).content
+                XCTAssertTrue(content.contains("edge.example.com"), "\(target.name) 丢失 WebSocket Host")
+                XCTAssertTrue(content.contains("/gateway"), "\(target.name) 丢失 WebSocket Path")
+                XCTAssertFalse(content.contains("network: \"websocket\""), "\(target.name) 写出了未归一化传输")
+            }
+        }
+    }
+
+    func testLegacyWebSocketOptionsAreCaseInsensitive() throws {
+        let node = try XCTUnwrap(
+            parser.parseURI("vmess://\(endpoint)?OBFS=WebSocket&PATH=%2Fgw&obfsparam=edge.example.com&TLS=1&PEER=tls.example.com")
+        )
+
+        XCTAssertEqual(node.transport, "ws")
+        XCTAssertEqual(node.path, "/gw")
+        XCTAssertEqual(node.hostHeader, "edge.example.com")
+        XCTAssertEqual(node.sni, "tls.example.com")
+        XCTAssertTrue(node.tls)
+    }
+
     func testGarbageStillFails() {
         XCTAssertNil(parser.parseURI("vmess://not-valid-base64-at-all!!!"))
     }

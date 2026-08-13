@@ -320,6 +320,12 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var uuid: String?
     var username: String?
     var transport: String?
+    /// Transport-specific mode (currently XHTTP). Kept separate from the
+    /// transport name so `xhttp;mode=packet-up` survives a round trip.
+    var transportMode: String?
+    /// SIP003 plugin used by Shadowsocks. simple-obfs continues to use
+    /// `obfs`; this field distinguishes v2ray-plugin from ordinary SS obfs.
+    var plugin: String?
     var tls: Bool
     var sni: String?
     var hostHeader: String?
@@ -388,6 +394,8 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         uuid: String? = nil,
         username: String? = nil,
         transport: String? = nil,
+        transportMode: String? = nil,
+        plugin: String? = nil,
         tls: Bool = false,
         sni: String? = nil,
         hostHeader: String? = nil,
@@ -435,6 +443,8 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.uuid = uuid
         self.username = username
         self.transport = transport
+        self.transportMode = transportMode
+        self.plugin = plugin
         self.tls = tls
         self.sni = sni
         self.hostHeader = hostHeader
@@ -487,7 +497,8 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         var fields = [kind.rawValue, name, server.lowercased(), String(port)]
         fields.append(contentsOf: [cipher ?? "", password ?? "", uuid ?? "", username ?? ""])
         fields.append(contentsOf: [
-            transport ?? "", tls ? "1" : "0", sni ?? "", hostHeader ?? "", path ?? "", alpn ?? ""
+            transport ?? "", transportMode ?? "", plugin ?? "", tls ? "1" : "0",
+            sni ?? "", hostHeader ?? "", path ?? "", alpn ?? ""
         ])
         fields.append(contentsOf: [
             realityPublicKey ?? "", realityShortID ?? "", fingerprint ?? "", flow ?? "",
