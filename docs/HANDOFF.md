@@ -597,9 +597,9 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 ```sh
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-19.xcarchive -exportOptionsPlist Config/ExportOptions-TestFlight.plist -allowProvisioningUpdates
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -exportOptionsPlist Config/ExportOptions-TestFlight.plist -allowProvisioningUpdates
 ```
 
 `DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`Config/ExportOptions-TestFlight.plist` 是仓库内受版本控制的上传配置，使用 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
