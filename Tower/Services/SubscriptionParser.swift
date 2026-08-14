@@ -99,9 +99,20 @@ struct SubscriptionService: SubscriptionFetching {
     }
 
     private func load(_ url: URL, source: SubscriptionSource) async throws -> ImportResult {
-        let request = try requestBuilder.make(url: url, source: source, timeout: 30)
         let dnsURL = try source.requestOptions?.validatedDNSOverHTTPSURL()
-        let (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
+        var request = try requestBuilder.make(url: url, source: source, timeout: 30)
+        var (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
+        for fallbackUserAgent in SubscriptionRequestBuilder.compatibilityUserAgents
+        where source.requestOptions?.userAgent == nil
+            && Self.isClientGatingResponse(response) {
+            request = try requestBuilder.make(
+                url: url,
+                source: source,
+                timeout: 30,
+                overridingUserAgent: fallbackUserAgent
+            )
+            (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
+        }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SubscriptionError.badResponse
         }
@@ -126,6 +137,11 @@ struct SubscriptionService: SubscriptionFetching {
             usage: usage.isEmpty ? nil : usage,
             suggestedName: Self.providerTitle(from: httpResponse)
         )
+    }
+
+    private static func isClientGatingResponse(_ response: URLResponse) -> Bool {
+        guard let httpResponse = response as? HTTPURLResponse else { return false }
+        return SubscriptionRequestBuilder.clientGatingStatusCodes.contains(httpResponse.statusCode)
     }
 
     /// Reads the same profile naming hints used by modern subscription apps.
@@ -171,15 +187,28 @@ struct SubscriptionService: SubscriptionFetching {
 
 struct SubscriptionRequestBuilder {
     static let defaultUserAgent = "Tower/1.0 (iOS; local subscription converter)"
+    static let clientGatingStatusCodes: Set<Int> = [403, 406, 421, 426]
+    static let shadowrocketCompatibilityUserAgent =
+        "Shadowrocket/3378 CFNetwork/3892.100.1 Darwin/27.0.0"
+    static let clashMetaCompatibilityUserAgent = "clash.meta"
+    static let compatibilityUserAgents = [
+        shadowrocketCompatibilityUserAgent,
+        clashMetaCompatibilityUserAgent
+    ]
 
-    func make(url: URL, source: SubscriptionSource, timeout: TimeInterval) throws -> URLRequest {
+    func make(
+        url: URL,
+        source: SubscriptionSource,
+        timeout: TimeInterval,
+        overridingUserAgent: String? = nil
+    ) throws -> URLRequest {
         _ = try source.requestOptions?.validatedDNSOverHTTPSURL()
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         let custom = source.requestOptions?.userAgent?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         request.setValue(
-            custom?.isEmpty == false ? custom : Self.defaultUserAgent,
+            overridingUserAgent ?? (custom?.isEmpty == false ? custom : Self.defaultUserAgent),
             forHTTPHeaderField: "User-Agent"
         )
         return request

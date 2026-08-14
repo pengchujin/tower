@@ -35,7 +35,181 @@ private struct HTTPSubscriptionFixtureLoader: SubscriptionHTTPDataLoading {
     }
 }
 
+private actor UserAgentFallbackFixtureLoader: SubscriptionHTTPDataLoading {
+    private(set) var mainRequestUserAgents: [String] = []
+    private let rejectionStatus: Int
+    private let acceptedUserAgent: String
+
+    init(
+        rejectionStatus: Int = 406,
+        acceptedUserAgent: String = "Shadowrocket/3378 CFNetwork/3892.100.1 Darwin/27.0.0"
+    ) {
+        self.rejectionStatus = rejectionStatus
+        self.acceptedUserAgent = acceptedUserAgent
+    }
+
+    func data(
+        for request: URLRequest,
+        dnsOverHTTPSURL: URL?
+    ) async throws -> (Data, URLResponse) {
+        let isQuotaProbe = URLComponents(
+            url: request.url!,
+            resolvingAgainstBaseURL: false
+        )?.queryItems?.contains(where: { $0.name == "flag" && $0.value == "clash" }) == true
+        let userAgent = request.value(forHTTPHeaderField: "User-Agent") ?? ""
+        if !isQuotaProbe {
+            mainRequestUserAgents.append(userAgent)
+        }
+
+        let statusCode: Int
+        let body: Data
+        if !isQuotaProbe, userAgent == acceptedUserAgent {
+            let auth = Data("aes-256-gcm:secret".utf8).base64EncodedString()
+            let node = "ss://\(auth)@hk.example.com:8388#Hong%20Kong"
+            body = Data(Data(node.utf8).base64EncodedString().utf8)
+            statusCode = 200
+        } else {
+            body = Data("client not accepted".utf8)
+            statusCode = rejectionStatus
+        }
+
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "text/html; charset=UTF-8"]
+        )!
+        return (body, response)
+    }
+}
+
 final class SubscriptionRequestOptionsTests: XCTestCase {
+    func testDefaultRequestRetriesWithShadowrocketCompatibilityUserAgentAfter406() async throws {
+        let loader = UserAgentFallbackFixtureLoader()
+        let source = SubscriptionSource(
+            name: "Strict Airport",
+            urlString: "https://strict-airport.test/sub/private-token"
+        )
+
+        let result = try await SubscriptionService(httpClient: loader).fetch(source)
+        let userAgents = await loader.mainRequestUserAgents
+
+        XCTAssertEqual(result.nodes.count, 1)
+        XCTAssertEqual(
+            userAgents,
+            [
+                SubscriptionRequestBuilder.defaultUserAgent,
+                "Shadowrocket/3378 CFNetwork/3892.100.1 Darwin/27.0.0"
+            ]
+        )
+    }
+
+    func testDefaultRequestRetriesForClientGatingHTTPStatuses() async throws {
+        for statusCode in [403, 406, 421, 426] {
+            let loader = UserAgentFallbackFixtureLoader(rejectionStatus: statusCode)
+            let source = SubscriptionSource(
+                name: "Strict Airport",
+                urlString: "https://strict-airport.test/sub/private-token"
+            )
+
+            let result = try await SubscriptionService(httpClient: loader).fetch(source)
+
+            XCTAssertEqual(result.nodes.count, 1, "HTTP \(statusCode) should retry")
+        }
+    }
+
+    func testDefaultRequestFallsBackToClashMetaWhenShadowrocketIsRejected() async throws {
+        let loader = UserAgentFallbackFixtureLoader(acceptedUserAgent: "clash.meta")
+        let source = SubscriptionSource(
+            name: "Strict Airport",
+            urlString: "https://strict-airport.test/sub/private-token"
+        )
+
+        let result = try await SubscriptionService(httpClient: loader).fetch(source)
+        let userAgents = await loader.mainRequestUserAgents
+
+        XCTAssertEqual(result.nodes.count, 1)
+        XCTAssertEqual(
+            userAgents,
+            [
+                SubscriptionRequestBuilder.defaultUserAgent,
+                SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent,
+                "clash.meta"
+            ]
+        )
+    }
+
+    func testCustomUserAgentIsNotReplacedByCompatibilityFallbacks() async {
+        let loader = UserAgentFallbackFixtureLoader(acceptedUserAgent: "never")
+        let source = SubscriptionSource(
+            name: "Custom Airport",
+            urlString: "https://strict-airport.test/sub/private-token",
+            requestOptions: SubscriptionRequestOptions(userAgent: "MyClient/1.0")
+        )
+
+        do {
+            _ = try await SubscriptionService(httpClient: loader).fetch(source)
+            XCTFail("The fixture should reject the custom user agent")
+        } catch SubscriptionError.httpStatus(let statusCode) {
+            XCTAssertEqual(statusCode, 406)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let userAgents = await loader.mainRequestUserAgents
+        XCTAssertEqual(userAgents, ["MyClient/1.0"])
+    }
+
+    func testRateLimitResponseDoesNotTriggerCompatibilityFallbacks() async {
+        let loader = UserAgentFallbackFixtureLoader(
+            rejectionStatus: 429,
+            acceptedUserAgent: "never"
+        )
+        let source = SubscriptionSource(
+            name: "Rate Limited Airport",
+            urlString: "https://strict-airport.test/sub/private-token"
+        )
+
+        do {
+            _ = try await SubscriptionService(httpClient: loader).fetch(source)
+            XCTFail("The fixture should remain rate limited")
+        } catch SubscriptionError.httpStatus(let statusCode) {
+            XCTAssertEqual(statusCode, 429)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let userAgents = await loader.mainRequestUserAgents
+        XCTAssertEqual(userAgents, [SubscriptionRequestBuilder.defaultUserAgent])
+    }
+
+    func testFinalClientGatingErrorIsPreservedAfterFallbacksAreExhausted() async {
+        let loader = UserAgentFallbackFixtureLoader(acceptedUserAgent: "never")
+        let source = SubscriptionSource(
+            name: "Strict Airport",
+            urlString: "https://strict-airport.test/sub/private-token"
+        )
+
+        do {
+            _ = try await SubscriptionService(httpClient: loader).fetch(source)
+            XCTFail("Every compatibility request should be rejected")
+        } catch SubscriptionError.httpStatus(let statusCode) {
+            XCTAssertEqual(statusCode, 406)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let userAgents = await loader.mainRequestUserAgents
+        XCTAssertEqual(
+            userAgents,
+            [
+                SubscriptionRequestBuilder.defaultUserAgent,
+                SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent,
+                SubscriptionRequestBuilder.clashMetaCompatibilityUserAgent
+            ]
+        )
+    }
+
     func testOrdinarySubscriptionHTTPRequestsAreNotGloballySerialized() async throws {
         let gate = SubscriptionRequestGate()
         let probe = RequestConcurrencyProbe()
