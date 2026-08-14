@@ -62,6 +62,19 @@ final class LocalNodeImportTests: XCTestCase {
         }
     }
 
+    func testManualHTTPNodeRejectsAFullURLInTheServerField() {
+        let draft = ManualNodeDraft(
+            kind: .http,
+            server: "https://proxy.example.com",
+            port: "443",
+            tls: true
+        )
+
+        XCTAssertThrowsError(try draft.makeNode()) { error in
+            XCTAssertEqual(error as? ManualNodeValidationError, .invalidServer)
+        }
+    }
+
     func testManualVLESSRealityPreservesRequiredTransportFields() throws {
         let draft = ManualNodeDraft(
             kind: .vless,

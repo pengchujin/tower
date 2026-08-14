@@ -38,6 +38,23 @@ final class SourceInputDetectorTests: XCTestCase {
         )
     }
 
+    func testDetectsHTTPSProxyWithImplicitDefaultPort() {
+        XCTAssertEqual(
+            SourceInputDetector().detect("https://alice:secret@proxy.example.com#Office"),
+            .node(.http)
+        )
+    }
+
+    func testDetectsShadowrocketBase64HTTPSProxy() {
+        let authority = Data("alice:secret@proxy.example.com:443".utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "=", with: "")
+        let link = "https://\(authority)?remarks=Office"
+        let detector = SourceInputDetector()
+        XCTAssertEqual(detector.detect(link), .node(.http))
+        XCTAssertTrue(detector.subscriptionURLs(link).isEmpty)
+    }
+
     func testDetectsMultipleProtocolLinksAsABatch() {
         let auth = Data("aes-256-gcm:secret".utf8).base64EncodedString()
         let value = """

@@ -310,6 +310,13 @@ struct ManualNodeDraft: Equatable {
         let normalizedServer = server.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
         guard !normalizedServer.isEmpty else { throw ManualNodeValidationError.invalidServer }
+        // This field is a hostname/IP, not a share URL. Accepting a complete
+        // `https://...` value stores it verbatim and later makes DNS resolve the
+        // scheme as part of the hostname.
+        let invalidServerCharacters = ["://", "/", "?", "#", "@"]
+        guard !invalidServerCharacters.contains(where: normalizedServer.contains) else {
+            throw ManualNodeValidationError.invalidServer
+        }
         guard let parsedPort = Int(port), (1 ... 65_535).contains(parsedPort) else {
             throw ManualNodeValidationError.invalidPort
         }

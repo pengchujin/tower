@@ -74,6 +74,49 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertEqual(result.nodes[1].username, "user")
     }
 
+    func testParsesHTTPAndHTTPSProxyDefaultPorts() throws {
+        let parser = SubscriptionParser()
+
+        let http = try XCTUnwrap(parser.parseURI("http://alice:secret@plain.example.com#HTTP"))
+        let https = try XCTUnwrap(parser.parseURI("https://alice:secret@secure.example.com#HTTPS"))
+
+        XCTAssertEqual(http.port, 80)
+        XCTAssertFalse(http.tls)
+        XCTAssertEqual(https.port, 443)
+        XCTAssertTrue(https.tls)
+    }
+
+    func testParsesShadowrocketBase64HTTPAndHTTPSLinks() throws {
+        let parser = SubscriptionParser()
+        let httpAuthority = Data("alice:plain-secret@plain.example.com:8080".utf8)
+            .base64EncodedString()
+        let httpsAuthority = Data("bob:tls-secret@secure.example.com:8443".utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+
+        let http = try XCTUnwrap(
+            parser.parseURI("http://\(httpAuthority)?remarks=Office%20HTTP")
+        )
+        let https = try XCTUnwrap(
+            parser.parseURI("https://\(httpsAuthority)?remarks=Office%20HTTPS")
+        )
+
+        XCTAssertEqual(http.name, "Office HTTP")
+        XCTAssertEqual(http.server, "plain.example.com")
+        XCTAssertEqual(http.port, 8080)
+        XCTAssertEqual(http.username, "alice")
+        XCTAssertEqual(http.password, "plain-secret")
+        XCTAssertFalse(http.tls)
+        XCTAssertEqual(https.name, "Office HTTPS")
+        XCTAssertEqual(https.server, "secure.example.com")
+        XCTAssertEqual(https.port, 8443)
+        XCTAssertEqual(https.username, "bob")
+        XCTAssertEqual(https.password, "tls-secret")
+        XCTAssertTrue(https.tls)
+    }
+
     func testParsesNestedClashWebSocketOptionsCaseInsensitively() {
         let yaml = """
         proxies:

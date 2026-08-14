@@ -60,10 +60,13 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertEqual(node?.obfsParam, "www.bing.com")
     }
 
-    func testShadowsocksNodeWithUnsupportedPluginIsStillRejected() {
+    func testShadowsocksNodeWithV2RayPluginIsImported() {
         let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388?plugin=v2ray-plugin%3Bmode%3Dwebsocket#HK"
 
-        XCTAssertNil(parser.parseURI(uri))
+        let node = parser.parseURI(uri)
+
+        XCTAssertEqual(node?.plugin, "v2ray-plugin")
+        XCTAssertEqual(node?.transport, "ws")
     }
 
     func testShadowsocksNodeWithoutPluginStillParses() {
@@ -81,11 +84,11 @@ final class ImportHardeningTests: XCTestCase {
 
         let result = parser.parse(data: Data(list.utf8))
 
-        XCTAssertEqual(result.nodes.count, 1)
-        XCTAssertEqual(result.rejectedLineCount, 2)
+        XCTAssertEqual(result.nodes.count, 2)
+        XCTAssertEqual(result.rejectedLineCount, 1)
     }
 
-    func testClashYAMLCarriesSimpleObfsAndStillRejectsOtherPlugins() {
+    func testClashYAMLCarriesSimpleObfsAndV2RayPlugin() {
         let yaml = """
         proxies:
           - name: Obfs SS
@@ -114,9 +117,14 @@ final class ImportHardeningTests: XCTestCase {
 
         let result = parser.parse(data: Data(yaml.utf8))
 
-        XCTAssertEqual(result.nodes.map(\.server), ["obfs.example.com", "plain.example.com"])
-        XCTAssertEqual(result.rejectedLineCount, 1, "只有 v2ray-plugin 该被拒")
+        XCTAssertEqual(
+            result.nodes.map(\.server),
+            ["obfs.example.com", "v2ray.example.com", "plain.example.com"]
+        )
+        XCTAssertEqual(result.rejectedLineCount, 0)
         XCTAssertEqual(result.nodes.first?.obfsParam, "www.example.com")
+        XCTAssertEqual(result.nodes[1].plugin, "v2ray-plugin")
+        XCTAssertEqual(result.nodes[1].transport, "ws")
     }
 
     // MARK: - Duplicate query keys

@@ -428,7 +428,12 @@ struct SubscriptionParser {
             return parseStandardURL(value, kind: .socks5, sourceID: sourceID)
         }
         if lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://") {
-            return parseStandardURL(value, kind: .http, sourceID: sourceID)
+            // Shadowrocket also exports HTTP(S) nodes as
+            // `https://base64(user:password@host:port)?remarks=...`. Try that
+            // dialect before the standard URL form; otherwise the encoded
+            // authority itself can be mistaken for the proxy hostname.
+            return parseShadowrocketHTTPURL(value, sourceID: sourceID)
+                ?? parseStandardURL(value, kind: .http, sourceID: sourceID)
         }
         return nil
     }
@@ -860,6 +865,61 @@ struct SubscriptionParser {
         )
     }
 
+    private func parseShadowrocketHTTPURL(_ raw: String, sourceID: UUID?) -> ProxyNode? {
+        let lowercased = raw.lowercased()
+        let scheme: String
+        if lowercased.hasPrefix("https://") {
+            scheme = "https"
+        } else if lowercased.hasPrefix("http://") {
+            scheme = "http"
+        } else {
+            return nil
+        }
+
+        let body = String(raw.dropFirst(scheme.count + "://".count))
+        let authorityEnd = body.firstIndex(where: { $0 == "?" || $0 == "#" }) ?? body.endIndex
+        let encodedAuthority = String(body[..<authorityEnd])
+        // A standard proxy already contains `@`. Requiring `@` in the decoded
+        // value prevents an ordinary subscription hostname from being treated
+        // as an encoded HTTP proxy by coincidence.
+        guard !encodedAuthority.isEmpty,
+              !encodedAuthority.contains("@"),
+              let decodedAuthority = decodeBase64String(encodedAuthority),
+              decodedAuthority.contains("@"),
+              let components = URLComponents(string: "\(scheme)://\(decodedAuthority)"),
+              let rawHost = components.host else { return nil }
+
+        let remainder = String(body[authorityEnd...])
+        let fragment: String?
+        let queryText: String?
+        if let fragmentIndex = remainder.firstIndex(of: "#") {
+            fragment = String(remainder[remainder.index(after: fragmentIndex)...]).removingPercentEncoding
+            let beforeFragment = String(remainder[..<fragmentIndex])
+            queryText = beforeFragment.hasPrefix("?") ? String(beforeFragment.dropFirst()) : nil
+        } else {
+            fragment = nil
+            queryText = remainder.hasPrefix("?") ? String(remainder.dropFirst()) : nil
+        }
+        let rawQuery = queryText.map(queryDictionary) ?? [:]
+        let query = Dictionary(rawQuery.map { ($0.key.lowercased(), $0.value) }) { _, new in new }
+        let server = normalizedHost(rawHost)
+        let port = components.port ?? (scheme == "https" ? 443 : 80)
+        let remarks = query["remarks"]?.removingPercentEncoding
+            ?? query["remark"]?.removingPercentEncoding
+
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .http,
+            name: normalizedName(remarks ?? fragment, fallback: "HTTP · \(server)"),
+            server: server,
+            port: port,
+            password: components.password?.removingPercentEncoding,
+            username: components.user?.removingPercentEncoding,
+            tls: scheme == "https",
+            rawURI: raw
+        )
+    }
+
     private func parseStandardURL(_ raw: String, kind: ProxyKind, sourceID: UUID?) -> ProxyNode? {
         var normalized = raw
         if normalized.lowercased().hasPrefix("hy2://") {
@@ -870,17 +930,35 @@ struct SubscriptionParser {
             normalized = "socks5://" + normalized.dropFirst("socks://".count)
         }
         guard let components = URLComponents(string: normalized),
-              let rawHost = components.host,
-              let port = components.port else { return nil }
+              let rawHost = components.host else { return nil }
+        let defaultHTTPPort: Int? = kind == .http
+            ? (components.scheme?.lowercased() == "https" ? 443 : 80)
+            : nil
+        guard let port = components.port ?? defaultHTTPPort else { return nil }
         let server = normalizedHost(rawHost)
 
         let query = Dictionary((components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") }) { _, new in new }
         let fallback = "\(kind.title) · \(server)"
-        let name = normalizedName(components.fragment?.removingPercentEncoding, fallback: fallback)
+        let name = normalizedName(
+            components.fragment?.removingPercentEncoding
+                ?? query["remarks"]?.removingPercentEncoding
+                ?? query["remark"]?.removingPercentEncoding,
+            fallback: fallback
+        )
         let transport = normalizedTransport(
             query["type"] ?? query["network"] ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
         )
         let security = (query["security"] ?? query["tls"] ?? "").lowercased()
+        // Shadowrocket has two VLESS URL dialects. Its Base64-authority form
+        // is handled above, but it can also keep the standard UUID authority
+        // while using Shadowrocket's query vocabulary (`tls=1`, `xtls=2`,
+        // `fingerprint`). A public key is unambiguous evidence that this VLESS
+        // node is REALITY even when `security=reality` is omitted.
+        let realityPublicKey = query["pbk"]
+        let carriesReality = security == "reality"
+            || (kind == .vless && !((realityPublicKey ?? "").isEmpty))
+        let flow = query["flow"]
+            ?? (kind == .vless && query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
         let credential = components.user?.removingPercentEncoding
 
         return ProxyNode(
@@ -903,20 +981,22 @@ struct SubscriptionParser {
             username: [.socks5, .http].contains(kind) ? credential : nil,
             transport: transport,
             transportMode: transport == "xhttp" ? query["mode"] : nil,
-            tls: [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(kind) || security == "tls" || security == "reality" || security == "true" || normalized.lowercased().hasPrefix("https://"),
+            tls: [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(kind)
+                || ["1", "true", "tls", "reality"].contains(security)
+                || carriesReality
+                || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
             hostHeader: query["authority"] ?? query["host"],
             path: transport == "grpc"
                 ? query["servicename"] ?? query["service_name"] ?? query["path"]
                 : query["path"],
             alpn: query["alpn"],
-            // REALITY. `pbk` is the server public key and `sid` the short id;
-            // both are required to connect, so a node carrying them is only
-            // faithful if they survive into the generated configuration.
-            realityPublicKey: security == "reality" ? query["pbk"] : nil,
-            realityShortID: security == "reality" ? query["sid"] : nil,
-            fingerprint: query["fp"],
-            flow: query["flow"],
+            // REALITY. `pbk` is the required server public key; `sid` is the
+            // short id and may legitimately be empty. Preserve both exactly.
+            realityPublicKey: carriesReality ? realityPublicKey : nil,
+            realityShortID: carriesReality ? query["sid"] : nil,
+            fingerprint: query["fp"] ?? query["fingerprint"],
+            flow: flow,
             skipCertificateVerification: ["1", "true"].contains(
                 query["allowinsecure"] ?? query["insecure"] ?? query["allow_insecure"] ?? ""
             ),

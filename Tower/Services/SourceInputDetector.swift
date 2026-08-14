@@ -63,7 +63,8 @@ struct SourceInputDetector {
                 || (components.port != nil
                     && components.path.isEmpty
                     && (scheme == "http" || components.fragment != nil))
-            if looksLikeProxy, let node = parser.parseURI(value) {
+            if let node = parser.parseURI(value),
+               looksLikeProxy || isEncodedHTTPProxy(node, originalHost: components.host) {
                 return .node(node.kind)
             }
 
@@ -86,7 +87,17 @@ struct SourceInputDetector {
             }
             let looksLikeProxy = components.user != nil
                 || (components.port != nil && components.path.isEmpty && components.fragment != nil)
-            return looksLikeProxy ? nil : value
+            if looksLikeProxy { return nil }
+            if let node = parser.parseURI(value),
+               isEncodedHTTPProxy(node, originalHost: components.host) {
+                return nil
+            }
+            return value
         }
+    }
+
+    private func isEncodedHTTPProxy(_ node: ProxyNode, originalHost: String?) -> Bool {
+        guard node.kind == .http, let originalHost else { return false }
+        return node.server.caseInsensitiveCompare(originalHost) != .orderedSame
     }
 }

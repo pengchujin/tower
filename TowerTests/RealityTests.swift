@@ -33,6 +33,23 @@ final class RealityTests: XCTestCase {
         XCTAssertEqual(node.sni, "k0g1h.example.com")
     }
 
+    func testShadowrocketStandardAuthorityRealityParametersSurviveParsing() throws {
+        let node = try XCTUnwrap(parser.parseURI(
+            "vless://b831381d-6324-4d53-ad4f-8cda48b30811@edge.example.com:443"
+                + "?tls=1&peer=borrowed.example.com&udp=1&xtls=2"
+                + "&pbk=ShadowrocketPublicKeyAAAAAAAAAAAAAAAAAAAAAA"
+                + "&sid=a99a9799398f3a&fingerprint=chrome#Reality"
+        ))
+
+        XCTAssertTrue(node.tls)
+        XCTAssertTrue(node.usesReality)
+        XCTAssertEqual(node.realityPublicKey, "ShadowrocketPublicKeyAAAAAAAAAAAAAAAAAAAAAA")
+        XCTAssertEqual(node.realityShortID, "a99a9799398f3a")
+        XCTAssertEqual(node.fingerprint, "chrome")
+        XCTAssertEqual(node.flow, "xtls-rprx-vision")
+        XCTAssertEqual(node.sni, "borrowed.example.com")
+    }
+
     func testPlainTLSNodeIsNotMistakenForReality() throws {
         let plain = try XCTUnwrap(parser.parseURI(
             "vless://id@edge.example.com:443?security=tls&type=tcp&sni=a.example.com#Plain"
