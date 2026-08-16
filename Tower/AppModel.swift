@@ -21,6 +21,9 @@ final class AppModel {
     var countryResolutionCompletedNodeIDs: Set<UUID> = []
     var toast: ToastMessage?
     var subscriptionRefreshReport: SubscriptionRefreshReport?
+    /// The running full refresh, so a second pull joins it rather than
+    /// starting a rival queue. Not observed by any view.
+    @ObservationIgnored private var refreshAllTask: Task<Void, Never>?
     /// The persistent service credential is deliberately unrelated to every
     /// airport URL. Only this random token appears in LAN sharing links.
     var lanSharingToken = LANSubscriptionAccessTokenStore.loadOrCreate()
@@ -723,14 +726,19 @@ final class AppModel {
         synchronizeReminders: Bool = true,
         commitImmediately: Bool = true
     ) async -> Bool {
-        guard let index = subscriptions.firstIndex(where: { $0.id == id }),
+        guard let source = subscriptions.first(where: { $0.id == id }),
               !refreshingSourceIDs.contains(id) else { return true }
         refreshingSourceIDs.insert(id)
         defer { refreshingSourceIDs.remove(id) }
 
         do {
-            let source = subscriptions[index]
             let result = try await subscriptionService.fetch(source)
+            // Positions are only valid either side of an await, never across
+            // one. Several requests are now in flight at once and the user can
+            // delete a subscription while they run, so the row is found again
+            // before anything is written — and before this source's nodes are
+            // replaced, since a deleted source should not get new ones.
+            guard let index = subscriptions.firstIndex(where: { $0.id == id }) else { return false }
             let replacedNodes = nodes.filter { $0.sourceID == source.id }
             let replacedNodeIDs = Set(replacedNodes.map(\.id))
             let excludedKeys = Set(
@@ -771,6 +779,7 @@ final class AppModel {
             return true
         } catch {
             if Self.isCancellationError(error) { return false }
+            guard let index = subscriptions.firstIndex(where: { $0.id == id }) else { return false }
             subscriptions[index].lastError = error.localizedDescription
             if commitImmediately { persist() }
             if showResult {
@@ -785,15 +794,58 @@ final class AppModel {
     /// single client. A failure is recorded on that source but never stops the
     /// queue, so every saved subscription still gets one attempt.
     func refreshAllSubscriptions() async {
+        // A second pull while the first is still running used to find every
+        // source already in `refreshingSourceIDs`, count them all as successes
+        // and announce "all updated" over a refresh still in flight. Joining
+        // the running one instead makes the pull indicator track the work that
+        // is actually happening.
+        if let inFlight = refreshAllTask {
+            await inFlight.value
+            return
+        }
+
         // `.refreshable` owns a gesture-scoped task. Replacing the first
         // subscription row can make SwiftUI cancel that task as the view tree
         // changes. An unstructured task keeps the actual queue alive; awaiting
         // its non-throwing value still lets the pull indicator follow progress
         // when SwiftUI leaves the gesture task intact.
         let refreshTask = Task.detached(priority: .userInitiated) { [weak self] in
-            await self?.performRefreshAllSubscriptions()
+            guard let self else { return }
+            await self.performRefreshAllSubscriptions()
         }
+        refreshAllTask = refreshTask
         await refreshTask.value
+        refreshAllTask = nil
+    }
+
+    /// Splits the queue into one lane per provider, preserving the order the
+    /// user arranged inside each lane.
+    ///
+    /// Pure and non-isolated so the scheduling rule can be tested without a
+    /// network, which is the only way to observe it: the result of a refresh
+    /// looks identical either way, only the request pattern differs.
+    ///
+    /// A URL that will not parse gets a lane of its own rather than sharing an
+    /// "unknown" one, since two unparseable URLs are not evidence of a shared
+    /// server — and the request will fail on its own merits anyway.
+    nonisolated static func subscriptionIDsGroupedByHost(
+        _ ids: [UUID],
+        in subscriptions: [SubscriptionSource]
+    ) -> [[UUID]] {
+        var lanes: [String: [UUID]] = [:]
+        var laneOrder: [String] = []
+
+        for id in ids {
+            let urlString = subscriptions.first { $0.id == id }?.urlString ?? ""
+            let host = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines))?
+                .host?
+                .lowercased()
+            let key = host.map { "host:\($0)" } ?? "unparsed:\(id.uuidString)"
+            if lanes[key] == nil { laneOrder.append(key) }
+            lanes[key, default: []].append(id)
+        }
+
+        return laneOrder.compactMap { lanes[$0] }
     }
 
     private func performRefreshAllSubscriptions() async {
@@ -803,28 +855,32 @@ final class AppModel {
         subscriptionRefreshReport = nil
         toast = nil
 
-        let refreshResults = await withTaskGroup(of: (UUID, Bool).self) { group in
-            // Each saved URL represents an independent provider request. Start
-            // all of them immediately; the URLSession connection pool still
-            // applies its normal per-host limits when two URLs share a host.
-            for id in sourceIDs {
+        let refreshResults = await withTaskGroup(of: [(UUID, Bool)].self) { group in
+            // Different providers are different servers, so those requests go
+            // out together — that is where the speed comes from. Subscriptions
+            // sharing a host queue behind each other instead, because a burst
+            // to one airport panel is exactly what gets rate-limited, and a
+            // 429 is slower than having waited.
+            for ids in Self.subscriptionIDsGroupedByHost(sourceIDs, in: subscriptions) {
                 group.addTask { [weak self] in
-                    guard let self else { return (id, false) }
-                    return (
-                        id,
-                        await self.updateSubscription(
+                    guard let self else { return ids.map { ($0, false) } }
+                    var results: [(UUID, Bool)] = []
+                    for id in ids {
+                        let succeeded = await self.updateSubscription(
                             id: id,
                             showResult: false,
                             synchronizeReminders: false,
                             commitImmediately: false
                         )
-                    )
+                        results.append((id, succeeded))
+                    }
+                    return results
                 }
             }
 
             var collected: [(UUID, Bool)] = []
             for await result in group {
-                collected.append(result)
+                collected.append(contentsOf: result)
             }
             return collected
         }

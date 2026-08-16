@@ -92,6 +92,46 @@ private struct NamedSubscriptionFetcher: SubscriptionFetching {
 
 @MainActor
 final class SubscriptionRefreshTests: XCTestCase {
+    /// Speed comes from hitting different providers at once. Hitting one
+    /// provider several times at once is the thing that gets rate-limited, and
+    /// a 429 costs more than the wait it saved.
+    func testRefreshRunsProvidersInParallelAndOneProviderInOrder() {
+        let a1 = SubscriptionSource(name: "A1", urlString: "https://panel.a.example/sub?token=1")
+        let b = SubscriptionSource(name: "B", urlString: "https://panel.b.example/sub")
+        let a2 = SubscriptionSource(name: "A2", urlString: "https://panel.a.example/sub?token=2")
+        let sources = [a1, b, a2]
+
+        let lanes = AppModel.subscriptionIDsGroupedByHost(sources.map(\.id), in: sources)
+
+        XCTAssertEqual(lanes.count, 2, "两个机场应该并行，不该被压成一条队列")
+        XCTAssertEqual(lanes[0], [a1.id, a2.id], "同一机场必须排队，并保持用户排的顺序")
+        XCTAssertEqual(lanes[1], [b.id])
+    }
+
+    /// Case and port-less/ported spellings of the same panel are still one
+    /// panel, and one panel is one lane.
+    func testHostLanesIgnoreCase() {
+        let upper = SubscriptionSource(name: "1", urlString: "https://Panel.A.Example/sub")
+        let lower = SubscriptionSource(name: "2", urlString: "https://panel.a.example/other")
+        let sources = [upper, lower]
+
+        let lanes = AppModel.subscriptionIDsGroupedByHost(sources.map(\.id), in: sources)
+
+        XCTAssertEqual(lanes, [[upper.id, lower.id]])
+    }
+
+    /// Two URLs that will not parse are not evidence of a shared server, so
+    /// they must not be serialised behind each other.
+    func testUnparseableURLsDoNotShareALane() {
+        let first = SubscriptionSource(name: "1", urlString: "")
+        let second = SubscriptionSource(name: "2", urlString: "   ")
+        let sources = [first, second]
+
+        let lanes = AppModel.subscriptionIDsGroupedByHost(sources.map(\.id), in: sources)
+
+        XCTAssertEqual(lanes.count, 2)
+    }
+
     func testPullToRefreshFinishesQueueWhenSwiftUICancelsGestureTask() async throws {
         let sources = (1...3).map {
             SubscriptionSource(name: "\($0)", urlString: "https://\($0).example/sub")

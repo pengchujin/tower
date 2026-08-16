@@ -672,6 +672,26 @@ xcodebuild -project Tower.xcodeproj \
 
 ## 6. 优先任务
 
+### 待修：UA 兜底重试会让机场少给节点（2026-08-12 记录）
+
+订阅返回 403 / 406 / 421 / 426 时，`SubscriptionParser` 会依次改用伪装 UA 重试：先 `Shadowrocket/...`，再 `clash.meta`。
+
+`clash.meta` 那一跳正对着本文档第 18 条描述的坑：机场按 Clash 转换的返回体会丢掉它表达不了的协议，实测有机场因此少 12 个 AnyTLS 节点。顺序是对的（Shadowrocket 在前，通常返回原始格式），而且只在默认 UA 被拒时才走——否则一个节点都拿不到，所以不能简单删掉。
+
+**要解决的是「用户不知道」**：走到 `clash.meta` 那一跳时节点可能悄悄变少，界面上看不出来，用户只会觉得机场删了节点。至少要在订阅那一行标出「本次用兼容模式获取，节点可能不完整」。
+
+顺带：`shadowrocketCompatibilityUserAgent` 里硬编码了 `CFNetwork/3892.100.1 Darwin/27.0.0`，会随系统版本过期，需要有人定期核对。
+
+### 待修：并发刷新缺上限，且索引跨 await 失效（2026-08-12 记录）
+
+`AppModel.performRefreshAllSubscriptions` 把下拉刷新从串行改成了 `withTaskGroup` 并发。改动本身有价值——旧实现第一条失败就 `break`，后面的订阅根本不会被尝试；新实现每条都跑一次并收进 `SubscriptionRefreshReport`。三个问题：
+
+1. **注释承诺的并发上限没有实现。** 注释写着「keeping the request burst small enough for airport panels that rate-limit a single client」，代码却是把所有 `sourceIDs` 一次性 `addTask`。它替换掉的旧注释恰好说明串行是故意的，正是为了避开机场的 burst 限流。需要一个真正的并发窗口（例如一次最多 3 条）。注释里提到的 URLSession per-host 限制是连接复用限制，不是节流，且不同机场不同 host。
+2. **下拉刷新取消不掉。** `Task.detached` + `await refreshTask.value` 是为了躲开 SwiftUI 对 `.refreshable` 手势任务的取消。副作用是用户松手、切走、关页面，队列都会跑完。注意 `AppModel` 是 `@MainActor`，detached 进去马上跳回主 actor——它买到的只是「不被取消」，不是后台执行。
+3. **`updateSubscription` 里的 `index` 跨 `await` 使用。** `firstIndex` 在 fetch 之前算出，`subscriptions[index].lastUpdatedAt` 在之后才写；刷新期间删掉一条订阅就会指错甚至越界。这个写法原来就有，但串行时只有一条订阅持有过期索引，现在是 N 条在整个刷新期间都持有。改成 await 之后按 `id` 重新查一次即可。
+
+状态修改本身是安全的：`@MainActor` 把它们串行化了，并行的只有网络请求。
+
 ### 待决策：规则集为什么在 Stash 上没生效（2026-08-11 搁置）
 
 **现象**：开了「优先使用规则集」，Surge 输出 `RULE-SET`，Stash 仍然逐条内联。
