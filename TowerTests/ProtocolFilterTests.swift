@@ -80,6 +80,11 @@ final class ProtocolFilterTests: XCTestCase {
         XCTAssertEqual(surge.first?.count, 2)
     }
 
+    func testSingleCompatibleProtocolStillShowsTheFilter() {
+        XCTAssertTrue(ProtocolFilterPolicy.isVisible(compatibleKindCount: 1))
+        XCTAssertFalse(ProtocolFilterPolicy.isVisible(compatibleKindCount: 0))
+    }
+
     func testProtocolTheClientCannotWriteIsNotOffered() throws {
         let model = try makeModel()
         model.nodes.append(

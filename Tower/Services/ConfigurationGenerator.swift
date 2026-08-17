@@ -51,11 +51,16 @@ struct ConfigurationGenerator {
         let content: String
         switch target {
         case .clash:
-            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: .clash)
         case .surge:
             content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: false)
         case .shadowrocket:
-            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: true)
+            // Shadowrocket accepts Clash YAML directly. Keeping nodes in that
+            // structured form preserves connection fields which have no
+            // reliable equivalent in its legacy one-line configuration
+            // dialect (client fingerprints, port hopping and nested transport
+            // options in particular).
+            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: .shadowrocket)
         case .loon:
             content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .quanx:
@@ -71,7 +76,8 @@ struct ConfigurationGenerator {
             content: content,
             supportedNodeCount: supported.count,
             skippedNodeCount: nodes.count - supported.count,
-            ruleCount: rules.count(for: preset)
+            ruleCount: rules.count(for: preset),
+            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil
         )
     }
 
@@ -92,16 +98,23 @@ struct ConfigurationGenerator {
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
+        // Shadowrocket full profiles are emitted as Clash-compatible YAML, so
+        // their remote rule resources must use Clash provider semantics too.
+        // Planning them as legacy Shadowrocket/Surge resources would inline a
+        // valid YAML provider or emit the wrong remote dialect.
+        let rulePlanTarget: ClientTarget = target == .shadowrocket ? .clash : target
         let rulePlan = RuleSetEmissionPlanner(repository: schemes).plan(
             for: scheme,
-            target: target,
+            target: rulePlanTarget,
             preferRuleSets: preferRuleSets
         )
         let content: String
         switch target {
         case .clash:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
-        case .surge, .shadowrocket:
+            content = clashScheme(scheme, groups: resolved, nodes: supported, target: .clash, rulePlan: rulePlan)
+        case .shadowrocket:
+            content = clashScheme(scheme, groups: resolved, nodes: supported, target: .shadowrocket, rulePlan: rulePlan)
+        case .surge:
             content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, rulePlan: rulePlan)
         case .loon:
             content = loonScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
@@ -118,7 +131,8 @@ struct ConfigurationGenerator {
             content: content,
             supportedNodeCount: supported.count,
             skippedNodeCount: nodes.count - supported.count,
-            ruleCount: ruleCount(for: scheme, schemes: schemes)
+            ruleCount: ruleCount(for: scheme, schemes: schemes),
+            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil
         )
     }
 
@@ -144,10 +158,7 @@ struct ConfigurationGenerator {
         }
 
         var supported = uniquedNames(
-            nodes.filter {
-                $0.isSubscriptionMetadata != true
-                    && writes($0, to: target, excluding: excludedKinds)
-            },
+            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
             reservedNames: []
         )
         // Snell has no subscription URI. WireGuard URI conventions also vary
@@ -469,9 +480,10 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        target: ClientTarget,
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: .clash)
+        var output = schemeHeader(scheme, target: target)
         output += """
         mixed-port: 7890
         allow-lan: false
@@ -705,11 +717,12 @@ struct ConfigurationGenerator {
     private func clash(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        target: ClientTarget
     ) -> String {
         let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
-        var output = header(target: .clash)
+        var output = header(target: target)
         output += """
         mixed-port: 7890
         allow-lan: false
@@ -863,8 +876,19 @@ struct ConfigurationGenerator {
             values += ["    password: \(yaml(node.password ?? ""))", "    udp: true"]
             appendClashTransport(node, to: &values)
         case .hysteria2:
-            values += ["    password: \(yaml(node.password ?? ""))", "    skip-cert-verify: \(node.skipCertificateVerification)"]
+            values += [
+                "    password: \(yaml(node.password ?? ""))",
+                "    skip-cert-verify: \(node.skipCertificateVerification)",
+                "    udp: true"
+            ]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            if let ports = node.portHopping, !ports.isEmpty { values.append("    ports: \(yaml(ports))") }
+            appendClashALPN(node, to: &values)
+            // Hysteria 2 calls this value `fingerprint`: it is the SHA-256
+            // certificate pin, not a browser-style uTLS ClientHello name.
+            if let fingerprint = node.certificateFingerprint, !fingerprint.isEmpty {
+                values.append("    fingerprint: \(yaml(fingerprint))")
+            }
             if let obfs = hysteria2Obfs(node) {
                 values.append("    obfs: \(yaml(obfs.type))")
                 values.append("    obfs-password: \(yaml(obfs.password))")
@@ -880,6 +904,7 @@ struct ConfigurationGenerator {
                 "    skip-cert-verify: \(node.skipCertificateVerification)"
             ]
             if let sni = node.sni, !sni.isEmpty { values.append("    sni: \(yaml(sni))") }
+            appendClashCertificateFingerprint(node, to: &values)
             if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" {
                 values.append("    obfs: \(yaml(obfs))")
             }
@@ -899,7 +924,10 @@ struct ConfigurationGenerator {
             if let value = node.udpRelayMode, !value.isEmpty {
                 values.append("    udp-relay-mode: \(yaml(value))")
             }
+            if let ports = node.portHopping, !ports.isEmpty { values.append("    ports: \(yaml(ports))") }
             appendClashALPN(node, to: &values)
+            appendClashCertificateFingerprint(node, to: &values)
+            appendClashClientFingerprint(node, to: &values)
         case .wireguard:
             values += [
                 "    private-key: \(yaml(node.wireGuardPrivateKey ?? ""))",
@@ -932,6 +960,9 @@ struct ConfigurationGenerator {
             if let value = node.idleSessionCheckInterval { values.append("    idle-session-check-interval: \(value)") }
             if let value = node.idleSessionTimeout { values.append("    idle-session-timeout: \(value)") }
             if let value = node.minIdleSession { values.append("    min-idle-session: \(value)") }
+            appendClashALPN(node, to: &values)
+            appendClashCertificateFingerprint(node, to: &values)
+            appendClashClientFingerprint(node, to: &values)
         case .snell:
             values.append("    psk: \(yaml(node.password ?? ""))")
             if let version = node.version { values.append("    version: \(version)") }
@@ -966,7 +997,6 @@ struct ConfigurationGenerator {
         // Clash Meta defaults the fingerprint when REALITY is on but it is
         // absent, so send whatever the airport specified.
         values.append("    client-fingerprint: \(yaml(node.fingerprint ?? "chrome"))")
-        if let flow = node.flow, !flow.isEmpty { values.append("    flow: \(yaml(flow))") }
     }
 
     /// Writes `alpn` as the YAML list Mihomo expects.
@@ -975,19 +1005,38 @@ struct ConfigurationGenerator {
     /// the client reads `h3,h2` as a single protocol name and the handshake
     /// never matches.
     private func appendClashALPN(_ node: ProxyNode, to values: inout [String]) {
-        let entries = (node.alpn ?? "")
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        let entries = ALPNList.values(node.alpn)
         guard !entries.isEmpty else { return }
         values.append("    alpn: [\(entries.map(yaml).joined(separator: ", "))]")
+    }
+
+    /// Shadowrocket's Clash reader consumes the same uTLS field as Mihomo.
+    /// REALITY writes it together with `reality-opts`; ordinary TLS protocols
+    /// still need it at the proxy root or their ClientHello differs from the
+    /// provider's server expectation.
+    private func appendClashClientFingerprint(_ node: ProxyNode, to values: inout [String]) {
+        guard !node.usesReality,
+              let fingerprint = node.fingerprint,
+              !fingerprint.isEmpty else { return }
+        values.append("    client-fingerprint: \(yaml(fingerprint))")
+    }
+
+    private func appendClashCertificateFingerprint(_ node: ProxyNode, to values: inout [String]) {
+        guard let fingerprint = node.certificateFingerprint,
+              !fingerprint.isEmpty else { return }
+        values.append("    fingerprint: \(yaml(fingerprint))")
     }
 
     private func appendClashTransport(_ node: ProxyNode, to values: inout [String]) {
         values.append("    tls: \(node.tls)")
         values.append("    skip-cert-verify: \(node.skipCertificateVerification)")
         if let sni = node.sni, !sni.isEmpty { values.append("    servername: \(yaml(sni))") }
+        appendClashCertificateFingerprint(node, to: &values)
         appendClashReality(node, to: &values)
+        if node.kind == .vless, let flow = node.flow, !flow.isEmpty {
+            values.append("    flow: \(yaml(flow))")
+        }
+        appendClashClientFingerprint(node, to: &values)
         if let transport = node.transport, !transport.isEmpty, transport != "tcp" {
             values.append("    network: \(yaml(transport == "httpupgrade" ? "ws" : transport))")
             switch transport {
@@ -2409,8 +2458,9 @@ extension ConfigurationGenerator {
             "server_name": node.sni ?? node.hostHeader ?? node.server,
             "insecure": node.skipCertificateVerification
         ]
-        if let alpn = node.alpn, !alpn.isEmpty {
-            tls["alpn"] = alpn.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let alpn = ALPNList.values(node.alpn)
+        if !alpn.isEmpty {
+            tls["alpn"] = alpn
         }
         if node.usesReality {
             var reality: [String: Any] = ["enabled": true, "public_key": node.realityPublicKey ?? ""]
@@ -2784,9 +2834,7 @@ extension ConfigurationGenerator {
             body.append("      password: \(yaml(node.password ?? ""))")
             if let sni = node.sni, !sni.isEmpty { body.append("      sni: \(yaml(sni))") }
             // Egern wants a list here even for the single value a URI carries.
-            let alpn = (node.alpn?.split(separator: ",").map {
-                $0.trimmingCharacters(in: .whitespaces)
-            }.filter { !$0.isEmpty }) ?? []
+            let alpn = ALPNList.values(node.alpn)
             body.append("      alpn: [\((alpn.isEmpty ? ["h3"] : alpn).map(yaml).joined(separator: ", "))]")
             if node.skipCertificateVerification { body.append("      skip_tls_verify: true") }
         case .wireguard:

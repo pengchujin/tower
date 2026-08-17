@@ -329,7 +329,7 @@ struct ManualNodeDraft: Equatable {
         let normalizedSNI = sni.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedHostHeader = hostHeader.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedALPN = alpn.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedALPN = ALPNList.normalized(alpn)
         let normalizedRealityKey = realityPublicKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedRealityShortID = realityShortID.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedFingerprint = fingerprint.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -445,7 +445,7 @@ struct ManualNodeDraft: Equatable {
             sni: normalizedSNI.isEmpty ? nil : normalizedSNI,
             hostHeader: normalizedHostHeader.isEmpty ? nil : normalizedHostHeader,
             path: normalizedPath.isEmpty ? nil : normalizedPath,
-            alpn: normalizedALPN.isEmpty ? nil : normalizedALPN,
+            alpn: normalizedALPN,
             realityPublicKey: usesReality ? normalizedRealityKey : nil,
             realityShortID: usesReality && !normalizedRealityShortID.isEmpty ? normalizedRealityShortID : nil,
             fingerprint: usesReality && !normalizedFingerprint.isEmpty ? normalizedFingerprint : nil,

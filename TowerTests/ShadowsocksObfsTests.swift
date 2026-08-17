@@ -66,7 +66,9 @@ final class ShadowsocksObfsTests: XCTestCase {
         let expected: [ClientTarget: [String]] = [
             .clash: ["plugin: obfs", "mode: \"http\"", "host: \"cover.example.com\""],
             .surge: ["obfs=http", "obfs-host=cover.example.com"],
-            .shadowrocket: ["obfs=http", "obfs-host=cover.example.com"],
+            // Shadowrocket imports the generated Clash YAML directly, so its
+            // node keeps the same nested SIP003 plugin shape as Clash.
+            .shadowrocket: ["plugin: obfs", "mode: \"http\"", "host: \"cover.example.com\""],
             .loon: ["obfs-name=http", "obfs-host=cover.example.com"],
             .quanx: ["obfs=http", "obfs-host=cover.example.com"]
         ]

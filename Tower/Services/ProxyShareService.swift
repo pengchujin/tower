@@ -130,7 +130,7 @@ struct ProxyNodeShareLinkGenerator {
         if let sni = node.sni { object["sni"] = sni }
         if let host = node.hostHeader { object["host"] = host }
         if let path = node.path { object["path"] = path }
-        if let alpn = node.alpn { object["alpn"] = alpn }
+        if let alpn = ALPNList.normalized(node.alpn) { object["alpn"] = alpn }
         if node.skipCertificateVerification { object["allowInsecure"] = true }
 
         guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return nil }
@@ -192,6 +192,21 @@ struct ProxyNodeShareLinkGenerator {
         } else if node.tls && ![.trojan, .hysteria, .hysteria2, .tuic, .anytls, .http].contains(node.kind) {
             queryItems.append(URLQueryItem(name: "security", value: "tls"))
         }
+        // URI producers (including Sub-Store) use `fp` for ordinary
+        // VLESS/Trojan/AnyTLS uTLS fingerprints too, not only REALITY.
+        if !node.usesReality,
+           [.vless, .trojan, .anytls].contains(node.kind),
+           let fingerprint = node.fingerprint,
+           !fingerprint.isEmpty {
+            queryItems.append(URLQueryItem(name: "fp", value: fingerprint))
+        }
+        // Shadowrocket/Sub-Store's VLESS URI dialect keeps the server
+        // certificate pin in `pcs`, independently from the uTLS `fp` value.
+        if node.kind == .vless,
+           let fingerprint = node.certificateFingerprint,
+           !fingerprint.isEmpty {
+            queryItems.append(URLQueryItem(name: "pcs", value: fingerprint))
+        }
         if let sni = node.sni, !sni.isEmpty {
             queryItems.append(URLQueryItem(name: "sni", value: sni))
         }
@@ -201,7 +216,7 @@ struct ProxyNodeShareLinkGenerator {
         if let path = node.path, !path.isEmpty {
             queryItems.append(URLQueryItem(name: node.transport == "grpc" ? "serviceName" : "path", value: path))
         }
-        if let alpn = node.alpn, !alpn.isEmpty {
+        if let alpn = ALPNList.normalized(node.alpn) {
             queryItems.append(URLQueryItem(name: "alpn", value: alpn))
         }
         if node.kind == .hysteria2,
@@ -212,6 +227,17 @@ struct ProxyNodeShareLinkGenerator {
             if let password = node.obfsParam, !password.isEmpty {
                 queryItems.append(URLQueryItem(name: "obfs-password", value: password))
             }
+        }
+        if node.kind == .hysteria2,
+           let ports = node.portHopping,
+           !ports.isEmpty {
+            queryItems.append(URLQueryItem(name: "mport", value: ports))
+        }
+        if node.kind == .hysteria2,
+           let fingerprint = node.certificateFingerprint,
+           !fingerprint.isEmpty {
+            // Hysteria 2 URI producers use pinSHA256 for the certificate pin.
+            queryItems.append(URLQueryItem(name: "pinSHA256", value: fingerprint))
         }
         if node.kind == .hysteria {
             if let protocolName = node.protocolName, !protocolName.isEmpty {
@@ -231,6 +257,12 @@ struct ProxyNodeShareLinkGenerator {
             }
             if let value = node.udpRelayMode, !value.isEmpty {
                 queryItems.append(URLQueryItem(name: "udp_relay_mode", value: value))
+            }
+            if let fingerprint = node.fingerprint, !fingerprint.isEmpty {
+                queryItems.append(URLQueryItem(name: "client_fingerprint", value: fingerprint))
+            }
+            if let ports = node.portHopping, !ports.isEmpty {
+                queryItems.append(URLQueryItem(name: "ports", value: ports))
             }
         }
         if node.kind == .anytls {

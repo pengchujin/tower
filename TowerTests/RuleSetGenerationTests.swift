@@ -22,24 +22,24 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), content)
     }
 
-    func testSurgeAndShadowrocketUseRemoteRuleSetWhenEnabled() throws {
+    func testSurgeAndShadowrocketUseNativeRemoteRuleSetsWhenEnabled() throws {
         let fixture = try makeFixture(content: "DOMAIN-SUFFIX,example.com")
 
-        for target in [ClientTarget.surge, .shadowrocket] {
-            let content = fixture.generator.generate(
-                nodes: [],
-                scheme: fixture.scheme,
-                target: target,
-                schemes: fixture.repository,
-                preferRuleSets: true
-            ).content
+        let surge = fixture.generator.generate(
+            nodes: [], scheme: fixture.scheme, target: .surge,
+            schemes: fixture.repository, preferRuleSets: true
+        ).content
+        XCTAssertTrue(surge.contains("RULE-SET,\(url.absoluteString),Proxy,update-interval=86400"), surge)
+        XCTAssertFalse(surge.contains("DOMAIN-SUFFIX,example.com,Proxy"), surge)
 
-            XCTAssertTrue(
-                content.contains("RULE-SET,\(url.absoluteString),Proxy,update-interval=86400"),
-                "\(target.name): \(content)"
-            )
-            XCTAssertFalse(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), content)
-        }
+        let shadowrocket = fixture.generator.generate(
+            nodes: [], scheme: fixture.scheme, target: .shadowrocket,
+            schemes: fixture.repository, preferRuleSets: true
+        ).content
+        XCTAssertTrue(shadowrocket.contains("rule-providers:"), shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("url: \"\(url.absoluteString)\""), shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("RULE-SET,tower-streaming-1,Proxy"), shadowrocket)
+        XCTAssertFalse(shadowrocket.contains("DOMAIN-SUFFIX,example.com,Proxy"), shadowrocket)
     }
 
     func testLoonUsesRemoteRuleSectionWhenEnabled() throws {
@@ -60,7 +60,7 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), content)
     }
 
-    func testClashProviderYAMLStaysRemoteOnlyForClash() throws {
+    func testClashProviderYAMLStaysRemoteForStructuredClashProfiles() throws {
         let fixture = try makeFixture(
             url: URL(string: "https://rules.example.com/Streaming.yaml")!,
             content: "payload:\n  - DOMAIN-SUFFIX,example.com"
@@ -76,7 +76,17 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertTrue(clash.contains("format: yaml"), clash)
         XCTAssertFalse(clash.contains("format: text"), clash)
 
-        for target in [ClientTarget.surge, .shadowrocket, .loon, .quanx] {
+        let shadowrocket = fixture.generator.generate(
+            nodes: [],
+            scheme: fixture.scheme,
+            target: .shadowrocket,
+            schemes: fixture.repository,
+            preferRuleSets: true
+        ).content
+        XCTAssertTrue(shadowrocket.contains("format: yaml"), shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("https://rules.example.com/Streaming.yaml"), shadowrocket)
+
+        for target in [ClientTarget.surge, .loon, .quanx] {
             let content = fixture.generator.generate(
                 nodes: [],
                 scheme: fixture.scheme,

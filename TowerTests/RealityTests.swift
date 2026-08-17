@@ -71,6 +71,17 @@ final class RealityTests: XCTestCase {
         XCTAssertTrue(content.contains("    flow: \"xtls-rprx-vision\""))
     }
 
+    func testClashCarriesVisionFlowWithoutReality() throws {
+        let plainVision = try XCTUnwrap(parser.parseURI(
+            "vless://11111111-1111-1111-1111-111111111111@edge.example.com:443"
+                + "?security=tls&type=tcp&sni=cover.example.com&flow=xtls-rprx-vision#Vision"
+        ))
+
+        XCTAssertFalse(plainVision.usesReality)
+        let content = generator.generate(nodes: [plainVision], preset: preset, target: .shadowrocket).content
+        XCTAssertTrue(content.contains("    flow: \"xtls-rprx-vision\""), content)
+    }
+
     func testHiddifyNestsRealityUnderTLS() throws {
         let content = generator.generate(nodes: [try node()], preset: preset, target: .hiddify).content
         let config = try XCTUnwrap(
@@ -109,19 +120,15 @@ final class RealityTests: XCTestCase {
 
     // MARK: - Clients that cannot express it
 
-    /// Shadowrocket names these differently from every other client, and
-    /// numbers the flow rather than spelling it.
-    func testShadowrocketUsesItsOwnRealityVocabulary() throws {
+    func testShadowrocketClashProfileKeepsRealityFields() throws {
         let output = generator.generate(nodes: [try node()], preset: preset, target: .shadowrocket)
 
         XCTAssertEqual(output.supportedNodeCount, 1)
-        XCTAssertTrue(output.content.contains("pbk=TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), output.content)
-        XCTAssertTrue(output.content.contains("sid=0123456789abcdef"))
-        XCTAssertTrue(output.content.contains("fingerprint=chrome"))
-        XCTAssertTrue(output.content.contains("xtls=2"), "vision 应写成 xtls=2")
-        // Loon's spelling must not leak into Shadowrocket's line.
-        XCTAssertFalse(output.content.contains("public-key="))
-        XCTAssertFalse(output.content.contains("short-id="))
+        XCTAssertTrue(output.content.contains("reality-opts:"), output.content)
+        XCTAssertTrue(output.content.contains("public-key: \"TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\""), output.content)
+        XCTAssertTrue(output.content.contains("short-id: \"0123456789abcdef\""), output.content)
+        XCTAssertTrue(output.content.contains("client-fingerprint: \"chrome\""), output.content)
+        XCTAssertTrue(output.content.contains("flow: \"xtls-rprx-vision\""), output.content)
     }
 
     func testLoonKeepsItsOwnSpelling() throws {

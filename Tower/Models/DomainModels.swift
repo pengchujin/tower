@@ -1,6 +1,38 @@
 import CryptoKit
 import Foundation
 
+/// Normalizes the list spellings used by subscription producers into the one
+/// representation Tower stores. Clash YAML commonly writes `[h3]` or
+/// `["h2", "http/1.1"]`, while share URIs use `h3` or repeated/comma joined
+/// values. Keeping brackets or quotes in an entry changes the TLS protocol
+/// name and makes an otherwise valid node fail its handshake.
+enum ALPNList {
+    static func values<S: Sequence>(_ rawValues: S) -> [String] where S.Element == String {
+        rawValues.flatMap { rawValue in
+            rawValue
+                .trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n\"'"))
+                .split(separator: ",", omittingEmptySubsequences: true)
+                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'")) }
+                .filter { !$0.isEmpty }
+        }
+    }
+
+    static func values(_ rawValue: String?) -> [String] {
+        guard let rawValue else { return [] }
+        return values([rawValue])
+    }
+
+    static func normalized<S: Sequence>(_ rawValues: S) -> String? where S.Element == String {
+        let entries = values(rawValues)
+        return entries.isEmpty ? nil : entries.joined(separator: ",")
+    }
+
+    static func normalized(_ rawValue: String?) -> String? {
+        guard let rawValue else { return nil }
+        return normalized([rawValue])
+    }
+}
+
 enum AppTab: String, CaseIterable, Identifiable {
     case subscriptions
     case rules
@@ -295,7 +327,10 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         case .vmess, .vless: "point.3.filled.connected.trianglepath.dotted"
         case .trojan: "shield.lefthalf.filled"
         case .hysteria, .hysteria2: "hare.fill"
-        case .tuic: "bolt.horizontal.fill"
+        // TUIC is the low-latency QUIC option. Keep it distinct from the
+        // Shadowsocks bolt while matching the filled, circular protocol icons
+        // used by the export filter.
+        case .tuic: "bolt.circle.fill"
         case .wireguard: "shield.checkered"
         case .anytls: "lock.shield.fill"
         // Snell is Surge's own protocol, so this echoes the rounded-square app
@@ -337,6 +372,12 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// SNI, which looks fine and never connects.
     var realityPublicKey: String?
     var realityShortID: String?
+    /// SHA-256 fingerprint of the server certificate. This is deliberately
+    /// separate from `fingerprint`, which is the browser-style uTLS ClientHello
+    /// name (`chrome`, `safari`, ...). Mihomo and Shadowrocket accept both and
+    /// confusing them produces a syntactically valid profile that cannot
+    /// complete its TLS handshake.
+    var certificateFingerprint: String?
     var fingerprint: String?
     var flow: String?
     var skipCertificateVerification: Bool
@@ -358,6 +399,11 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// airport makes, so a wrong guess costs UDP or throughput.
     var congestionControl: String?
     var udpRelayMode: String?
+    /// Alternate QUIC destination ports used by Hysteria 2 (and, where a
+    /// producer supports it, TUIC). Providers call this `ports`, `mport`,
+    /// `server-ports`, or `port-hopping`; using only the display `port` makes
+    /// most hops unreachable.
+    var portHopping: String?
     /// Hysteria 1's bandwidth budget in Mbps. Unlike Hysteria 2 these are not
     /// optional hints: the protocol's congestion control is rate-based, so a
     /// node without them either fails to load or crawls.
@@ -403,6 +449,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         alpn: String? = nil,
         realityPublicKey: String? = nil,
         realityShortID: String? = nil,
+        certificateFingerprint: String? = nil,
         fingerprint: String? = nil,
         flow: String? = nil,
         skipCertificateVerification: Bool = false,
@@ -417,6 +464,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         version: Int? = nil,
         congestionControl: String? = nil,
         udpRelayMode: String? = nil,
+        portHopping: String? = nil,
         upMbps: Int? = nil,
         downMbps: Int? = nil,
         wireGuardPrivateKey: String? = nil,
@@ -452,6 +500,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.alpn = alpn
         self.realityPublicKey = realityPublicKey
         self.realityShortID = realityShortID
+        self.certificateFingerprint = certificateFingerprint
         self.fingerprint = fingerprint
         self.flow = flow
         self.skipCertificateVerification = skipCertificateVerification
@@ -466,6 +515,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.version = version
         self.congestionControl = congestionControl
         self.udpRelayMode = udpRelayMode
+        self.portHopping = portHopping
         self.upMbps = upMbps
         self.downMbps = downMbps
         self.wireGuardPrivateKey = wireGuardPrivateKey
@@ -512,9 +562,9 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         let idleTimeout = idleSessionTimeout.map { String($0) } ?? ""
         let minimumIdle = minIdleSession.map { String($0) } ?? ""
         let protocolVersion = version.map { String($0) } ?? ""
-        fields.append(contentsOf: [idleCheck, idleTimeout, minimumIdle, protocolVersion])
+        fields.append(contentsOf: [certificateFingerprint ?? "", idleCheck, idleTimeout, minimumIdle, protocolVersion])
         fields.append(contentsOf: [
-            congestionControl ?? "", udpRelayMode ?? "",
+            congestionControl ?? "", udpRelayMode ?? "", portHopping ?? "",
             upMbps.map(String.init) ?? "", downMbps.map(String.init) ?? ""
         ])
         fields.append(contentsOf: [
@@ -1155,6 +1205,33 @@ enum TowerBrand {
         let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if ["Tower", "塔台", "塔臺"].contains(trimmed) { return localizedName }
         return ExportFilePresentation.profileName(trimmed)
+    }
+}
+
+/// Keeps the subscription name typed by the user stable while the edit sheet
+/// dismisses its focused text field. SwiftUI can publish one final empty value
+/// during toolbar dismissal, which must not overwrite the last real input.
+struct SubscriptionNameDraft: Equatable {
+    var text: String {
+        didSet {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                lastValidText = text
+            }
+        }
+    }
+    private var lastValidText: String?
+
+    init(text: String = "") {
+        self.text = text
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.lastValidText = trimmed.isEmpty ? nil : text
+    }
+
+    var committedName: String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmed.isEmpty ? lastValidText : text)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 }
 

@@ -65,7 +65,7 @@ final class AnyTLSTests: XCTestCase {
         let expected: [ClientTarget: [String]] = [
             .clash: ["type: anytls", "password: \"pass-word-1234\"", "sni: \"cover.example.com\""],
             .surge: ["anytls, node.example.com, 40500", "password=pass-word-1234", "sni=cover.example.com"],
-            .shadowrocket: ["anytls, node.example.com, 40500", "password=pass-word-1234"],
+            .shadowrocket: ["type: anytls", "password: \"pass-word-1234\"", "client-fingerprint: \"chrome\""],
             // Loon takes the password as a quoted positional field and names
             // the SNI tls-name.
             .loon: ["anytls,node.example.com,40500,\"pass-word-1234\"", "tls-name=cover.example.com"],
@@ -90,7 +90,7 @@ final class AnyTLSTests: XCTestCase {
         let expected: [ClientTarget: String] = [
             .clash: "skip-cert-verify: true",
             .surge: "skip-cert-verify=true",
-            .shadowrocket: "skip-cert-verify=true",
+            .shadowrocket: "skip-cert-verify: true",
             .loon: "skip-cert-verify=true",
             .quanx: "tls-verification=false"
         ]

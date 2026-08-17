@@ -101,19 +101,21 @@ final class SnellTests: XCTestCase {
 
     // MARK: - Generation
 
-    func testSurgeAndShadowrocketWriteTheProxyLine() throws {
+    func testSurgeAndShadowrocketPreserveEverySnellField() throws {
         let node = try XCTUnwrap(parser.parseURI(line))
 
-        for target in [ClientTarget.surge, .shadowrocket] {
-            let content = ConfigurationGenerator().generate(
-                nodes: [node],
-                preset: RulePreset.builtIns[0],
-                target: target
-            ).content
+        let surge = ConfigurationGenerator().generate(
+            nodes: [node], preset: RulePreset.builtIns[0], target: .surge
+        ).content
+        for fragment in ["snell, 203.0.113.9, 8388", "psk=secret-key", "version=4", "obfs=http", "obfs-host=cover.example.com"] {
+            XCTAssertTrue(surge.contains(fragment), "Surge 缺少 \(fragment)")
+        }
 
-            for fragment in ["snell, 203.0.113.9, 8388", "psk=secret-key", "version=4", "obfs=http", "obfs-host=cover.example.com"] {
-                XCTAssertTrue(content.contains(fragment), "\(target.name) 缺少 \(fragment)")
-            }
+        let shadowrocket = ConfigurationGenerator().generate(
+            nodes: [node], preset: RulePreset.builtIns[0], target: .shadowrocket
+        ).content
+        for fragment in ["type: snell", "server: \"203.0.113.9\"", "psk: \"secret-key\"", "version: 4", "obfs-opts:", "mode: \"http\"", "host: \"cover.example.com\""] {
+            XCTAssertTrue(shadowrocket.contains(fragment), "Shadowrocket 缺少 \(fragment)")
         }
     }
 

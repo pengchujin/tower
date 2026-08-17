@@ -320,6 +320,46 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
+    func testSubscriptionNameDraftKeepsTheLastTypedNameWhenSavingDismissesTheKeyboard() {
+        var draft = SubscriptionNameDraft(text: "原始名称")
+        draft.text = "Tower Test"
+
+        // SwiftUI can publish one final empty TextField value while a toolbar
+        // button dismisses the keyboard and the sheet at the same time.
+        draft.text = ""
+
+        XCTAssertEqual(draft.committedName, "Tower Test")
+    }
+
+    func testSubscriptionEditorKeepsItsNameDraftAboveThePresentedSheet() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let rootStart = try XCTUnwrap(source.range(of: "struct SubscriptionsView: View"))
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct EditSubscriptionSheet: View"))
+        let nextType = try XCTUnwrap(source.range(of: "private struct SubscriptionOverviewCard: View"))
+        let root = String(source[rootStart.lowerBound..<sheetStart.lowerBound])
+        let sheet = String(source[sheetStart.lowerBound..<nextType.lowerBound])
+
+        XCTAssertTrue(
+            root.contains("@State private var subscriptionNameDraft"),
+            "名称草稿必须由不会随弹窗重建的首页持有"
+        )
+        XCTAssertTrue(root.contains("nameDraft: $subscriptionNameDraft"))
+        XCTAssertTrue(sheet.contains("@Binding var nameDraft: SubscriptionNameDraft"))
+        XCTAssertFalse(
+            sheet.contains("@State private var name: String"),
+            "弹窗内部状态可能在工具栏提交前被重置，不能保存唯一的名称草稿"
+        )
+        XCTAssertTrue(sheet.contains("name: nameDraft.committedName"))
+        #else
+        throw XCTSkip("该测试检查订阅编辑弹窗的状态归属，只在模拟器构建环境运行")
+        #endif
+    }
+
     func testSectionHeadingLocalizesStaticDetailText() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)

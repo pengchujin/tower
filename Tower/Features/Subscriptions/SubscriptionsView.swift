@@ -7,6 +7,7 @@ struct SubscriptionsView: View {
     @State private var pendingDeletion: PendingDeletion?
     @State private var nodeFilterRoute: NodeFilterRoute?
     @State private var editingSubscription: SubscriptionSource?
+    @State private var subscriptionNameDraft = SubscriptionNameDraft()
     @State private var editingLocalNode: ProxyNode?
 
     var body: some View {
@@ -79,7 +80,7 @@ struct SubscriptionsView: View {
                 AddSourceSheet()
             }
             .sheet(item: $editingSubscription) { source in
-                EditSubscriptionSheet(source: source)
+                EditSubscriptionSheet(source: source, nameDraft: $subscriptionNameDraft)
             }
             .sheet(item: $editingLocalNode) { node in
                 AddSourceSheet(editingNode: node)
@@ -123,6 +124,7 @@ struct SubscriptionsView: View {
                     SubscriptionCard(source: source) {
                         Task { await model.updateSubscription(id: source.id) }
                     } onEdit: {
+                        subscriptionNameDraft = SubscriptionNameDraft(text: source.name)
                         editingSubscription = source
                     } onMoveUp: {
                         model.moveSubscription(source, by: -1)
@@ -303,16 +305,16 @@ private struct EditSubscriptionSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let source: SubscriptionSource
-    @State private var name: String
+    @Binding var nameDraft: SubscriptionNameDraft
     @State private var urlString: String
     @State private var userAgent: String
     @State private var dnsOverHTTPSURL: String
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    init(source: SubscriptionSource) {
+    init(source: SubscriptionSource, nameDraft: Binding<SubscriptionNameDraft>) {
         self.source = source
-        _name = State(initialValue: source.name)
+        _nameDraft = nameDraft
         _urlString = State(initialValue: source.urlString)
         _userAgent = State(initialValue: source.requestOptions?.userAgent ?? "")
         _dnsOverHTTPSURL = State(initialValue: source.requestOptions?.dnsOverHTTPSURL ?? "")
@@ -322,7 +324,7 @@ private struct EditSubscriptionSheet: View {
         NavigationStack {
             Form {
                 Section("订阅") {
-                    TextField("名称（可选）", text: $name)
+                    TextField("名称（可选）", text: $nameDraft.text)
                         .textContentType(.organizationName)
                     TextField("订阅链接", text: $urlString, axis: .vertical)
                         .lineLimit(2...5)
@@ -374,7 +376,7 @@ private struct EditSubscriptionSheet: View {
         do {
             try await model.updateSubscriptionDetails(
                 source,
-                name: name,
+                name: nameDraft.committedName,
                 urlString: urlString,
                 userAgent: userAgent,
                 dnsOverHTTPSURL: dnsOverHTTPSURL

@@ -297,7 +297,7 @@ final class RuleSchemeTests: XCTestCase {
         let expected: [ClientTarget: String] = [
             .clash: "MATCH,🐟 漏网之鱼",
             .surge: "FINAL,🐟 漏网之鱼",
-            .shadowrocket: "FINAL,🐟 漏网之鱼",
+            .shadowrocket: "MATCH,🐟 漏网之鱼",
             .loon: "FINAL,🐟 漏网之鱼",
             .quanx: "final, 🐟 漏网之鱼"
         ]

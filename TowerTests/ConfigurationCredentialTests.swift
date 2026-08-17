@@ -188,7 +188,7 @@ final class ConfigurationCredentialTests: XCTestCase {
             }
             // Both YAML formats quote the name, so the injected text survives
             // inside the scalar and only the line count proves it stayed put.
-            guard target != .clash, target != .egern else {
+            guard target != .clash, target != .shadowrocket, target != .egern else {
                 XCTAssertTrue(
                     hostile.contains(#""HK 01 REJECT = reject # owned""#),
                     "\(target.name) 应把节点名保留为单行带引号标量"
@@ -376,7 +376,7 @@ extension ConfigurationCredentialTests {
         let content = ConfigurationGenerator()
             .generate(nodes: [node], preset: RulePreset.builtIns[0], target: .shadowrocket).content
 
-        XCTAssertTrue(content.contains("［BETA］ HK"), content)
+        XCTAssertTrue(content.contains("name: \"[BETA] HK\""), content)
     }
 }
 

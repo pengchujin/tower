@@ -117,6 +117,36 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertTrue(https.tls)
     }
 
+    func testDecodesNamesFromPureBase64HTTPSSubscriptionDialects() throws {
+        func urlSafeBase64(_ value: String) -> String {
+            Data(value.utf8).base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+
+        let queryAuthority = urlSafeBase64("alice:secret@uk.example.com:443")
+        let queryName = urlSafeBase64("🇬🇧 London HTTPS")
+        let embeddedAuthority = urlSafeBase64(
+            "bob:secret@jp.example.com:443#🇯🇵 Tokyo HTTPS"
+        )
+        let links = [
+            "https://\(queryAuthority)?remarks=\(queryName)",
+            "https://\(embeddedAuthority)",
+            "socks5://carol:secret@sg.example.com:1080#Singapore%20SOCKS",
+            "anytls://secret@hk.example.com:443#Hong%20Kong%20AnyTLS"
+        ].joined(separator: "\n")
+        let subscription = Data(links.utf8).base64EncodedString()
+
+        let result = SubscriptionParser().parse(data: Data(subscription.utf8))
+
+        XCTAssertEqual(result.nodes.count, 4)
+        XCTAssertEqual(
+            result.nodes.map(\.name),
+            ["🇬🇧 London HTTPS", "🇯🇵 Tokyo HTTPS", "Singapore SOCKS", "Hong Kong AnyTLS"]
+        )
+    }
+
     func testParsesNestedClashWebSocketOptionsCaseInsensitively() {
         let yaml = """
         proxies:
@@ -178,6 +208,75 @@ final class SubscriptionParserTests: XCTestCase {
 }
 
 extension SubscriptionParserTests {
+    func testShadowrocketFullProfilePreservesStructuredClashConnectionFields() throws {
+        let yaml = """
+        proxies:
+          - name: VLESS TLS
+            type: vless
+            server: vless.example.com
+            port: 443
+            uuid: 11111111-2222-3333-4444-555555555555
+            tls: true
+            servername: cover.example.com
+            fingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            client-fingerprint: chrome
+            network: ws
+            ws-opts:
+              path: /vless
+              headers:
+                Host: cdn.example.com
+          - name: Hysteria2 Hop
+            type: hysteria2
+            server: hy2.example.com
+            port: 443
+            ports: 20000-30000
+            password: hy2-secret
+            sni: cover.example.com
+            alpn: [h3]
+            fingerprint: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          - name: TUIC QUIC
+            type: tuic
+            server: tuic.example.com
+            port: 443
+            uuid: 66666666-7777-8888-9999-aaaaaaaaaaaa
+            password: tuic-secret
+            sni: cover.example.com
+            alpn: [h3]
+            client-fingerprint: chrome
+            congestion-controller: bbr
+            udp-relay-mode: native
+          - name: AnyTLS TLS
+            type: anytls
+            server: anytls.example.com
+            port: 443
+            password: anytls-secret
+            sni: cover.example.com
+            alpn: [h2, http/1.1]
+            client-fingerprint: chrome
+        """
+
+        let parsed = SubscriptionParser().parse(data: Data(yaml.utf8))
+        XCTAssertEqual(parsed.nodes.count, 4)
+
+        let result = ConfigurationGenerator().generate(
+            nodes: parsed.nodes,
+            preset: RulePreset.builtIns[0],
+            target: .shadowrocket
+        )
+
+        // Shadowrocket accepts Clash YAML directly. Keeping the structured
+        // representation prevents a lossy conversion into one-line fields.
+        XCTAssertTrue(result.content.contains("proxies:"), result.content)
+        XCTAssertFalse(result.content.contains("[Proxy]"), result.content)
+        XCTAssertTrue(result.content.contains("ports: \"20000-30000\""), result.content)
+        XCTAssertEqual(result.content.components(separatedBy: "client-fingerprint: \"chrome\"").count - 1, 3, result.content)
+        XCTAssertTrue(result.content.contains("fingerprint: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""), result.content)
+        XCTAssertTrue(result.content.contains("fingerprint: \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\""), result.content)
+        XCTAssertTrue(result.content.contains("congestion-controller: \"bbr\""), result.content)
+        XCTAssertTrue(result.content.contains("udp-relay-mode: \"native\""), result.content)
+        XCTAssertTrue(result.content.contains("ws-opts:"), result.content)
+    }
+
     func testClashYAMLPreservesRealityAndNestedTransportOptions() throws {
         let yaml = """
         proxies:
@@ -232,5 +331,27 @@ extension SubscriptionParserTests {
         XCTAssertTrue(stash.contains("      short-id: \"0123456789abcdef\""), stash)
         XCTAssertTrue(stash.contains("    client-fingerprint: \"chrome\""), stash)
         XCTAssertTrue(stash.contains("    flow: \"xtls-rprx-vision\""), stash)
+    }
+
+    func testInlineClashYAMLPreservesRealityAndNestedTransportOptions() throws {
+        let yaml = """
+        proxies:
+          - {name: "Reality inline", type: vless, server: reality.example.com, port: 443, uuid: 11111111-1111-1111-1111-111111111111, tls: true, flow: xtls-rprx-vision, client-fingerprint: chrome, servername: cover.example.com, reality-opts: {public-key: TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, short-id: 0123456789abcdef}}
+          - {name: "WebSocket inline", type: vless, server: ws.example.com, port: 443, uuid: 22222222-2222-2222-2222-222222222222, tls: true, network: ws, ws-opts: {path: /liangxin/ws1, headers: {Host: ws-cover.example.com}}}
+        """
+
+        let parsed = SubscriptionParser().parse(data: Data(yaml.utf8))
+        XCTAssertEqual(parsed.nodes.count, 2)
+
+        let reality = parsed.nodes[0]
+        XCTAssertTrue(reality.usesReality)
+        XCTAssertEqual(reality.realityPublicKey, "TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        XCTAssertEqual(reality.realityShortID, "0123456789abcdef")
+        XCTAssertEqual(reality.flow, "xtls-rprx-vision")
+
+        let websocket = parsed.nodes[1]
+        XCTAssertEqual(websocket.transport, "ws")
+        XCTAssertEqual(websocket.exportablePath, "/liangxin/ws1")
+        XCTAssertEqual(websocket.hostHeader, "ws-cover.example.com")
     }
 }

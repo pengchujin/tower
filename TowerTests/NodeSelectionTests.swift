@@ -32,6 +32,37 @@ final class NodeSelectionTests: XCTestCase {
     }
 
     @MainActor
+    func testSubscriptionInfoSettingControlsNodeOnlyExportWithoutCreatingSkippedNodes() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-info-export-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let normal = ProxyNode(
+            kind: .shadowsocks, name: "香港 01", server: "hk.example.com", port: 443,
+            cipher: "aes-128-gcm", password: "secret", rawURI: "ss://normal"
+        )
+        let info = ProxyNode(
+            kind: .shadowsocks, name: "剩余流量：10 GB", server: "1.1.1.1", port: 1,
+            cipher: "aes-128-gcm", password: "notice", rawURI: "ss://info",
+            isSubscriptionMetadata: true
+        )
+        try store.save(AppSnapshot(
+            subscriptions: [], nodes: [normal, info],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .hiddify
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+
+        let visible = model.configuration(target: .hiddify, contentMode: .nodesOnly)
+        XCTAssertEqual(visible.supportedNodeCount, 2)
+        XCTAssertEqual(visible.skippedNodeCount, 0)
+
+        model.setFilterSubscriptionInfoNodes(true)
+        let filtered = model.configuration(target: .hiddify, contentMode: .nodesOnly)
+        XCTAssertEqual(filtered.supportedNodeCount, 1)
+        XCTAssertEqual(filtered.skippedNodeCount, 0)
+    }
+
+    @MainActor
     func testSubscriptionNameCanBeAppendedWithoutChangingStoredNode() throws {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-source-suffix-\(UUID().uuidString).json")

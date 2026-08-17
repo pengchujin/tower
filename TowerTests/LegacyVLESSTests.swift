@@ -29,6 +29,19 @@ final class LegacyVLESSTests: XCTestCase {
         XCTAssertEqual(node.name, "🇹🇼 Taiwan 01")
     }
 
+    func testParsesAutoPrefixedBase64Endpoint() throws {
+        let endpoint = "auto:b831381d-6324-4d53-ad4f-8cda48b30811@edge.example.net:12001"
+        let encoded = Data(endpoint.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+
+        let node = try XCTUnwrap(parser.parseURI("vless://\(encoded)"))
+
+        XCTAssertEqual(node.uuid, "b831381d-6324-4d53-ad4f-8cda48b30811")
+        XCTAssertEqual(node.exportableUUID, "b831381d-6324-4d53-ad4f-8cda48b30811")
+    }
+
     func testPreservesShadowrocketRealityOptions() throws {
         let node = try XCTUnwrap(parser.parseURI(link))
 

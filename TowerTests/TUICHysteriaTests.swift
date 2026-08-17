@@ -47,6 +47,135 @@ final class TUICHysteriaTests: XCTestCase {
         XCTAssertEqual(node.name, "香港 01 TUIC")
     }
 
+    func testParsesShadowrocketTUICQueryCredentialsAndIndexedALPN() throws {
+        let node = try XCTUnwrap(
+            parser.parseURI(
+                "tuic://node.example.com:44300"
+                    + "?uuid=3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47"
+                    + "&password=pass-word-1234&sni=cover.example.com"
+                    + "&alpn[0]=h3&insecure=1#香港 02 TUIC"
+            )
+        )
+
+        XCTAssertEqual(node.kind, .tuic)
+        XCTAssertEqual(node.uuid, "3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47")
+        XCTAssertEqual(node.password, "pass-word-1234")
+        XCTAssertEqual(node.sni, "cover.example.com")
+        XCTAssertEqual(node.alpn, "h3")
+        XCTAssertTrue(node.skipCertificateVerification)
+        XCTAssertEqual(node.name, "香港 02 TUIC")
+    }
+
+    func testNormalizesBracketedALPNFromTUICURI() throws {
+        let node = try XCTUnwrap(
+            parser.parseURI(
+                "tuic://3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47:pass-word-1234"
+                    + "@node.example.com:44300?sni=cover.example.com"
+                    + "&alpn=%5Bh3%5D&congestion_control=bbr#Bracketed ALPN"
+            )
+        )
+
+        XCTAssertEqual(node.alpn, "h3")
+    }
+
+    func testNormalizesInlineAndBlockALPNListsFromClashYAML() throws {
+        let yaml = """
+        proxies:
+          - name: TUIC inline list
+            type: tuic
+            server: tuic.example.com
+            port: 443
+            uuid: 3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47
+            password: pass-word-1234
+            alpn: [h3]
+          - name: AnyTLS quoted list
+            type: anytls
+            server: anytls.example.com
+            port: 443
+            password: pass-word-1234
+            alpn: ["h2", "http/1.1"]
+          - name: Hysteria block list
+            type: hysteria2
+            server: hysteria.example.com
+            port: 443
+            password: pass-word-1234
+            alpn:
+              - h3
+              - h2
+        """
+
+        let parsed = parser.parse(data: Data(yaml.utf8))
+
+        XCTAssertEqual(parsed.nodes.count, 3)
+        XCTAssertEqual(parsed.nodes[0].alpn, "h3")
+        XCTAssertEqual(parsed.nodes[1].alpn, "h2,http/1.1")
+        XCTAssertEqual(parsed.nodes[2].alpn, "h3,h2")
+
+        let output = ConfigurationGenerator().generate(
+            nodes: parsed.nodes,
+            preset: RulePreset.builtIns[0],
+            target: .shadowrocket
+        ).content
+        XCTAssertTrue(output.contains("    alpn: [\"h3\"]"), output)
+        XCTAssertTrue(output.contains("    alpn: [\"h2\", \"http/1.1\"]"), output)
+        XCTAssertFalse(output.contains("[\"[h3]\"]"), output)
+    }
+
+    func testRepairsBracketedALPNAlreadyStoredByAnOlderBuild() throws {
+        var node = try XCTUnwrap(
+            parser.parseURI(
+                "tuic://3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47:pass-word-1234"
+                    + "@node.example.com:44300?sni=cover.example.com"
+                    + "&alpn=h3&congestion_control=bbr#Stored TUIC"
+            )
+        )
+        node.alpn = "[h3]"
+
+        let output = ConfigurationGenerator().generate(
+            nodes: [node],
+            preset: RulePreset.builtIns[0],
+            target: .shadowrocket
+        ).content
+        XCTAssertTrue(output.contains("    alpn: [\"h3\"]"), output)
+        XCTAssertFalse(output.contains("[\"[h3]\"]"), output)
+
+        let link = ProxyNodeShareLinkGenerator().canonicalLink(for: node)
+        let components = try XCTUnwrap(URLComponents(string: link))
+        XCTAssertEqual(
+            components.queryItems?.first(where: { $0.name == "alpn" })?.value,
+            "h3"
+        )
+    }
+
+    func testHiddifyDoesNotSkipShadowrocketTUICQueryDialect() throws {
+        let node = try XCTUnwrap(
+            parser.parseURI(
+                "tuic://node.example.com:44300"
+                    + "?uuid=3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47"
+                    + "&password=pass-word-1234&sni=cover.example.com"
+                    + "&alpn[0]=h3&insecure=1#香港 02 TUIC"
+            )
+        )
+
+        let result = ConfigurationGenerator().generateNodeSubscription(
+            nodes: [node],
+            target: .hiddify,
+            profileName: "Tower"
+        )
+
+        XCTAssertEqual(result.supportedNodeCount, 1)
+        XCTAssertEqual(result.skippedNodeCount, 0)
+        XCTAssertTrue(result.content.hasPrefix("tuic://"), result.content)
+    }
+
+    func testRejectsTUICWithoutRequiredCredentials() {
+        XCTAssertNil(
+            parser.parseURI(
+                "tuic://node.example.com:44300?sni=cover.example.com&alpn[0]=h3#Incomplete TUIC"
+            )
+        )
+    }
+
     func testParsesHysteriaBandwidthAndObfs() throws {
         let node = try XCTUnwrap(parser.parseURI(hysteriaURI))
 
@@ -261,27 +390,36 @@ final class TUICHysteriaTests: XCTestCase {
         XCTAssertTrue(line.contains("sni=cover.example.com"), line)
     }
 
-    /// Shadowrocket names the same three fields differently — `user`, `peer`
-    /// and a numeric `udp` — exactly as its manual documents.
-    func testShadowrocketWritesItsOwnTUICVocabulary() {
-        let line = try! proxyLine(for: tuicNode(), target: .shadowrocket)
+    func testShadowrocketClashProfileKeepsTUICFields() {
+        let content = configuration(for: tuicNode(), target: .shadowrocket)
 
-        XCTAssertTrue(line.contains("tuic, node.example.com, 44300"), line)
-        XCTAssertTrue(line.contains("password=pass-word-1234"), line)
-        XCTAssertTrue(line.contains("user=3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47"), line)
-        XCTAssertTrue(line.contains("udp=1"), line)
-        XCTAssertFalse(line.contains("uuid="), line)
+        XCTAssertTrue(content.contains("type: tuic"), content)
+        XCTAssertTrue(content.contains("server: \"node.example.com\""), content)
+        XCTAssertTrue(content.contains("port: 44300"), content)
+        XCTAssertTrue(content.contains("password: \"pass-word-1234\""), content)
+        XCTAssertTrue(content.contains("uuid: \"3d3ab7b1-4a63-4f2e-9c1d-6b0e5a2f8c47\""), content)
+        XCTAssertTrue(content.contains("udp: true"), content)
+    }
+
+    func testShadowrocketClashProfileKeepsHysteria2UDP() throws {
+        let content = configuration(
+            for: try XCTUnwrap(parser.parseURI(hysteria2URI + "#Hysteria 2")),
+            target: .shadowrocket
+        )
+
+        XCTAssertTrue(content.contains("type: hysteria2"), content)
+        XCTAssertTrue(content.contains("udp: true"), content)
     }
 
     func testShadowrocketWritesHysteria1WithAuthAndBandwidth() {
-        let line = try! proxyLine(for: hysteriaNode(), target: .shadowrocket)
+        let content = configuration(for: hysteriaNode(), target: .shadowrocket)
 
-        XCTAssertTrue(line.contains("hysteria, node.example.com, 36712"), line)
-        XCTAssertTrue(line.contains("auth=pass-word-1234"), line)
-        XCTAssertTrue(line.contains("obfsParam=scramble"), line)
-        XCTAssertTrue(line.contains("protocol=udp"), line)
-        XCTAssertTrue(line.contains("upmbps=80"), line)
-        XCTAssertTrue(line.contains("downmbps=240"), line)
+        XCTAssertTrue(content.contains("type: hysteria"), content)
+        XCTAssertTrue(content.contains("auth-str: \"pass-word-1234\""), content)
+        XCTAssertTrue(content.contains("obfs: \"scramble\""), content)
+        XCTAssertTrue(content.contains("protocol: \"udp\""), content)
+        XCTAssertTrue(content.contains("up: 80"), content)
+        XCTAssertTrue(content.contains("down: 240"), content)
     }
 
     /// Shadowrocket's manual writes Hysteria 2 as `auth=`, the same key it
@@ -292,13 +430,14 @@ final class TUICHysteriaTests: XCTestCase {
     func testHysteria2KeepsThePasswordSpellingVerifiedOnDevice() throws {
         let node = try XCTUnwrap(parser.parseURI(hysteria2URI))
 
-        for target in [ClientTarget.shadowrocket, .surge] {
-            let line = try proxyLine(for: node, target: target)
+        let surge = try proxyLine(for: node, target: .surge)
+        XCTAssertTrue(surge.contains("hysteria2, node.example.com, 443"), surge)
+        XCTAssertTrue(surge.contains("password=pass-word-1234"), surge)
+        XCTAssertFalse(surge.contains("auth=pass-word-1234"), surge)
 
-            XCTAssertTrue(line.contains("hysteria2, node.example.com, 443"), line)
-            XCTAssertTrue(line.contains("password=pass-word-1234"), line)
-            XCTAssertFalse(line.contains("auth=pass-word-1234"), line)
-        }
+        let shadowrocket = configuration(for: node, target: .shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("type: hysteria2"), shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("password: \"pass-word-1234\""), shadowrocket)
     }
 
     /// The Salamander password is named in the key by Surge and left unnamed by
@@ -309,9 +448,9 @@ final class TUICHysteriaTests: XCTestCase {
             parser.parseURI(hysteria2URI + "&obfs=salamander&obfs-password=s3cret")
         )
 
-        let shadowrocket = try proxyLine(for: node, target: .shadowrocket)
-        XCTAssertTrue(shadowrocket.contains("obfsParam=s3cret"), shadowrocket)
-        XCTAssertFalse(shadowrocket.contains("salamander"), shadowrocket)
+        let shadowrocket = configuration(for: node, target: .shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("obfs: \"salamander\""), shadowrocket)
+        XCTAssertTrue(shadowrocket.contains("obfs-password: \"s3cret\""), shadowrocket)
 
         let surge = try proxyLine(for: node, target: .surge)
         XCTAssertTrue(surge.contains("salamander-password=s3cret"), surge)
@@ -439,13 +578,17 @@ final class TUICHysteriaTests: XCTestCase {
     }
 
     private func proxyLine(for node: ProxyNode, target: ClientTarget) throws -> String {
-        let content = ConfigurationGenerator()
-            .generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
-            .content
+        let content = configuration(for: node, target: target)
         return try XCTUnwrap(
             content.split(separator: "\n").first { $0.contains(node.server) }.map(String.init),
             content
         )
+    }
+
+    private func configuration(for node: ProxyNode, target: ClientTarget) -> String {
+        ConfigurationGenerator()
+            .generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
+            .content
     }
 }
 

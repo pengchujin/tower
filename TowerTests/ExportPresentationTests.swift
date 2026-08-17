@@ -3,6 +3,13 @@ import XCTest
 @testable import Tower
 
 final class ExportPresentationTests: XCTestCase {
+    func testTUICUsesADedicatedAvailableExportProtocolIcon() {
+        XCTAssertEqual(ProxyKind.tuic.symbol, "bolt.circle.fill")
+        XCTAssertNotNil(UIImage(systemName: ProxyKind.tuic.symbol))
+        XCTAssertNotEqual(ProxyKind.tuic.symbol, ProxyKind.vmess.symbol)
+        XCTAssertNotEqual(ProxyKind.tuic.symbol, ProxyKind.shadowsocks.symbol)
+    }
+
     func testConfigurationPreviewSummaryBoundsLineCountAndLineLength() {
         let longLine = String(repeating: "a", count: 1_200)
         let content = ([longLine] + (1...40).map { "rule-\($0)" }).joined(separator: "\n")

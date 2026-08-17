@@ -130,7 +130,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let expectations: [ClientTarget: String] = [
             .clash: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .surge: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
-            .shadowrocket: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
+            .shadowrocket: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .loon: "AI服务 = select,🚀 节点选择,♻️ 自动选择,🎛️ 手动切换",
             .quanx: "static=AI服务, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
             .egern: "  - select:\n      name: \"AI服务\"\n      policies:\n        - \"🚀 节点选择\"\n        - \"♻️ 自动选择\"\n        - \"🎛️ 手动切换\""
@@ -181,7 +181,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let expectations: [(ClientTarget, String, String)] = [
             (.clash, "  - name: \"AI服务\"", "  - name: \"🇭🇰 香港\"\n    type: select"),
             (.surge, "AI服务 = select", "🇭🇰 香港 = select"),
-            (.shadowrocket, "AI服务 = select", "🇭🇰 香港 = select"),
+            (.shadowrocket, "  - name: \"AI服务\"", "  - name: \"🇭🇰 香港\"\n    type: select"),
             (.loon, "AI服务 = select", "🇭🇰 香港 = select"),
             (.quanx, "static=AI服务", "static=🇭🇰 香港")
         ]
@@ -213,8 +213,8 @@ final class ConfigurationGeneratorTests: XCTestCase {
                 "🇭🇰 香港 · 延迟优选 = url-test, Hong Kong, url="
             ],
             .shadowrocket: [
-                "🇭🇰 香港 = select, 🇭🇰 香港 · 延迟优选, Hong Kong",
-                "🇭🇰 香港 · 延迟优选 = url-test, Hong Kong, url="
+                "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
+                "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
             ],
             .loon: [
                 "🇭🇰 香港 = select,🇭🇰 香港 · 延迟优选,Hong Kong",
@@ -328,7 +328,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let clashBlock = clashTail[..<nextGroup]
         XCTAssertFalse(clashBlock.contains("\n    icon:"), "Clash 地区组不应同时显示远程国旗和 Emoji 国旗")
 
-        for target in [ClientTarget.surge, .shadowrocket, .loon, .quanx] {
+        for target in [ClientTarget.surge, .loon, .quanx] {
             let content = generator.generate(
                 nodes: nodes,
                 preset: preset,
@@ -340,6 +340,22 @@ final class ConfigurationGeneratorTests: XCTestCase {
             XCTAssertFalse(line.contains("icon-url="), "\(target.name) 地区组重复挂载远程国旗")
             XCTAssertFalse(line.contains("img-url="), "\(target.name) 地区组重复挂载远程国旗")
         }
+
+        let shadowrocket = generator.generate(
+            nodes: nodes,
+            preset: preset,
+            target: .shadowrocket,
+            countryCodes: countryCodes
+        ).content
+        let shadowrocketStart = try XCTUnwrap(shadowrocket.range(of: clashMarker)?.lowerBound)
+        let shadowrocketTail = shadowrocket[shadowrocketStart...]
+        let shadowrocketNext = try XCTUnwrap(
+            shadowrocketTail.dropFirst(clashMarker.count).range(of: "\n  - name:")?.lowerBound
+        )
+        XCTAssertFalse(
+            shadowrocketTail[..<shadowrocketNext].contains("\n    icon:"),
+            "Shadowrocket 地区组不应同时显示远程国旗和 Emoji 国旗"
+        )
     }
 
     func testSelfConfigurationUsesSafeDefaultPolicyOrder() {
@@ -567,7 +583,35 @@ final class ConfigurationGeneratorTests: XCTestCase {
         XCTAssertTrue(decoded?.contains("ss://") == true)
     }
 
-    func testNodeOnlyExportDropsProviderNoticesAndCanonicalizesEmojiNames() throws {
+    func testShadowrocketNodeOnlyExportPreservesTLSFingerprintsAndPortHopping() throws {
+        let yaml = """
+        proxies:
+          - {name: VLESS, type: vless, server: vless.example.com, port: 443, uuid: 11111111-2222-3333-4444-555555555555, tls: true, client-fingerprint: chrome}
+          - {name: AnyTLS, type: anytls, server: anytls.example.com, port: 443, password: secret, client-fingerprint: safari}
+          - {name: Hysteria2, type: hysteria2, server: hy2.example.com, port: 443, ports: 20000-30000, password: secret, fingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+          - {name: TUIC, type: tuic, server: tuic.example.com, port: 443, uuid: 66666666-7777-8888-9999-aaaaaaaaaaaa, password: secret, client-fingerprint: chrome, congestion-controller: bbr, udp-relay-mode: native}
+        """
+        let parsedNodes = SubscriptionParser().parse(data: Data(yaml.utf8)).nodes
+
+        let result = ConfigurationGenerator().generateNodeSubscription(
+            nodes: parsedNodes,
+            target: .shadowrocket
+        )
+        let decoded = try XCTUnwrap(
+            Data(base64Encoded: result.content).flatMap { String(data: $0, encoding: .utf8) }
+        )
+
+        XCTAssertEqual(result.supportedNodeCount, 4)
+        XCTAssertTrue(decoded.contains("fp=chrome"), decoded)
+        XCTAssertTrue(decoded.contains("fp=safari"), decoded)
+        XCTAssertTrue(decoded.contains("mport=20000-30000"), decoded)
+        XCTAssertTrue(decoded.contains("pinSHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), decoded)
+        XCTAssertTrue(decoded.contains("client_fingerprint=chrome"), decoded)
+        XCTAssertTrue(decoded.contains("congestion_control=bbr"), decoded)
+        XCTAssertTrue(decoded.contains("udp_relay_mode=native"), decoded)
+    }
+
+    func testNodeOnlyExportUsesCallerFilteredNodesAndCanonicalizesEmojiNames() throws {
         let notice = ProxyNode(
             kind: .shadowsocks,
             name: "请定期更新您的订阅",
@@ -596,14 +640,19 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let decoded = Data(base64Encoded: shadowrocket.content)
             .flatMap { String(data: $0, encoding: .utf8) }
 
-        XCTAssertEqual(shadowrocket.supportedNodeCount, 1)
-        XCTAssertEqual(shadowrocket.skippedNodeCount, 1)
-        XCTAssertFalse(try XCTUnwrap(decoded).contains("请定期更新您的订阅"))
-        XCTAssertTrue(try XCTUnwrap(decoded).contains("#%F0%9F%87%AD%F0%9F%87%B0%20%E9%A6%99%E6%B8%AF%2002"))
+        XCTAssertEqual(shadowrocket.supportedNodeCount, 2)
+        XCTAssertEqual(shadowrocket.skippedNodeCount, 0)
+        let decodedText = try XCTUnwrap(decoded)
+        let roundTrippedNames = SubscriptionParser()
+            .parse(data: Data(decodedText.utf8))
+            .nodes.map(\.name)
+        XCTAssertTrue(roundTrippedNames.contains("请定期更新您的订阅"))
+        XCTAssertTrue(decodedText.contains("#%F0%9F%87%AD%F0%9F%87%B0%20%E9%A6%99%E6%B8%AF%2002"))
 
         let loon = generator.generateNodeSubscription(nodes: [notice, node], target: .loon)
-        XCTAssertEqual(loon.supportedNodeCount, 1)
-        XCTAssertFalse(loon.content.contains("请定期更新您的订阅"))
+        XCTAssertEqual(loon.supportedNodeCount, 2)
+        XCTAssertEqual(loon.skippedNodeCount, 0)
+        XCTAssertTrue(loon.content.contains("请定期更新您的订阅"))
         XCTAssertTrue(loon.content.contains(",\"secret\","), loon.content)
     }
 

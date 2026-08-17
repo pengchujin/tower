@@ -866,7 +866,14 @@ struct SubscriptionParser {
         guard let decoded = decodeBase64String(String(parts[0])),
               let atIndex = decoded.lastIndex(of: "@") else { return nil }
         let rawUUID = String(decoded[..<atIndex])
-        let uuid = rawUUID.hasPrefix(":") ? String(rawUUID.dropFirst()) : rawUUID
+        let uuid: String
+        if rawUUID.lowercased().hasPrefix("auto:") {
+            uuid = String(rawUUID.dropFirst("auto:".count))
+        } else if rawUUID.hasPrefix(":") {
+            uuid = String(rawUUID.dropFirst())
+        } else {
+            uuid = rawUUID
+        }
         guard !uuid.isEmpty,
               let address = parseEndpoint(String(decoded[decoded.index(after: atIndex)...])) else {
             return nil
@@ -901,7 +908,13 @@ struct SubscriptionParser {
             alpn: query["alpn"]?.removingPercentEncoding,
             realityPublicKey: realityPublicKey,
             realityShortID: query["sid"]?.removingPercentEncoding,
-            fingerprint: (query["fingerprint"] ?? query["fp"])?.removingPercentEncoding,
+            certificateFingerprint: (query["pcs"] ?? query["pinsha256"] ?? query["pin-sha256"])?
+                .removingPercentEncoding,
+            // Shadowrocket's legacy REALITY URI spells the uTLS value
+            // `fingerprint`; ordinary VLESS uses the unambiguous `fp` key.
+            fingerprint: (query["fp"]
+                ?? (!((realityPublicKey ?? "").isEmpty) ? query["fingerprint"] : nil))?
+                .removingPercentEncoding,
             flow: flow,
             skipCertificateVerification: ["1", "true"].contains(
                 query["allowinsecure"]?.lowercased() ?? query["insecure"]?.lowercased() ?? ""
@@ -947,15 +960,22 @@ struct SubscriptionParser {
         }
         let rawQuery = queryText.map(queryDictionary) ?? [:]
         let query = Dictionary(rawQuery.map { ($0.key.lowercased(), $0.value) }) { _, new in new }
+        let innerQuery = Dictionary((components.queryItems ?? []).map {
+            ($0.name.lowercased(), $0.value ?? "")
+        }) { _, new in new }
         let server = normalizedHost(rawHost)
         let port = components.port ?? (scheme == "https" ? 443 : 80)
-        let remarks = query["remarks"]?.removingPercentEncoding
-            ?? query["remark"]?.removingPercentEncoding
+        let outerRemarks = proxyNameQueryValue(query)
+        let innerRemarks = proxyNameQueryValue(innerQuery)
+        let name = outerRemarks
+            ?? decodedProxyName(fragment, mayBeBase64: false)
+            ?? innerRemarks
+            ?? decodedProxyName(components.fragment, mayBeBase64: false)
 
         return ProxyNode(
             sourceID: sourceID,
             kind: .http,
-            name: normalizedName(remarks ?? fragment, fallback: "HTTP · \(server)"),
+            name: normalizedName(name, fallback: "HTTP · \(server)"),
             server: server,
             port: port,
             password: components.password?.removingPercentEncoding,
@@ -985,9 +1005,8 @@ struct SubscriptionParser {
         let query = Dictionary((components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") }) { _, new in new }
         let fallback = "\(kind.title) · \(server)"
         let name = normalizedName(
-            components.fragment?.removingPercentEncoding
-                ?? query["remarks"]?.removingPercentEncoding
-                ?? query["remark"]?.removingPercentEncoding,
+            decodedProxyName(components.fragment, mayBeBase64: false)
+                ?? proxyNameQueryValue(query),
             fallback: fallback
         )
         let transport = normalizedTransport(
@@ -1005,6 +1024,35 @@ struct SubscriptionParser {
         let flow = query["flow"]
             ?? (kind == .vless && query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
         let credential = components.user?.removingPercentEncoding
+        // Most TUIC v5 links use `uuid:password@host`, but Shadowrocket-style
+        // subscriptions also exist with a bare authority and both credentials
+        // in the query. Keep the standard form authoritative and fall back to
+        // the query dialect so these nodes do not import with empty secrets.
+        let tuicUUID = [credential, query["uuid"]?.removingPercentEncoding]
+            .compactMap { $0 }
+            .first { !$0.isEmpty }
+        let tuicPassword = [components.password?.removingPercentEncoding, query["password"]?.removingPercentEncoding]
+            .compactMap { $0 }
+            .first { !$0.isEmpty }
+        // Some producers serialize an ALPN array as `alpn[0]=h3` rather than
+        // the usual comma-separated `alpn=h3`. Preserve every indexed item in
+        // order and normalize it to Tower's comma-separated model field.
+        let alpnValues = (components.queryItems ?? []).compactMap { item -> String? in
+            let key = item.name.lowercased()
+            guard key == "alpn" || key == "alpn[]" || (key.hasPrefix("alpn[") && key.hasSuffix("]")) else {
+                return nil
+            }
+            guard let value = item.value, !value.isEmpty else { return nil }
+            return value
+        }
+        let normalizedALPN = ALPNList.normalized(alpnValues)
+
+        // An incomplete TUIC node is not usable by any target client. Reject
+        // it here instead of counting it as a successful import; subscription
+        // loading can then try the provider's Clash compatibility response.
+        if kind == .tuic, tuicUUID == nil || tuicPassword == nil {
+            return nil
+        }
 
         return ProxyNode(
             sourceID: sourceID,
@@ -1016,13 +1064,15 @@ struct SubscriptionParser {
             // other scheme here both halves of the userinfo are meaningful.
             // Hysteria 1 puts its secret in the query instead of the userinfo.
             password: kind == .tuic
-                ? components.password?.removingPercentEncoding
+                ? tuicPassword
                 : (kind == .hysteria
                     ? (credential ?? query["auth"] ?? query["auth_str"] ?? query["authstr"])
                     : ([.trojan, .hysteria2, .anytls].contains(kind)
                         ? credential
                         : components.password?.removingPercentEncoding)),
-            uuid: [.vmess, .vless, .tuic].contains(kind) ? credential : nil,
+            uuid: kind == .tuic
+                ? tuicUUID
+                : ([.vmess, .vless].contains(kind) ? credential : nil),
             username: [.socks5, .http].contains(kind) ? credential : nil,
             transport: transport,
             transportMode: transport == "xhttp" ? query["mode"] : nil,
@@ -1035,12 +1085,20 @@ struct SubscriptionParser {
             path: transport == "grpc"
                 ? query["servicename"] ?? query["service_name"] ?? query["path"]
                 : query["path"],
-            alpn: query["alpn"],
+            alpn: normalizedALPN,
             // REALITY. `pbk` is the required server public key; `sid` is the
             // short id and may legitimately be empty. Preserve both exactly.
             realityPublicKey: carriesReality ? realityPublicKey : nil,
             realityShortID: carriesReality ? query["sid"] : nil,
-            fingerprint: query["fp"] ?? query["fingerprint"],
+            certificateFingerprint: query["pinsha256"]
+                ?? query["pin-sha256"]
+                ?? query["tls-fingerprint"]
+                ?? query["pcs"]
+                ?? (kind == .hysteria2 ? query["fingerprint"] : nil),
+            fingerprint: query["fp"]
+                ?? query["client_fingerprint"]
+                ?? query["client-fingerprint"]
+                ?? (carriesReality ? query["fingerprint"] : nil),
             flow: flow,
             skipCertificateVerification: ["1", "true"].contains(
                 query["allowinsecure"] ?? query["insecure"] ?? query["allow_insecure"] ?? ""
@@ -1069,6 +1127,10 @@ struct SubscriptionParser {
                 ? query["congestion_control"] ?? query["congestion-controller"]
                 : nil,
             udpRelayMode: kind == .tuic ? query["udp_relay_mode"] ?? query["udp-relay-mode"] : nil,
+            portHopping: query["mport"]
+                ?? query["ports"]
+                ?? query["server-ports"]
+                ?? query["port-hopping"],
             upMbps: kind == .hysteria ? mbps(query["upmbps"] ?? query["up"]) : nil,
             downMbps: kind == .hysteria ? mbps(query["downmbps"] ?? query["down"]) : nil,
             rawURI: raw
@@ -1145,7 +1207,8 @@ struct SubscriptionParser {
 
         var nodes: [ProxyNode] = []
         var rejected = 0
-        for dictionary in dictionaries {
+        for rawDictionary in dictionaries {
+            let dictionary = flattenedClashProxy(rawDictionary)
             guard let type = dictionary["type"]?.lowercased(),
                   let kind = clashKind(type),
                   let rawServer = dictionary["server"],
@@ -1230,15 +1293,16 @@ struct SubscriptionParser {
                     ?? (normalizedTransport(dictionary["network"]) == "grpc"
                         ? dictionary["grpc-service-name"] ?? dictionary["service-name"] ?? dictionary["path"]
                         : dictionary["path"]),
-                alpn: dictionary["alpn"],
+                alpn: ALPNList.normalized(dictionary["alpn"]),
                 realityPublicKey: hasRealityOptions
                     ? dictionary["public-key"] ?? dictionary["pbk"]
                     : nil,
                 realityShortID: hasRealityOptions
                     ? clashYAMLScalar(dictionary["short-id"] ?? dictionary["sid"])
                     : nil,
+                certificateFingerprint: dictionary["tls-fingerprint"]
+                    ?? dictionary["fingerprint"],
                 fingerprint: dictionary["client-fingerprint"]
-                    ?? dictionary["fingerprint"]
                     ?? dictionary["fp"],
                 flow: dictionary["flow"],
                 skipCertificateVerification: boolString(dictionary["skip-cert-verify"]),
@@ -1251,6 +1315,10 @@ struct SubscriptionParser {
                 congestionControl: dictionary["congestion-controller"]
                     ?? dictionary["congestion_control"],
                 udpRelayMode: dictionary["udp-relay-mode"],
+                portHopping: dictionary["ports"]
+                    ?? dictionary["mport"]
+                    ?? dictionary["server-ports"]
+                    ?? dictionary["port-hopping"],
                 upMbps: kind == .hysteria ? mbps(dictionary["up"] ?? dictionary["up-speed"]) : nil,
                 downMbps: kind == .hysteria ? mbps(dictionary["down"] ?? dictionary["down-speed"]) : nil,
                 wireGuardPrivateKey: kind == .wireguard ? dictionary["private-key"] : nil,
@@ -1320,6 +1388,47 @@ struct SubscriptionParser {
         }
         if !current.isEmpty { pieces.append(current) }
         return Dictionary(pieces.compactMap(parseYAMLPair)) { _, new in new }
+    }
+
+    /// Inline Clash proxies can contain nested inline maps, for example
+    /// `reality-opts: {public-key: ..., short-id: ...}` and
+    /// `ws-opts: {path: /ws, headers: {Host: example.com}}`. The small YAML
+    /// reader intentionally represents a proxy as `[String: String]`, so make
+    /// those protocol-bearing fields explicit before constructing ProxyNode.
+    /// Without this step a REALITY node silently becomes ordinary TLS and a
+    /// WebSocket node loses its path/Host while still appearing importable.
+    private func flattenedClashProxy(_ source: [String: String]) -> [String: String] {
+        var result = source
+
+        if let rawReality = source["reality-opts"] {
+            let reality = parseInlineYAMLMap(rawReality)
+            if result["public-key"] == nil { result["public-key"] = reality["public-key"] }
+            if result["short-id"] == nil { result["short-id"] = reality["short-id"] }
+        }
+
+        let transportOptionKeys = [
+            "ws-opts", "http-opts", "h2-opts", "http-upgrade-opts", "xhttp-opts"
+        ]
+        for optionKey in transportOptionKeys {
+            guard let rawOptions = source[optionKey] else { continue }
+            let options = parseInlineYAMLMap(rawOptions)
+            if result["path"] == nil { result["path"] = options["path"] }
+            if result["host"] == nil { result["host"] = options["host"] }
+            if result["mode"] == nil { result["mode"] = options["mode"] }
+            if result["host"] == nil, let rawHeaders = options["headers"] {
+                let headers = parseInlineYAMLMap(rawHeaders)
+                result["host"] = headers["host"]
+            }
+        }
+
+        if let rawGRPC = source["grpc-opts"] {
+            let options = parseInlineYAMLMap(rawGRPC)
+            if result["grpc-service-name"] == nil {
+                result["grpc-service-name"] = options["grpc-service-name"]
+                    ?? options["service-name"]
+            }
+        }
+        return result
     }
 
     private func parseYAMLPair(_ value: String) -> (String, String)? {
@@ -1484,6 +1593,55 @@ struct SubscriptionParser {
             },
             uniquingKeysWith: { _, new in new }
         )
+    }
+
+    /// HTTP(S) share links exist in two naming dialects. Standard URLs keep a
+    /// plain name in the fragment, while Shadowrocket-compatible producers can
+    /// put a URL-safe Base64 name in `remarks`. Decode only canonical Base64
+    /// UTF-8 so an ordinary plain-text remark is never turned into binary
+    /// garbage by Foundation's permissive Base64 decoder.
+    private func proxyNameQueryValue(_ query: [String: String]) -> String? {
+        for key in ["remarks", "remark", "name", "ps", "tag"] {
+            if let value = decodedProxyName(query[key], mayBeBase64: true) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func decodedProxyName(_ value: String?, mayBeBase64: Bool) -> String? {
+        guard let value else { return nil }
+        let decoded = value.removingPercentEncoding ?? value
+        let trimmed = decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard mayBeBase64,
+              !trimmed.contains(where: { $0.isWhitespace }),
+              trimmed.unicodeScalars.allSatisfy({
+                  CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=")
+                      .contains($0)
+              }) else {
+            return trimmed
+        }
+
+        let source = trimmed
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        var padded = source
+        let remainder = padded.count % 4
+        if remainder != 0 { padded.append(String(repeating: "=", count: 4 - remainder)) }
+        guard let data = Data(base64Encoded: padded),
+              let decodedName = String(data: data, encoding: .utf8) else {
+            return trimmed
+        }
+        let canonicalSource = source.trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        let canonicalRoundTrip = data.base64EncodedString()
+            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        guard canonicalRoundTrip == canonicalSource,
+              decodedName.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+            return trimmed
+        }
+        let name = decodedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? trimmed : name
     }
 
     private func containsNodeScheme(_ value: String) -> Bool {

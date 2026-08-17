@@ -61,20 +61,32 @@ final class TransportGenerationTests: XCTestCase {
         }
     }
 
-    func testShadowrocketWritesXHTTPUsingObfs() {
-        assertShadowrocketObfs(transport: "xhttp")
+    func testShadowrocketWritesXHTTPAsStructuredTransport() {
+        assertShadowrocketTransport(
+            transport: "xhttp",
+            fragments: ["network: \"xhttp\"", "xhttp-opts:", "path: \"/transport\""]
+        )
     }
 
-    func testShadowrocketWritesGRPCUsingObfs() {
-        assertShadowrocketObfs(transport: "grpc")
+    func testShadowrocketWritesGRPCAsStructuredTransport() {
+        assertShadowrocketTransport(
+            transport: "grpc",
+            fragments: ["network: \"grpc\"", "grpc-opts:", "grpc-service-name: \"transport\""]
+        )
     }
 
-    func testShadowrocketWritesH2UsingObfs() {
-        assertShadowrocketObfs(transport: "h2")
+    func testShadowrocketWritesH2AsStructuredTransport() {
+        assertShadowrocketTransport(
+            transport: "h2",
+            fragments: ["network: \"h2\"", "h2-opts:", "path: \"/transport\""]
+        )
     }
 
-    func testShadowrocketWritesHTTPUpgradeUsingObfs() {
-        assertShadowrocketObfs(transport: "httpupgrade")
+    func testShadowrocketWritesHTTPUpgradeAsStructuredTransport() {
+        assertShadowrocketTransport(
+            transport: "httpupgrade",
+            fragments: ["network: \"ws\"", "ws-opts:", "v2ray-http-upgrade: true"]
+        )
     }
 
     func testHiddifyWritesHTTPUpgradeTransport() {
@@ -132,10 +144,12 @@ final class TransportGenerationTests: XCTestCase {
         return generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
     }
 
-    private func assertShadowrocketObfs(transport: String) {
+    private func assertShadowrocketTransport(transport: String, fragments: [String]) {
         let result = generate(.shadowrocket, transport: transport, path: "/transport")
         XCTAssertEqual(result.supportedNodeCount, 1)
-        XCTAssertTrue(result.content.contains("obfs=\(transport)"), result.content)
+        for fragment in fragments {
+            XCTAssertTrue(result.content.contains(fragment), "Shadowrocket \(transport) 缺少 \(fragment):\n\(result.content)")
+        }
         XCTAssertFalse(result.content.contains("transport=\(transport)"), result.content)
     }
 }

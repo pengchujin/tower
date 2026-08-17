@@ -314,6 +314,12 @@ private struct ClientAppIcon: View {
     }
 }
 
+enum ProtocolFilterPolicy {
+    static func isVisible(compatibleKindCount: Int) -> Bool {
+        compatibleKindCount > 0
+    }
+}
+
 /// A client can support a protocol the user's licence does not cover — Surge
 /// needs a paid tier for AnyTLS — and Tower cannot detect that, so the choice
 /// is offered per client and only for protocols the nodes actually contain.
@@ -322,7 +328,7 @@ private struct ProtocolFilter: View {
 
     var body: some View {
         let kinds = model.filterableKinds(for: model.selectedTarget)
-        if kinds.count > 1 {
+        if ProtocolFilterPolicy.isVisible(compatibleKindCount: kinds.count) {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeading(title: "协议筛选", detail: String(localized: "只影响 \(model.selectedTarget.name)"))
                 VStack(spacing: 0) {
