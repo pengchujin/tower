@@ -51,7 +51,7 @@ final class LocalizationTests: XCTestCase {
         let catalog = try loadCatalog(named: "Localizable")
 
         XCTAssertEqual(try value(for: "订阅", locale: "en", in: catalog), "Subscriptions")
-        XCTAssertEqual(try value(for: "导入", locale: "ja", in: catalog), "インポート")
+        XCTAssertEqual(try value(for: "导出", locale: "ja", in: catalog), "エクスポート")
         XCTAssertEqual(try value(for: "设置", locale: "ko", in: catalog), "설정")
         XCTAssertEqual(try value(for: "我的订阅", locale: "zh-Hant", in: catalog), "我的訂閱")
         XCTAssertEqual(try value(for: "塔台", locale: "en", in: catalog), "Tower")
@@ -71,31 +71,31 @@ final class LocalizationTests: XCTestCase {
     func testPrimaryExportLabelsAreConciseAndHumanReviewed() throws {
         let catalog = try loadCatalog(named: "Localizable")
         let expected: [String: [String]] = [
-            "ar": ["التطبيق الهدف", "تصفية البروتوكولات", "استيراد إلى %@", "اضغط مطولاً لإعادة الترتيب", "لـ %@ فقط", "استيراد ملف إلى %@", "جاهز للاستيراد"],
-            "de": ["Ziel-App", "Protokollfilter", "In %@ importieren", "Zum Neuanordnen gedrückt halten", "Nur für %@", "Datei in %@ importieren", "Bereit zum Importieren"],
-            "en": ["Target App", "Protocol Filter", "Import to %@", "Touch and Hold to Reorder", "For %@ only", "Import File to %@", "Ready to Import"],
-            "es": ["App de destino", "Filtro de protocolos", "Importar a %@", "Mantén pulsado para reordenar", "Solo para %@", "Importar archivo a %@", "Listo para importar"],
-            "fr": ["App cible", "Filtre de protocoles", "Importer dans %@", "Maintenez le doigt pour réorganiser", "Pour %@ uniquement", "Importer un fichier dans %@", "Prêt à importer"],
-            "id": ["Aplikasi tujuan", "Filter protokol", "Impor ke %@", "Tekan lama untuk mengurutkan ulang", "Hanya untuk %@", "Impor file ke %@", "Siap diimpor"],
-            "ja": ["対象アプリ", "プロトコルフィルタ", "%@にインポート", "長押しして並べ替え", "%@ のみ", "%@にファイルをインポート", "インポートの準備完了"],
-            "ko": ["대상 앱", "프로토콜 필터", "%@로 가져오기", "길게 눌러 순서 변경", "%@에만 적용", "%@로 파일 가져오기", "가져올 준비 완료"],
-            "pt-BR": ["App de destino", "Filtro de protocolos", "Importar para %@", "Mantenha pressionado para reordenar", "Somente para %@", "Importar arquivo para %@", "Pronto para importar"],
-            "ru": ["Целевое приложение", "Фильтр протоколов", "Импортировать в %@", "Удерживайте для изменения порядка", "Только для %@", "Импортировать файл в %@", "Готово к импорту"],
-            "th": ["แอปเป้าหมาย", "ตัวกรองโปรโตคอล", "นำเข้าไปยัง %@", "แตะค้างไว้เพื่อจัดลำดับใหม่", "สำหรับ %@ เท่านั้น", "นำเข้าไฟล์ไปยัง %@", "พร้อมนำเข้า"],
-            "tr": ["Hedef Uygulama", "Protokol Filtresi", "%@ Uygulamasına Aktar", "Yeniden sıralamak için basılı tutun", "Yalnızca %@ için", "Dosyayı %@ Uygulamasına Aktar", "İçe Aktarmaya Hazır"],
-            "vi": ["Ứng dụng đích", "Bộ lọc giao thức", "Nhập vào %@", "Chạm và giữ để sắp xếp lại", "Chỉ áp dụng cho %@", "Nhập tệp vào %@", "Sẵn sàng nhập"],
-            "zh-Hans": ["目标客户端", "协议筛选", "一键导入到 %@", "长按拖动排序", "只影响 %@", "用文件导入到 %@", "转换已就绪"],
-            "zh-Hant": ["目標客戶端", "協定篩選", "一鍵匯入到 %@", "按住以重新排序", "僅影響 %@", "用檔案匯入到 %@", "轉換已就緒"],
+            "ar": ["التطبيق الهدف", "تصفية البروتوكولات", "تصدير إلى %@", "اضغط مطولاً لإعادة الترتيب", "لـ %@ فقط", "تصدير ملف إلى %@", "جاهز للتصدير"],
+            "de": ["Ziel-App", "Protokollfilter", "In %@ exportieren", "Zum Neuanordnen gedrückt halten", "Nur für %@", "Datei in %@ exportieren", "Bereit zum Exportieren"],
+            "en": ["Target App", "Protocol Filter", "Export to %@", "Touch and Hold to Reorder", "For %@ only", "Export File to %@", "Ready to Export"],
+            "es": ["App de destino", "Filtro de protocolos", "Exportar a %@", "Mantén pulsado para reordenar", "Solo para %@", "Exportar archivo a %@", "Listo para exportar"],
+            "fr": ["App cible", "Filtre de protocoles", "Exporter vers %@", "Maintenez le doigt pour réorganiser", "Pour %@ uniquement", "Exporter un fichier vers %@", "Prêt à exporter"],
+            "id": ["Aplikasi tujuan", "Filter protokol", "Ekspor ke %@", "Tekan lama untuk mengurutkan ulang", "Hanya untuk %@", "Ekspor file ke %@", "Siap diekspor"],
+            "ja": ["対象アプリ", "プロトコルフィルタ", "%@にエクスポート", "長押しして並べ替え", "%@ のみ", "%@にファイルをエクスポート", "エクスポートの準備完了"],
+            "ko": ["대상 앱", "프로토콜 필터", "%@로 내보내기", "길게 눌러 순서 변경", "%@에만 적용", "%@로 파일 내보내기", "내보낼 준비 완료"],
+            "pt-BR": ["App de destino", "Filtro de protocolos", "Exportar para %@", "Mantenha pressionado para reordenar", "Somente para %@", "Exportar arquivo para %@", "Pronto para exportar"],
+            "ru": ["Целевое приложение", "Фильтр протоколов", "Экспортировать в %@", "Удерживайте для изменения порядка", "Только для %@", "Экспортировать файл в %@", "Готово к экспорту"],
+            "th": ["แอปเป้าหมาย", "ตัวกรองโปรโตคอล", "ส่งออกไปยัง %@", "แตะค้างไว้เพื่อจัดลำดับใหม่", "สำหรับ %@ เท่านั้น", "ส่งออกไฟล์ไปยัง %@", "พร้อมส่งออก"],
+            "tr": ["Hedef Uygulama", "Protokol Filtresi", "%@ Uygulamasına Dışa Aktar", "Yeniden sıralamak için basılı tutun", "Yalnızca %@ için", "Dosyayı %@ Uygulamasına Dışa Aktar", "Dışa Aktarmaya Hazır"],
+            "vi": ["Ứng dụng đích", "Bộ lọc giao thức", "Xuất sang %@", "Chạm và giữ để sắp xếp lại", "Chỉ áp dụng cho %@", "Xuất tệp sang %@", "Sẵn sàng xuất"],
+            "zh-Hans": ["目标客户端", "协议筛选", "一键导出到 %@", "长按拖动排序", "只影响 %@", "用文件导出到 %@", "转换已就绪"],
+            "zh-Hant": ["目標客戶端", "協定篩選", "一鍵匯出到 %@", "按住以重新排序", "僅影響 %@", "用檔案匯出到 %@", "轉換已就緒"],
         ]
 
         for locale in supportedLocales {
             let translations = try XCTUnwrap(expected[locale])
             XCTAssertEqual(try value(for: "目标客户端", locale: locale, in: catalog), translations[0])
             XCTAssertEqual(try value(for: "协议筛选", locale: locale, in: catalog), translations[1])
-            XCTAssertEqual(try value(for: "一键导入到 %@", locale: locale, in: catalog), translations[2])
+            XCTAssertEqual(try value(for: "一键导出到 %@", locale: locale, in: catalog), translations[2])
             XCTAssertEqual(try value(for: "长按拖动排序", locale: locale, in: catalog), translations[3])
             XCTAssertEqual(try value(for: "只影响 %@", locale: locale, in: catalog), translations[4])
-            XCTAssertEqual(try value(for: "用文件导入到 %@", locale: locale, in: catalog), translations[5])
+            XCTAssertEqual(try value(for: "用文件导出到 %@", locale: locale, in: catalog), translations[5])
             XCTAssertEqual(try value(for: "转换已就绪", locale: locale, in: catalog), translations[6])
         }
     }
@@ -111,8 +111,8 @@ final class LocalizationTests: XCTestCase {
                 "Tower opens %@ using its URL scheme. The profile stays on this iPhone at 127.0.0.1 for 45 seconds and is never uploaded. Return to Tower to import updates.",
             "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。":
                 "Quantumult X does not offer a URL scheme for full profiles. The button opens the iOS share sheet. Tower never uploads your subscription or replaces local rules with incomplete remote ones.",
-            "本机一键导入": "Local Import",
-            "使用本地文件导入": "File Import",
+            "本机一键导出": "Local Export",
+            "使用本地文件导出": "File Export",
         ]
 
         for (key, translation) in expected {

@@ -659,7 +659,7 @@ xcodebuild -project Tower.xcodeproj \
   -scheme Tower \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -archivePath build/Tower-1.0-1.xcarchive \
+  -archivePath build/Tower-1.0.2-23.xcarchive \
   -allowProvisioningUpdates \
   DEVELOPMENT_TEAM=<TEAM_ID> \
   CODE_SIGN_STYLE=Automatic \
@@ -668,9 +668,26 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **17**，对应 TestFlight 上 build 16 的下一个版本。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **23**，营销版本是 **1.0.2**。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
+
+### 已修：Shadowrocket 完整配置用错了传输层键名（issue #10，2026-08-17）
+
+**现象**：同一份订阅，Shadowrocket「仅节点」能连，「完整配置」连不上。报告人对比 Shadowrocket 自己导出的节点，差异是 `"obfs": "xhttp"`（能用）对 `"obfs": "none"`（不能用），服务端是 VLESS + XHTTP + REALITY。
+
+**根因**：`ConfigurationGenerator.appendSurgeTransport` 里，Shadowrocket 分支写的是 `transport=<名字>`。那是 Surge / Loon 的词汇；**Shadowrocket 的 `.conf` 用 `obfs=` 表示传输层**，于是这个键被忽略，obfs 保持默认 `none`，节点被当成非 XHTTP 处理。
+
+两路独立证据一致：手册「编写本地节点」一节把 VLESS 写成 `名称=vless,地址,端口,password=…,tls=true,obfs=websocket,peer=…`（VMess 同样是 `obfs=websocket`）；报告人贴的 Shadowrocket 导出 JSON 里字段就叫 `obfs`。后者是更硬的依据——见下面 §303 记的判据：看它自己写出来的配置，别只看手册。
+
+**修复范围**：同一分支负责 xhttp、grpc、h2、httpupgrade，现已统一按 Shadowrocket 的完整配置语法输出 `obfs=<传输名>`，不再写会被忽略的 `transport=`。WebSocket 仍保留原有兼容写法。`TransportGenerationTests` 覆盖了四种传输，防止重新退回 `transport=`。
+
+**两处保持不动**：
+
+- **ws 保持现状。** 它走的是前一个分支，写 `ws=true` / `ws-path=`（Surge 词汇），从没有人报过坏。Shadowrocket 一向能吃 Surge 配置，很可能是兼容的；没有证据就改，风险是把能用的搞坏。
+- **`method` 那条差异大概率是症状不是病因。** 能用的节点是 `"method": "auto"`、坏的是 `""`，但手册的 VLESS 示例里没有 `method=`，`auto` 更像 Shadowrocket 解析成功后自己填的默认值。
+
+**验收状态**：生成语法及回归测试已通过；XHTTP 已按报告人的可用导出值修正。真机导入后的实际连通性仍以节点服务端和 Shadowrocket 当前版本为准，发布后继续观察 issue 反馈。
 
 ### 待修：UA 兜底重试会让机场少给节点（2026-08-12 记录）
 

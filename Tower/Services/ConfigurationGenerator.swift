@@ -456,7 +456,7 @@ struct ConfigurationGenerator {
     }
 
     private func schemeHeader(_ scheme: RuleScheme, target: ClientTarget) -> String {
-        let origin = scheme.sourceURLString ?? (scheme.isBundled ? "随 App 打包的快照" : "导入")
+        let origin = scheme.sourceURLString ?? (scheme.isBundled ? "随 App 打包的快照" : "导出")
         return """
         # Generated locally by 塔台 for \(target.name)
         # Rules: \(scheme.name) (\(origin))
@@ -1359,7 +1359,7 @@ struct ConfigurationGenerator {
             appendValue(node.exportablePath ?? "/", key: "ws-path", to: &values)
             if let host = node.hostHeader, !host.isEmpty { values.append("ws-headers=Host:\(confValue(host))") }
         } else if shadowrocket, let transport = node.transport, transport != "tcp" {
-            values.append("transport=\(transport)")
+            values.append("obfs=\(transport)")
             if transport == "grpc" {
                 appendValue(node.path?.hasPrefix("/") == true ? String(node.path!.dropFirst()) : node.path,
                             key: "serviceName", to: &values)

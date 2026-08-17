@@ -682,7 +682,7 @@ private struct ImportRuleSchemeSheet: View {
                     Button("取消") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "正在下载…" : "导入") {
+                    Button(isSaving ? "正在下载…" : "导出") {
                         Task { await save() }
                     }
                     .disabled(urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)

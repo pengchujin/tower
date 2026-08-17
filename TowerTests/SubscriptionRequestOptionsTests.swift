@@ -84,7 +84,7 @@ private actor UserAgentFallbackFixtureLoader: SubscriptionHTTPDataLoading {
 }
 
 final class SubscriptionRequestOptionsTests: XCTestCase {
-    func testDefaultRequestRetriesWithShadowrocketCompatibilityUserAgentAfter406() async throws {
+    func testDefaultRequestUsesShadowrocketCompatibilityUserAgentWithoutRetry() async throws {
         let loader = UserAgentFallbackFixtureLoader()
         let source = SubscriptionSource(
             name: "Strict Airport",
@@ -97,16 +97,16 @@ final class SubscriptionRequestOptionsTests: XCTestCase {
         XCTAssertEqual(result.nodes.count, 1)
         XCTAssertEqual(
             userAgents,
-            [
-                SubscriptionRequestBuilder.defaultUserAgent,
-                "Shadowrocket/3378 CFNetwork/3892.100.1 Darwin/27.0.0"
-            ]
+            [SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent]
         )
     }
 
     func testDefaultRequestRetriesForClientGatingHTTPStatuses() async throws {
         for statusCode in [403, 406, 421, 426] {
-            let loader = UserAgentFallbackFixtureLoader(rejectionStatus: statusCode)
+            let loader = UserAgentFallbackFixtureLoader(
+                rejectionStatus: statusCode,
+                acceptedUserAgent: SubscriptionRequestBuilder.clashMetaCompatibilityUserAgent
+            )
             let source = SubscriptionSource(
                 name: "Strict Airport",
                 urlString: "https://strict-airport.test/sub/private-token"
@@ -133,8 +133,30 @@ final class SubscriptionRequestOptionsTests: XCTestCase {
             userAgents,
             [
                 SubscriptionRequestBuilder.defaultUserAgent,
-                SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent,
                 "clash.meta"
+            ]
+        )
+    }
+
+    func testDefaultRequestFallsBackToClashMetaWhenSuccessfulBodyHasNoNodes() async throws {
+        let loader = UserAgentFallbackFixtureLoader(
+            rejectionStatus: 200,
+            acceptedUserAgent: SubscriptionRequestBuilder.clashMetaCompatibilityUserAgent
+        )
+        let source = SubscriptionSource(
+            name: "Content Gated Airport",
+            urlString: "https://strict-airport.test/sub/private-token"
+        )
+
+        let result = try await SubscriptionService(httpClient: loader).fetch(source)
+        let userAgents = await loader.mainRequestUserAgents
+
+        XCTAssertEqual(result.nodes.count, 1)
+        XCTAssertEqual(
+            userAgents,
+            [
+                SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent,
+                SubscriptionRequestBuilder.clashMetaCompatibilityUserAgent
             ]
         )
     }
@@ -152,6 +174,30 @@ final class SubscriptionRequestOptionsTests: XCTestCase {
             XCTFail("The fixture should reject the custom user agent")
         } catch SubscriptionError.httpStatus(let statusCode) {
             XCTAssertEqual(statusCode, 406)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let userAgents = await loader.mainRequestUserAgents
+        XCTAssertEqual(userAgents, ["MyClient/1.0"])
+    }
+
+    func testSuccessfulUnparseableCustomUserAgentResponseDoesNotTriggerFallback() async {
+        let loader = UserAgentFallbackFixtureLoader(
+            rejectionStatus: 200,
+            acceptedUserAgent: "never"
+        )
+        let source = SubscriptionSource(
+            name: "Custom Airport",
+            urlString: "https://strict-airport.test/sub/private-token",
+            requestOptions: SubscriptionRequestOptions(userAgent: "MyClient/1.0")
+        )
+
+        do {
+            _ = try await SubscriptionService(httpClient: loader).fetch(source)
+            XCTFail("The custom response has no supported nodes")
+        } catch SubscriptionError.noSupportedNodes {
+            // Expected: a custom user agent is authoritative.
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -204,7 +250,6 @@ final class SubscriptionRequestOptionsTests: XCTestCase {
             userAgents,
             [
                 SubscriptionRequestBuilder.defaultUserAgent,
-                SubscriptionRequestBuilder.shadowrocketCompatibilityUserAgent,
                 SubscriptionRequestBuilder.clashMetaCompatibilityUserAgent
             ]
         )

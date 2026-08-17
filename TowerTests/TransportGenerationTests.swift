@@ -61,6 +61,22 @@ final class TransportGenerationTests: XCTestCase {
         }
     }
 
+    func testShadowrocketWritesXHTTPUsingObfs() {
+        assertShadowrocketObfs(transport: "xhttp")
+    }
+
+    func testShadowrocketWritesGRPCUsingObfs() {
+        assertShadowrocketObfs(transport: "grpc")
+    }
+
+    func testShadowrocketWritesH2UsingObfs() {
+        assertShadowrocketObfs(transport: "h2")
+    }
+
+    func testShadowrocketWritesHTTPUpgradeUsingObfs() {
+        assertShadowrocketObfs(transport: "httpupgrade")
+    }
+
     func testHiddifyWritesHTTPUpgradeTransport() {
         let result = generate(.hiddify, transport: "httpupgrade", path: "/up", host: "edge.example.com")
         XCTAssertEqual(result.supportedNodeCount, 1)
@@ -114,5 +130,12 @@ final class TransportGenerationTests: XCTestCase {
             rawURI: "vless://transport"
         )
         return generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
+    }
+
+    private func assertShadowrocketObfs(transport: String) {
+        let result = generate(.shadowrocket, transport: transport, path: "/transport")
+        XCTAssertEqual(result.supportedNodeCount, 1)
+        XCTAssertTrue(result.content.contains("obfs=\(transport)"), result.content)
+        XCTAssertFalse(result.content.contains("transport=\(transport)"), result.content)
     }
 }

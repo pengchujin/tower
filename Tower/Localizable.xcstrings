@@ -1,82 +1,6 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
-    "%lld 个成功，%lld 个失败": {
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "نجح %1$lld، وفشل %2$lld" } },
-        "de": { "stringUnit": { "state": "translated", "value": "%1$lld erfolgreich, %2$lld fehlgeschlagen" } },
-        "en": { "stringUnit": { "state": "translated", "value": "%1$lld succeeded, %2$lld failed" } },
-        "es": { "stringUnit": { "state": "translated", "value": "%1$lld correctas, %2$lld fallidas" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "%1$lld réussis, %2$lld échoués" } },
-        "id": { "stringUnit": { "state": "translated", "value": "%1$lld berhasil, %2$lld gagal" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld件成功、%2$lld件失敗" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "%1$lld개 성공, %2$lld개 실패" } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "%1$lld com sucesso, %2$lld com falha" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Успешно: %1$lld, с ошибкой: %2$lld" } },
-        "th": { "stringUnit": { "state": "translated", "value": "สำเร็จ %1$lld รายการ ล้มเหลว %2$lld รายการ" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "%1$lld başarılı, %2$lld başarısız" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "%1$lld thành công, %2$lld thất bại" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld 个成功，%2$lld 个失败" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld 個成功，%2$lld 個失敗" } }
-      }
-    },
-    "部分订阅更新失败": {
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحديث بعض الاشتراكات" } },
-        "de": { "stringUnit": { "state": "translated", "value": "Einige Abos konnten nicht aktualisiert werden" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Some Subscriptions Failed to Update" } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudieron actualizar algunas suscripciones" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Certaines sources n’ont pas été actualisées" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Beberapa langganan gagal diperbarui" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "一部のサブスクリプションを更新できませんでした" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "일부 구독을 업데이트하지 못했습니다" } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "Algumas assinaturas não foram atualizadas" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Некоторые подписки не обновлены" } },
-        "th": { "stringUnit": { "state": "translated", "value": "อัปเดตการสมัครบางรายการไม่สำเร็จ" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Bazı abonelikler güncellenemedi" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể cập nhật một số đăng ký" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "部分订阅更新失败" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "部分訂閱更新失敗" } }
-      }
-    },
-    "更新结果": {
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "نتيجة التحديث" } },
-        "de": { "stringUnit": { "state": "translated", "value": "Aktualisierungsergebnis" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Update Results" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Resultados de la actualización" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Résultats de l’actualisation" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Hasil pembaruan" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "更新結果" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "업데이트 결과" } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "Resultados da atualização" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Результаты обновления" } },
-        "th": { "stringUnit": { "state": "translated", "value": "ผลการอัปเดต" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Güncelleme Sonuçları" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Kết quả cập nhật" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新结果" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新結果" } }
-      }
-    },
-    "更新失败": {
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "فشل التحديث" } },
-        "de": { "stringUnit": { "state": "translated", "value": "Aktualisierung fehlgeschlagen" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Update failed" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Error al actualizar" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Échec de l’actualisation" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Pembaruan gagal" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "更新に失敗しました" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "업데이트 실패" } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "Falha na atualização" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось обновить" } },
-        "th": { "stringUnit": { "state": "translated", "value": "อัปเดตไม่สำเร็จ" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Güncelleme başarısız" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Cập nhật thất bại" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新失败" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新失敗" } }
-      }
-    },
     "%@ %lld 个节点": {
       "localizations": {
         "ar": {
@@ -1578,6 +1502,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 個引用"
+          }
+        }
+      }
+    },
+    "%lld 个成功，%lld 个失败": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نجح %1$lld، وفشل %2$lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld erfolgreich, %2$lld fehlgeschlagen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld succeeded, %2$lld failed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld correctas, %2$lld fallidas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld réussis, %2$lld échoués"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld berhasil, %2$lld gagal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld件成功、%2$lld件失敗"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld개 성공, %2$lld개 실패"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld com sucesso, %2$lld com falha"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Успешно: %1$lld, с ошибкой: %2$lld"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สำเร็จ %1$lld รายการ ล้มเหลว %2$lld รายการ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld başarılı, %2$lld başarısız"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld thành công, %2$lld thất bại"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld 个成功，%2$lld 个失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld 個成功，%2$lld 個失敗"
           }
         }
       }
@@ -7978,96 +7996,96 @@
         }
       }
     },
-    "一键导入到 %@": {
+    "一键导出到 %@": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استيراد إلى %@"
+            "value": "تصدير إلى %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "In %@ importieren"
+            "value": "In %@ exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Import to %@"
+            "value": "Export to %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar a %@"
+            "value": "Exportar a %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importer dans %@"
+            "value": "Exporter vers %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impor ke %@"
+            "value": "Ekspor ke %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@にインポート"
+            "value": "%@にエクスポート"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@로 가져오기"
+            "value": "%@로 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar para %@"
+            "value": "Exportar para %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Импортировать в %@"
+            "value": "Экспортировать в %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "นำเข้าไปยัง %@"
+            "value": "ส่งออกไปยัง %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ Uygulamasına Aktar"
+            "value": "%@ Uygulamasına Dışa Aktar"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhập vào %@"
+            "value": "Xuất sang %@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "一键导入到 %@"
+            "value": "一键导出到 %@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "一鍵匯入到 %@"
+            "value": "一鍵匯出到 %@"
           }
         }
       }
@@ -9106,96 +9124,96 @@
         }
       }
     },
-    "仅导入节点到 %@": {
+    "仅导出节点到 %@": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استيراد العقد فقط إلى %@"
+            "value": "تصدير العقد فقط إلى %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Knoten nur in %@ importieren"
+            "value": "Nur Knoten nach %@ exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Import Nodes to %@"
+            "value": "Export Nodes to %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar solo nodos a %@"
+            "value": "Exportar solo nodos a %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importez uniquement les nœuds dans %@"
+            "value": "Exporter uniquement les nœuds vers %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hanya impor node ke %@"
+            "value": "Hanya ekspor node ke %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ノードを%@にのみインポートします"
+            "value": "ノードのみ%@にエクスポート"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "노드만 %@로 가져옵니다."
+            "value": "노드만 %@로 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importe apenas nós para %@"
+            "value": "Exportar apenas nós para %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Импортируйте узлы только в %@."
+            "value": "Экспортировать только узлы в %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "นำเข้าโหนดไปที่ %@ เท่านั้น"
+            "value": "ส่งออกเฉพาะโหนดไปที่ %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Düğümleri yalnızca %@ içine aktarın"
+            "value": "Yalnızca düğümleri %@ uygulamasına dışa aktar"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chỉ nhập các nút vào %@"
+            "value": "Chỉ xuất các nút sang %@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "仅导入节点到 %@"
+            "value": "仅导出节点到 %@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "僅導入節點到 %@"
+            "value": "僅匯出節點到 %@"
           }
         }
       }
@@ -10423,96 +10441,96 @@
         }
       }
     },
-    "使用本地文件导入": {
+    "使用本地文件导出": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استيراد باستخدام الملف المحلي"
+            "value": "تصدير باستخدام الملف المحلي"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importieren mit lokaler Datei"
+            "value": "Mit lokaler Datei exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "File Import"
+            "value": "File Export"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar usando archivo local"
+            "value": "Exportar usando archivo local"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importer à l'aide d'un fichier local"
+            "value": "Exporter à l'aide d'un fichier local"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impor menggunakan file lokal"
+            "value": "Ekspor menggunakan file lokal"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ローカルファイルを使用してインポートする"
+            "value": "ローカルファイルを使用してエクスポートする"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "로컬 파일을 사용하여 가져오기"
+            "value": "로컬 파일을 사용하여 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar usando arquivo local"
+            "value": "Exportar usando arquivo local"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Импортировать с использованием локального файла"
+            "value": "Экспортировать с использованием локального файла"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "นำเข้าโดยใช้ไฟล์ในเครื่อง"
+            "value": "ส่งออกโดยใช้ไฟล์ในเครื่อง"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yerel dosyayı kullanarak içe aktar"
+            "value": "Yerel dosyayı kullanarak dışa aktar"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhập bằng tệp cục bộ"
+            "value": "Xuất bằng tệp cục bộ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用本地文件导入"
+            "value": "使用本地文件导出"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用本地文件導入"
+            "value": "使用本機檔案匯出"
           }
         }
       }
@@ -19923,194 +19941,6 @@
         }
       }
     },
-    "导入": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "استيراد"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importer"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Impor"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "インポート"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "가져오기"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импорт"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "นำเข้า"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "İçe Aktar"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nhập"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匯入"
-          }
-        }
-      }
-    },
-    "导入内容": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "استيراد المحتوى"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inhalte importieren"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import Content"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar contenido"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importer du contenu"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Impor konten"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "コンテンツをインポートする"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "콘텐츠 가져오기"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar conteúdo"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импортировать контент"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "นำเข้าเนื้อหา"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "İçeriği içe aktar"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nhập nội dung"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入内容"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "導入內容"
-          }
-        }
-      }
-    },
     "导入的规则": {
       "localizations": {
         "ar": {
@@ -20201,100 +20031,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "導入的規則"
-          }
-        }
-      }
-    },
-    "导入节点、规则和策略组组成的完整配置。": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "استيراد تكوين كامل للعقد والقواعد ومجموعات السياسات."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importieren Sie eine vollständige Konfiguration von Knoten, Regeln und Richtliniengruppen."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import a complete profile with nodes, rules, and policy groups."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importe una configuración completa de nodos, reglas y grupos de políticas."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importez une configuration complète de nœuds, de règles et de groupes de stratégies."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Impor konfigurasi lengkap node, aturan, dan grup kebijakan."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ノード、ルール、ポリシー グループの完全な構成をインポートします。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "노드, 규칙 및 정책 그룹의 전체 구성을 가져옵니다."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importe uma configuração completa de nós, regras e grupos de políticas."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импортируйте полную конфигурацию узлов, правил и групп политик."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "นำเข้าการกำหนดค่าโหนด กฎ และกลุ่มนโยบายที่สมบูรณ์"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Düğümlerin, kuralların ve politika gruplarının tam yapılandırmasını içe aktarın."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nhập cấu hình hoàn chỉnh của các nút, quy tắc và nhóm chính sách."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入节点、规则和策略组组成的完整配置。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "導入節點、規則和策略群組組成的完整配置。"
           }
         }
       }
@@ -20487,6 +20223,194 @@
         }
       }
     },
+    "导出": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エクスポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорт"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งออก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dışa Aktar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出"
+          }
+        }
+      }
+    },
+    "导出内容": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محتوى التصدير"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu exportierende Inhalte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Content"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contenido a exportar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contenu à exporter"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konten yang diekspor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エクスポートする内容"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보낼 콘텐츠"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conteúdo a exportar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспортируемое содержимое"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เนื้อหาที่ส่งออก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dışa aktarılacak içerik"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nội dung xuất"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出內容"
+          }
+        }
+      }
+    },
     "导出的文件、本机导入和客户端订阅会使用同一个名称。": {
       "localizations": {
         "ar": {
@@ -20577,6 +20501,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "匯出的檔案、本機匯入和客戶端訂閱會使用同一個名稱。"
+          }
+        }
+      }
+    },
+    "导出节点、规则和策略组组成的完整配置。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير تكوين كامل للعقد والقواعد ومجموعات السياسات."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportieren Sie eine vollständige Konfiguration von Knoten, Regeln und Richtliniengruppen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export a complete profile with nodes, rules, and policy groups."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporte una configuración completa de nodos, reglas y grupos de políticas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportez une configuration complète de nœuds, de règles et de groupes de stratégies."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor konfigurasi lengkap node, aturan, dan grup kebijakan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ノード、ルール、ポリシー グループの完全な構成をエクスポートします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노드, 규칙 및 정책 그룹의 전체 구성을 내보냅니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporte uma configuração completa de nós, regras e grupos de políticas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспортируйте полную конфигурацию узлов, правил и групп политик."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งออกการกำหนดค่าโหนด กฎ และกลุ่มนโยบายที่สมบูรณ์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düğümlerin, kuralların ve politika gruplarının tam yapılandırmasını dışa aktarın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất cấu hình hoàn chỉnh của các nút, quy tắc và nhóm chính sách."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出节点、规则和策略组组成的完整配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出節點、規則和策略群組組成的完整配置。"
           }
         }
       }
@@ -29516,6 +29534,100 @@
         }
       }
     },
+    "更新失败": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فشل التحديث"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisierung fehlgeschlagen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update failed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error al actualizar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de l’actualisation"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pembaruan gagal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新に失敗しました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "업데이트 실패"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falha na atualização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось обновить"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตไม่สำเร็จ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güncelleme başarısız"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật thất bại"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失敗"
+          }
+        }
+      }
+    },
     "更新时间": {
       "localizations": {
         "ar": {
@@ -29606,6 +29718,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新時間"
+          }
+        }
+      }
+    },
+    "更新结果": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نتيجة التحديث"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisierungsergebnis"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultados de la actualización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultats de l’actualisation"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hasil pembaruan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新結果"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "업데이트 결과"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultados da atualização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результаты обновления"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ผลการอัปเดต"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güncelleme Sonuçları"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết quả cập nhật"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新結果"
           }
         }
       }
@@ -31210,96 +31416,96 @@
         }
       }
     },
-    "本机一键导入": {
+    "本机一键导出": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استيراد بنقرة واحدة على هذا الجهاز"
+            "value": "تصدير بنقرة واحدة من هذا الجهاز"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein-Klick-Import auf diesem Computer"
+            "value": "Ein-Klick-Export von diesem Gerät"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Local Import"
+            "value": "Local Export"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importación con un clic en esta máquina"
+            "value": "Exportación con un clic desde este dispositivo"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importation en un clic sur cette machine"
+            "value": "Exportation en un clic depuis cet appareil"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impor sekali klik pada mesin ini"
+            "value": "Ekspor sekali klik dari perangkat ini"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このマシンにワンクリックでインポート"
+            "value": "この端末からワンクリックでエクスポート"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 컴퓨터에서 원클릭 가져오기"
+            "value": "이 기기에서 원클릭 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importação com um clique nesta máquina"
+            "value": "Exportação com um clique deste dispositivo"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Импорт в один клик на этом компьютере"
+            "value": "Экспорт в один клик с этого устройства"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "นำเข้าเพียงคลิกเดียวบนเครื่องนี้"
+            "value": "ส่งออกเพียงคลิกเดียวจากเครื่องนี้"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu makinede tek tıklamayla içe aktarma"
+            "value": "Bu cihazdan tek tıklamayla dışa aktarma"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhập bằng một cú nhấp chuột trên máy này"
+            "value": "Xuất bằng một cú nhấp chuột từ máy này"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "本机一键导入"
+            "value": "本机一键导出"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "本機一鍵導入"
+            "value": "本機一鍵匯出"
           }
         }
       }
@@ -35253,96 +35459,96 @@
         }
       }
     },
-    "生成与导入": {
+    "生成与导出": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "إنشاء واستيراد"
+            "value": "إنشاء وتصدير"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erstellen & importieren"
+            "value": "Erstellen & exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Generate & Import"
+            "value": "Generate & Export"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Generar e importar"
+            "value": "Generar y exportar"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Générer et importer"
+            "value": "Générer et exporter"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Buat & Impor"
+            "value": "Buat & Ekspor"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "生成とインポート"
+            "value": "生成とエクスポート"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "생성 및 가져오기"
+            "value": "생성 및 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gerar e importar"
+            "value": "Gerar e exportar"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Создание и импорт"
+            "value": "Создание и экспорт"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "สร้างและนำเข้า"
+            "value": "สร้างและส่งออก"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Oluştur ve İçe Aktar"
+            "value": "Oluştur ve Dışa Aktar"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tạo & Nhập"
+            "value": "Tạo & Xuất"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "生成与导入"
+            "value": "生成与导出"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "產生與匯入"
+            "value": "產生與匯出"
           }
         }
       }
@@ -35629,96 +35835,96 @@
         }
       }
     },
-    "用文件导入到 %@": {
+    "用文件导出到 %@": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استيراد ملف إلى %@"
+            "value": "تصدير ملف إلى %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Datei in %@ importieren"
+            "value": "Datei in %@ exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Import File to %@"
+            "value": "Export File to %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar archivo a %@"
+            "value": "Exportar archivo a %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importer un fichier dans %@"
+            "value": "Exporter un fichier vers %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impor file ke %@"
+            "value": "Ekspor file ke %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@にファイルをインポート"
+            "value": "%@にファイルをエクスポート"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@로 파일 가져오기"
+            "value": "%@로 파일 내보내기"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importar arquivo para %@"
+            "value": "Exportar arquivo para %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Импортировать файл в %@"
+            "value": "Экспортировать файл в %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "นำเข้าไฟล์ไปยัง %@"
+            "value": "ส่งออกไฟล์ไปยัง %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dosyayı %@ Uygulamasına Aktar"
+            "value": "Dosyayı %@ Uygulamasına Dışa Aktar"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhập tệp vào %@"
+            "value": "Xuất tệp sang %@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用文件导入到 %@"
+            "value": "用文件导出到 %@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "用檔案匯入到 %@"
+            "value": "用檔案匯出到 %@"
           }
         }
       }
@@ -44189,79 +44395,79 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "جاهز للاستيراد"
+            "value": "جاهز للتصدير"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bereit zum Importieren"
+            "value": "Bereit zum Exportieren"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ready to Import"
+            "value": "Ready to Export"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Listo para importar"
+            "value": "Listo para exportar"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prêt à importer"
+            "value": "Prêt à exporter"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Siap diimpor"
+            "value": "Siap diekspor"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インポートの準備完了"
+            "value": "エクスポートの準備完了"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "가져올 준비 완료"
+            "value": "내보낼 준비 완료"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pronto para importar"
+            "value": "Pronto para exportar"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Готово к импорту"
+            "value": "Готово к экспорту"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "พร้อมนำเข้า"
+            "value": "พร้อมส่งออก"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İçe Aktarmaya Hazır"
+            "value": "Dışa Aktarmaya Hazır"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sẵn sàng nhập"
+            "value": "Sẵn sàng xuất"
           }
         },
         "zh-Hans": {
@@ -45496,6 +45702,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "部分規則還沒下載完成"
+          }
+        }
+      }
+    },
+    "部分订阅更新失败": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تحديث بعض الاشتراكات"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Abos konnten nicht aktualisiert werden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some Subscriptions Failed to Update"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron actualizar algunas suscripciones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certaines sources n’ont pas été actualisées"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beberapa langganan gagal diperbarui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部のサブスクリプションを更新できませんでした"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 구독을 업데이트하지 못했습니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algumas assinaturas não foram atualizadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некоторые подписки не обновлены"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตการสมัครบางรายการไม่สำเร็จ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bazı abonelikler güncellenemedi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể cập nhật một số đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分订阅更新失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分訂閱更新失敗"
           }
         }
       }

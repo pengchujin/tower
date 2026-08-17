@@ -12,7 +12,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         switch self {
         case .subscriptions: String(localized: "订阅")
         case .rules: String(localized: "规则")
-        case .export: String(localized: "导入")
+        case .export: String(localized: "导出")
         }
     }
 
@@ -968,8 +968,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var primaryImportTitle: String {
         supportsDirectConfigurationImport
-            ? String(localized: "一键导入到 \(name)")
-            : String(localized: "用文件导入到 \(name)")
+            ? String(localized: "一键导出到 \(name)")
+            : String(localized: "用文件导出到 \(name)")
     }
 
     func supports(_ kind: ProxyKind) -> Bool {

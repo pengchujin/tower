@@ -34,7 +34,7 @@ struct ExportView: View {
             .padding(.bottom, 18)
         }
         .background(TowerTheme.background.ignoresSafeArea())
-        .navigationTitle("生成与导入")
+        .navigationTitle("生成与导出")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -141,9 +141,9 @@ private struct ExportContentModePicker: View {
     var body: some View {
         if model.selectedTarget.supportsNodesOnlyImport {
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeading(title: "导入内容", detail: model.selectedTarget.name)
+                SectionHeading(title: "导出内容", detail: model.selectedTarget.name)
                 Picker(
-                    "导入内容",
+                    "导出内容",
                     selection: Binding(
                         get: { model.exportContentMode(for: model.selectedTarget) },
                         set: { model.setExportContentMode($0, for: model.selectedTarget) }
@@ -171,9 +171,9 @@ private struct ExportContentModePicker: View {
         case .nodesOnly:
             return String(localized: "只添加节点订阅，不替换客户端现有的规则和策略组。")
         case .rulesOnly:
-            return String(localized: "导入节点、规则和策略组组成的完整配置。")
+            return String(localized: "导出节点、规则和策略组组成的完整配置。")
         case .fullConfiguration:
-            return String(localized: "导入节点、规则和策略组组成的完整配置。")
+            return String(localized: "导出节点、规则和策略组组成的完整配置。")
         }
     }
 }
@@ -510,8 +510,8 @@ private struct ImportPrivacyNote: View {
 
     private var title: String {
         target.supportsDirectImport(mode: contentMode)
-            ? String(localized: "本机一键导入")
-            : String(localized: "使用本地文件导入")
+            ? String(localized: "本机一键导出")
+            : String(localized: "使用本地文件导出")
     }
 
     private var detail: String {
@@ -519,7 +519,7 @@ private struct ImportPrivacyNote: View {
             return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
         }
         if contentMode == .rulesOnly {
-            return String(localized: "导入节点、规则和策略组组成的完整配置。")
+            return String(localized: "导出节点、规则和策略组组成的完整配置。")
         }
         if target.supportsDirectConfigurationImport {
             return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
@@ -586,7 +586,7 @@ private struct ImportActionBar: View {
     private var importTitle: String {
         switch contentMode {
         case .nodesOnly:
-            return String(localized: "仅导入节点到 \(target.name)")
+            return String(localized: "仅导出节点到 \(target.name)")
         case .rulesOnly:
             return String(localized: "本地规则")
         case .fullConfiguration:

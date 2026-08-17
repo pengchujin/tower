@@ -100,43 +100,62 @@ struct SubscriptionService: SubscriptionFetching {
 
     private func load(_ url: URL, source: SubscriptionSource) async throws -> ImportResult {
         let dnsURL = try source.requestOptions?.validatedDNSOverHTTPSURL()
-        var request = try requestBuilder.make(url: url, source: source, timeout: 30)
-        var (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
-        for fallbackUserAgent in SubscriptionRequestBuilder.compatibilityUserAgents
-        where source.requestOptions?.userAgent == nil
-            && Self.isClientGatingResponse(response) {
-            request = try requestBuilder.make(
+        let customUserAgent = source.requestOptions?.userAgent?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let allowsCompatibilityFallback = customUserAgent?.isEmpty != false
+        let fallbackUserAgents = allowsCompatibilityFallback
+            ? SubscriptionRequestBuilder.compatibilityUserAgents
+            : []
+        let userAgentAttempts: [String?] = [nil] + fallbackUserAgents.map(Optional.some)
+
+        for (index, fallbackUserAgent) in userAgentAttempts.enumerated() {
+            let request = try requestBuilder.make(
                 url: url,
                 source: source,
                 timeout: 30,
                 overridingUserAgent: fallbackUserAgent
             )
-            (data, response) = try await httpClient.data(for: request, dnsOverHTTPSURL: dnsURL)
-        }
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw SubscriptionError.badResponse
-        }
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw SubscriptionError.httpStatus(httpResponse.statusCode)
-        }
-        guard !data.isEmpty else { throw SubscriptionError.emptySubscription }
+            let (data, response) = try await httpClient.data(
+                for: request,
+                dnsOverHTTPSURL: dnsURL
+            )
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw SubscriptionError.badResponse
+            }
+            let hasAnotherAttempt = index < userAgentAttempts.count - 1
+            guard (200..<300).contains(httpResponse.statusCode) else {
+                if hasAnotherAttempt, Self.isClientGatingResponse(response) {
+                    continue
+                }
+                throw SubscriptionError.httpStatus(httpResponse.statusCode)
+            }
+            guard !data.isEmpty else {
+                if hasAnotherAttempt { continue }
+                throw SubscriptionError.emptySubscription
+            }
 
-        let parsed = parser.parse(data: data, sourceID: source.id)
-        guard !parsed.nodes.isEmpty else { throw SubscriptionError.noSupportedNodes }
+            let parsed = parser.parse(data: data, sourceID: source.id)
+            guard !parsed.nodes.isEmpty else {
+                if hasAnotherAttempt { continue }
+                throw SubscriptionError.noSupportedNodes
+            }
 
-        // Only this one header is read. Keeping the whole response would drag
-        // cookies and other session state into app state for no reason.
-        let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo")
-            .flatMap(SubscriptionUsage.parse(header:))
-        var usage = header ?? parsed.status ?? SubscriptionUsage()
-        usage.notices = parsed.notices
+            // Only this one header is read. Keeping the whole response would drag
+            // cookies and other session state into app state for no reason.
+            let header = httpResponse.value(forHTTPHeaderField: "subscription-userinfo")
+                .flatMap(SubscriptionUsage.parse(header:))
+            var usage = header ?? parsed.status ?? SubscriptionUsage()
+            usage.notices = parsed.notices
 
-        return ImportResult(
-            nodes: parsed.nodes,
-            rejectedLineCount: parsed.rejectedLineCount,
-            usage: usage.isEmpty ? nil : usage,
-            suggestedName: Self.providerTitle(from: httpResponse)
-        )
+            return ImportResult(
+                nodes: parsed.nodes,
+                rejectedLineCount: parsed.rejectedLineCount,
+                usage: usage.isEmpty ? nil : usage,
+                suggestedName: Self.providerTitle(from: httpResponse)
+            )
+        }
+
+        throw SubscriptionError.noSupportedNodes
     }
 
     private static func isClientGatingResponse(_ response: URLResponse) -> Bool {
@@ -186,15 +205,12 @@ struct SubscriptionService: SubscriptionFetching {
 }
 
 struct SubscriptionRequestBuilder {
-    static let defaultUserAgent = "Tower/1.0 (iOS; local subscription converter)"
-    static let clientGatingStatusCodes: Set<Int> = [403, 406, 421, 426]
     static let shadowrocketCompatibilityUserAgent =
         "Shadowrocket/3378 CFNetwork/3892.100.1 Darwin/27.0.0"
+    static let defaultUserAgent = shadowrocketCompatibilityUserAgent
+    static let clientGatingStatusCodes: Set<Int> = [403, 406, 421, 426]
     static let clashMetaCompatibilityUserAgent = "clash.meta"
-    static let compatibilityUserAgents = [
-        shadowrocketCompatibilityUserAgent,
-        clashMetaCompatibilityUserAgent
-    ]
+    static let compatibilityUserAgents = [clashMetaCompatibilityUserAgent]
 
     func make(
         url: URL,
