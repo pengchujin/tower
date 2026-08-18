@@ -354,6 +354,9 @@ struct ConfigurationGenerator {
         let members: [String]
         /// Only the node names, needed for the Quantumult X tag regex.
         let nodeNames: [String]
+        /// Preserve an all-node source regex instead of expanding it into one
+        /// very long Quantumult X tag regex.
+        let matchesAllNodes: Bool
         let testURL: String
         let interval: Int
         let tolerance: Int
@@ -370,6 +373,7 @@ struct ConfigurationGenerator {
         return scheme.groups.map { group in
             var members: [String] = []
             var nodeNames: [String] = []
+            var matchesAllNodes = false
 
             for member in group.members {
                 switch member {
@@ -382,6 +386,9 @@ struct ConfigurationGenerator {
                         members.append(builtinPolicyName(name, target: target))
                     }
                 case .nodePattern(let pattern):
+                    if pattern.trimmingCharacters(in: .whitespacesAndNewlines) == ".*" {
+                        matchesAllNodes = true
+                    }
                     let matches = matchingNodeNames(pattern, nodes: nodes, displayNames: displayNames)
                     members.append(contentsOf: matches)
                     nodeNames.append(contentsOf: matches)
@@ -399,6 +406,7 @@ struct ConfigurationGenerator {
                 kind: nodeNames.isEmpty && group.kind == .urlTest ? .select : group.kind,
                 members: members.removingDuplicates(),
                 nodeNames: nodeNames.removingDuplicates(),
+                matchesAllNodes: matchesAllNodes,
                 testURL: group.testURLString ?? "http://www.gstatic.com/generate_204",
                 interval: group.interval ?? 300,
                 tolerance: group.tolerance ?? 50
@@ -683,10 +691,12 @@ struct ConfigurationGenerator {
                 let members = group.members.map(confName).joined(separator: ", ")
                 output += "static=\(confName(group.name)), \(members)\n"
             case .urlTest:
-                // Latency policies select nodes by tag regex, never by listing
-                // tags the way `static` does.
                 output += "url-latency-benchmark=\(confName(group.name))"
-                output += ", server-tag-regex=\(quanXServerTagRegex(group.nodeNames))"
+                if group.matchesAllNodes {
+                    output += ", \(group.nodeNames.map(confName).joined(separator: ", "))"
+                } else {
+                    output += ", server-tag-regex=\(quanXServerTagRegex(group.nodeNames))"
+                }
                 output += ", check-interval=\(group.interval), alive-checking=false"
                 output += ", tolerance=\(group.tolerance)\n"
             }
@@ -1676,7 +1686,7 @@ struct ConfigurationGenerator {
         if names.isEmpty {
             output += "static=\(RulePolicy.auto.configurationName), direct\n"
         } else {
-            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         let nestedSelectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
@@ -1689,7 +1699,7 @@ struct ConfigurationGenerator {
         if names.isEmpty {
             output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName)\n"
         } else {
-            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), server-tag-regex=\(quanXServerTagRegex(names)), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         output += "static=\(Self.directGroupName), direct\n"
         for policy in configurablePolicies(preset) {

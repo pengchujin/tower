@@ -261,7 +261,7 @@ final class RuleSchemeTests: XCTestCase {
         XCTAssertFalse(regionBlock.contains("JP Tokyo 02"), regionBlock)
     }
 
-    func testQuanXLatencyGroupUsesServerTagRegex() throws {
+    func testQuanXAllNodeLatencyGroupListsOnlyProxyTags() throws {
         let scheme = try parse()
         let content = ConfigurationGenerator().generate(
             nodes: nodes,
@@ -272,7 +272,9 @@ final class RuleSchemeTests: XCTestCase {
         let line = try XCTUnwrap(
             content.components(separatedBy: .newlines).first { $0.hasPrefix("url-latency-benchmark=♻️ 自动选择") }
         )
-        XCTAssertTrue(line.contains("server-tag-regex="), line)
+        XCTAssertTrue(line.contains(", HK 香港 01, JP Tokyo 02,"), line)
+        XCTAssertFalse(line.contains("server-tag-regex="), line)
+        XCTAssertFalse(line.localizedCaseInsensitiveContains("direct"), line)
     }
 
     func testImportedSchemeAlsoDeclaresEveryQuanXModule() throws {

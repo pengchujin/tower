@@ -69,7 +69,7 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 
 - `RuleSchemeParser` 解析 `ruleset=` 和 `custom_proxy_group=`。`ruleset` 只按第一个逗号切分，因为内联规则 `[]GEOIP,CN` 自带逗号；组成员以 `[]` 开头是引用，否则是节点名正则；末尾 `300,,50` 是时序字段，靠“含逗号且只有数字和逗号”与节点正则区分。
 - `ConfigurationGenerator.generate(nodes:scheme:target:schemes:)` 是动态组输出路径，复用原有的节点输出和 `confName` 转义。正则匹配同时试节点原名和塔台改名后的显示名，因为塔台可能加国旗前缀或去重后缀。匹配不到节点的组会回落到 DIRECT，避免输出空组被客户端拒绝。
-- QuanX 的 `url-latency-benchmark` 仍走 `server-tag-regex`（第 13 条约束）。
+- QuanX 的全节点 `url-latency-benchmark` 直接列出解析后的代理节点（与 subconverter 一致），不用会匹配 `direct` 的 `server-tag-regex=.*`；地区过滤组仍用精确 `server-tag-regex`。
 - 导入只接受 HTTPS；规则列表按 6 个一批下载，存到 Application Support 并用完整文件保护；删除方案会一并清掉它下载的列表。
 - `AppSnapshot.importedSchemes` 是 Optional——Swift 合成的解码器不会对缺失键套用默认值，改成非可选会让旧存档解不出来。
 - `AppSnapshot.selectedRuleGroups` 和 `customRuleFlows` 同样保持 Optional，旧存档解码后分别回到“完整沿用上游”和“没有自定义规则”。
@@ -575,7 +575,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - 节点选择间接包含自身。
 - 策略名称自带 Emoji，同时 UI/客户端图标字段再显示一次，造成重复。
 - 地区组只有手动选项或只有自动组，不能兼顾默认延迟优选和人工覆盖。
-- QuanX 的 `url-latency-benchmark` 直接列节点标签会报语法错误；必须输出 `server-tag-regex`，并对节点标签中的正则字符逐个转义。
+- QuanX 全节点自动组误用 `server-tag-regex=.*` 会把 `direct` 也加入候选；必须像 subconverter 一样直接列出代理节点。地区自动组仍使用转义后的精确 `server-tag-regex`。
 
 ## 4. 当前 TestFlight / App Store Connect 状态
 
