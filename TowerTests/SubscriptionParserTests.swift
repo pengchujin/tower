@@ -205,6 +205,17 @@ final class SubscriptionParserTests: XCTestCase {
 
         XCTAssertEqual(result.nodes.count, 1)
     }
+
+    func testRestoresDistinctRegionalNamesWhenProviderReturnsOnlyTheSameFlag() {
+        let list = """
+        anytls://secret@edge.hk2.example.com:443#🇭🇰
+        anytls://secret@edge.hk3.example.com:443#🇭🇰
+        """
+
+        let result = SubscriptionParser().parse(data: Data(list.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.name), ["🇭🇰 香港02", "🇭🇰 香港03"])
+    }
 }
 
 extension SubscriptionParserTests {

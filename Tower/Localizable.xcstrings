@@ -12322,96 +12322,96 @@
         }
       }
     },
-    "共享的是转换结果，不含机场原始链接": {
+    "支持安卓、Windows、Mac、路由器等。": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تتم مشاركة نتيجة التحويل فقط، من دون رابط الاشتراك الأصلي لمزوّد الخدمة."
+            "value": "يدعم Android وWindows وMac وأجهزة التوجيه وغيرها."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Geteilt wird nur das Konvertierungsergebnis, nicht der ursprüngliche Abonnement-Link des Anbieters."
+            "value": "Unterstützt Android, Windows, Mac, Router und mehr."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only the converted result is shared, not the provider's original subscription URL."
+            "value": "Supports Android, Windows, Mac, routers, and more."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Solo se comparte el resultado convertido, no la URL de suscripción original del proveedor."
+            "value": "Compatible con Android, Windows, Mac, routers y más."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seul le résultat converti est partagé, pas l’URL d’abonnement d’origine du fournisseur."
+            "value": "Compatible avec Android, Windows, Mac, les routeurs, etc."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hanya hasil konversi yang dibagikan, bukan URL langganan asli dari penyedia."
+            "value": "Mendukung Android, Windows, Mac, router, dan lainnya."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "共有されるのは変換結果のみで、プロバイダーの元のサブスクリプションURLは含まれません。"
+            "value": "Android、Windows、Mac、ルーターなどに対応。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "변환 결과만 공유되며 제공업체의 원본 구독 URL은 포함되지 않습니다."
+            "value": "Android, Windows, Mac, 라우터 등을 지원합니다."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Somente o resultado convertido é compartilhado, não a URL de assinatura original do provedor."
+            "value": "Compatível com Android, Windows, Mac, roteadores e mais."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Передаётся только результат преобразования, без исходной ссылки подписки провайдера."
+            "value": "Поддерживает Android, Windows, Mac, роутеры и другие устройства."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "แชร์เฉพาะผลลัพธ์ที่แปลงแล้ว ไม่รวม URL การสมัครสมาชิกต้นฉบับของผู้ให้บริการ"
+            "value": "รองรับ Android, Windows, Mac, เราเตอร์ และอื่นๆ"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yalnızca dönüştürülen sonuç paylaşılır; sağlayıcının özgün abonelik URL'si paylaşılmaz."
+            "value": "Android, Windows, Mac, yönlendiriciler ve daha fazlasını destekler."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chỉ chia sẻ kết quả đã chuyển đổi, không bao gồm URL đăng ký gốc của nhà cung cấp."
+            "value": "Hỗ trợ Android, Windows, Mac, bộ định tuyến và nhiều thiết bị khác."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "共享的是转换结果，不含机场原始链接"
+            "value": "支持安卓、Windows、Mac、路由器等。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "共享的是轉換結果，不含機場原始鏈接"
+            "value": "支援 Android、Windows、Mac、路由器等。"
           }
         }
       }
@@ -20693,42 +20693,42 @@
         }
       }
     },
-    "局域网订阅": {
+    "局域网共享": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اشتراك لان"
+            "value": "المشاركة عبر الشبكة المحلية"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "LAN-Abonnement"
+            "value": "Lokale Netzwerkfreigabe"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Local Network Subscription"
+            "value": "Local Network Sharing"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "suscripción LAN"
+            "value": "Uso compartido en la red local"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abonnement au réseau local"
+            "value": "Partage sur le réseau local"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "berlangganan LAN"
+            "value": "Berbagi jaringan lokal"
           }
         },
         "ja": {
@@ -20740,49 +20740,49 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "로컬 네트워크 구독"
+            "value": "로컬 네트워크 공유"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Assinatura de LAN"
+            "value": "Compartilhamento na rede local"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "подписка на локальную сеть"
+            "value": "Общий доступ в локальной сети"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "การสมัครสมาชิกระบบ LAN"
+            "value": "การแชร์ผ่านเครือข่ายภายใน"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "LAN aboneliği"
+            "value": "Yerel ağ paylaşımı"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đăng ký mạng LAN"
+            "value": "Chia sẻ mạng cục bộ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "局域网订阅"
+            "value": "局域网共享"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "區域網路訂閱"
+            "value": "區域網路共享"
           }
         }
       }
@@ -28875,96 +28875,96 @@
         }
       }
     },
-    "无法识别客户端，请在链接末尾指定 target=clash、surge、loon、quanx、shadowrocket、hiddify 或 egern": {
+    "无法识别客户端，请在链接末尾指定 target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify 或 egern": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عميل غير معروف، يرجى تحديد target=clash أو Surge أو loon أو quanx أو Shadowrocket أو hiddify أو egern في نهاية الرابط"
+            "value": "عميل غير معروف، يرجى تحديد target=clash أو surge أو surfboard أو loon أو quanx أو shadowrocket أو sing-box أو hiddify أو egern في نهاية الرابط"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unbekannter Client, bitte geben Sie am Ende des Links target=clash, Surge, loon, quanx,shadowrocket, hiddify oder egern an"
+            "value": "Unbekannter Client, bitte geben Sie am Ende des Links target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify oder egern an"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unrecognized client, please specify target=clash, surge, loon, quanx, shadowrocket, hiddify or egern at the end of the link"
+            "value": "Unrecognized client. Add target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify, or egern to the end of the link."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cliente no reconocido, especifique target=clash, surge, loon, quanx, shadowrocket, hiddify o egern al final del enlace."
+            "value": "Cliente no reconocido, especifique target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify o egern al final del enlace."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Client non reconnu, veuillez spécifier target=clash, surge, loon, quanx, shadowrocket, hiddify ou egern à la fin du lien"
+            "value": "Client non reconnu, veuillez spécifier target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify ou egern à la fin du lien"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klien tidak dikenal, harap tentukan target=clash, surge, loon, quanx, shadowrocket, hiddify atau egern di akhir tautan"
+            "value": "Klien tidak dikenal, harap tentukan target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify atau egern di akhir tautan"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "認識されないクライアント。リンクの最後に target=clash、surge、loon、quanx、shadowrocket、hiddify、または egern を指定してください。"
+            "value": "認識されないクライアント。リンクの最後に target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify、または egern を指定してください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "인식할 수 없는 클라이언트입니다. 링크 끝에 target=clash,urge, loon, quanx, Shadowrocket, hiddify 또는 egern을 지정하십시오."
+            "value": "인식할 수 없는 클라이언트입니다. 링크 끝에 target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify 또는 egern을 지정하십시오."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cliente não reconhecido, especifique target=clash, surge, loon, quanx, shadowrocket, hiddify ou egern no final do link"
+            "value": "Cliente não reconhecido, especifique target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify ou egern no final do link"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Неопознанный клиент, в конце ссылки укажите target=clash, Surge, Loon, Quanx, ShadowRocket, Hiddify или egern."
+            "value": "Неопознанный клиент, в конце ссылки укажите target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify или egern."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ลูกค้าที่ไม่รู้จัก โปรดระบุ target=clash, ไฟกระชาก, loon, quanx, shadowrocket, hiddify หรือ egern ที่ส่วนท้ายของลิงก์"
+            "value": "ลูกค้าที่ไม่รู้จัก โปรดระบุ target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify หรือ egern ที่ส่วนท้ายของลิงก์"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tanınmayan istemci, lütfen bağlantının sonunda target=clash,urge, loon, quanx, shadowrocket, hiddify veya egern belirtin"
+            "value": "Tanınmayan istemci, lütfen bağlantının sonunda target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify veya egern belirtin"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Khách hàng không được nhận dạng, vui lòng chỉ định target=clash, boost, loon, quanx, Shadowrocket, hiddify hoặc egern ở cuối liên kết"
+            "value": "Khách hàng không được nhận dạng, vui lòng chỉ định target=clash, surge, surfboard, loon, quanx, shadowrocket, sing-box, hiddify hoặc egern ở cuối liên kết"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法识别客户端，请在链接末尾指定 target=clash、surge、loon、quanx、shadowrocket、hiddify 或 egern"
+            "value": "无法识别客户端，请在链接末尾指定 target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify 或 egern"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "無法辨識客戶端，請在連結末端指定 target=clash、surge、loon、quanx、shadowrocket、hiddify 或 egern"
+            "value": "無法辨識客戶端，請在連結末端指定 target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify 或 egern"
           }
         }
       }

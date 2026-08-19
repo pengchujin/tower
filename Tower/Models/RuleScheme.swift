@@ -46,6 +46,18 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         }
     }
 
+    /// Imported summaries used to be localized before being persisted. Derive
+    /// the generic source description at display time so changing the app
+    /// language also fixes schemes saved by older builds.
+    func localizedSummary(bundle: Bundle = .main) -> String {
+        guard !isBundled,
+              let sourceURLString,
+              let host = URL(string: sourceURLString)?.host else {
+            return summary
+        }
+        return String(localized: "从 \(host) 导入", bundle: bundle)
+    }
+
     /// The group a client should fall back to, taken from the `[]FINAL` ruleset.
     var finalGroupName: String? {
         rulesets.first { ruleset in

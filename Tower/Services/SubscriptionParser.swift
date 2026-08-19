@@ -396,7 +396,8 @@ struct SubscriptionParser {
 
         if text.contains("proxies:") {
             let parsed = parseClashYAML(text, sourceID: sourceID)
-            let marked = parsed.nodes.map(markingSubscriptionMetadata)
+            let marked = restoringAmbiguousRegionalNames(parsed.nodes)
+                .map(markingSubscriptionMetadata)
             let notices = marked.filter { $0.isSubscriptionMetadata == true }.map(\.name)
             return .init(
                 nodes: deduplicated(marked),
@@ -432,7 +433,8 @@ struct SubscriptionParser {
                 rejected += 1
             }
         }
-        let marked = nodes.map(markingSubscriptionMetadata)
+        let marked = restoringAmbiguousRegionalNames(nodes)
+            .map(markingSubscriptionMetadata)
         let notices = marked.filter { $0.isSubscriptionMetadata == true }.map(\.name)
         return .init(
             nodes: deduplicated(marked),
@@ -1730,6 +1732,71 @@ struct SubscriptionParser {
                 : node.canonicalKey
             return seen.insert(key).inserted
         }
+    }
+
+    /// Some subscription edges return only a flag as the remark even though
+    /// another edge returns the full regional name. Two `🇭🇰` entries are
+    /// impossible to distinguish in policy groups and exported profiles, so
+    /// recover the provider's numeric hint from hosts such as `hk2` / `hk3`.
+    /// A stable sequence is used only when that hint is absent. Provider names
+    /// containing any real text are never rewritten.
+    private func restoringAmbiguousRegionalNames(_ nodes: [ProxyNode]) -> [ProxyNode] {
+        var indexesByCountryCode: [String: [Int]] = [:]
+        for (index, node) in nodes.enumerated() {
+            guard let code = bareFlagCountryCode(in: node.name) else { continue }
+            indexesByCountryCode[code, default: []].append(index)
+        }
+
+        var restored = nodes
+        for (code, indexes) in indexesByCountryCode where indexes.count > 1 {
+            guard let region = NodeRegionResolver.region(countryCode: code) else { continue }
+            var usedSuffixes = Set<Int>()
+            var nextFallback = 1
+
+            for index in indexes {
+                let hinted = regionalNumberHint(in: nodes[index].server, countryCode: code)
+                let number: Int
+                if let hinted, usedSuffixes.insert(hinted).inserted {
+                    number = hinted
+                } else {
+                    while usedSuffixes.contains(nextFallback) { nextFallback += 1 }
+                    number = nextFallback
+                    usedSuffixes.insert(number)
+                    nextFallback += 1
+                }
+                restored[index].name = "\(region.flag) \(region.name)\(String(format: "%02d", number))"
+            }
+        }
+        return restored
+    }
+
+    private func bareFlagCountryCode(in name: String) -> String? {
+        guard let code = NodeRegionResolver.flaggedCountryCode(in: name) else { return nil }
+        let remainder = name.unicodeScalars
+            .filter { !(0x1F1E6...0x1F1FF).contains(Int($0.value)) }
+            .map(String.init)
+            .joined()
+            .trimmingCharacters(
+                in: CharacterSet.whitespacesAndNewlines.union(
+                    CharacterSet(charactersIn: "-_|·•")
+                )
+            )
+        return remainder.isEmpty ? code : nil
+    }
+
+    private func regionalNumberHint(in server: String, countryCode: String) -> Int? {
+        let code = countryCode.lowercased()
+        let tokens = server.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        for token in tokens where token.hasPrefix(code) {
+            let digits = token.dropFirst(code.count)
+            guard !digits.isEmpty, digits.count <= 3,
+                  digits.allSatisfy(\.isNumber),
+                  let number = Int(digits), number > 0 else { continue }
+            return number
+        }
+        return nil
     }
 
     private func markingSubscriptionMetadata(_ node: ProxyNode) -> ProxyNode {

@@ -81,6 +81,7 @@ enum LatencyProbeError: LocalizedError {
 }
 
 actor NodeLatencyService {
+    typealias ICMPReliabilityCheck = @Sendable (_ host: String) -> Bool
     typealias ICMPProbe = @Sendable (_ host: String, _ timeout: TimeInterval) async throws -> Int
     typealias TCPProbe = @Sendable (_ host: String, _ port: Int, _ timeout: TimeInterval) async throws -> Int
     typealias HTTPProbe = @Sendable (_ node: ProxyNode, _ timeout: TimeInterval) async throws -> Int
@@ -88,6 +89,7 @@ actor NodeLatencyService {
     private let icmpTimeout: TimeInterval
     private let tcpTimeout: TimeInterval
     private let httpTimeout: TimeInterval
+    private let isICMPReliable: ICMPReliabilityCheck
     private let icmpProbe: ICMPProbe
     private let tcpProbe: TCPProbe
     private let httpProbe: HTTPProbe
@@ -100,6 +102,9 @@ actor NodeLatencyService {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
         self.httpTimeout = httpTimeout
+        isICMPReliable = { host in
+            ICMPRouteReliability.isReliable(host: host)
+        }
         icmpProbe = { host, timeout in
             try await ICMPPingProbe.measure(host: host, timeout: timeout)
         }
@@ -115,6 +120,7 @@ actor NodeLatencyService {
         icmpTimeout: TimeInterval = 1.2,
         tcpTimeout: TimeInterval = 1.8,
         httpTimeout: TimeInterval = 2.5,
+        isICMPReliable: @escaping ICMPReliabilityCheck = { _ in true },
         icmpProbe: @escaping ICMPProbe,
         tcpProbe: @escaping TCPProbe,
         httpProbe: @escaping HTTPProbe = { node, timeout in
@@ -124,6 +130,7 @@ actor NodeLatencyService {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
         self.httpTimeout = httpTimeout
+        self.isICMPReliable = isICMPReliable
         self.icmpProbe = icmpProbe
         self.tcpProbe = tcpProbe
         self.httpProbe = httpProbe
@@ -146,6 +153,10 @@ actor NodeLatencyService {
     }
 
     private func measureAutomatically(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        guard isICMPReliable(node.server) else {
+            return try await measureTCP(node)
+        }
+
         do {
             let milliseconds = try await icmpProbe(node.server, icmpTimeout)
             return .success(milliseconds: milliseconds, method: .icmp)
@@ -166,6 +177,9 @@ actor NodeLatencyService {
     }
 
     private func measureICMP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        guard isICMPReliable(node.server) else {
+            return try await measureTCP(node)
+        }
         do {
             return .success(
                 milliseconds: try await icmpProbe(node.server, icmpTimeout),
@@ -202,6 +216,38 @@ actor NodeLatencyService {
         } catch {
             return .unavailable("HTTP：\(error.localizedDescription)")
         }
+    }
+}
+
+private enum ICMPRouteReliability {
+    private static let tunnelPrefixes = ["utun", "ipsec", "ppp", "tun", "tap"]
+
+    static func isReliable(host: String) -> Bool {
+        let normalizedHost = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalizedHost == "localhost" || normalizedHost == "127.0.0.1" || normalizedHost == "::1" {
+            return true
+        }
+
+        var firstAddress: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&firstAddress) == 0, let firstAddress else { return true }
+        defer { freeifaddrs(firstAddress) }
+
+        var current: UnsafeMutablePointer<ifaddrs>? = firstAddress
+        while let interface = current?.pointee {
+            defer { current = interface.ifa_next }
+            guard let address = interface.ifa_addr else { continue }
+            let family = Int32(address.pointee.sa_family)
+            guard family == AF_INET || family == AF_INET6 else { continue }
+
+            let flags = Int32(interface.ifa_flags)
+            guard flags & IFF_UP != 0, flags & IFF_RUNNING != 0 else { continue }
+
+            let name = String(cString: interface.ifa_name).lowercased()
+            if tunnelPrefixes.contains(where: name.hasPrefix) {
+                return false
+            }
+        }
+        return true
     }
 }
 

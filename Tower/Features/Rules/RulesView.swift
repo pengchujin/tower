@@ -306,7 +306,9 @@ private struct RulesOverviewCard: View {
     }
 
     private var title: String { model.selectedScheme?.name ?? model.selectedPreset.name }
-    private var summary: String { model.selectedScheme?.summary ?? model.selectedPreset.summary }
+    private var summary: String {
+        model.selectedScheme?.localizedSummary() ?? model.selectedPreset.summary
+    }
     private var symbol: String {
         model.selectedScheme == nil ? model.selectedPreset.symbol : "square.stack.3d.down.right.fill"
     }
@@ -517,7 +519,7 @@ private struct RuleSchemeCard: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(scheme.name)
                             .font(.headline)
-                        Text(scheme.summary)
+                        Text(scheme.localizedSummary())
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.leading)

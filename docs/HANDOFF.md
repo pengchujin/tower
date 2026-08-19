@@ -552,7 +552,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 
 ### 局域网订阅与“透传”
 
-`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。设置页会展示带 32 位随机访问密钥的地址，密钥可手动轮换，旧链接立即失效。
+`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。导出页把“局域网订阅”作为客户端式目的地展示；用户选择该目的地时立即启动服务，并集中提供启停、自动/显式目标格式、带 32 位随机访问密钥的地址、二维码和使用说明，设置页只保留跳转入口。密钥可手动轮换，旧链接立即失效。局域网目的地不能加入 `ClientTarget`，因为它不是一种配置格式，而是按请求方 User-Agent 或 `target=` 参数选择实际格式的传输入口。
 
 - 路由：`/sub/<token>?target=auto`，另兼容 `/download/<token>`；支持 GET/HEAD。
 - 自动识别：OpenClash 的 `clash.meta`、Clash Verge/Mihomo/Stash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify/sing-box、Egern。
@@ -769,6 +769,16 @@ xcodebuild -project Tower.xcodeproj \
 - 收集不能识别的真实机场样本时，先脱敏密码、UUID、token 和域名。
 - 每修复一种格式都加入最小自动测试。
 - 对 HTTP 错误页、登录页和空订阅保持明确错误，不把它们解析成节点。
+
+### P2：兼容 iOS 16（暂不启动）
+
+> 2026-08-18 完成只读评估。当前最低系统为 iOS 17.0；实际按 iOS 16.0 编译时，首先被 Observation 状态管理和新版 Environment 注入阻塞，不能只修改 Deployment Target。
+
+- 推荐最低支持版本为 **iOS 16.0**；iOS 15 需要同时维护旧导航、分享和扫码实现，暂不纳入计划；不考虑 iOS 14 及以下。
+- 将 `AppModel` 从 iOS 17 的 `@Observable` / `@Environment(AppModel.self)` 迁移为可回溯到 iOS 16 的状态注入方式，并回归持久化、订阅刷新、规则选择和导出状态。
+- 为 `sensoryFeedback`、`ContentUnavailableView`、新版 `onChange`、滚动定位与内容过渡等 iOS 17 API 增加兼容实现；iOS 16.4 API 应移除或增加 iOS 16.0 回退。
+- 不支持 VisionKit 扫码的旧设备保留粘贴识别和手动添加入口，并显示明确提示，不阻塞订阅和节点导入。
+- 预计改造与回归共 **3–5 个工作日**。完成门槛包括 iOS 16 模拟器、当前系统 iPhone、iPad，以及至少一台真实 iOS 16 设备上的主流程验证。
 
 ### P2：WireGuard / Tailscale 客户端兼容研究
 

@@ -42,6 +42,111 @@ final class SingBoxGenerationTests: XCTestCase {
         XCTAssertNotNil(config["inbounds"])
     }
 
+    func testDNSUsesCurrentTypedServerFormat() throws {
+        let config = try json(.hiddify, nodes: [node(.shadowsocks)])
+        let dns = try XCTUnwrap(config["dns"] as? [String: Any])
+        let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
+
+        XCTAssertEqual(servers.count, 2)
+        for server in servers {
+            XCTAssertEqual(server["type"] as? String, "https")
+            XCTAssertNotNil(server["server"] as? String)
+            XCTAssertNil(server["address"], "legacy DNS server format is rejected by current sing-box")
+            XCTAssertNil(
+                server["detour"],
+                "literal-IP DNS servers should use sing-box's direct dialer default"
+            )
+            let tls = try XCTUnwrap(server["tls"] as? [String: Any])
+            XCTAssertEqual(tls["enabled"] as? Bool, true)
+            XCTAssertNotNil(tls["server_name"] as? String)
+        }
+        let route = try XCTUnwrap(config["route"] as? [String: Any])
+        XCTAssertEqual(route["default_domain_resolver"] as? String, "local")
+    }
+
+    func testImportedSchemeAlsoIncludesCurrentDNSResolver() throws {
+        let scheme = RuleScheme(
+            id: "sing-box-dns",
+            name: "Sing-box DNS",
+            summary: "Imported scheme DNS regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.nodePattern(".*"), .reference("DIRECT")]
+                )
+            ],
+            rulesets: [RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))]
+        )
+        let content = generator.generate(
+            nodes: [node(.shadowsocks)],
+            scheme: scheme,
+            target: .hiddify
+        ).content
+        let object = try JSONSerialization.jsonObject(with: Data(content.utf8))
+        let config = try XCTUnwrap(object as? [String: Any])
+        let dns = try XCTUnwrap(config["dns"] as? [String: Any])
+        let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
+        XCTAssertTrue(servers.allSatisfy { $0["type"] as? String == "https" })
+        let route = try XCTUnwrap(config["route"] as? [String: Any])
+        XCTAssertEqual(route["default_domain_resolver"] as? String, "local")
+    }
+
+    func testImportedSchemeDNSDetoursResolveToExistingOutbounds() throws {
+        let scheme = RuleScheme(
+            id: "sing-box-dns-detour",
+            name: "Sing-box DNS detour",
+            summary: "Imported scheme DNS dependency regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "🚀 节点选择",
+                    kind: .select,
+                    members: [.nodePattern(".*"), .reference("DIRECT")]
+                )
+            ],
+            rulesets: [RuleSchemeRuleset(groupName: "🚀 节点选择", resource: .inline("FINAL"))]
+        )
+        let content = generator.generate(
+            nodes: [node(.shadowsocks)],
+            scheme: scheme,
+            target: .hiddify
+        ).content
+        let object = try JSONSerialization.jsonObject(with: Data(content.utf8))
+        let config = try XCTUnwrap(object as? [String: Any])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let outboundTags = Set(outbounds.compactMap { $0["tag"] as? String })
+        let dns = try XCTUnwrap(config["dns"] as? [String: Any])
+        let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
+
+        for detour in servers.compactMap({ $0["detour"] as? String }) {
+            XCTAssertTrue(
+                outboundTags.contains(detour),
+                "DNS detour \(detour) 没有对应的 outbound"
+            )
+        }
+    }
+
+    func testOfficialSingBoxCapabilityOverrideSkipsSSRAndKeepsSnell() throws {
+        let supportedKinds = Set(ProxyKind.allCases).subtracting([.unknown, .shadowsocksR])
+        let generated = generator.generate(
+            nodes: [
+                node(.shadowsocksR, name: "Legacy SSR"),
+                node(.snell, name: "Snell", version: 3)
+            ],
+            preset: preset,
+            target: .hiddify,
+            supportedKindsOverride: supportedKinds
+        )
+        let object = try JSONSerialization.jsonObject(with: Data(generated.content.utf8))
+        let config = try XCTUnwrap(object as? [String: Any])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        XCTAssertEqual(generated.supportedNodeCount, 1)
+        XCTAssertEqual(generated.skippedNodeCount, 1)
+        XCTAssertTrue(outbounds.contains { $0["type"] as? String == "snell" })
+        XCTAssertFalse(outbounds.contains { $0["type"] as? String == "shadowsocksr" })
+    }
+
     func testHiddifyIsTheOnlyTargetOnThisFormat() {
         // sing-box ships no App Store client of its own, so the format is
         // offered only under the app that actually runs it.
@@ -86,6 +191,54 @@ final class SingBoxGenerationTests: XCTestCase {
         // emitted as selector groups either.
         let tags = Set(outbounds.compactMap { $0["tag"] as? String })
         XCTAssertFalse(tags.contains(Self.rejectTag))
+    }
+
+    func testImportedRejectSelectorHasResolvableBlockOutbound() throws {
+        let scheme = RuleScheme(
+            id: "reject-selector-test",
+            name: "Reject selector",
+            summary: "Reject selector dependency regression",
+            groups: [
+                RuleSchemeGroup(
+                    name: "节点选择",
+                    kind: .select,
+                    members: [.nodePattern(".*"), .reference("DIRECT")]
+                ),
+                RuleSchemeGroup(
+                    name: "🛑 全球拦截",
+                    kind: .select,
+                    members: [.reference("REJECT"), .reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "🛑 全球拦截",
+                    resource: .inline("DOMAIN-SUFFIX,ads.example")
+                ),
+                RuleSchemeRuleset(groupName: "节点选择", resource: .inline("FINAL"))
+            ]
+        )
+        let content = generator.generate(
+            nodes: [node(.shadowsocks)],
+            scheme: scheme,
+            target: .hiddify
+        ).content
+        let object = try JSONSerialization.jsonObject(with: Data(content.utf8))
+        let config = try XCTUnwrap(object as? [String: Any])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let tags = Set(outbounds.compactMap { $0["tag"] as? String })
+
+        XCTAssertTrue(
+            outbounds.contains {
+                $0["tag"] as? String == Self.rejectTag && $0["type"] as? String == "block"
+            },
+            "引用 REJECT 的 selector 需要一个真实的拦截出站"
+        )
+        for outbound in outbounds {
+            for member in outbound["outbounds"] as? [String] ?? [] {
+                XCTAssertTrue(tags.contains(member), "出站 \(member) 没有对应定义")
+            }
+        }
     }
 
     func testEveryGroupReferenceResolvesToSomething() throws {

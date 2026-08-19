@@ -205,8 +205,8 @@ flowchart LR
 
 - `Features/Subscriptions/`：首页、添加来源、地球、分享。
 - `Features/Rules/`：规则方案、策略说明和规则数量。
-- `Features/Export/`：目标客户端、配置预览和导入。
-- `Features/Settings/`：续费提醒、局域网订阅开关、目标格式、访问密钥和使用说明。
+- `Features/Export/`：目标客户端、局域网订阅目的地、配置预览和导入。局域网订阅在界面上和客户端并列，但不加入 `ClientTarget`，因为它会按请求方自动选择实际输出格式。
+- `Features/Settings/`：续费提醒、节点与配置偏好、云同步，以及通往局域网订阅目的地的精简入口。
 - `Design/`：主题与 UIKit/系统桥接组件。
 - `Assets.xcassets`：只保存塔台自身 App 图标；目标客户端用品牌色与通用 SF Symbol 组合成塔台自绘矢量标识，不打包第三方 App Store 图标。
 

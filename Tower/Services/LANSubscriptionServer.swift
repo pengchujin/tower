@@ -11,7 +11,7 @@ enum LANSubscriptionRoutingError: LocalizedError, Equatable {
         case .unsupportedTarget:
             String(localized: "不支持这个 target 参数")
         case .unknownUserAgent:
-            String(localized: "无法识别客户端，请在链接末尾指定 target=clash、surge、loon、quanx、shadowrocket、hiddify 或 egern")
+            String(localized: "无法识别客户端，请在链接末尾指定 target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify 或 egern")
         }
     }
 }
@@ -33,36 +33,141 @@ enum LANSubscriptionServerError: LocalizedError {
     }
 }
 
+/// Formats exposed by Tower's LAN endpoint.
+///
+/// This is intentionally separate from ``ClientTarget``. Hiddify and the
+/// official sing-box clients both consume sing-box JSON, but they are distinct
+/// clients and must keep distinct URLs/User-Agent routing. Adding sing-box to
+/// `ClientTarget` would incorrectly place it in the App Store export carousel.
+enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
+    case clash
+    case surge
+    case surfboard
+    case shadowrocket
+    case loon
+    case quanx
+    case singBox = "sing-box"
+    case hiddify
+    case egern
+
+    var id: String { rawValue }
+
+    /// The existing generator whose document dialect this LAN client reads.
+    var generationTarget: ClientTarget {
+        switch self {
+        case .clash: .clash
+        // Surfboard is a first-class target in subconverter, whose converter
+        // emits its Surge-compatible dialect via proxyToSurge(..., -3, ...).
+        // Keep its URL and UA routing distinct while reusing Tower's Surge
+        // generator instead of maintaining a misleading second generator.
+        case .surge, .surfboard: .surge
+        case .shadowrocket: .shadowrocket
+        case .loon: .loon
+        case .quanx: .quanx
+        case .singBox, .hiddify: .hiddify
+        case .egern: .egern
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .clash: "Clash / OpenClash / Nikki / Stash"
+        case .surge: "Surge"
+        case .surfboard: "Surfboard"
+        case .shadowrocket: "Shadowrocket"
+        case .loon: "Loon"
+        case .quanx: "Quantumult X"
+        case .singBox: "Sing-box"
+        case .hiddify: "Hiddify"
+        case .egern: "Egern"
+        }
+    }
+
+    /// Official client/project artwork bundled in the asset catalog. The LAN
+    /// destination menu is also a client picker, so using the same identities
+    /// as those apps is clearer than unrelated SF Symbols.
+    var appIconAssetName: String {
+        switch self {
+        case .clash: "ClientClash"
+        case .surge: "ClientSurge"
+        case .surfboard: "ClientSurfboard"
+        case .shadowrocket: "ClientShadowrocket"
+        case .loon: "ClientLoon"
+        case .quanx: "ClientQuantumultX"
+        case .singBox: "ClientSingBox"
+        case .hiddify: "ClientHiddify"
+        case .egern: "ClientEgern"
+        }
+    }
+
+    /// A format-specific capability list overrides the app-specific filter
+    /// only when the two clients share a document dialect but not a protocol
+    /// matrix. Official sing-box supports Snell and does not support SSR;
+    /// Hiddify keeps its own existing filter.
+    var supportedKindsOverride: Set<ProxyKind>? {
+        switch self {
+        case .singBox:
+            Set(ProxyKind.allCases).subtracting([.unknown, .shadowsocksR])
+        default:
+            nil
+        }
+    }
+
+    init(target: ClientTarget) {
+        switch target {
+        case .clash: self = .clash
+        case .surge: self = .surge
+        case .shadowrocket: self = .shadowrocket
+        case .loon: self = .loon
+        case .quanx: self = .quanx
+        case .hiddify: self = .hiddify
+        case .egern: self = .egern
+        }
+    }
+}
+
 enum LANSubscriptionTargetResolver {
-    static func resolve(explicitTarget: String?, userAgent: String?) throws -> ClientTarget {
+    static func resolveFormat(
+        explicitTarget: String?,
+        userAgent: String?
+    ) throws -> LANSubscriptionFormat {
         let explicit = normalized(explicitTarget)
         if let explicit, !explicit.isEmpty, explicit != "auto" {
-            guard let target = explicitTargets[explicit] else {
+            guard let format = explicitFormats[explicit] else {
                 throw LANSubscriptionRoutingError.unsupportedTarget
             }
-            return target
+            return format
         }
 
         let agent = normalized(userAgent) ?? ""
         guard !agent.isEmpty else { throw LANSubscriptionRoutingError.unknownUserAgent }
 
-        // More specific names must be checked before generic engine names.
+        // More specific app names must be checked before their embedded core.
         if agent.contains("shadowrocket") { return .shadowrocket }
         if agent.contains("quantumult") || agent.contains("quanx") { return .quanx }
-        if agent.contains("hiddify") || agent.contains("sing-box") || agent.contains("singbox") { return .hiddify }
-        if agent.contains("openclash") || agent.contains("clash") || agent.contains("mihomo") || agent.contains("stash") { return .clash }
+        if agent.contains("hiddify") { return .hiddify }
+        if agent.contains("sing-box") || agent.contains("singbox") { return .singBox }
+        if agent.contains("openclash") || agent.contains("nikki") || agent.contains("clash") || agent.contains("mihomo") || agent.contains("stash") { return .clash }
+        if agent.contains("surfboard") { return .surfboard }
         if agent.contains("surge") { return .surge }
         if agent.contains("loon") { return .loon }
         if agent.contains("egern") { return .egern }
         throw LANSubscriptionRoutingError.unknownUserAgent
     }
 
-    private static let explicitTargets: [String: ClientTarget] = [
+    /// Compatibility API for callers that only need the generator dialect.
+    static func resolve(explicitTarget: String?, userAgent: String?) throws -> ClientTarget {
+        try resolveFormat(explicitTarget: explicitTarget, userAgent: userAgent).generationTarget
+    }
+
+    private static let explicitFormats: [String: LANSubscriptionFormat] = [
         "clash": .clash,
         "openclash": .clash,
+        "nikki": .clash,
         "mihomo": .clash,
         "stash": .clash,
         "surge": .surge,
+        "surfboard": .surfboard,
         "shadowrocket": .shadowrocket,
         "shadow-rocket": .shadowrocket,
         "loon": .loon,
@@ -71,8 +176,8 @@ enum LANSubscriptionTargetResolver {
         "quantumult-x": .quanx,
         "quantumultx": .quanx,
         "hiddify": .hiddify,
-        "sing-box": .hiddify,
-        "singbox": .hiddify,
+        "sing-box": .singBox,
+        "singbox": .singBox,
         "egern": .egern
     ]
 
@@ -114,6 +219,18 @@ enum LANSubscriptionHTTPRouter {
         token: String,
         configuration: (ClientTarget) -> GeneratedConfiguration
     ) -> LANSubscriptionHTTPResponse {
+        response(
+            request: request,
+            token: token,
+            formatConfiguration: { configuration($0.generationTarget) }
+        )
+    }
+
+    static func response(
+        request: String,
+        token: String,
+        formatConfiguration: (LANSubscriptionFormat) -> GeneratedConfiguration
+    ) -> LANSubscriptionHTTPResponse {
         let lines = request.components(separatedBy: "\r\n")
         let parts = (lines.first ?? "").split(separator: " ", maxSplits: 2).map(String.init)
         guard parts.count == 3 else { return error(status: 400, message: "请求格式无效") }
@@ -146,9 +263,9 @@ enum LANSubscriptionHTTPRouter {
             .first(where: { $0.name.lowercased() == "target" })?
             .value ?? "auto"
 
-        let target: ClientTarget
+        let format: LANSubscriptionFormat
         do {
-            target = try LANSubscriptionTargetResolver.resolve(
+            format = try LANSubscriptionTargetResolver.resolveFormat(
                 explicitTarget: explicitTarget,
                 userAgent: headers["user-agent"]
             )
@@ -158,7 +275,8 @@ enum LANSubscriptionHTTPRouter {
             return self.error(status: 400, message: "无法识别客户端")
         }
 
-        let generated = configuration(target)
+        let target = format.generationTarget
+        let generated = formatConfiguration(format)
         let payload = Data(generated.content.utf8)
         let responseBody = method == "HEAD" ? Data() : payload
         return LANSubscriptionHTTPResponse(
@@ -169,7 +287,7 @@ enum LANSubscriptionHTTPRouter {
                 "Content-Disposition": ExportFilePresentation.contentDisposition(fileName: generated.fileName),
                 "Cache-Control": "no-store",
                 "Profile-Update-Interval": "24",
-                "X-Tower-Target": target.rawValue
+                "X-Tower-Target": format.rawValue
             ],
             body: responseBody
         )
@@ -293,7 +411,7 @@ struct LANSubscriptionListenerEnvironment {
 }
 
 final class LANSubscriptionServer: @unchecked Sendable {
-    typealias ConfigurationProvider = @MainActor (ClientTarget) -> GeneratedConfiguration
+    typealias ConfigurationProvider = @MainActor (LANSubscriptionFormat) -> GeneratedConfiguration
 
     let token: String
     private let queue = DispatchQueue(label: "com.jzb.tower.lan-subscription")
@@ -377,7 +495,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
                 let response = LANSubscriptionHTTPRouter.response(
                     request: request,
                     token: self.token,
-                    configuration: self.configurationProvider
+                    formatConfiguration: self.configurationProvider
                 )
                 self.send(response.serialized(), on: connection)
             }

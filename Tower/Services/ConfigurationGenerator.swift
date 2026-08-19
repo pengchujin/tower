@@ -41,10 +41,18 @@ struct ConfigurationGenerator {
         preset: RulePreset,
         target: ClientTarget,
         countryCodes: [UUID: String] = [:],
-        excludedKinds: Set<ProxyKind> = []
+        excludedKinds: Set<ProxyKind> = [],
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
-            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
+            nodes.filter {
+                writes(
+                    $0,
+                    to: target,
+                    excluding: excludedKinds,
+                    supportedKindsOverride: supportedKindsOverride
+                )
+            },
             reservedNames: reservedProxyNames(for: preset)
         )
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
@@ -91,10 +99,18 @@ struct ConfigurationGenerator {
         target: ClientTarget,
         schemes: RuleSchemeRepository = RuleSchemeRepository(),
         excludedKinds: Set<ProxyKind> = [],
-        preferRuleSets: Bool = true
+        preferRuleSets: Bool = true,
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
-            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
+            nodes.filter {
+                writes(
+                    $0,
+                    to: target,
+                    excluding: excludedKinds,
+                    supportedKindsOverride: supportedKindsOverride
+                )
+            },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
@@ -270,9 +286,11 @@ struct ConfigurationGenerator {
     private func writes(
         _ node: ProxyNode,
         to target: ClientTarget,
-        excluding excludedKinds: Set<ProxyKind>
+        excluding excludedKinds: Set<ProxyKind>,
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> Bool {
-        guard target.supports(node.kind), !excludedKinds.contains(node.kind) else { return false }
+        let supportsKind = supportedKindsOverride?.contains(node.kind) ?? target.supports(node.kind)
+        guard supportsKind, !excludedKinds.contains(node.kind) else { return false }
         // An id that is neither a UUID nor short enough for Xray's name mapping
         // has no faithful form; writing it blank would look fine and never
         // connect.
@@ -2230,14 +2248,7 @@ extension ConfigurationGenerator {
 
         let configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": [
-                "servers": [
-                    ["tag": "remote", "address": "https://1.1.1.1/dns-query", "detour": RulePolicy.select.configurationName],
-                    ["tag": "local", "address": "https://223.5.5.5/dns-query", "detour": Self.singBoxDirectTag]
-                ],
-                "final": "local",
-                "strategy": "prefer_ipv4"
-            ],
+            "dns": singBoxDNS(),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
@@ -2250,6 +2261,7 @@ extension ConfigurationGenerator {
             "route": [
                 "rules": singBoxRules(preset: preset),
                 "final": preset.finalPolicy.configurationName,
+                "default_domain_resolver": "local",
                 "auto_detect_interface": true
             ],
             "experimental": [
@@ -2268,6 +2280,39 @@ extension ConfigurationGenerator {
 
     static let singBoxDirectTag = "DIRECT"
     static let singBoxRejectTag = "REJECT"
+
+    /// Current sing-box DNS schema (1.12+). Keeping it in one place prevents
+    /// imported rule schemes from falling back to the removed legacy
+    /// `address: https://...` server representation.
+    ///
+    /// These servers use literal IP addresses, so the current typed DoH
+    /// dialer can connect directly without a `detour`. Omitting it is also
+    /// important for imported schemes: their selector tags are user-defined
+    /// and must not be coupled to the built-in "node select" display name.
+    private func singBoxDNS() -> [String: Any] {
+        [
+            "servers": [
+                [
+                    "type": "https",
+                    "tag": "remote",
+                    "server": "1.1.1.1",
+                    "server_port": 443,
+                    "path": "/dns-query",
+                    "tls": ["enabled": true, "server_name": "cloudflare-dns.com"]
+                ],
+                [
+                    "type": "https",
+                    "tag": "local",
+                    "server": "223.5.5.5",
+                    "server_port": 443,
+                    "path": "/dns-query",
+                    "tls": ["enabled": true, "server_name": "dns.alidns.com"]
+                ]
+            ],
+            "final": "local",
+            "strategy": "prefer_ipv4"
+        ]
+    }
 
     /// Policies whose whole point is to drop traffic.
     ///
@@ -2532,6 +2577,7 @@ extension ConfigurationGenerator {
         nodes: [ProxyNode],
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
+        let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.singBoxDirectTag
         var outbounds: [[String: Any]] = groups.map { group in
             var outbound: [String: Any] = [
                 "tag": group.name,
@@ -2546,10 +2592,23 @@ extension ConfigurationGenerator {
             return outbound
         }
         outbounds += nodes.compactMap(singBoxOutbound)
+
+        // A route-level `action: reject` is sufficient for direct blocking
+        // rules, but selectors cannot reference an action. Imported schemes
+        // commonly expose choices such as [REJECT, DIRECT], so provide the
+        // concrete dependency only when the imported graph actually needs it.
+        let needsRejectOutbound = groups.contains { group in
+            group.members.contains { $0.uppercased() == Self.singBoxRejectTag }
+        } || finalGroup.uppercased() == Self.singBoxRejectTag
+        let alreadyDefinesReject = outbounds.contains {
+            ($0["tag"] as? String)?.uppercased() == Self.singBoxRejectTag
+        }
+        if needsRejectOutbound && !alreadyDefinesReject {
+            outbounds.append(["tag": Self.singBoxRejectTag, "type": "block"])
+        }
         outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
 
         var rules: [[String: Any]] = []
-        let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.singBoxDirectTag
         var pendingGroup: String?
         var pendingFields: [String: [String]] = [:]
 
@@ -2612,12 +2671,14 @@ extension ConfigurationGenerator {
         var route: [String: Any] = [
             "rules": rules,
             "final": finalGroup,
+            "default_domain_resolver": "local",
             "auto_detect_interface": true
         ]
         if !remoteRuleSets.isEmpty { route["rule_set"] = remoteRuleSets }
 
         let configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
+            "dns": singBoxDNS(),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",

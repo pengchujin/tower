@@ -303,17 +303,85 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(source.contains("AutoRefreshCard()"), source)
     }
 
-    /// LAN sharing is a different subject and still comes after the card that
-    /// now carries the subscription behaviour.
-    func testNodeCardComesBeforeLANSharing() throws {
+    /// Settings keeps a compact wayfinder for LAN sharing after the node card;
+    /// the full controls live with the export destinations where users look
+    /// for ways to move a generated profile elsewhere.
+    func testNodeCardComesBeforeLANSharingWayfinder() throws {
         let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
         let listStart = try XCTUnwrap(source.range(of: "LazyVStack(spacing: 22) {"))
         let list = String(source[listStart.upperBound...])
 
         let nodeCard = try XCTUnwrap(list.range(of: "NodeAndExportSettingsCard("))
-        let sharing = try XCTUnwrap(list.range(of: "LANSharingCard("))
+        let sharing = try XCTUnwrap(list.range(of: "LANSharingSettingsRow"))
 
         XCTAssertLessThan(nodeCard.lowerBound, sharing.lowerBound)
+    }
+
+    func testLANSharingDefaultsToFourthExportDestinationWithoutBecomingAClientFormat() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let models = try sourceText("Tower/Models/DomainModels.swift")
+
+        XCTAssertTrue(export.contains("LANExportTargetCard"))
+        XCTAssertTrue(export.contains("LANSharingDestinationCard()"))
+        XCTAssertTrue(export.contains("accessibilityIdentifier(\"client-lan-sharing\")"))
+        let picker = try XCTUnwrap(export.range(of: "private struct ClientPicker"))
+        let pickerSource = String(export[picker.lowerBound...])
+        XCTAssertTrue(
+            pickerSource.contains("ForEach(Array(model.clientOrder.enumerated()), id: \\.element)")
+        )
+        XCTAssertTrue(
+            pickerSource.contains("if index == 3 {\n                            lanSharingButton"),
+            "局域网共享默认应位于前三个客户端之后"
+        )
+        XCTAssertFalse(
+            models.contains("case lan"),
+            "局域网是传输目的地，不是生成器可以直接输出的一种客户端格式"
+        )
+    }
+
+    func testSelectingLANSharingStartsTheServiceWithoutASecondTap() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+
+        XCTAssertTrue(export.contains("activateLANSharing: activateLANSharing"))
+        XCTAssertTrue(export.contains("openLANSharing: activateLANSharing"))
+        XCTAssertTrue(export.contains("private func activateLANSharing()"))
+        XCTAssertTrue(export.contains("Task { await model.startLANSharing() }"))
+    }
+
+    func testLANExportDestinationUsesSharingName() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
+
+        XCTAssertTrue(export.contains(".accessibilityLabel(\"局域网共享\")"))
+        XCTAssertTrue(export.contains("Text(\"局域网共享\")"))
+        XCTAssertTrue(settings.contains("Text(\"局域网共享\")"))
+        XCTAssertTrue(settings.contains("title: \"局域网共享\""))
+    }
+
+    func testLANSharingUsesDeviceSupportSummaryAndOfficialClientIcons() throws {
+        let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let catalog = try sourceText("Tower/Localizable.xcstrings")
+
+        XCTAssertTrue(settings.contains("String(localized: \"支持安卓、Windows、Mac、路由器等。\")"))
+        XCTAssertTrue(settings.contains("LANClientIcon(format: format"))
+        XCTAssertTrue(settings.contains("LANClientIcon(format: selectedClient"))
+        XCTAssertFalse(settings.contains("Label(format.displayName, systemImage: format.systemImageName)"))
+        XCTAssertFalse(settings.contains("String(localized: \"共享的是转换结果，不含机场原始链接\")"))
+        XCTAssertTrue(catalog.contains("\"支持安卓、Windows、Mac、路由器等。\""))
+        XCTAssertTrue(catalog.contains("\"Supports Android, Windows, Mac, routers, and more.\""))
+    }
+
+    func testRenewalDetailsDoNotRepeatTheGlobalNotificationPolicy() throws {
+        let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let rowStart = try XCTUnwrap(settings.range(of: "private struct RenewalReminderDetailRow"))
+        let rowEnd = try XCTUnwrap(
+            settings.range(of: "private struct LANSharingSettingsRow", range: rowStart.upperBound..<settings.endIndex)
+        )
+        let row = String(settings[rowStart.lowerBound..<rowEnd.lowerBound])
+
+        XCTAssertTrue(row.contains("到期日期："))
+        XCTAssertFalse(row.contains("到期前一天通知"))
+        XCTAssertFalse(row.contains("续费提醒"))
     }
 
     func testBottomNavigationHasThreeTabsAndSettingsLivesInExportToolbar() throws {
@@ -322,7 +390,8 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertFalse(root.contains("AppTab.settings"))
         XCTAssertTrue(export.contains("accessibilityIdentifier(\"open-settings\")"))
-        XCTAssertTrue(export.contains("SettingsView(configurationNameDraft:"))
+        XCTAssertTrue(export.contains("SettingsView("))
+        XCTAssertTrue(export.contains("configurationNameDraft: $configurationNameDraft"))
         XCTAssertTrue(export.contains("ToolbarItem(placement: .topBarTrailing)"))
     }
 
@@ -339,13 +408,15 @@ final class RepositoryConsistencyTests: XCTestCase {
             exportRoot.contains("@State private var configurationNameDraft"),
             "名称草稿必须由不会随弹窗重建的导出页持有"
         )
-        XCTAssertTrue(exportRoot.contains("ExportSettingsSheet(configurationNameDraft: $configurationNameDraft)"))
+        XCTAssertTrue(exportRoot.contains("ExportSettingsSheet("))
+        XCTAssertTrue(exportRoot.contains("configurationNameDraft: $configurationNameDraft"))
         XCTAssertFalse(
             sheet.contains("@State private var configurationNameDraft"),
             "弹窗根视图可能在工具栏提交前重建，不能在这里保存唯一的名称草稿"
         )
         XCTAssertTrue(sheet.contains("@Binding var configurationNameDraft"))
-        XCTAssertTrue(sheet.contains("SettingsView(configurationNameDraft: $configurationNameDraft)"))
+        XCTAssertTrue(sheet.contains("SettingsView("))
+        XCTAssertTrue(sheet.contains("configurationNameDraft: $configurationNameDraft"))
         let commit = try XCTUnwrap(sheet.range(of: "model.setConfigurationName(configurationNameDraft.committedName)"))
         let dismiss = try XCTUnwrap(sheet.range(of: "dismiss()"))
         XCTAssertLessThan(commit.lowerBound, dismiss.lowerBound)

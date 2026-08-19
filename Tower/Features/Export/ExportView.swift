@@ -7,26 +7,40 @@ struct ExportView: View {
     @State private var directImportService = DirectImportService()
     @State private var isImporting = false
     @State private var isSettingsPresented = false
+    @State private var isLANSharingSelected = false
     @State private var configurationNameDraft = ConfigurationNameDraft()
     @State private var previewPayload: ConfigurationPreviewPayload?
 
     var body: some View {
-        let configuration = model.configuration()
+        // The LAN destination does not have one fixed configuration: the
+        // requesting client chooses the format through its User-Agent or the
+        // explicit target in the link. Avoid generating an unrelated client
+        // profile while this destination is selected.
+        let configuration = isLANSharingSelected ? nil : model.configuration()
 
         ScrollView {
             LazyVStack(spacing: 22) {
-                ClientPicker()
-                ExportContentModePicker()
-                if configuration.contentMode != .rulesOnly {
-                    ProtocolFilter()
-                }
-                ConversionSummary(configuration: configuration)
-                ImportPrivacyNote(
-                    target: model.selectedTarget,
-                    contentMode: model.exportContentMode(for: model.selectedTarget)
+                ClientPicker(
+                    isLANSharingSelected: $isLANSharingSelected,
+                    activateLANSharing: activateLANSharing
                 )
-                ConfigurationPreview(configuration: configuration) {
-                    previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+
+                if isLANSharingSelected {
+                    LANSharingDestinationCard()
+                    LANSharingGuide()
+                } else if let configuration {
+                    ExportContentModePicker()
+                    if configuration.contentMode != .rulesOnly {
+                        ProtocolFilter()
+                    }
+                    ConversionSummary(configuration: configuration)
+                    ImportPrivacyNote(
+                        target: model.selectedTarget,
+                        contentMode: model.exportContentMode(for: model.selectedTarget)
+                    )
+                    ConfigurationPreview(configuration: configuration) {
+                        previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                    }
                 }
             }
             .padding(.horizontal, TowerTheme.pagePadding)
@@ -47,26 +61,31 @@ struct ExportView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ImportActionBar(
-                target: model.selectedTarget,
-                contentMode: configuration.contentMode,
-                isImporting: isImporting,
-                isDisabled: configuration.contentMode == .rulesOnly
-                    ? configuration.ruleCount == 0
-                    : configuration.supportedNodeCount == 0,
-                importAction: {
-                    Task { await importConfiguration(configuration) }
-                },
-                shareAction: export,
-                copyAction: { copy(configuration) }
-            )
+            if let configuration {
+                ImportActionBar(
+                    target: model.selectedTarget,
+                    contentMode: configuration.contentMode,
+                    isImporting: isImporting,
+                    isDisabled: configuration.contentMode == .rulesOnly
+                        ? configuration.ruleCount == 0
+                        : configuration.supportedNodeCount == 0,
+                    importAction: {
+                        Task { await importConfiguration(configuration) }
+                    },
+                    shareAction: export,
+                    copyAction: { copy(configuration) }
+                )
+            }
         }
         .sheet(item: $sharePayload) { payload in
             ActivitySheet(items: [payload.url])
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $isSettingsPresented) {
-            ExportSettingsSheet(configurationNameDraft: $configurationNameDraft)
+            ExportSettingsSheet(
+                configurationNameDraft: $configurationNameDraft,
+                openLANSharing: activateLANSharing
+            )
         }
         // "完成" is not the only way out of that sheet — it can also be dragged
         // down — and a name typed but never committed is simply lost. Catching
@@ -79,12 +98,22 @@ struct ExportView: View {
         .fullScreenCover(item: $previewPayload) { payload in
             ConfigurationPreviewSheet(configuration: payload.configuration)
         }
-        .sensoryFeedback(.selection, trigger: model.selectedTarget)
+        .sensoryFeedback(.selection, trigger: selectedDestinationID)
         // Deliberately no .onDisappear teardown. Handing the link to another
         // app backgrounds Tower, and SwiftUI may call onDisappear when it does
         // — which killed the server before the client had fetched. Hiddify
         // reported it as `Connection refused`. The 45-second timer and the
         // background-task expiry handler already bound the lifetime.
+    }
+
+    private var selectedDestinationID: String {
+        isLANSharingSelected ? "lan" : model.selectedTarget.rawValue
+    }
+
+    @MainActor
+    private func activateLANSharing() {
+        isLANSharingSelected = true
+        Task { await model.startLANSharing() }
     }
 
     private func export() {
@@ -182,10 +211,14 @@ private struct ExportSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var model
     @Binding var configurationNameDraft: ConfigurationNameDraft
+    let openLANSharing: () -> Void
 
     var body: some View {
         NavigationStack {
-            SettingsView(configurationNameDraft: $configurationNameDraft)
+            SettingsView(
+                configurationNameDraft: $configurationNameDraft,
+                openLANSharing: openLANSharing
+            )
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("完成") {
@@ -211,18 +244,32 @@ private struct ConfigurationPreviewPayload: Identifiable {
 
 private struct ClientPicker: View {
     @Environment(AppModel.self) private var model
+    @Binding var isLANSharingSelected: Bool
+    let activateLANSharing: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "目标客户端", detail: String(localized: "长按拖动排序"))
             ScrollView(.horizontal) {
                 HStack(spacing: 12) {
-                    ForEach(model.clientOrder) { target in
+                    ForEach(Array(model.clientOrder.enumerated()), id: \.element) { index, target in
+                        // Keep LAN sharing discoverable without making it the
+                        // dominant first choice. It is a transport that
+                        // negotiates a client format, so it does not belong in
+                        // the persisted ClientTarget order.
+                        if index == 3 {
+                            lanSharingButton
+                        }
+
                         Button {
-                            guard model.selectedTarget != target else { return }
+                            guard isLANSharingSelected || model.selectedTarget != target else { return }
+                            isLANSharingSelected = false
                             model.selectTarget(target)
                         } label: {
-                            ClientTargetCard(target: target, isSelected: model.selectedTarget == target)
+                            ClientTargetCard(
+                                target: target,
+                                isSelected: !isLANSharingSelected && model.selectedTarget == target
+                            )
                         }
                         .buttonStyle(ResponsivePressButtonStyle())
                         .accessibilityIdentifier("client-\(target.rawValue)")
@@ -240,6 +287,10 @@ private struct ClientPicker: View {
                             model.moveClient(target, by: 1)
                         }
                     }
+
+                    if model.clientOrder.count <= 3 {
+                        lanSharingButton
+                    }
                 }
                 .scrollTargetLayout()
                 .padding(.vertical, 4)
@@ -247,6 +298,75 @@ private struct ClientPicker: View {
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         }
+    }
+
+    private var lanSharingButton: some View {
+        Button {
+            activateLANSharing()
+        } label: {
+            LANExportTargetCard(isSelected: isLANSharingSelected)
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .accessibilityLabel("局域网共享")
+        .accessibilityHint("自动识别客户端")
+        .accessibilityIdentifier("client-lan-sharing")
+    }
+}
+
+private struct LANExportTargetCard: View {
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.accentColor, Color.cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: "wifi.router.fill")
+                    .font(.system(size: 27, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 58, height: 58)
+            .overlay(alignment: .bottomTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white, Color.accentColor)
+                        .background(.white, in: Circle())
+                        .offset(x: 4, y: 4)
+                }
+            }
+            .shadow(color: Color.accentColor.opacity(0.18), radius: 5, y: 2)
+
+            Text("局域网共享")
+                .font(.caption.weight(isSelected ? .bold : .semibold))
+                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(width: 82, height: 94)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 9)
+        .background(
+            isSelected
+                ? Color.accentColor.opacity(0.105)
+                : Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(
+                    isSelected ? Color.accentColor.opacity(0.75) : Color.secondary.opacity(0.13),
+                    lineWidth: isSelected ? 1.5 : 0.7
+                )
+        }
+        .scaleEffect(isSelected ? 1 : 0.97)
+        .animation(.easeOut(duration: 0.16), value: isSelected)
     }
 }
 

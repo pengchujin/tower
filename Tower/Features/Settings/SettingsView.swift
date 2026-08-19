@@ -2,20 +2,18 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     @Binding var configurationNameDraft: ConfigurationNameDraft
-    @State private var selectedClient: ClientTarget?
-    @State private var isConfirmingTokenRotation = false
+    let openLANSharing: () -> Void
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 NodeAndExportSettingsCard(configurationNameDraft: $configurationNameDraft)
-                LANSharingCard(
-                    selectedClient: $selectedClient,
-                    isConfirmingTokenRotation: $isConfirmingTokenRotation
-                )
-                LANSharingGuide()
+                LANSharingSettingsRow {
+                    openLANSharing()
+                    dismiss()
+                }
                 CloudSyncCard()
                 SecurityAndSourceLink()
             }
@@ -25,18 +23,6 @@ struct SettingsView: View {
         }
         .background(TowerTheme.background.ignoresSafeArea())
         .navigationTitle("设置")
-        .confirmationDialog(
-            "更换访问密钥？",
-            isPresented: $isConfirmingTokenRotation,
-            titleVisibility: .visible
-        ) {
-            Button("更换密钥并停用旧链接", role: .destructive) {
-                model.rotateLANSharingToken()
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("所有已经添加到电脑或路由器的塔台订阅链接都会失效。")
-        }
     }
 }
 
@@ -537,15 +523,6 @@ private struct RenewalReminderDetailRow: View {
                 Text("到期日期：\(reminder.expiryDate.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption)
                     .foregroundStyle(isExpired ? .red : .secondary)
-                if !isExpired {
-                    Label("到期前一天通知", systemImage: "clock")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.orange)
-                } else {
-                    Label("续费提醒", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.red)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -563,19 +540,68 @@ private struct RenewalReminderDetailRow: View {
     }
 }
 
-private struct LANSharingCard: View {
+private struct LANSharingSettingsRow: View {
     @Environment(AppModel.self) private var model
-    @Binding var selectedClient: ClientTarget?
-    @Binding var isConfirmingTokenRotation: Bool
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 13) {
+                Image(systemName: model.isLANSharingActive ? "wifi.circle.fill" : "wifi.slash")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(model.isLANSharingActive ? .green : Color.accentColor)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        (model.isLANSharingActive ? Color.green : Color.accentColor).opacity(0.11),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("局域网共享")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(model.isLANSharingActive
+                        ? String(localized: "支持安卓、Windows、Mac、路由器等。")
+                        : String(localized: "没有对外提供服务"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                HStack(spacing: 6) {
+                    Text(model.isLANSharingActive
+                        ? String(localized: "正在共享")
+                        : String(localized: "默认关闭"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(model.isLANSharingActive ? .green : .secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+            .towerCard()
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .accessibilityIdentifier("open-lan-export-destination")
+    }
+}
+
+struct LANSharingDestinationCard: View {
+    @Environment(AppModel.self) private var model
+    @State private var selectedClient: LANSubscriptionFormat?
+    @State private var isConfirmingTokenRotation = false
 
     private var selectedURL: URL? {
-        model.lanSubscriptionURL(target: selectedClient)
+        model.lanSubscriptionURL(format: selectedClient)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(
-                title: "局域网订阅",
+                title: "局域网共享",
                 detail: model.isLANSharingActive
                     ? String(localized: "正在共享")
                     : String(localized: "默认关闭")
@@ -593,11 +619,11 @@ private struct LANSharingCard: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.isLANSharingActive
-                        ? String(localized: "同一 Wi-Fi 可访问")
+                        ? String(localized: "支持安卓、Windows、Mac、路由器等。")
                         : String(localized: "没有对外提供服务"))
                         .font(.headline)
                     Text(model.isLANSharingActive
-                        ? String(localized: "共享的是转换结果，不含机场原始链接")
+                        ? String(localized: "自动识别客户端")
                         : String(localized: "只有您主动开启后才会监听局域网"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -656,6 +682,18 @@ private struct LANSharingCard: View {
         .padding(17)
         .towerCard()
         .accessibilityIdentifier("lan-subscription-card")
+        .confirmationDialog(
+            "更换访问密钥？",
+            isPresented: $isConfirmingTokenRotation,
+            titleVisibility: .visible
+        ) {
+            Button("更换密钥并停用旧链接", role: .destructive) {
+                model.rotateLANSharingToken()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("所有已经添加到电脑或路由器的塔台订阅链接都会失效。")
+        }
     }
 
     /// Label on the left, the current value as a button on the right.
@@ -674,14 +712,25 @@ private struct LANSharingCard: View {
             Menu {
                 Picker("链接格式", selection: $selectedClient) {
                     Label("自动识别客户端", systemImage: "wand.and.stars")
-                        .tag(ClientTarget?.none)
-                    ForEach(ClientTarget.allCases) { target in
-                        Text(lanDisplayName(target)).tag(Optional(target))
+                        .tag(LANSubscriptionFormat?.none)
+                    ForEach(LANSubscriptionFormat.allCases) { format in
+                        Label {
+                            Text(format.displayName)
+                        } icon: {
+                            LANClientIcon(format: format, size: 20)
+                        }
+                            .tag(Optional(format))
                     }
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Text(selectedClient.map(lanDisplayName) ?? String(localized: "自动识别客户端"))
+                    if let selectedClient {
+                        LANClientIcon(format: selectedClient, size: 20)
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                            .font(.caption.weight(.semibold))
+                    }
+                    Text(selectedClient?.displayName ?? String(localized: "自动识别客户端"))
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -699,17 +748,29 @@ private struct LANSharingCard: View {
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .accessibilityLabel(Text("链接格式"))
-            .accessibilityValue(Text(selectedClient.map(lanDisplayName) ?? String(localized: "自动识别客户端")))
+            .accessibilityValue(Text(selectedClient?.displayName ?? String(localized: "自动识别客户端")))
             .accessibilityIdentifier("lan-client-picker")
         }
     }
 
-    private func lanDisplayName(_ target: ClientTarget) -> String {
-        switch target {
-        case .clash: "OpenClash / Clash / Stash"
-        case .quanx: "Quantumult X"
-        default: target.name
-        }
+}
+
+private struct LANClientIcon: View {
+    let format: LANSubscriptionFormat
+    let size: CGFloat
+
+    var body: some View {
+        Image(format.appIconAssetName)
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
+            }
+            .accessibilityHidden(true)
     }
 }
 
@@ -871,7 +932,7 @@ private struct URLPanel: View {
     }
 }
 
-private struct LANSharingGuide: View {
+struct LANSharingGuide: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "怎么使用", detail: "OpenClash · Windows · Mac")

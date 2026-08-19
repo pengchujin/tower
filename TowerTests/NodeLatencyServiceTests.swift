@@ -94,4 +94,48 @@ final class NodeLatencyServiceTests: XCTestCase {
         XCTAssertEqual(result.method, .http)
         XCTAssertEqual(result.milliseconds, 46)
     }
+
+    func testExplicitICMPModeFallsBackToTCPWhenVPNInterceptsTheRoute() async throws {
+        let service = NodeLatencyService(
+            isICMPReliable: { _ in false },
+            icmpProbe: { _, _ in
+                XCTFail("VPN 虚拟路由会本地代答 ICMP，不应采用其虚假延迟")
+                return 1
+            },
+            tcpProbe: { _, _, _ in 43 }
+        )
+        let node = ProxyNode(
+            kind: .vless,
+            name: "VPN route",
+            server: "vpn-routed.example.com",
+            port: 443,
+            rawURI: "vless://vpn-route"
+        )
+
+        let result = try await service.measure(node, mode: .icmp)
+
+        XCTAssertEqual(result.method, .tcp)
+        XCTAssertEqual(result.milliseconds, 43)
+        XCTAssertNil(result.errorMessage)
+    }
+
+    func testAutomaticModeFallsBackToTCPWhenVPNInterceptsTheRoute() async throws {
+        let service = NodeLatencyService(
+            isICMPReliable: { _ in false },
+            icmpProbe: { _, _ in 1 },
+            tcpProbe: { _, _, _ in 51 }
+        )
+        let node = ProxyNode(
+            kind: .trojan,
+            name: "Automatic VPN route",
+            server: "automatic-vpn.example.com",
+            port: 443,
+            rawURI: "trojan://automatic-vpn"
+        )
+
+        let result = try await service.measure(node)
+
+        XCTAssertEqual(result.method, .tcp)
+        XCTAssertEqual(result.milliseconds, 51)
+    }
 }

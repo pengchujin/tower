@@ -1124,7 +1124,8 @@ final class AppModel {
 
     func configuration(
         target: ClientTarget? = nil,
-        contentMode: ExportContentMode? = nil
+        contentMode: ExportContentMode? = nil,
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let resolvedTarget = target ?? selectedTarget
         let resolvedMode = contentMode ?? exportContentMode(for: resolvedTarget)
@@ -1138,6 +1139,11 @@ final class AppModel {
             .hashValue
         let scheme = selectedScheme.map(effectiveScheme)
         let excluded = excludedKinds[resolvedTarget] ?? []
+        let supportedKindsHash = supportedKindsOverride?
+            .map(\.rawValue)
+            .sorted()
+            .joined(separator: "|")
+            .hashValue ?? 0
         let key = GenerationCacheKey(
             target: resolvedTarget,
             presetID: scheme?.id ?? selectedPreset.id,
@@ -1146,7 +1152,7 @@ final class AppModel {
             rulesHash: scheme?.hashValue ?? selectedPreset.hashValue,
             // Without this, toggling a protocol would keep serving the cached
             // configuration for that client.
-            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue,
+            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue ^ supportedKindsHash,
             preferRuleSets: preferRuleSets
         )
         if let cached = generationCache[key] {
@@ -1178,7 +1184,8 @@ final class AppModel {
                 target: resolvedTarget,
                 schemes: schemeRepository,
                 excludedKinds: excluded,
-                preferRuleSets: preferRuleSets
+                preferRuleSets: preferRuleSets,
+                supportedKindsOverride: supportedKindsOverride
             )
         } else {
             generated = generator.generate(
@@ -1186,7 +1193,8 @@ final class AppModel {
                 preset: selectedPreset,
                 target: resolvedTarget,
                 countryCodes: currentCountryCodes,
-                excludedKinds: excluded
+                excludedKinds: excluded,
+                supportedKindsOverride: supportedKindsOverride
             )
         }
         generationCache[key] = generated
@@ -1227,17 +1235,21 @@ final class AppModel {
         isLANSharingStarting = true
         defer { isLANSharingStarting = false }
 
-        let server = LANSubscriptionServer(token: lanSharingToken) { [weak self] target in
+        let server = LANSubscriptionServer(token: lanSharingToken) { [weak self] format in
             guard let self else {
                 return GeneratedConfiguration(
-                    target: target,
+                    target: format.generationTarget,
                     content: "",
                     supportedNodeCount: 0,
                     skippedNodeCount: 0,
                     ruleCount: 0
                 )
             }
-            return self.configuration(target: target, contentMode: .fullConfiguration)
+            return self.configuration(
+                target: format.generationTarget,
+                contentMode: .fullConfiguration,
+                supportedKindsOverride: format.supportedKindsOverride
+            )
         }
         lanSubscriptionServer = server
 
@@ -1266,6 +1278,10 @@ final class AppModel {
     }
 
     func lanSubscriptionURL(target: ClientTarget?) -> URL? {
+        lanSubscriptionURL(format: target.map(LANSubscriptionFormat.init(target:)))
+    }
+
+    func lanSubscriptionURL(format: LANSubscriptionFormat?) -> URL? {
         guard let activeURL = lanSharingURL,
               let host = activeURL.host,
               let port = activeURL.port else { return nil }
@@ -1273,7 +1289,7 @@ final class AppModel {
             host: host,
             port: UInt16(port),
             token: lanSharingToken,
-            target: target?.rawValue
+            target: format?.rawValue
         )
     }
 

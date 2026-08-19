@@ -44,6 +44,27 @@ final class RuleSchemeTests: XCTestCase {
 
     // MARK: - Parsing
 
+    func testImportedSummaryUsesTheCurrentDisplayLanguageInsteadOfPersistedCopy() throws {
+        let scheme = RuleScheme(
+            id: "imported-old-copy",
+            name: "raw.githubusercontent.com",
+            summary: "从 raw.githubusercontent.com 导入",
+            sourceURLString: "https://raw.githubusercontent.com/example/rules/main/config.ini",
+            groups: [],
+            rulesets: [],
+            isBundled: false
+        )
+        let englishResources = try XCTUnwrap(
+            Bundle.main.url(forResource: "en", withExtension: "lproj")
+        )
+        let englishBundle = try XCTUnwrap(Bundle(url: englishResources))
+
+        XCTAssertEqual(
+            scheme.localizedSummary(bundle: englishBundle),
+            "Import from raw.githubusercontent.com"
+        )
+    }
+
     func testParsesGroupsAndRulesets() throws {
         let scheme = try parse()
 

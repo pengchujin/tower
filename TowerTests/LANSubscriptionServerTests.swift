@@ -1,4 +1,5 @@
 import Network
+import UIKit
 import XCTest
 @testable import Tower
 
@@ -38,9 +39,11 @@ final class LANSubscriptionServerTests: XCTestCase {
         let expected: [String: ClientTarget] = [
             "clash": .clash,
             "openclash": .clash,
+            "nikki": .clash,
             "mihomo": .clash,
             "stash": .clash,
             "surge": .surge,
+            "surfboard": .surge,
             "shadowrocket": .shadowrocket,
             "loon": .loon,
             "quanx": .quanx,
@@ -59,12 +62,46 @@ final class LANSubscriptionServerTests: XCTestCase {
         }
     }
 
+    func testSurfboardIsAFirstClassLANFormatUsingItsSurgeCompatibleDialect() throws {
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "surfboard",
+                userAgent: nil
+            ),
+            .surfboard
+        )
+        XCTAssertEqual(LANSubscriptionFormat.surfboard.generationTarget, .surge)
+        XCTAssertEqual(LANSubscriptionFormat.surfboard.displayName, "Surfboard")
+        XCTAssertTrue(LANSubscriptionFormat.allCases.contains(.surfboard))
+    }
+
+    func testSingBoxIsAFirstClassLANFormatSeparateFromHiddify() throws {
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "sing-box",
+                userAgent: nil
+            ),
+            .singBox
+        )
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "hiddify",
+                userAgent: nil
+            ),
+            .hiddify
+        )
+        XCTAssertEqual(LANSubscriptionFormat.singBox.generationTarget, .hiddify)
+        XCTAssertTrue(LANSubscriptionFormat.allCases.contains(.singBox))
+    }
+
     func testAutoTargetUsesClientUserAgent() throws {
         let expected: [(String, ClientTarget)] = [
             ("clash.meta", .clash),
             ("OpenClash/v0.46.014", .clash),
+            ("Nikki/1.6.3", .clash),
             ("Clash-Verge/2.3", .clash),
             ("Surge iOS/5.14", .surge),
+            ("Surfboard/2.33.0", .surge),
             ("Shadowrocket/1997 CFNetwork", .shadowrocket),
             ("Loon/925 CFNetwork", .loon),
             ("Quantumult%20X/1.5", .quanx),
@@ -79,6 +116,50 @@ final class LANSubscriptionServerTests: XCTestCase {
                 userAgent
             )
         }
+    }
+
+    func testAutomaticRouteKeepsSurfboardDistinctFromSurge() throws {
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "auto",
+                userAgent: "Surfboard/2.33.0"
+            ),
+            .surfboard
+        )
+    }
+
+    func testEveryLANClientUsesBundledOfficialArtwork() {
+        for format in LANSubscriptionFormat.allCases {
+            XCTAssertNotNil(
+                UIImage(named: format.appIconAssetName),
+                "\(format.displayName) 缺少官方客户端图标"
+            )
+        }
+    }
+
+    func testClashLANFormatNamesItsCompatibleClientsInUserFacingOrder() {
+        XCTAssertEqual(
+            LANSubscriptionFormat.clash.displayName,
+            "Clash / OpenClash / Nikki / Stash"
+        )
+    }
+
+    func testAutomaticRouteRecognizesOfficialSingBoxUserAgent() throws {
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "auto",
+                userAgent: "sing-box/1.13.19"
+            ),
+            .singBox
+        )
+        XCTAssertEqual(
+            try LANSubscriptionTargetResolver.resolveFormat(
+                explicitTarget: "auto",
+                userAgent: "HiddifyNext/2.5 sing-box"
+            ),
+            .hiddify,
+            "Hiddify must remain distinguishable even though its UA names the sing-box core"
+        )
     }
 
     func testUnknownAutomaticClientIsRejectedInsteadOfReceivingWrongFormat() {
@@ -96,7 +177,7 @@ final class LANSubscriptionServerTests: XCTestCase {
         let response = LANSubscriptionHTTPRouter.response(
             request: "GET /sub/wrong?target=clash HTTP/1.1\r\nHost: 192.168.1.2\r\n\r\n",
             token: "private-token",
-            configuration: configuration
+            formatConfiguration: configuration
         )
 
         XCTAssertEqual(response.statusCode, 404)
@@ -111,7 +192,7 @@ final class LANSubscriptionServerTests: XCTestCase {
             let response = LANSubscriptionHTTPRouter.response(
                 request: "GET \(path) HTTP/1.1\r\nHost: 192.168.1.2\r\nUser-Agent: curl/8\r\n\r\n",
                 token: "private-token",
-                configuration: configuration
+                formatConfiguration: configuration
             )
 
             XCTAssertEqual(response.statusCode, 200, path)
@@ -129,11 +210,44 @@ final class LANSubscriptionServerTests: XCTestCase {
         }
     }
 
+    func testRouterServesSingBoxJSONAsItsOwnLANClient() throws {
+        var receivedFormat: LANSubscriptionFormat?
+        let response = LANSubscriptionHTTPRouter.response(
+            request: "GET /sub/private-token?target=sing-box HTTP/1.1\r\nHost: tower.local\r\n\r\n",
+            token: "private-token",
+            formatConfiguration: { format in
+                receivedFormat = format
+                return GeneratedConfiguration(
+                    target: format.generationTarget,
+                    content: #"{"outbounds":[]}"#,
+                    supportedNodeCount: 0,
+                    skippedNodeCount: 0,
+                    ruleCount: 0
+                )
+            }
+        )
+
+        XCTAssertEqual(response.statusCode, 200)
+        XCTAssertEqual(receivedFormat, .singBox)
+        XCTAssertEqual(response.headers["X-Tower-Target"], "sing-box")
+        XCTAssertEqual(response.headers["Content-Type"], "application/json; charset=utf-8")
+        XCTAssertNoThrow(try JSONSerialization.jsonObject(with: response.body))
+    }
+
+    func testOfficialSingBoxCapabilitiesExcludeSSRButIncludeSnell() {
+        let supported = LANSubscriptionFormat.singBox.supportedKindsOverride
+
+        XCTAssertNotNil(supported)
+        XCTAssertFalse(supported?.contains(.shadowsocksR) == true)
+        XCTAssertTrue(supported?.contains(.snell) == true)
+        XCTAssertNil(LANSubscriptionFormat.hiddify.supportedKindsOverride)
+    }
+
     func testRouterSupportsHeadWithoutReturningConfigurationBody() {
         let response = LANSubscriptionHTTPRouter.response(
             request: "HEAD /sub/private-token?target=surge HTTP/1.1\r\nHost: tower.local\r\n\r\n",
             token: "private-token",
-            configuration: configuration
+            formatConfiguration: configuration
         )
 
         XCTAssertEqual(response.statusCode, 200)
@@ -145,7 +259,7 @@ final class LANSubscriptionServerTests: XCTestCase {
         let response = LANSubscriptionHTTPRouter.response(
             request: "GET /sub/private-token?target=auto HTTP/1.1\r\nHost: tower.local\r\nuSeR-aGeNt: clash.meta\r\n\r\n",
             token: "private-token",
-            configuration: configuration
+            formatConfiguration: configuration
         )
 
         XCTAssertEqual(response.statusCode, 200)
@@ -185,7 +299,7 @@ final class LANSubscriptionServerTests: XCTestCase {
         let response = LANSubscriptionHTTPRouter.response(
             request: "GET /sub/private-token?target=auto HTTP/1.1\r\nHost: tower.local\r\nUser-Agent: curl/8\r\n\r\n",
             token: "private-token",
-            configuration: configuration
+            formatConfiguration: configuration
         )
 
         XCTAssertEqual(response.statusCode, 400)
@@ -207,6 +321,20 @@ final class LANSubscriptionServerTests: XCTestCase {
         )
         XCTAssertFalse(url.absoluteString.contains(sourceURL))
         XCTAssertFalse(url.absoluteString.contains("secret-provider-token"))
+    }
+
+    func testSingBoxSharedURLUsesStableExplicitTarget() throws {
+        let url = try LANSubscriptionURLBuilder.make(
+            host: "192.168.1.88",
+            port: 65_171,
+            token: "random-access-token",
+            target: LANSubscriptionFormat.singBox.rawValue
+        )
+
+        XCTAssertEqual(
+            url.absoluteString,
+            "http://192.168.1.88:65171/sub/random-access-token?target=sing-box"
+        )
     }
 
     func testAccessTokenPersistsUntilUserRotatesIt() throws {
@@ -242,10 +370,10 @@ final class LANSubscriptionServerTests: XCTestCase {
         XCTAssertEqual(String(decoding: data, as: UTF8.self), "# clash")
     }
 
-    private func configuration(for target: ClientTarget) -> GeneratedConfiguration {
+    private func configuration(for format: LANSubscriptionFormat) -> GeneratedConfiguration {
         GeneratedConfiguration(
-            target: target,
-            content: "# \(target.rawValue)",
+            target: format.generationTarget,
+            content: "# \(format.rawValue)",
             supportedNodeCount: 1,
             skippedNodeCount: 0,
             ruleCount: 0
