@@ -32,3 +32,10 @@ outputs/
 *.mobileprovision
 AuthKey_*.p8
 ExportOptions.plist
+
+# Machine-specific release settings. This repository is public, so the release
+# host, its repository path and the Apple team ID live here and never in Git.
+# LOCAL_RELEASE.md was previously held back only by .git/info/exclude, which is
+# local to one clone and silently absent in every other.
+Config/release.local.sh
+LOCAL_RELEASE.md

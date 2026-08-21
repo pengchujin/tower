@@ -10,8 +10,9 @@
 	<string>automatic</string>
 	<key>stripSwiftSymbols</key>
 	<true/>
-	<key>teamID</key>
-	<string>G63LDXL9QJ</string>
+	<!-- teamID is deliberately absent: this repository is public. The release
+	     script copies this file and adds the key from TOWER_DEVELOPMENT_TEAM.
+	     See docs/RELEASING.md. -->
 	<key>uploadSymbols</key>
 	<true/>
 </dict>

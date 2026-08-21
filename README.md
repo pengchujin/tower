@@ -7,6 +7,7 @@
 - [Claude 接手指南](CLAUDE.md)：工程约束、常用命令和验收门槛。
 - [当前开发状态](docs/HANDOFF.md)：TestFlight、远程归档、已知问题和后续任务。
 - [技术架构](docs/ARCHITECTURE.md)：模块职责、数据流、配置生成和测试结构。
+- [发布流程](docs/RELEASING.md)：TestFlight 归档、上传和本地配置。
 
 ## 当前能力
 

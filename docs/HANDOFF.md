@@ -597,10 +597,12 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 ```sh
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=G63LDXL9QJ CODE_SIGN_STYLE=Automatic archive
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM="$TOWER_DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Automatic archive
 
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -exportOptionsPlist Config/ExportOptions-TestFlight.plist -allowProvisioningUpdates
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && cp Config/ExportOptions-TestFlight.plist /tmp/TowerExportOptions.plist && /usr/libexec/PlistBuddy -c "Add :teamID string $TOWER_DEVELOPMENT_TEAM" /tmp/TowerExportOptions.plist && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -exportOptionsPlist /tmp/TowerExportOptions.plist -allowProvisioningUpdates
 ```
+
+`TOWER_DEVELOPMENT_TEAM` 来自那台机器上未入库的 `Config/release.local.sh`。团队 ID 不写进仓库，`Config/ExportOptions-TestFlight.plist` 因此不含 `teamID`，需要在导出前补上——`Scripts/release_testflight_remote.sh` 会自动做这件事，上面是手动兜底的等价写法。
 
 `DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`Config/ExportOptions-TestFlight.plist` 是仓库内受版本控制的上传配置，使用 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
 
@@ -617,7 +619,7 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-re
 
 ## 5. 远程 Mac 归档说明
 
-远程构建机位于同一局域网，主机为 `jzb@<构建机地址>`，已经登录 Apple 开发者账号。凭据和登录密码不写入仓库，也不应发给接手模型保存。
+远程构建机位于同一局域网，主机为 `<用户名>@<构建机地址>`，已经登录 Apple 开发者账号。凭据和登录密码不写入仓库，也不应发给接手模型保存。
 
 该机器的默认 `xcode-select` 曾指向 Command Line Tools，构建命令需要显式指定：
 
