@@ -81,6 +81,6 @@ bash Scripts/check_localization.sh
 - 涉及导入、分享、剪贴板、地图、ICMP、动画或大文本预览时，模拟器结果只算基础验证，必须再用真机验收。
 - 发布新包前递增 `CURRENT_PROJECT_VERSION`，归档并核对 Bundle ID、版本号和签名团队。
 - 不提交 `.artifacts`、DerivedData、归档、IPA、证书、描述文件、App Store Connect API Key 或任何密码。
-- 加密合规：当前实现没有自研或非标准加密，只通过 Apple 系统网络栈使用 HTTPS。下个版本建议在生成的 Info.plist 中加入 `ITSAppUsesNonExemptEncryption = NO`，并重新核对 App Store Connect 的问题。
+- 加密合规：当前实现没有自研或非标准加密，只通过 Apple 系统网络栈使用 HTTPS。App target 的 Debug/Release 都已设置 `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO`，构建不会再在 App Store Connect 留下待回答的出口合规问题；新增 target 时记得一并设置。
 
 真机回归清单、待办任务与发布信息见 `docs/HANDOFF.md`。

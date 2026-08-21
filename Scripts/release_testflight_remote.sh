@@ -92,8 +92,17 @@ if [[ "$aqua_mode" == false ]]; then
         security unlock-keychain "$keychain" </dev/tty
     fi
 
-    if ! security find-identity -v -p codesigning "$keychain" | grep -q 'Apple Development\|Apple Distribution'; then
-        printf 'No usable Apple code-signing identity is visible after unlocking the keychain.\n' >&2
+    # Matched against the team, not merely against "some Apple identity".
+    # A machine can hold a perfectly valid certificate for a different team —
+    # this one does — and the loose check passed it through, so the release
+    # failed minutes later inside xcodebuild with a signing error that does not
+    # name the cause.
+    if ! security find-identity -v -p codesigning "$keychain" | grep -q "($team)"; then
+        printf 'No Apple code-signing identity for team %s in %s.\n\n' "$team" "$keychain" >&2
+        printf 'Visible identities:\n' >&2
+        security find-identity -v -p codesigning "$keychain" | sed 's/^/  /' >&2
+        printf '\nOpen Xcode on this machine, sign in to the Apple ID that owns %s,\n' "$team" >&2
+        printf 'and let it create a signing certificate before releasing again.\n' >&2
         exit 1
     fi
 
