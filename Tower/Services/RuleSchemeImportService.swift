@@ -82,6 +82,13 @@ struct RuleSchemeImportService {
         await downloadRulesets(scheme.remoteRulesetURLs)
     }
 
+    /// Downloads an explicit set of maintained lists into Tower's offline
+    /// cache. Catalog entries use this without pretending they are complete
+    /// imported schemes.
+    func cacheRulesets(_ urls: [URL]) async -> Int {
+        await downloadRulesets(urls)
+    }
+
     /// Returns how many lists failed. Batched for the same reason the latency
     /// probes are: a config can reference dozens of files.
     private func downloadRulesets(_ urls: [URL]) async -> Int {

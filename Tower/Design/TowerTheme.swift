@@ -142,15 +142,42 @@ struct ToastView: View {
     let toast: ToastMessage
 
     var body: some View {
-        Label(toast.text, systemImage: toast.symbol)
-            .font(.subheadline.weight(.semibold))
-            .lineLimit(2)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial, in: Capsule())
-            .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 14, y: 7)
-            .padding(.horizontal)
+        HStack(spacing: 11) {
+            Image(systemName: toast.symbol)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 29, height: 29)
+                .background(accentColor.gradient, in: Circle())
+
+            Text(toast.text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: 520, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(accentColor.opacity(toast.tone == .success ? 0.14 : 0.05))
+                }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(accentColor.opacity(toast.tone == .success ? 0.55 : 0.24), lineWidth: 1)
+        }
+        .shadow(color: accentColor.opacity(toast.tone == .success ? 0.2 : 0.1), radius: 14, y: 7)
+        .accessibilityElement(children: .combine)
+        .sensoryFeedback(toast.tone == .success ? .success : .selection, trigger: toast.id)
+        .padding(.horizontal)
+    }
+
+    private var accentColor: Color {
+        toast.tone == .success ? .green : .accentColor
     }
 }
 

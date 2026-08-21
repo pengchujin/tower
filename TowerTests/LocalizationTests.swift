@@ -51,6 +51,7 @@ final class LocalizationTests: XCTestCase {
         let catalog = try loadCatalog(named: "Localizable")
 
         XCTAssertEqual(try value(for: "订阅", locale: "en", in: catalog), "Subscriptions")
+        XCTAssertEqual(try value(for: "导入", locale: "en", in: catalog), "Import")
         XCTAssertEqual(try value(for: "导出", locale: "ja", in: catalog), "エクスポート")
         XCTAssertEqual(try value(for: "设置", locale: "ko", in: catalog), "설정")
         XCTAssertEqual(try value(for: "我的订阅", locale: "zh-Hant", in: catalog), "我的訂閱")

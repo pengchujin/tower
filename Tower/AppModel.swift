@@ -1,6 +1,20 @@
 import Foundation
 import Observation
 
+enum RuleGroupRenameError: LocalizedError {
+    case emptyName
+    case missingGroup
+    case duplicateName
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyName: String(localized: "规则名称不能为空。")
+        case .missingGroup: String(localized: "找不到要修改的规则。")
+        case .duplicateName: String(localized: "已经存在同名规则。")
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class AppModel {
@@ -50,12 +64,18 @@ final class AppModel {
     /// changes a checkbox we keep the explicit set separately from the
     /// downloaded scheme, so refreshing that scheme cannot undo the choice.
     var selectedRuleGroups: [String: Set<String>] = [:]
+    /// Per-scheme group order, selection mode and candidate policies. This is
+    /// deliberately separate from imported rules so an upstream refresh never
+    /// destroys local customization.
+    var ruleSchemeCustomizations: [String: RuleSchemeCustomization] = [:]
     /// Missing means follow the source and show its emoji. Only explicit
     /// overrides are persisted so newly imported schemes retain their design.
     var ruleGroupEmojisEnabled: [String: Bool] = [:]
     var excludedNodeIDs: Set<UUID> = []
-    /// User-authored flows are also stored outside imported schemes. This is
-    /// what lets a Tailscale rule survive every upstream ruleset refresh.
+    /// User-owned rule contents are kept independently from the schemes in
+    /// which they are currently active.
+    var localRuleSets: [LocalRuleSet] = []
+    /// Per-scheme placement, routing and enablement for local and catalog rules.
     var customRuleFlows: [CustomRuleFlow] = []
     var importingSchemeIDs: Set<String> = []
     var isImportingScheme = false
@@ -88,6 +108,10 @@ final class AppModel {
     /// large subscription cannot flood the network stack or stall the main actor.
     private static let resolutionBatchSize = 8
     @ObservationIgnored private var generationCache = ConfigurationCache()
+    /// The rules page shows every scheme's total at once. Re-materializing all
+    /// schemes and re-reading imported lists whenever only the selected id
+    /// changes makes a simple mode switch block the main actor.
+    @ObservationIgnored private var schemeRuleCountCache: [String: Int] = [:]
     @ObservationIgnored private var countryResolutionInFlightNodeIDs: Set<UUID> = []
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
 
@@ -181,13 +205,18 @@ final class AppModel {
     }
 
     func ruleCount(for scheme: RuleScheme) -> Int {
-        effectiveScheme(scheme).rulesets.reduce(0) {
+        if let cached = schemeRuleCountCache[scheme.id] { return cached }
+        let count = effectiveScheme(scheme).rulesets.reduce(0) {
             $0 + schemeRepository.lines(for: $1.resource).count
         }
+        schemeRuleCountCache[scheme.id] = count
+        return count
     }
 
     func selectedRuleGroupNames(for scheme: RuleScheme) -> Set<String> {
-        selectedRuleGroups[scheme.id] ?? Set(scheme.selectableRuleGroupNames)
+        let available = Set(scheme.selectableRuleGroupNames)
+        let fixed = Set(scheme.protectedRuleGroupNames).intersection(available)
+        return (selectedRuleGroups[scheme.id] ?? available).union(fixed)
     }
 
     func isRuleGroupSelectionCustomized(for scheme: RuleScheme) -> Bool {
@@ -196,7 +225,8 @@ final class AppModel {
 
     func setRuleGroup(_ name: String, enabled: Bool, for scheme: RuleScheme) {
         let available = Set(scheme.selectableRuleGroupNames)
-        guard available.contains(name) else { return }
+        let fixed = Set(scheme.protectedRuleGroupNames)
+        guard available.contains(name), !fixed.contains(name) else { return }
 
         var selection = selectedRuleGroups[scheme.id] ?? available
         if enabled {
@@ -217,6 +247,151 @@ final class AppModel {
         persist()
     }
 
+    func customizableRuleGroups(for scheme: RuleScheme) -> [RuleSchemeGroup] {
+        scheme.customized(
+            enabledRuleGroupNames: nil,
+            customRuleFlows: customRuleFlows,
+            groupCustomization: ruleSchemeCustomizations[scheme.id],
+            resolvedRuleLines: resolvedRuleLines(for: scheme)
+        ).groups
+    }
+
+    func updateRuleGroup(_ group: RuleSchemeGroup, for scheme: RuleScheme) {
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        if customization.groupOrder.isEmpty {
+            customization.groupOrder = customizableRuleGroups(for: scheme).map(\.name)
+        }
+        customization.groupOverrides[group.name] = RuleSchemeGroupOverride(
+            kind: group.kind,
+            members: group.members
+        )
+        ruleSchemeCustomizations[scheme.id] = customization
+        persist()
+    }
+
+    func renameRuleGroup(named oldName: String, to requestedName: String, for scheme: RuleScheme) throws {
+        let newName = requestedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else { throw RuleGroupRenameError.emptyName }
+
+        let currentGroups = customizableRuleGroups(for: scheme)
+        guard currentGroups.contains(where: { $0.name == oldName }) else {
+            throw RuleGroupRenameError.missingGroup
+        }
+        guard !currentGroups.contains(where: {
+            $0.name != oldName && $0.name.localizedCaseInsensitiveCompare(newName) == .orderedSame
+        }) else {
+            throw RuleGroupRenameError.duplicateName
+        }
+        guard oldName != newName else { return }
+
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        if customization.groupOrder.isEmpty {
+            customization.groupOrder = currentGroups.map(\.name)
+        }
+
+        var renames = customization.groupRenames ?? [:]
+        let sourceName = renames.first(where: { $0.value == oldName })?.key ?? oldName
+        if sourceName == newName {
+            renames[sourceName] = nil
+        } else {
+            renames[sourceName] = newName
+        }
+        customization.groupRenames = renames.isEmpty ? nil : renames
+        customization.groupOrder = customization.groupOrder.map { $0 == oldName ? newName : $0 }
+
+        if let existingOverride = customization.groupOverrides.removeValue(forKey: oldName) {
+            customization.groupOverrides[newName] = existingOverride
+        }
+        customization.groupOverrides = customization.groupOverrides.mapValues { override in
+            RuleSchemeGroupOverride(
+                kind: override.kind,
+                members: override.members?.map { member in
+                    guard case .reference(let name) = member, name == oldName else { return member }
+                    return .reference(newName)
+                }
+            )
+        }
+        if let removedNames = customization.removedGroupNames {
+            customization.removedGroupNames = Set(
+                removedNames.map { $0 == oldName ? newName : $0 }
+            )
+        }
+        ruleSchemeCustomizations[scheme.id] = customization
+
+        if let selected = selectedRuleGroups[scheme.id] {
+            selectedRuleGroups[scheme.id] = Set(
+                selected.map { $0 == oldName ? newName : $0 }
+            )
+        }
+        persist()
+    }
+
+    func moveRuleGroups(
+        fromOffsets source: IndexSet,
+        toOffset destination: Int,
+        for scheme: RuleScheme
+    ) {
+        var names = customizableRuleGroups(for: scheme).map(\.name)
+        let validOffsets = source.filter { names.indices.contains($0) }.sorted()
+        guard !validOffsets.isEmpty else { return }
+        let moved = validOffsets.map { names[$0] }
+        for offset in validOffsets.reversed() { names.remove(at: offset) }
+        let removedBeforeDestination = validOffsets.filter { $0 < destination }.count
+        let insertion = min(max(0, destination - removedBeforeDestination), names.count)
+        names.insert(contentsOf: moved, at: insertion)
+
+        setRuleGroupOrder(names, for: scheme)
+    }
+
+    func setRuleGroupOrder(_ names: [String], for scheme: RuleScheme) {
+        var seen = Set<String>()
+        let uniqueNames = names.filter { seen.insert($0).inserted }
+        guard !uniqueNames.isEmpty else { return }
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        guard customization.groupOrder != uniqueNames else { return }
+        customization.groupOrder = uniqueNames
+        ruleSchemeCustomizations[scheme.id] = customization
+        persist()
+    }
+
+    func resetRuleCustomization(for scheme: RuleScheme) {
+        selectedRuleGroups[scheme.id] = nil
+        ruleSchemeCustomizations[scheme.id] = nil
+        ruleGroupEmojisEnabled[scheme.id] = nil
+        customRuleFlows.removeAll { $0.schemeID == scheme.id }
+        showToast(
+            String(localized: "已恢复初始规则"),
+            symbol: "arrow.counterclockwise.circle.fill",
+            tone: .success
+        )
+        persist()
+    }
+
+    @discardableResult
+    func saveCustomizedScheme(named name: String, from scheme: RuleScheme) -> RuleScheme {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let materialized = materializedScheme(scheme)
+        let saved = RuleScheme(
+            id: "custom-\(UUID().uuidString.lowercased())",
+            name: trimmedName.isEmpty ? String(localized: "自定义规则") : trimmedName,
+            summary: String(localized: "本机保存的自定义规则"),
+            groups: materialized.groups,
+            rulesets: materialized.rulesets,
+            updatedAt: .now,
+            isBundled: false
+        )
+        importedSchemes.append(saved)
+        if !ruleGroupEmojisAreEnabled(for: scheme) {
+            ruleGroupEmojisEnabled[saved.id] = false
+        }
+        selectedPresetID = saved.id
+        persist()
+        return saved
+    }
+
     func ruleGroupEmojisAreEnabled(for scheme: RuleScheme) -> Bool {
         ruleGroupEmojisEnabled[scheme.id] ?? true
     }
@@ -234,13 +409,275 @@ final class AppModel {
         customRuleFlows.filter { $0.schemeID == scheme.id }
     }
 
+    func localRuleSetFlow(_ ruleSet: LocalRuleSet, in scheme: RuleScheme) -> CustomRuleFlow? {
+        customRuleFlows.first {
+            $0.schemeID == scheme.id && $0.localRuleSetID == ruleSet.id
+        }
+    }
+
+    func isLocalRuleSetAdded(_ ruleSet: LocalRuleSet, to scheme: RuleScheme) -> Bool {
+        localRuleSetFlow(ruleSet, in: scheme) != nil
+    }
+
+    /// Saves only the reusable local content. The user must explicitly add it
+    /// to a scheme before it can affect generated configurations.
+    func saveLocalRuleSet(_ ruleSet: LocalRuleSet) async throws {
+        if let url = ruleSet.remoteRuleURL {
+            let failed = await schemeImportService.cacheRulesets([url])
+            guard failed == 0 else { throw RuleImportError.noRulesetsDownloaded }
+        }
+
+        if let index = localRuleSets.firstIndex(where: { $0.id == ruleSet.id }) {
+            localRuleSets[index] = ruleSet
+        } else {
+            localRuleSets.append(ruleSet)
+        }
+        synchronizePlacements(with: ruleSet)
+        persist()
+    }
+
+    /// Creates one placement in the selected scheme while keeping the source
+    /// ruleset in the reusable local library.
+    func addLocalRuleSet(_ ruleSet: LocalRuleSet, to scheme: RuleScheme) {
+        guard !isLocalRuleSetAdded(ruleSet, to: scheme) else { return }
+        let options = scheme.routingTargetGroupNames(
+            from: customizableRuleGroups(for: scheme)
+        )
+        let defaultPolicyName = options.first(where: {
+            RulePolicyPresentation.nameWithoutLeadingEmoji($0).contains("节点选择")
+        }) ?? options.first ?? "DIRECT"
+        var flow = CustomRuleFlow.userCreatedRuleSet(
+            schemeID: scheme.id,
+            name: ruleSet.name,
+            rulesText: ruleSet.ruleInputText,
+            defaultPolicyName: defaultPolicyName
+        )
+        flow.localRuleSetID = ruleSet.id
+        upsertCustomRuleFlow(flow)
+        showToast(
+            String(localized: "已添加“\(ruleSet.name)”到当前规则"),
+            symbol: "checkmark.circle.fill",
+            tone: .success
+        )
+    }
+
+    /// Removes only this scheme's placement. The local ruleset remains ready
+    /// to be added again or reused by another scheme.
+    func removeLocalRuleSet(_ ruleSet: LocalRuleSet, from scheme: RuleScheme) {
+        customRuleFlows.removeAll {
+            $0.schemeID == scheme.id && $0.localRuleSetID == ruleSet.id
+        }
+        persist()
+    }
+
+    /// Deleting from the local library also removes every placement that
+    /// references the deleted contents; unrelated catalog rules are untouched.
+    func deleteLocalRuleSet(_ ruleSet: LocalRuleSet) {
+        localRuleSets.removeAll { $0.id == ruleSet.id }
+        customRuleFlows.removeAll { $0.localRuleSetID == ruleSet.id }
+        persist()
+    }
+
+    private func synchronizePlacements(with ruleSet: LocalRuleSet) {
+        var renamedGroups: [(schemeID: String, oldName: String, newName: String)] = []
+        for index in customRuleFlows.indices where customRuleFlows[index].localRuleSetID == ruleSet.id {
+            let oldGroupName = customRuleFlows[index].generatedPolicyGroup?.name
+            customRuleFlows[index].name = ruleSet.name
+            customRuleFlows[index].rulesText = ruleSet.rulesText
+            customRuleFlows[index].sourceURLString = ruleSet.sourceURLString
+            customRuleFlows[index].catalogID = nil
+            if let group = customRuleFlows[index].generatedPolicyGroup {
+                customRuleFlows[index].generatedPolicyGroup = RuleSchemeGroup(
+                    name: ruleSet.name,
+                    kind: group.kind,
+                    members: group.members,
+                    testURLString: group.testURLString,
+                    interval: group.interval,
+                    tolerance: group.tolerance
+                )
+                if customRuleFlows[index].policyName == oldGroupName {
+                    customRuleFlows[index].policyName = ruleSet.name
+                }
+            }
+            if let oldGroupName, oldGroupName != ruleSet.name {
+                renamedGroups.append((customRuleFlows[index].schemeID, oldGroupName, ruleSet.name))
+            }
+        }
+        for rename in renamedGroups {
+            renameRuleGroupReferences(
+                from: rename.oldName,
+                to: rename.newName,
+                schemeID: rename.schemeID
+            )
+        }
+    }
+
+    private func renameRuleGroupReferences(from oldName: String, to newName: String, schemeID: String) {
+        guard oldName != newName else { return }
+        for index in customRuleFlows.indices where customRuleFlows[index].schemeID == schemeID {
+            if customRuleFlows[index].policyName == oldName {
+                customRuleFlows[index].policyName = newName
+            }
+            guard let group = customRuleFlows[index].generatedPolicyGroup else { continue }
+            customRuleFlows[index].generatedPolicyGroup = RuleSchemeGroup(
+                name: group.name == oldName ? newName : group.name,
+                kind: group.kind,
+                members: group.members.map { member in
+                    guard case .reference(let name) = member, name == oldName else { return member }
+                    return .reference(newName)
+                },
+                testURLString: group.testURLString,
+                interval: group.interval,
+                tolerance: group.tolerance
+            )
+        }
+
+        if var selected = selectedRuleGroups[schemeID], selected.remove(oldName) != nil {
+            selected.insert(newName)
+            selectedRuleGroups[schemeID] = selected
+        }
+        guard var customization = ruleSchemeCustomizations[schemeID] else { return }
+        customization.groupOrder = customization.groupOrder.map { $0 == oldName ? newName : $0 }
+        if let oldOverride = customization.groupOverrides.removeValue(forKey: oldName) {
+            customization.groupOverrides[newName] = oldOverride
+        }
+        customization.groupOverrides = customization.groupOverrides.mapValues { override in
+            RuleSchemeGroupOverride(
+                kind: override.kind,
+                members: override.members?.map { member in
+                    guard case .reference(let name) = member, name == oldName else { return member }
+                    return .reference(newName)
+                }
+            )
+        }
+        if var removed = customization.removedGroupNames, removed.remove(oldName) != nil {
+            removed.insert(newName)
+            customization.removedGroupNames = removed
+        }
+        ruleSchemeCustomizations[schemeID] = customization
+    }
+
+    func catalogFlow(for entry: RuleCatalogEntry, in scheme: RuleScheme) -> CustomRuleFlow? {
+        customRuleFlows.first {
+            $0.schemeID == scheme.id && $0.catalogID == entry.id
+        }
+    }
+
+    /// A downloaded file is only a cache entry. The catalog checkmark means
+    /// that the corresponding flow is part of this scheme's Custom Rules.
+    func isCatalogEntryAdded(_ entry: RuleCatalogEntry, to scheme: RuleScheme) -> Bool {
+        catalogFlow(for: entry, in: scheme) != nil
+    }
+
+    /// Removes only this catalog item's membership from the active scheme.
+    /// Its downloaded payload remains an offline cache and must never keep the
+    /// catalog checkmark selected.
+    func removeCatalogEntry(_ entry: RuleCatalogEntry, from scheme: RuleScheme) {
+        customRuleFlows.removeAll {
+            $0.schemeID == scheme.id && $0.catalogID == entry.id
+        }
+        persist()
+    }
+
     func upsertCustomRuleFlow(_ flow: CustomRuleFlow) {
         if let index = customRuleFlows.firstIndex(where: { $0.id == flow.id }) {
             customRuleFlows[index] = flow
         } else {
-            customRuleFlows.append(flow)
+            let insertion = customRuleFlows.firstIndex { $0.schemeID == flow.schemeID }
+                ?? customRuleFlows.endIndex
+            customRuleFlows.insert(flow, at: insertion)
+        }
+        if let groupName = flow.generatedPolicyGroup?.name {
+            var customization = ruleSchemeCustomizations[flow.schemeID]
+                ?? RuleSchemeCustomization(schemeID: flow.schemeID)
+            customization.removedGroupNames?.remove(groupName)
+            ruleSchemeCustomizations[flow.schemeID] = customization
         }
         persist()
+    }
+
+    func ruleGroupReferences(to groupName: String, for scheme: RuleScheme) -> [String] {
+        customizableRuleGroups(for: scheme).compactMap { group in
+            guard group.name != groupName,
+                  group.members.contains(where: { member in
+                      guard case .reference(let name) = member else { return false }
+                      return name == groupName
+                  }) else { return nil }
+            return group.name
+        }
+    }
+
+    func sourceRuleGroupName(_ visibleName: String, for scheme: RuleScheme) -> String {
+        ruleSchemeCustomizations[scheme.id]?.sourceGroupName(for: visibleName) ?? visibleName
+    }
+
+    /// Deletes the visible policy group and repairs the graph in one persisted
+    /// transaction. Any select group left without a candidate safely falls
+    /// back to DIRECT when the customization is applied.
+    func deleteRuleGroup(named groupName: String, for scheme: RuleScheme) {
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        let sourceName = customization.sourceGroupName(for: groupName)
+        customRuleFlows.removeAll { flow in
+            guard flow.schemeID == scheme.id else { return false }
+            return [groupName, sourceName].contains(flow.generatedPolicyGroup?.name)
+                || [groupName, sourceName].contains(flow.policyName)
+        }
+
+        var removed = customization.removedGroupNames ?? []
+        removed.insert(groupName)
+        customization.removedGroupNames = removed
+        customization.groupRenames?[sourceName] = nil
+        if customization.groupRenames?.isEmpty == true {
+            customization.groupRenames = nil
+        }
+        if customization.groupOrder.isEmpty {
+            customization.groupOrder = customizableRuleGroups(for: scheme).map(\.name)
+        }
+        customization.groupOrder.removeAll { $0 == groupName }
+        customization.groupOverrides[groupName] = nil
+        ruleSchemeCustomizations[scheme.id] = customization
+
+        if var selected = selectedRuleGroups[scheme.id] {
+            selected.remove(groupName)
+            selectedRuleGroups[scheme.id] = selected
+        }
+        persist()
+    }
+
+    /// Installs a maintained catalog rule only after its payload is available
+    /// offline. Re-adding the same catalog item updates it in place so users do
+    /// not accumulate duplicate service groups.
+    func installCatalogEntry(_ entry: RuleCatalogEntry, for scheme: RuleScheme) async throws {
+        var flow = try entry.makeCustomization(for: scheme)
+        guard let url = flow.remoteRuleURL else {
+            throw RuleCatalogError.invalidSourceURL
+        }
+        let failed = await schemeImportService.cacheRulesets([url])
+        guard failed == 0 else { throw RuleImportError.noRulesetsDownloaded }
+
+        if let existing = customRuleFlows.first(where: {
+            $0.schemeID == scheme.id && $0.catalogID == entry.id
+        }) {
+            flow.id = existing.id
+            flow.isEnabled = existing.isEnabled
+        }
+        upsertCustomRuleFlow(flow)
+        showToast(
+            String(localized: "已添加“\(entry.name)”到当前规则"),
+            symbol: "checkmark.circle.fill",
+            tone: .success
+        )
+    }
+
+    /// Persists a hand-authored ruleset only after a referenced remote list is
+    /// available offline. Inline rules do not need a network round trip.
+    func installCustomRuleFlow(_ flow: CustomRuleFlow) async throws {
+        if let url = flow.remoteRuleURL {
+            let failed = await schemeImportService.cacheRulesets([url])
+            guard failed == 0 else { throw RuleImportError.noRulesetsDownloaded }
+        }
+        upsertCustomRuleFlow(flow)
     }
 
     func setCustomRuleFlow(_ flow: CustomRuleFlow, enabled: Bool) {
@@ -254,22 +691,53 @@ final class AppModel {
         persist()
     }
 
+    private func materializedScheme(_ scheme: RuleScheme) -> RuleScheme {
+        let customization = ruleSchemeCustomizations[scheme.id]
+        let fixed = Set(scheme.protectedRuleGroupNames)
+            .intersection(scheme.selectableRuleGroupNames)
+            .map { customization?.renamedGroupName($0) ?? $0 }
+        let enabledGroups = selectedRuleGroups[scheme.id].map { $0.union(fixed) }
+        return scheme.customized(
+            enabledRuleGroupNames: enabledGroups,
+            customRuleFlows: customRuleFlows,
+            groupCustomization: customization,
+            resolvedRuleLines: resolvedRuleLines(for: scheme)
+        )
+    }
+
+    private func resolvedRuleLines(for scheme: RuleScheme) -> [URL: [String]] {
+        let customURLs = customRuleFlows.compactMap { flow -> URL? in
+            guard flow.schemeID == scheme.id, flow.isEnabled else { return nil }
+            return flow.remoteRuleURL
+        }
+        var seen = Set<URL>()
+        return Dictionary(uniqueKeysWithValues: (scheme.remoteRulesetURLs + customURLs).compactMap {
+            url in
+            guard seen.insert(url).inserted else { return nil }
+            return (url, schemeRepository.lines(for: .remote(url)))
+        })
+    }
+
     func effectiveScheme(_ scheme: RuleScheme) -> RuleScheme {
-        scheme.customized(
-            enabledRuleGroupNames: selectedRuleGroups[scheme.id],
-            customRuleFlows: customRuleFlows
-        ).withGroupEmojis(ruleGroupEmojisAreEnabled(for: scheme))
+        materializedScheme(scheme)
+            .withGroupEmojis(ruleGroupEmojisAreEnabled(for: scheme))
     }
 
     /// True once every list a scheme references is available locally.
     func isSchemeReady(_ scheme: RuleScheme) -> Bool {
-        if scheme.isBundled { return true }
-        return scheme.remoteRulesetURLs.allSatisfy(downloadStore.hasCachedRules)
+        let effectiveURLs = effectiveScheme(scheme).remoteRulesetURLs
+        let bundledURLs = scheme.isBundled ? Set(scheme.remoteRulesetURLs) : []
+        return effectiveURLs.allSatisfy { url in
+            bundledURLs.contains(url) || downloadStore.hasCachedRules(for: url)
+        }
     }
 
     func selectScheme(_ scheme: RuleScheme) {
+        guard selectedPresetID != scheme.id else { return }
         selectedPresetID = scheme.id
-        persist()
+        // Selection changes no rule content, so keep the counts already shown
+        // by the cards instead of forcing every scheme through the parser again.
+        persist(invalidateRuleCounts: false)
     }
 
     func importScheme(name: String, urlString: String) async throws {
@@ -292,14 +760,22 @@ final class AppModel {
         }
     }
 
-    /// Re-downloads the rule lists a scheme references. Bundled schemes read
-    /// from the app bundle and have nothing to refresh.
+    /// Re-downloads the rule lists a scheme and its installed catalog entries
+    /// reference. The original lists of a bundled scheme already live in the
+    /// app; only catalog additions need a network refresh there.
     func refreshScheme(_ scheme: RuleScheme) async {
-        guard !scheme.isBundled, !importingSchemeIDs.contains(scheme.id) else { return }
+        guard !importingSchemeIDs.contains(scheme.id) else { return }
+        let effectiveURLs = effectiveScheme(scheme).remoteRulesetURLs
+        let bundledURLs = Set(scheme.remoteRulesetURLs)
+        let refreshURLs = scheme.isBundled
+            ? effectiveURLs.filter { !bundledURLs.contains($0) }
+            : effectiveURLs
+        guard !refreshURLs.isEmpty else { return }
         importingSchemeIDs.insert(scheme.id)
         defer { importingSchemeIDs.remove(scheme.id) }
 
-        let failed = await schemeImportService.refreshRulesets(for: scheme)
+        let failed = await schemeImportService.cacheRulesets(refreshURLs)
+        schemeRuleCountCache[scheme.id] = nil
         if let index = importedSchemes.firstIndex(where: { $0.id == scheme.id }) {
             importedSchemes[index].updatedAt = .now
             persist()
@@ -312,13 +788,46 @@ final class AppModel {
         }
     }
 
+    /// Changes only the user-facing identity of an imported scheme. Its source,
+    /// rules, ordering and per-scheme customization remain untouched.
+    @discardableResult
+    func updateImportedSchemeMetadata(id: String, name: String, summary: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty,
+              let index = importedSchemes.firstIndex(where: { $0.id == id }),
+              !importedSchemes[index].isBundled else {
+            return false
+        }
+
+        let keepsAutomaticSummary = importedSchemes[index].summaryIsUserEdited != true
+            && trimmedSummary == importedSchemes[index].localizedSummary()
+        importedSchemes[index].name = trimmedName
+        if !keepsAutomaticSummary {
+            importedSchemes[index].summary = trimmedSummary
+            importedSchemes[index].summaryIsUserEdited = true
+        }
+        persist(invalidateRuleCounts: false)
+        showToast(
+            String(localized: "规则方案已更新"),
+            symbol: "checkmark.circle.fill",
+            tone: .success
+        )
+        return true
+    }
+
     func deleteScheme(_ scheme: RuleScheme) {
         guard !scheme.isBundled else { return }
+        let cachedURLs = effectiveScheme(scheme).remoteRulesetURLs
         importedSchemes.removeAll { $0.id == scheme.id }
         selectedRuleGroups[scheme.id] = nil
+        ruleSchemeCustomizations[scheme.id] = nil
         ruleGroupEmojisEnabled[scheme.id] = nil
         customRuleFlows.removeAll { $0.schemeID == scheme.id }
-        downloadStore.removeRules(for: scheme.remoteRulesetURLs)
+        let retainedURLs = Set(
+            ruleSchemes.flatMap { effectiveScheme($0).remoteRulesetURLs }
+        )
+        downloadStore.removeRules(for: cachedURLs.filter { !retainedURLs.contains($0) })
         if selectedPresetID == scheme.id {
             selectedPresetID = Self.defaultRuleSchemeID
         }
@@ -1354,8 +1863,8 @@ final class AppModel {
         try exportService.write(configuration())
     }
 
-    func showToast(_ text: String, symbol: String) {
-        toast = ToastMessage(text: text, symbol: symbol)
+    func showToast(_ text: String, symbol: String, tone: ToastTone = .neutral) {
+        toast = ToastMessage(text: text, symbol: symbol, tone: tone)
     }
 
     func dismissToast(id: UUID) {
@@ -1447,6 +1956,7 @@ final class AppModel {
     /// Shared by launch and by an iCloud pull so a synced snapshot cannot be
     /// applied differently from a local one.
     private func apply(_ snapshot: AppSnapshot) {
+        schemeRuleCountCache.removeAll(keepingCapacity: true)
         subscriptions = snapshot.subscriptions.map { source in
             var source = source
             if Self.isCancellationMessage(source.lastError) { source.lastError = nil }
@@ -1455,9 +1965,16 @@ final class AppModel {
         nodes = snapshot.nodes
         importedSchemes = snapshot.importedSchemes ?? []
         selectedRuleGroups = snapshot.selectedRuleGroups?.mapValues(Set.init) ?? [:]
+        ruleSchemeCustomizations = snapshot.ruleSchemeCustomizations ?? [:]
         ruleGroupEmojisEnabled = snapshot.ruleGroupEmojisEnabled ?? [:]
         excludedNodeIDs = Set(snapshot.excludedNodeIDs ?? [])
-        customRuleFlows = snapshot.customRuleFlows ?? []
+        let catalogMigratedFlows = migrateLegacyCatalogRuleFlows(snapshot.customRuleFlows ?? [])
+        let localMigration = migrateLocalRuleSets(
+            snapshot.localRuleSets ?? [],
+            flows: catalogMigratedFlows
+        )
+        localRuleSets = localMigration.ruleSets
+        customRuleFlows = localMigration.flows
         excludedKinds = Self.decodeExcludedKinds(snapshot.excludedKinds)
         renewalRemindersEnabled = snapshot.renewalRemindersEnabled ?? false
         clientOrder = ClientTargetOrder.normalized(rawValues: snapshot.clientOrder)
@@ -1475,6 +1992,51 @@ final class AppModel {
         selectedTarget = snapshot.selectedTarget
     }
 
+    /// Catalog rules briefly reused broad upstream groups such as `AI 服务`,
+    /// which made an added `OpenAI` rule appear under the wrong name. Migrate
+    /// only that recognizable default shape; user-authored routing choices are
+    /// intentionally not inferred or rewritten.
+    private func migrateLegacyCatalogRuleFlows(_ flows: [CustomRuleFlow]) -> [CustomRuleFlow] {
+        let entriesByID = Dictionary(uniqueKeysWithValues: RuleCatalog.builtIn.entries.map { ($0.id, $0) })
+        let schemes = ruleSchemes
+
+        return flows.map { flow in
+            guard let catalogID = flow.catalogID,
+                  let entry = entriesByID[catalogID],
+                  let scheme = schemes.first(where: { $0.id == flow.schemeID }) else {
+                return flow
+            }
+            return entry.migratedLegacyCustomization(flow, for: scheme) ?? flow
+        }
+    }
+
+    /// Earlier builds persisted hand-written content directly in a scheme
+    /// placement. Preserve that active placement while also making the content
+    /// available in the new local library.
+    private func migrateLocalRuleSets(
+        _ savedRuleSets: [LocalRuleSet],
+        flows: [CustomRuleFlow]
+    ) -> (ruleSets: [LocalRuleSet], flows: [CustomRuleFlow]) {
+        var ruleSets = savedRuleSets
+        var knownIDs = Set(ruleSets.map(\.id))
+        let migratedFlows = flows.map { original -> CustomRuleFlow in
+            var flow = original
+            guard flow.catalogID == nil, flow.hasRuleContent else { return flow }
+            let ruleSetID = flow.localRuleSetID ?? flow.id
+            if knownIDs.insert(ruleSetID).inserted {
+                ruleSets.append(LocalRuleSet(
+                    id: ruleSetID,
+                    name: flow.name,
+                    rulesText: flow.rulesText,
+                    sourceURLString: flow.sourceURLString
+                ))
+            }
+            flow.localRuleSetID = ruleSetID
+            return flow
+        }
+        return (ruleSets, migratedFlows)
+    }
+
     /// The snapshot both the local file and iCloud are written from, so the
     /// two can never describe different states.
     private func currentSnapshot(updatedAt: Date = .now) -> AppSnapshot {
@@ -1487,6 +2049,9 @@ final class AppModel {
             selectedRuleGroups: selectedRuleGroups.isEmpty
                 ? nil
                 : selectedRuleGroups.mapValues { $0.sorted() },
+            ruleSchemeCustomizations: ruleSchemeCustomizations.isEmpty
+                ? nil
+                : ruleSchemeCustomizations,
             ruleGroupEmojisEnabled: ruleGroupEmojisEnabled.isEmpty
                 ? nil
                 : ruleGroupEmojisEnabled,
@@ -1494,6 +2059,7 @@ final class AppModel {
                 ? nil
                 : excludedNodeIDs.sorted { $0.uuidString < $1.uuidString },
             customRuleFlows: customRuleFlows.isEmpty ? nil : customRuleFlows,
+            localRuleSets: localRuleSets.isEmpty ? nil : localRuleSets,
             excludedKinds: Self.encodeExcludedKinds(excludedKinds),
             renewalRemindersEnabled: renewalRemindersEnabled,
             clientOrder: clientOrder.map(\.rawValue),
@@ -1508,7 +2074,10 @@ final class AppModel {
         )
     }
 
-    private func persist() {
+    private func persist(invalidateRuleCounts: Bool = true) {
+        if invalidateRuleCounts {
+            schemeRuleCountCache.removeAll(keepingCapacity: true)
+        }
         guard !isDemoMode else { return }
         let snapshot = currentSnapshot()
         do {
@@ -1669,10 +2238,22 @@ struct ConfigurationCache {
     }
 }
 
+enum ToastTone: Equatable {
+    case neutral
+    case success
+}
+
 struct ToastMessage: Identifiable, Equatable {
     let id = UUID()
     let text: String
     let symbol: String
+    let tone: ToastTone
+
+    init(text: String, symbol: String, tone: ToastTone = .neutral) {
+        self.text = text
+        self.symbol = symbol
+        self.tone = tone
+    }
 }
 
 struct SubscriptionRefreshFailure: Identifiable, Equatable, Sendable {

@@ -1100,6 +1100,9 @@ struct AppSnapshot: Codable {
     /// Explicitly enabled service-rule groups per scheme. A missing scheme key
     /// keeps the upstream/default behavior of enabling every group.
     var selectedRuleGroups: [String: [String]]?
+    /// User-owned policy-group order and candidate overrides. Optional keeps
+    /// snapshots from before unified rule customization decodable.
+    var ruleSchemeCustomizations: [String: RuleSchemeCustomization]?
     /// Whether imported policy-group names keep their decorative leading emoji,
     /// keyed by scheme id. Missing entries preserve the source appearance.
     var ruleGroupEmojisEnabled: [String: Bool]?
@@ -1109,6 +1112,9 @@ struct AppSnapshot: Codable {
     /// User-authored rules live outside downloaded schemes so upstream refresh
     /// can never overwrite them.
     var customRuleFlows: [CustomRuleFlow]?
+    /// Rulesets authored or saved by the user. Membership in an active scheme
+    /// remains in `customRuleFlows`, so creating one does not enable it.
+    var localRuleSets: [LocalRuleSet]?
     /// Protocols the user chose not to write, keyed by client raw value. Stored
     /// as plain strings because a dictionary with a non-String key encodes as a
     /// flat array, which is awkward to read in state.json.
@@ -1147,9 +1153,11 @@ struct AppSnapshot: Codable {
         selectedTarget: ClientTarget,
         importedSchemes: [RuleScheme]? = nil,
         selectedRuleGroups: [String: [String]]? = nil,
+        ruleSchemeCustomizations: [String: RuleSchemeCustomization]? = nil,
         ruleGroupEmojisEnabled: [String: Bool]? = nil,
         excludedNodeIDs: [UUID]? = nil,
         customRuleFlows: [CustomRuleFlow]? = nil,
+        localRuleSets: [LocalRuleSet]? = nil,
         excludedKinds: [String: [String]]? = nil,
         renewalRemindersEnabled: Bool? = nil,
         clientOrder: [String]? = nil,
@@ -1168,9 +1176,11 @@ struct AppSnapshot: Codable {
         self.selectedTarget = selectedTarget
         self.importedSchemes = importedSchemes
         self.selectedRuleGroups = selectedRuleGroups
+        self.ruleSchemeCustomizations = ruleSchemeCustomizations
         self.ruleGroupEmojisEnabled = ruleGroupEmojisEnabled
         self.excludedNodeIDs = excludedNodeIDs
         self.customRuleFlows = customRuleFlows
+        self.localRuleSets = localRuleSets
         self.excludedKinds = excludedKinds
         self.renewalRemindersEnabled = renewalRemindersEnabled
         self.clientOrder = clientOrder

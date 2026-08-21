@@ -144,10 +144,108 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertTrue(source.contains("RulesOverviewCard()"))
         XCTAssertTrue(source.contains(".searchable("))
-        XCTAssertTrue(source.contains("rule-group-selector"))
-        XCTAssertTrue(source.contains("custom-rule-flow-list"))
+        XCTAssertTrue(source.contains("rule-customization"))
+        XCTAssertTrue(source.contains("rule-customization-list"))
+        XCTAssertTrue(source.contains("customRuleGroupsSection"))
+        XCTAssertTrue(source.contains("规则定制"))
+        XCTAssertTrue(source.contains("当前规则"))
+        XCTAssertTrue(source.contains("我的规则集"))
+        XCTAssertTrue(source.contains("在线规则库"))
+        XCTAssertTrue(source.contains("新建规则集"))
+        XCTAssertTrue(source.contains("支持手动创建规则和引用规则集。"))
+        XCTAssertTrue(source.contains("model.addLocalRuleSet"))
+        XCTAssertTrue(source.contains("model.removeLocalRuleSet"))
+        XCTAssertTrue(source.contains("名称，例如 🎬 奈飞"))
+        XCTAssertTrue(source.contains("https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list"))
+        XCTAssertTrue(source.contains("DOMAIN,apple.comscoreresearch.com"))
+        XCTAssertTrue(source.contains("IP-CIDR,17.0.0.0/8,no-resolve"))
+        XCTAssertFalse(source.contains(".swipeActions"))
+        XCTAssertTrue(source.contains("pendingGroupDeletion"))
         XCTAssertTrue(source.contains("custom-rule-flow-editor"))
         XCTAssertTrue(source.contains("scrollDismissesKeyboard(.interactively)"))
+        XCTAssertTrue(source.contains("scheme.routingTargetGroupNames("))
+        XCTAssertFalse(source.contains("model.effectiveScheme(scheme).groups.map(\\.name) + [\"DIRECT\", \"REJECT\"]"))
+    }
+
+    func testEachRuleSchemeOpensItsOwnCustomizationWithoutBottomShortcut() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
+        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let cardSource = String(source[cardStart.lowerBound..<nextCardStart.lowerBound])
+
+        XCTAssertFalse(
+            source.contains("customizationSection("),
+            "规则定制属于每个方案，不应继续作为页面底部的全局入口"
+        )
+        XCTAssertGreaterThanOrEqual(
+            source.components(separatedBy: "onCustomize: { customizationScheme =").count - 1,
+            3,
+            "本机规则、Self-Configuration 和普通导入方案都应直接打开自己的定制页"
+        )
+        XCTAssertTrue(cardSource.contains("let onCustomize: () -> Void"))
+        XCTAssertTrue(cardSource.contains("Button(action: onCustomize)"))
+        XCTAssertTrue(cardSource.contains("Button(action: onSelect)"))
+        XCTAssertTrue(cardSource.contains("rule-customization-\\(scheme.id)"))
+    }
+
+    func testRulesHomeExplainsThatSchemeCardsAreEditable() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+
+        XCTAssertTrue(source.contains("点击规则方案即可修改规则"))
+        XCTAssertTrue(source.contains("rules-editing-hint"))
+    }
+
+    func testRuleCustomizationUsesRequestedOnlineSearchPromptAndCompactRows() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+
+        XCTAssertTrue(source.contains("在线搜索规则：如 YouTube OpenAI"))
+        XCTAssertTrue(source.contains("compactRuleRowInsets"))
+        XCTAssertTrue(source.contains(".towerToast()"))
+    }
+
+    func testCurrentRuleRowsHideTheRedundantGroupModeLabel() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let rowStart = try XCTUnwrap(source.range(of: "private func customRuleGroupRow"))
+        let nextFunctionStart = try XCTUnwrap(
+            source.range(of: "private func categoryButton", range: rowStart.upperBound..<source.endIndex)
+        )
+        let rowSource = String(source[rowStart.lowerBound..<nextFunctionStart.lowerBound])
+
+        XCTAssertFalse(rowSource.contains("Text(groupModeTitle(group))"))
+        XCTAssertTrue(rowSource.contains("Text(groupSelectionSummary(group))"))
+    }
+
+    func testCustomRuleEditorUsesCompactMonospacedExamples() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let editorStart = try XCTUnwrap(source.range(of: "private struct LocalRuleSetEditor: View"))
+        let editorSource = String(source[editorStart.lowerBound...])
+
+        XCTAssertTrue(editorSource.contains(".font(.system(.footnote, design: .monospaced))"))
+        XCTAssertTrue(editorSource.contains(".lineLimit(1)"))
+        XCTAssertTrue(editorSource.contains(".minimumScaleFactor(0.72)"))
+        XCTAssertFalse(editorSource.contains(".font(.system(.body, design: .monospaced))"))
+    }
+
+    func testRulesPageDoesNotExposeSwipeEditingOrDeletion() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let importedSection = try XCTUnwrap(source.range(of: "private var importedSchemesSection"))
+        let overviewStart = try XCTUnwrap(source.range(of: "private struct RulesOverviewCard"))
+        let importedSource = String(source[importedSection.lowerBound..<overviewStart.lowerBound])
+        let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard"))
+        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet"))
+        let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
+
+        XCTAssertFalse(source.contains("private struct ImportedRuleSchemeRow"))
+        XCTAssertFalse(source.contains(".swipeActions"))
+        XCTAssertFalse(source.contains("DragGesture(minimumDistance:"))
+        XCTAssertTrue(importedSource.contains("onEdit: { editingImportedScheme = scheme }"))
+        XCTAssertTrue(importedSource.contains("onDelete: { pendingDeletion = scheme }"))
+        XCTAssertTrue(cardSource.contains(".contextMenu"))
+        XCTAssertTrue(cardSource.contains("Label(\"编辑\", systemImage: \"pencil\")"))
+        XCTAssertTrue(cardSource.contains("Label(\"删除\", systemImage: \"trash\")"))
+        XCTAssertTrue(source.contains("ImportedRuleSchemeEditor("))
+        XCTAssertTrue(source.contains("TextField(\"名称\""))
+        XCTAssertTrue(source.contains("TextField(\"简介\""))
     }
 
     func testRulesViewDoesNotShowRedundantTopSectionTabs() throws {
@@ -170,13 +268,171 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("accessibilityIdentifier(\"import-rule-scheme\")"))
     }
 
-    func testRuleGroupCustomizationDoesNotOfferBulkEnableAndIncludesEmojiToggle() throws {
+    func testRuleImportSheetUsesImportAsItsConfirmationAction() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let nextType = try XCTUnwrap(source.range(of: "private struct CatalogRuleEditorRequest"))
+        let sheetSource = String(source[sheetStart.lowerBound..<nextType.lowerBound])
+
+        XCTAssertTrue(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导入\")"))
+        XCTAssertFalse(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导出\")"))
+    }
+
+    func testRuleGroupCustomizationUsesOneReorderableEditableList() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
-        XCTAssertTrue(source.contains("SectionHeading(title: \"自定义\""))
-        XCTAssertTrue(source.contains("Text(\"自定义分组服务\")"))
-        XCTAssertTrue(source.contains("\"显示 Emoji\""))
-        XCTAssertFalse(source.contains("Button(\"全部启用\")"))
+        XCTAssertTrue(source.contains("private var customRuleGroupsSection"))
+        XCTAssertTrue(source.contains("RuleGroupEditor("))
+        XCTAssertTrue(source.contains(".onMove"))
+        XCTAssertTrue(source.contains("另存为新方案"))
+        XCTAssertFalse(source.contains("private var protectedGroupsSection"))
+        XCTAssertFalse(source.contains("private var serviceGroupsSection"))
+        XCTAssertFalse(source.contains("Section(\"固定分组\")"))
+        XCTAssertFalse(source.contains("Text(\"服务分组\")"))
+    }
+
+    func testRestoringInitialRulesLivesInProminentToolbarMenuAndRequiresConfirmation() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct RuleCustomizationSheet: View"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private struct RuleGroupIdentityEditor: View"))
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+        let menuStart = try XCTUnwrap(sheetSource.range(of: "ToolbarItem(placement: .cancellationAction)"))
+        let confirmationStart = try XCTUnwrap(sheetSource.range(of: "ToolbarItemGroup(placement: .confirmationAction)"))
+        let menuSource = String(sheetSource[menuStart.lowerBound..<confirmationStart.lowerBound])
+
+        XCTAssertFalse(sheetSource.contains("schemeActionsSection"))
+        XCTAssertFalse(sheetSource.contains("Text(\"恢复为刚导入或内置时的状态\")"))
+        XCTAssertFalse(menuSource.contains("Label(\"更多\", systemImage: \"ellipsis.circle\")"))
+        XCTAssertTrue(menuSource.contains("Image(systemName: \"ellipsis\")"))
+        XCTAssertTrue(menuSource.contains(".font(.title2.weight(.bold))"))
+        XCTAssertTrue(menuSource.contains(".foregroundStyle(.tint)"))
+        XCTAssertFalse(menuSource.contains("Circle().fill(.tint)"))
+        XCTAssertFalse(menuSource.contains(".foregroundStyle(.white)"))
+        XCTAssertFalse(menuSource.contains(".frame(width: 44, height: 44)"))
+        XCTAssertTrue(menuSource.contains(".accessibilityLabel(\"更多\")"))
+        XCTAssertTrue(menuSource.contains("Button(role: .destructive)"))
+        XCTAssertTrue(menuSource.contains("showsResetConfirmation = true"))
+        XCTAssertTrue(
+            menuSource.contains("Label(\"恢复初始规则\", systemImage: \"arrow.counterclockwise\")")
+        )
+        XCTAssertTrue(sheetSource.contains("@State private var showsResetConfirmation = false"))
+        XCTAssertTrue(sheetSource.contains(".confirmationDialog(\"恢复初始规则\""))
+    }
+
+    func testRuleGroupReorderingUsesALocalDraftAndCommitsAfterEditing() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct RuleCustomizationSheet: View"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private struct RuleGroupIdentityEditor: View"))
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+        let sectionStart = try XCTUnwrap(sheetSource.range(of: "private var customRuleGroupsSection"))
+        let userFlowStart = try XCTUnwrap(sheetSource.range(of: "private func userCreatedFlow"))
+        let sectionSource = String(sheetSource[sectionStart.lowerBound..<userFlowStart.lowerBound])
+
+        XCTAssertTrue(sheetSource.contains("@State private var editingGroups: [RuleSchemeGroup] = []"))
+        XCTAssertTrue(sectionSource.contains("editingGroups.move(fromOffsets: source, toOffset: destination)"))
+        XCTAssertFalse(sectionSource.contains("model.moveRuleGroups(fromOffsets:"))
+        XCTAssertTrue(sheetSource.contains("private func commitEditingGroupOrder()"))
+        XCTAssertTrue(sheetSource.contains("model.setRuleGroupOrder(names, for: scheme)"))
+    }
+
+    func testRuleGroupReorderGestureExistsInBothModesAndUsesLocalDraft() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct RuleCustomizationSheet: View"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private struct RuleGroupIdentityEditor: View"))
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+        let sectionStart = try XCTUnwrap(sheetSource.range(of: "private var customRuleGroupsSection"))
+        let userFlowStart = try XCTUnwrap(sheetSource.range(of: "private func userCreatedFlow"))
+        let sectionSource = String(sheetSource[sectionStart.lowerBound..<userFlowStart.lowerBound])
+
+        XCTAssertTrue(sectionSource.contains("if ruleEditMode.isEditing {"))
+        XCTAssertTrue(sectionSource.contains("ForEach(editingGroups, id: \\.name)"))
+        XCTAssertTrue(sectionSource.contains("ForEach(visibleGroups, id: \\.name)"))
+        XCTAssertEqual(sectionSource.components(separatedBy: ".onMove").count - 1, 2)
+
+        let editingListStart = try XCTUnwrap(sectionSource.range(of: "ForEach(editingGroups, id: \\.name)"))
+        let normalListStart = try XCTUnwrap(sectionSource.range(of: "ForEach(visibleGroups, id: \\.name)"))
+        let editingBranch = String(sectionSource[editingListStart.lowerBound..<normalListStart.lowerBound])
+        let normalBranch = String(sectionSource[normalListStart.lowerBound...])
+        XCTAssertTrue(editingBranch.contains(".onMove"))
+        XCTAssertTrue(normalBranch.contains(".onMove"))
+        XCTAssertTrue(normalBranch.contains("moveRuleGroupsInNormalMode"))
+        XCTAssertTrue(sheetSource.contains("private func moveRuleGroupsInNormalMode"))
+        XCTAssertTrue(sheetSource.contains("editingGroups.move(fromOffsets: source, toOffset: destination)"))
+        XCTAssertTrue(sheetSource.contains("model.setRuleGroupOrder(names, for: scheme)"))
+    }
+
+    func testEditModeOffersRuleEmojiAndNameEditing() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct RuleCustomizationSheet: View"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private struct RuleGroupIdentityEditor: View"))
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+        let listStart = try XCTUnwrap(sheetSource.range(of: "List {"))
+        let navigationTitle = try XCTUnwrap(sheetSource.range(of: ".navigationTitle("))
+        let listConfiguration = String(sheetSource[listStart.lowerBound..<navigationTitle.lowerBound])
+
+        XCTAssertTrue(sheetSource.contains("@State private var ruleEditMode: EditMode = .inactive"))
+        XCTAssertTrue(listConfiguration.contains(".environment(\\.editMode, $ruleEditMode)"))
+        XCTAssertTrue(sheetSource.contains("ruleEditMode.isEditing"))
+        XCTAssertFalse(sheetSource.contains("@Environment(\\.editMode) private var editMode"))
+        XCTAssertFalse(sheetSource.contains("EditButton()"))
+        XCTAssertTrue(sheetSource.contains("toggleRuleEditing()"))
+        XCTAssertTrue(sheetSource.contains("private func toggleRuleEditing()"))
+        XCTAssertTrue(sheetSource.contains("beginRuleEditing()"))
+        XCTAssertTrue(sheetSource.contains("finishRuleEditing()"))
+        XCTAssertTrue(source.contains("RuleGroupIdentityEditor("))
+        XCTAssertTrue(source.contains("private func editableRuleIdentityButton"))
+        XCTAssertTrue(source.contains(".buttonStyle(.borderless)"))
+        XCTAssertTrue(source.contains(".frame(minHeight: 44)"))
+        XCTAssertTrue(source.contains("openIdentityEditor(for: group)"))
+        XCTAssertTrue(source.contains("TextField(\"Emoji\""))
+        XCTAssertTrue(source.contains("TextField(\"规则名称\""))
+    }
+
+    func testRuleGroupEmojiToggleKeepsRowGeometryStableWithoutImplicitAnimation() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let sheetStart = try XCTUnwrap(source.range(of: "private struct RuleCustomizationSheet: View"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private struct RuleGroupIdentityEditor: View"))
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+        let menuStart = try XCTUnwrap(sheetSource.range(of: "ToolbarItem(placement: .cancellationAction)"))
+        let confirmationStart = try XCTUnwrap(sheetSource.range(of: "ToolbarItemGroup(placement: .confirmationAction)"))
+        let menuSource = String(sheetSource[menuStart.lowerBound..<confirmationStart.lowerBound])
+        let emojiStart = try XCTUnwrap(sheetSource.range(of: "private func visibleRuleGroupEmoji"))
+        let identityStart = try XCTUnwrap(sheetSource.range(of: "private func openIdentityEditor"))
+        let emojiSource = String(sheetSource[emojiStart.lowerBound..<identityStart.lowerBound])
+
+        XCTAssertTrue(
+            sheetSource.contains("Label(\"显示策略组 Emoji\", systemImage: \"face.smiling\")")
+        )
+        XCTAssertFalse(menuSource.contains("Toggle("))
+        XCTAssertTrue(menuSource.contains("toggleRuleGroupEmojiVisibilityAfterMenuDismiss()"))
+        XCTAssertTrue(menuSource.contains(".menuActionDismissBehavior(.enabled)"))
+        XCTAssertTrue(sheetSource.contains("private func toggleRuleGroupEmojiVisibilityAfterMenuDismiss()"))
+        XCTAssertTrue(sheetSource.contains("Task.sleep(for: .milliseconds(180))"))
+        XCTAssertTrue(sheetSource.contains("transaction.disablesAnimations = true"))
+        XCTAssertEqual(
+            sheetSource.components(separatedBy: "visibleRuleGroupEmoji(group)").count - 1,
+            2
+        )
+        XCTAssertTrue(emojiSource.contains("let emojisVisible = model.ruleGroupEmojisAreEnabled(for: scheme)"))
+        XCTAssertTrue(emojiSource.contains(".frame(width: 28, height: 28)"))
+        XCTAssertTrue(emojiSource.contains(".opacity(emojisVisible ? 1 : 0)"))
+        XCTAssertTrue(emojiSource.contains(".accessibilityHidden(!emojisVisible)"))
+        XCTAssertTrue(emojiSource.contains(".animation(nil, value: emojisVisible)"))
+        XCTAssertFalse(emojiSource.contains("if model.ruleGroupEmojisAreEnabled"))
+    }
+
+    func testCurrentRuleGroupNamesAlwaysUsePrimaryForeground() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let rowStart = try XCTUnwrap(source.range(of: "private func customRuleGroupRow"))
+        let identityEditorStart = try XCTUnwrap(source.range(of: "private func openIdentityEditor"))
+        let rowSource = String(source[rowStart.lowerBound..<identityEditorStart.lowerBound])
+
+        XCTAssertFalse(rowSource.contains("let enabled = model.selectedRuleGroupNames"))
+        XCTAssertFalse(rowSource.contains("foregroundStyle(enabled ?"))
+        XCTAssertEqual(
+            rowSource.components(separatedBy: ".foregroundStyle(Color.primary)").count - 1,
+            2
+        )
     }
 
     func testDownloadedSelfConfigurationReusesTheACLRuleCard() throws {
