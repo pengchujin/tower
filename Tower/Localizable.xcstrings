@@ -1224,6 +1224,100 @@
         }
       }
     },
+    "%@，当前使用": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@، قيد الاستخدام حالياً"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, derzeit verwendet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, currently in use"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, en uso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, actuellement utilisé"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, sedang digunakan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、使用中"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, 현재 사용 중"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, em uso"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, используется сейчас"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ กำลังใช้งานอยู่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, şu anda kullanılıyor"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, đang dùng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，当前使用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，目前使用中"
+          }
+        }
+      }
+    },
     "%lld ms": {
       "localizations": {
         "ar": {
@@ -2066,6 +2160,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 個規則清單刷新失敗"
+          }
+        }
+      }
+    },
+    "%lld 个订阅已全部更新": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم تحديث %lld اشتراكات بالكامل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle %lld Abos aktualisiert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All %lld subscriptions updated"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se actualizaron las %lld suscripciones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les %lld abonnements ont été mis à jour"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semua %lld langganan diperbarui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件の購読をすべて更新しました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 구독을 모두 업데이트했습니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todas as %lld assinaturas foram atualizadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновлены все подписки: %lld"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตครบทั้ง %lld การสมัครแล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld aboneliğin tümü güncellendi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã cập nhật toàn bộ %lld đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个订阅已全部更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個訂閱已全部更新"
           }
         }
       }
@@ -3855,6 +4043,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "DNS（可選）"
+          }
+        }
+      }
+    },
+    "Emoji": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيموجي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Émoji"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "絵文字"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이모지"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эмодзи"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อิโมจิ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
+          }
+        }
+      }
+    },
+    "Emoji 与名称会同步更新规则绑定和其他策略组引用。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُحدِّث تغيير الإيموجي والاسم ارتباطات القواعد ومراجع مجموعات السياسات الأخرى تلقائياً."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji und Name aktualisieren die Regelzuordnungen und Verweise anderer Richtliniengruppen mit."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing the emoji and name also updates the rule bindings and references from other policy groups."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El emoji y el nombre actualizan también las asociaciones de reglas y las referencias de otros grupos de políticas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'émoji et le nom mettent aussi à jour les associations de règles et les références des autres groupes de politiques."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji dan nama juga memperbarui pengikatan aturan serta referensi grup kebijakan lain."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "絵文字と名前の変更は、ルールの割り当てと他のポリシーグループからの参照にも反映されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이모지와 이름을 바꾸면 규칙 연결과 다른 정책 그룹의 참조도 함께 갱신됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O emoji e o nome também atualizam os vínculos de regras e as referências de outros grupos de políticas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эмодзи и имя также обновляют привязки правил и ссылки из других групп политик."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การเปลี่ยนอิโมจิและชื่อจะอัปเดตการผูกกฎและการอ้างอิงจากกลุ่มนโยบายอื่นด้วย"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji ve ad, kural bağlantılarını ve diğer politika gruplarındaki referansları da günceller."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji và tên cũng cập nhật các ràng buộc quy tắc và tham chiếu từ nhóm chính sách khác."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji 与名称会同步更新规则绑定和其他策略组引用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji 與名稱會同步更新規則綁定和其他策略群組參照。"
           }
         }
       }
@@ -9876,6 +10252,100 @@
         }
       }
     },
+    "从自定义规则移除": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إزالة من القواعد المخصصة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus eigenen Regeln entfernen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from custom rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar de las reglas personalizadas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer des règles personnalisées"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hapus dari aturan khusus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムルールから削除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 지정 규칙에서 제거"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover das regras personalizadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Убрать из своих правил"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "นำออกจากกฎที่กำหนดเอง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özel kurallardan çıkar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá khỏi quy tắc tuỳ chỉnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从自定义规则移除"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從自訂規則移除"
+          }
+        }
+      }
+    },
     "代码是公开的": {
       "localizations": {
         "ar": {
@@ -9970,6 +10440,100 @@
         }
       }
     },
+    "以下分组正在引用它：%@。继续删除后会同时移除这些引用；没有候选项的分组会回退到 DIRECT。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تشير إليه المجموعات التالية: %@. سيؤدي الحذف إلى إزالة تلك المراجع أيضاً، وأي مجموعة تبقى دون مرشحين ستعود إلى DIRECT."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Gruppen verweisen darauf: %@. Beim Löschen werden auch diese Verweise entfernt; Gruppen ohne Kandidaten fallen auf DIRECT zurück."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These groups reference it: %@. Deleting also removes those references, and any group left without candidates falls back to DIRECT."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estos grupos lo referencian: %@. Al eliminarlo también se quitan esas referencias; los grupos que queden sin candidatos volverán a DIRECT."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces groupes y font référence : %@. La suppression retire aussi ces références ; tout groupe sans candidat revient à DIRECT."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grup berikut mereferensikannya: %@. Menghapusnya juga menghapus referensi tersebut; grup tanpa kandidat akan kembali ke DIRECT."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次のグループが参照しています：%@。削除するとこれらの参照も取り除かれ、候補がなくなったグループは DIRECT に戻ります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 그룹이 이를 참조합니다: %@. 삭제하면 해당 참조도 함께 제거되고, 후보가 없어진 그룹은 DIRECT로 되돌아갑니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estes grupos fazem referência a ele: %@. Excluir também remove essas referências; grupos sem candidatos voltam para DIRECT."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На неё ссылаются группы: %@. Удаление уберёт и эти ссылки, а группы без кандидатов вернутся к DIRECT."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กลุ่มต่อไปนี้อ้างอิงถึงมัน: %@ การลบจะนำการอ้างอิงเหล่านั้นออกด้วย และกลุ่มที่ไม่เหลือตัวเลือกจะย้อนกลับไปใช้ DIRECT"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Şu gruplar buna başvuruyor: %@. Silmek bu başvuruları da kaldırır; adayı kalmayan gruplar DIRECT'e döner."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các nhóm sau đang tham chiếu nó: %@. Xoá sẽ gỡ luôn các tham chiếu đó; nhóm không còn ứng viên sẽ quay về DIRECT."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以下分组正在引用它：%@。继续删除后会同时移除这些引用；没有候选项的分组会回退到 DIRECT。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以下群組正在參照它：%@。繼續刪除後會同時移除這些參照；沒有候選項的群組會回退到 DIRECT。"
+          }
+        }
+      }
+    },
     "优先使用规则集": {
       "localizations": {
         "ar": {
@@ -10060,6 +10624,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "優先使用規則集"
+          }
+        }
+      }
+    },
+    "会保存当前分组顺序、候选策略与规则，下次可直接选择。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحفظ ترتيب المجموعات الحالي والسياسات المرشحة والقواعد، لتختاره مباشرة في المرة القادمة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichert die aktuelle Gruppenreihenfolge, Kandidatenrichtlinien und Regeln, damit du sie beim nächsten Mal direkt auswählen kannst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves the current group order, candidate policies and rules so you can pick it directly next time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guarda el orden de grupos, las políticas candidatas y las reglas actuales para poder elegirlo directamente la próxima vez."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistre l'ordre des groupes, les politiques candidates et les règles actuelles pour pouvoir le choisir directement la prochaine fois."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menyimpan urutan grup, kebijakan kandidat, dan aturan saat ini agar bisa langsung dipilih lain kali."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のグループ順、候補ポリシー、ルールを保存し、次回そのまま選べるようにします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 그룹 순서와 후보 정책, 규칙을 저장해 다음에 바로 선택할 수 있게 합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salva a ordem dos grupos, as políticas candidatas e as regras atuais para você escolher diretamente na próxima vez."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохраняет текущий порядок групп, политики-кандидаты и правила, чтобы в следующий раз выбрать сразу."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "บันทึกลำดับกลุ่ม นโยบายตัวเลือก และกฎปัจจุบัน เพื่อให้เลือกใช้ได้ทันทีในครั้งถัดไป"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçerli grup sırasını, aday politikaları ve kuralları kaydeder; bir dahaki sefere doğrudan seçebilirsin."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu thứ tự nhóm, chính sách ứng viên và quy tắc hiện tại để lần sau chọn ngay."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会保存当前分组顺序、候选策略与规则，下次可直接选择。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "會保存目前群組順序、候選策略與規則，下次可直接選擇。"
           }
         }
       }
@@ -10624,6 +11282,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "傳輸方式"
+          }
+        }
+      }
+    },
+    "使用 %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدام %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ verwenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gunakan %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を使用"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 사용"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать %@"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้ %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kullan"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dùng %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 %@"
           }
         }
       }
@@ -11284,6 +12036,288 @@
           "stringUnit": {
             "state": "translated",
             "value": "保留空閒會話數"
+          }
+        }
+      }
+    },
+    "修改 %@ 的 Emoji 和名称": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تغيير إيموجي واسم %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji und Name von %@ ändern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change the emoji and name of %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambiar el emoji y el nombre de %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier l'émoji et le nom de %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubah emoji dan nama %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ の絵文字と名前を変更"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@의 이모지와 이름 변경"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alterar o emoji e o nome de %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить эмодзи и имя %@"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปลี่ยนอิโมจิและชื่อของ %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ögesinin emoji ve adını değiştir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đổi emoji và tên của %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改 %@ 的 Emoji 和名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改 %@ 的 Emoji 和名稱"
+          }
+        }
+      }
+    },
+    "修改规则名称": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تغيير اسم القاعدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelnamen ändern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Rule Name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambiar nombre de la regla"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier le nom de la règle"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubah Nama Aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルール名を変更"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 이름 변경"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alterar nome da regra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить имя правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปลี่ยนชื่อกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural Adını Değiştir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đổi tên quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改规则名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改規則名稱"
+          }
+        }
+      }
+    },
+    "候选策略": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "السياسات المرشحة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kandidatenrichtlinien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Candidate Policies"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Políticas candidatas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politiques candidates"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kebijakan Kandidat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補ポリシー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후보 정책"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Políticas candidatas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Политики-кандидаты"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "นโยบายตัวเลือก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aday Politikalar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chính sách ứng viên"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选策略"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候選策略"
           }
         }
       }
@@ -12604,6 +13638,100 @@
         }
       }
     },
+    "全部节点": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل العقد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Knoten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All nodes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los nodos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tous les nœuds"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semua node"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのノード"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 노드"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos os nós"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все узлы"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ทุกโหนด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm düğümler"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tất cả các nút"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部节点"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部節點"
+          }
+        }
+      }
+    },
     "全部订阅来源": {
       "localizations": {
         "ar": {
@@ -12886,6 +14014,100 @@
         }
       }
     },
+    "关闭 iCloud 同步？": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف مزامنة iCloud؟"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud-Synchronisierung ausschalten?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off iCloud sync?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Desactivar la sincronización con iCloud?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver la synchronisation iCloud ?"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matikan sinkronisasi iCloud?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 同期をオフにしますか？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 동기화를 끌까요?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desativar a sincronização com iCloud?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отключить синхронизацию с iCloud?"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดการซิงก์ iCloud ไหม"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud eşitleme kapatılsın mı?"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tắt đồng bộ iCloud?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭 iCloud 同步？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉 iCloud 同步？"
+          }
+        }
+      }
+    },
     "关闭后，导出配置里的策略组会同步移除开头的 Emoji。": {
       "localizations": {
         "ar": {
@@ -12976,6 +14198,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "關閉後，匯出設定裡的策略群組會同步移除開頭的 Emoji。"
+          }
+        }
+      }
+    },
+    "关闭并删除 iCloud 副本": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإيقاف وحذف نسخة iCloud"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausschalten und iCloud-Kopie löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn Off and Delete iCloud Copy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivar y eliminar la copia de iCloud"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver et supprimer la copie iCloud"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matikan dan hapus salinan iCloud"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフにして iCloud のコピーを削除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "끄고 iCloud 사본 삭제"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desativar e apagar a cópia do iCloud"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отключить и удалить копию в iCloud"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดและลบสำเนาใน iCloud"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapat ve iCloud kopyasını sil"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tắt và xoá bản sao iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭并删除 iCloud 副本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉並刪除 iCloud 副本"
           }
         }
       }
@@ -14292,6 +15608,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "刪除"
+          }
+        }
+      }
+    },
+    "删除 iCloud 上的副本": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف النسخة من iCloud"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopie in iCloud löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Copy in iCloud"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar la copia en iCloud"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer la copie dans iCloud"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hapus salinan di iCloud"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 上のコピーを削除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud의 사본 삭제"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar cópia no iCloud"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить копию в iCloud"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลบสำเนาใน iCloud"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud'daki kopyayı sil"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá bản sao trên iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 iCloud 上的副本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刪除 iCloud 上的副本"
           }
         }
       }
@@ -16272,6 +17682,100 @@
         }
       }
     },
+    "另存为新方案": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ كمخطط جديد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als neues Schema sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as New Scheme"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar como nuevo esquema"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer comme nouveau schéma"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simpan sebagai Skema Baru"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいスキームとして保存"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 구성으로 저장"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvar como novo esquema"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранить как новую схему"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "บันทึกเป็นชุดใหม่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni Şema Olarak Kaydet"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu thành bộ mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另存为新方案"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另存為新方案"
+          }
+        }
+      }
+    },
     "另有 %lld 个节点暂时无法按 IP 或名称定位，仍可正常测试与导出。": {
       "localizations": {
         "ar": {
@@ -16551,6 +18055,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "只修改顯示資訊，不會變更規則內容或來源連結。"
+          }
+        }
+      }
+    },
+    "只关闭同步": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف المزامنة فقط"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur Synchronisierung ausschalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just Turn Off Sync"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo desactivar la sincronización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver seulement la synchronisation"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya matikan sinkronisasi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同期をオフにするだけ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동기화만 끄기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apenas desativar a sincronização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Только отключить синхронизацию"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดเฉพาะการซิงก์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca eşitlemeyi kapat"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ tắt đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只关闭同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只關閉同步"
+          }
+        }
+      }
+    },
+    "只关闭同步会把已经上传的订阅地址和节点密码留在 iCloud 上。删除副本不影响这台设备上的配置。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف المزامنة وحده يُبقي روابط الاشتراك وكلمات مرور العقد المرفوعة في iCloud. حذف النسخة لا يؤثر على الإعدادات على هذا الجهاز."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die Synchronisierung auszuschalten lässt die hochgeladenen Abo-Links und Knoten-Passwörter in iCloud zurück. Das Löschen der Kopie ändert nichts an der Konfiguration auf diesem Gerät."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turning off sync alone leaves the uploaded subscription URLs and node passwords in iCloud. Deleting the copy does not affect the configuration on this device."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivar solo la sincronización deja en iCloud los enlaces de suscripción y contraseñas de nodos ya subidos. Eliminar la copia no afecta a la configuración de este dispositivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver seulement la synchronisation laisse dans iCloud les liens d'abonnement et mots de passe de nœuds déjà envoyés. Supprimer la copie n'affecte pas la configuration de cet appareil."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya mematikan sinkronisasi akan meninggalkan tautan langganan dan kata sandi node yang sudah diunggah di iCloud. Menghapus salinan tidak memengaruhi konfigurasi di perangkat ini."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同期をオフにするだけでは、アップロード済みの購読リンクとノードのパスワードは iCloud 上に残ります。コピーを削除してもこの端末の設定には影響しません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동기화만 끄면 이미 업로드된 구독 주소와 노드 비밀번호가 iCloud에 남습니다. 사본을 삭제해도 이 기기의 구성에는 영향이 없습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apenas desativar a sincronização deixa no iCloud os links de assinatura e senhas de nós já enviados. Apagar a cópia não afeta a configuração neste dispositivo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если только отключить синхронизацию, загруженные ссылки подписок и пароли узлов останутся в iCloud. Удаление копии не влияет на конфигурацию на этом устройстве."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การปิดเฉพาะการซิงก์จะทิ้งลิงก์การสมัครและรหัสผ่านโหนดที่อัปโหลดแล้วไว้บน iCloud การลบสำเนาไม่กระทบการตั้งค่าบนอุปกรณ์นี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca eşitlemeyi kapatmak, yüklenmiş abonelik bağlantılarını ve düğüm parolalarını iCloud'da bırakır. Kopyayı silmek bu cihazdaki yapılandırmayı etkilemez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ tắt đồng bộ sẽ để lại trên iCloud các liên kết đăng ký và mật khẩu nút đã tải lên. Xoá bản sao không ảnh hưởng đến cấu hình trên thiết bị này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只关闭同步会把已经上传的订阅地址和节点密码留在 iCloud 上。删除副本不影响这台设备上的配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只關閉同步會把已經上傳的訂閱網址和節點密碼留在 iCloud 上。刪除副本不影響這台裝置上的設定。"
           }
         }
       }
@@ -17303,6 +18995,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "可一次貼上多條連結，每行一條。支援 HTTP 和 HTTPS 訂閱，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 節點。HTTP 訂閱會以明文傳輸訂閱地址和節點內容。"
+          }
+        }
+      }
+    },
+    "可添加策略": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سياسات يمكن إضافتها"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügbare Richtlinien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Policies You Can Add"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Políticas que puedes añadir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politiques ajoutables"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kebijakan yang Bisa Ditambahkan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加できるポリシー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가할 수 있는 정책"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Políticas que você pode adicionar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Политики, которые можно добавить"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "นโยบายที่เพิ่มได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eklenebilir Politikalar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chính sách có thể thêm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可添加策略"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可新增策略"
           }
         }
       }
@@ -19377,100 +21163,6 @@
         }
       }
     },
-    "在线搜索规则：如 YouTube OpenAI": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "البحث عن قواعد عبر الإنترنت: مثل YouTube وOpenAI"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Regeln online suchen: z. B. YouTube, OpenAI"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search online rules, e.g. YouTube or OpenAI"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar reglas en línea: p. ej., YouTube u OpenAI"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rechercher des règles en ligne, par ex. YouTube ou OpenAI"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cari aturan online, misalnya YouTube atau OpenAI"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "オンラインルールを検索：例 YouTube、OpenAI"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "온라인 규칙 검색: 예) YouTube, OpenAI"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar regras online, como YouTube ou OpenAI"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Поиск правил онлайн: например, YouTube или OpenAI"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ค้นหากฎออนไลน์ เช่น YouTube หรือ OpenAI"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Çevrimiçi kural ara: ör. YouTube veya OpenAI"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tìm quy tắc trực tuyến, ví dụ YouTube hoặc OpenAI"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在线搜索规则：如 YouTube OpenAI"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "線上搜尋規則：例如 YouTube、OpenAI"
-          }
-        }
-      }
-    },
     "在线规则库": {
       "localizations": {
         "ar": {
@@ -20689,6 +22381,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "複製連結"
+          }
+        }
+      }
+    },
+    "好": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حسناً"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОК"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตกลง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamam"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
           }
         }
       }
@@ -23701,6 +25487,100 @@
         }
       }
     },
+    "已删除 iCloud 上的副本": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم حذف النسخة من iCloud"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopie in iCloud gelöscht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy in iCloud deleted"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia en iCloud eliminada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie dans iCloud supprimée"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salinan di iCloud dihapus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 上のコピーを削除しました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud의 사본을 삭제했습니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cópia no iCloud apagada"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копия в iCloud удалена"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลบสำเนาใน iCloud แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud'daki kopya silindi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã xoá bản sao trên iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已删除 iCloud 上的副本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已刪除 iCloud 上的副本"
+          }
+        }
+      }
+    },
     "已同步到 iCloud": {
       "localizations": {
         "ar": {
@@ -25299,6 +27179,100 @@
         }
       }
     },
+    "已经存在同名规则。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "توجد قاعدة بالاسم نفسه بالفعل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es gibt bereits eine Regel mit diesem Namen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A rule with that name already exists."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya existe una regla con ese nombre."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une règle portant ce nom existe déjà."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aturan dengan nama itu sudah ada."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ名前のルールがすでに存在します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "같은 이름의 규칙이 이미 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Já existe uma regra com esse nome."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Правило с таким именем уже существует."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "มีกฎชื่อนี้อยู่แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu ada sahip bir kural zaten var."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã có quy tắc trùng tên."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已经存在同名规则。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已經存在同名規則。"
+          }
+        }
+      }
+    },
     "已识别": {
       "localizations": {
         "ar": {
@@ -25859,6 +27833,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "已跳過"
+          }
+        }
+      }
+    },
+    "已选": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محدد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccionado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionné"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dipilih"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択中"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택됨"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecionado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрано"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกแล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seçili"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã chọn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已選"
           }
         }
       }
@@ -27745,6 +29813,100 @@
         }
       }
     },
+    "恢复默认配置名称": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استعادة اسم الملف الافتراضي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard-Konfigurationsnamen wiederherstellen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore default configuration name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar el nombre de configuración predeterminado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir le nom de configuration par défaut"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pulihkan nama konfigurasi bawaan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルトの構成名に戻す"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 구성 이름으로 복원"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar o nome de configuração padrão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Восстановить имя конфигурации по умолчанию"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คืนค่าชื่อการตั้งค่าเริ่มต้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varsayılan yapılandırma adını geri yükle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khôi phục tên cấu hình mặc định"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认配置名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢復預設設定檔名稱"
+          }
+        }
+      }
+    },
     "您的节点不会被泄露": {
       "localizations": {
         "ar": {
@@ -27839,96 +30001,96 @@
         }
       }
     },
-    "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。": {
+    "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步后可以选择一并删除 iCloud 上的副本。": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "سيتم رفع روابط اشتراكك وكلمات مرور العقد إلى حساب iCloud الخاص بك للمزامنة بين أجهزة حساب Apple نفسه. لا تُرسل إلى Tower ولا إلى أي طرف ثالث. إيقاف المزامنة لا يحذف النسخة الموجودة في iCloud."
+            "value": "سيتم رفع روابط اشتراكك وكلمات مرور العقد إلى حساب iCloud الخاص بك للمزامنة بين أجهزة حساب Apple نفسه. لا تُرسل إلى Tower ولا إلى أي طرف ثالث. بعد إيقاف المزامنة يمكنك أيضاً حذف النسخة الموجودة في iCloud."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Abo-Links und Knoten-Passwörter werden in dein eigenes iCloud-Konto geladen, um sie zwischen Geräten desselben Apple-Accounts abzugleichen. Sie gehen weder an Tower noch an Dritte. Das Abschalten löscht die vorhandene Kopie in iCloud nicht."
+            "value": "Deine Abo-Links und Knoten-Passwörter werden in dein eigenes iCloud-Konto geladen, um sie zwischen Geräten desselben Apple-Accounts abzugleichen. Sie gehen weder an Tower noch an Dritte. Nach dem Abschalten kannst du die Kopie in iCloud ebenfalls löschen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your subscription URLs and node passwords will be uploaded to your own iCloud account, to sync between devices on the same Apple Account. They are not sent to Tower or any third party. Turning sync off does not delete the copy already in iCloud."
+            "value": "Your subscription URLs and node passwords will be uploaded to your own iCloud account, to sync between devices on the same Apple Account. They are not sent to Tower or any third party. After turning sync off you can choose to delete the copy in iCloud as well."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tus enlaces de suscripción y contraseñas de nodos se subirán a tu propia cuenta de iCloud para sincronizar entre dispositivos de la misma cuenta de Apple. No se envían a Tower ni a terceros. Desactivar la sincronización no borra la copia que ya está en iCloud."
+            "value": "Tus enlaces de suscripción y contraseñas de nodos se subirán a tu propia cuenta de iCloud para sincronizar entre dispositivos de la misma cuenta de Apple. No se envían a Tower ni a terceros. Tras desactivar la sincronización puedes eliminar también la copia en iCloud."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vos liens d'abonnement et mots de passe de nœuds seront envoyés vers votre propre compte iCloud, pour la synchronisation entre appareils du même compte Apple. Ils ne sont transmis ni à Tower ni à un tiers. Désactiver la synchronisation ne supprime pas la copie déjà présente dans iCloud."
+            "value": "Vos liens d'abonnement et mots de passe de nœuds seront envoyés vers votre propre compte iCloud, pour la synchronisation entre appareils du même compte Apple. Ils ne sont transmis ni à Tower ni à un tiers. Après avoir désactivé la synchronisation, vous pouvez aussi supprimer la copie dans iCloud."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tautan langganan dan kata sandi node Anda akan diunggah ke akun iCloud Anda sendiri untuk disinkronkan antar perangkat pada Akun Apple yang sama. Semuanya tidak dikirim ke Tower maupun pihak ketiga. Mematikan sinkronisasi tidak menghapus salinan yang sudah ada di iCloud."
+            "value": "Tautan langganan dan kata sandi node Anda akan diunggah ke akun iCloud Anda sendiri untuk disinkronkan antar perangkat pada Akun Apple yang sama. Semuanya tidak dikirim ke Tower maupun pihak ketiga. Setelah mematikan sinkronisasi, Anda juga dapat menghapus salinan di iCloud."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "購読リンクとノードのパスワードは、同じ Apple アカウントの端末間で同期するために、あなた自身の iCloud アカウントへアップロードされます。塔台や第三者へは送られません。同期をオフにしても iCloud 上の既存のコピーは削除されません。"
+            "value": "購読リンクとノードのパスワードは、同じ Apple アカウントの端末間で同期するために、あなた自身の iCloud アカウントへアップロードされます。塔台や第三者へは送られません。同期をオフにしたあと、iCloud 上のコピーを削除することもできます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "구독 주소와 노드 비밀번호가 같은 Apple 계정 기기 간 동기화를 위해 사용자 본인의 iCloud 계정에 업로드됩니다. Tower나 제3자에게는 전송되지 않습니다. 동기화를 꺼도 iCloud에 있는 사본은 삭제되지 않습니다."
+            "value": "구독 주소와 노드 비밀번호가 같은 Apple 계정 기기 간 동기화를 위해 사용자 본인의 iCloud 계정에 업로드됩니다. Tower나 제3자에게는 전송되지 않습니다. 동기화를 끈 뒤 iCloud의 사본도 함께 삭제할 수 있습니다."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seus links de assinatura e senhas de nós serão enviados para a sua própria conta do iCloud, para sincronizar entre dispositivos da mesma Conta Apple. Não são enviados ao Tower nem a terceiros. Desativar a sincronização não apaga a cópia que já está no iCloud."
+            "value": "Seus links de assinatura e senhas de nós serão enviados para a sua própria conta do iCloud, para sincronizar entre dispositivos da mesma Conta Apple. Não são enviados ao Tower nem a terceiros. Depois de desativar a sincronização, você também pode apagar a cópia no iCloud."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ссылки подписок и пароли узлов будут загружены в ваш собственный аккаунт iCloud для синхронизации между устройствами одного аккаунта Apple. Они не отправляются ни Tower, ни третьим лицам. Отключение синхронизации не удаляет уже имеющуюся копию в iCloud."
+            "value": "Ссылки подписок и пароли узлов будут загружены в ваш собственный аккаунт iCloud для синхронизации между устройствами одного аккаунта Apple. Они не отправляются ни Tower, ни третьим лицам. После отключения синхронизации можно также удалить копию в iCloud."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ลิงก์การสมัครและรหัสผ่านโหนดของคุณจะถูกอัปโหลดไปยังบัญชี iCloud ของคุณเอง เพื่อซิงก์ระหว่างอุปกรณ์ในบัญชี Apple เดียวกัน ข้อมูลจะไม่ถูกส่งให้ Tower หรือบุคคลที่สาม การปิดการซิงก์จะไม่ลบสำเนาที่มีอยู่ใน iCloud"
+            "value": "ลิงก์การสมัครและรหัสผ่านโหนดของคุณจะถูกอัปโหลดไปยังบัญชี iCloud ของคุณเอง เพื่อซิงก์ระหว่างอุปกรณ์ในบัญชี Apple เดียวกัน ข้อมูลจะไม่ถูกส่งให้ Tower หรือบุคคลที่สาม หลังปิดการซิงก์ คุณสามารถเลือกลบสำเนาบน iCloud ได้ด้วย"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abonelik bağlantılarınız ve düğüm parolalarınız, aynı Apple Hesabındaki cihazlar arasında eşitlemek için kendi iCloud hesabınıza yüklenecek. Tower'a veya üçüncü taraflara gönderilmez. Eşitlemeyi kapatmak iCloud'daki mevcut kopyayı silmez."
+            "value": "Abonelik bağlantılarınız ve düğüm parolalarınız, aynı Apple Hesabındaki cihazlar arasında eşitlemek için kendi iCloud hesabınıza yüklenecek. Tower'a veya üçüncü taraflara gönderilmez. Eşitlemeyi kapattıktan sonra iCloud'daki kopyayı da silebilirsiniz."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liên kết đăng ký và mật khẩu các nút sẽ được tải lên tài khoản iCloud của chính bạn để đồng bộ giữa các thiết bị dùng chung Tài khoản Apple. Chúng không được gửi cho Tower hay bên thứ ba nào. Tắt đồng bộ không xoá bản sao đã có trên iCloud."
+            "value": "Liên kết đăng ký và mật khẩu các nút sẽ được tải lên tài khoản iCloud của chính bạn để đồng bộ giữa các thiết bị dùng chung Tài khoản Apple. Chúng không được gửi cho Tower hay bên thứ ba nào. Sau khi tắt đồng bộ, bạn có thể chọn xoá luôn bản sao trên iCloud."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。"
+            "value": "您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步后可以选择一并删除 iCloud 上的副本。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "您的訂閱網址和節點密碼會上傳到您自己的 iCloud 帳戶，用於在同一 Apple 帳戶的裝置之間同步。它們不會傳給塔台或任何第三方。關閉同步不會刪除 iCloud 上已有的副本。"
+            "value": "您的訂閱網址和節點密碼會上傳到您自己的 iCloud 帳戶，用於在同一 Apple 帳戶的裝置之間同步。它們不會傳給塔台或任何第三方。關閉同步後可以選擇一併刪除 iCloud 上的副本。"
           }
         }
       }
@@ -29156,6 +31318,100 @@
         }
       }
     },
+    "找不到要修改的规则。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر العثور على القاعدة المطلوب تعديلها."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die zu ändernde Regel wurde nicht gefunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rule to change could not be found."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró la regla que se quiere modificar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La règle à modifier est introuvable."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aturan yang ingin diubah tidak ditemukan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更するルールが見つかりません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수정할 규칙을 찾을 수 없습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível encontrar a regra a alterar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось найти изменяемое правило."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่พบกฎที่ต้องการแก้ไข"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Değiştirilecek kural bulunamadı."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tìm thấy quy tắc cần sửa."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到要修改的规则。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到要修改的規則。"
+          }
+        }
+      }
+    },
     "把链接作为订阅地址添加到客户端，刷新时保持塔台在前台打开。": {
       "localizations": {
         "ar": {
@@ -30191,6 +32447,100 @@
         }
       }
     },
+    "搜索规则：如 YouTube OpenAI": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البحث عن قواعد: مثل YouTube وOpenAI"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regeln suchen: z. B. YouTube, OpenAI"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search rules, e.g. YouTube or OpenAI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar reglas: p. ej., YouTube u OpenAI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des règles, par ex. YouTube ou OpenAI"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cari aturan, misalnya YouTube atau OpenAI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールを検索：例 YouTube、OpenAI"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 검색: 예) YouTube, OpenAI"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar regras, como YouTube ou OpenAI"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск правил: например, YouTube или OpenAI"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ค้นหากฎ เช่น YouTube หรือ OpenAI"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural ara: ör. YouTube veya OpenAI"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tìm quy tắc, ví dụ YouTube hoặc OpenAI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索规则：如 YouTube OpenAI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋規則：例如 YouTube、OpenAI"
+          }
+        }
+      }
+    },
     "支持 Clash YAML、subconverter（`.ini`）和 Surge 配置。塔台会下载配置及其引用的规则列表并保存在本机。粘贴 GitHub、Gitee 的网页地址也可以，会自动转成文件本身的地址。": {
       "localizations": {
         "ar": {
@@ -30281,6 +32631,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "支援 Clash YAML、subconverter（`.ini`）和 Surge 設定。塔台會下載配置及其引用的規則清單並保存在本機。貼上 GitHub、Gitee 的網頁位址也可以，會自動轉成文件本身的位址。"
+          }
+        }
+      }
+    },
+    "支持 HTTPS 的 Clash / Surge .list 规则集，也支持 DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP 等 TYPE,VALUE 写法。保存后会出现在“我的规则集”，点击加号才会加入当前规则。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يدعم مجموعات قواعد Clash / Surge ‏.list عبر HTTPS، وكذلك صيغة TYPE,VALUE مثل DOMAIN وDOMAIN-SUFFIX وDOMAIN-KEYWORD وIP-CIDR وIP-CIDR6 وGEOIP. بعد الحفظ تظهر في «مجموعات القواعد الخاصة بي»، ولا تُضاف إلى القواعد الحالية إلا بالضغط على علامة +."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützt Clash-/Surge-.list-Regelsätze über HTTPS sowie die Schreibweise TYPE,VALUE wie DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 und GEOIP. Nach dem Sichern erscheint der Satz unter „Meine Regelsätze“ und wird erst per Pluszeichen zu den aktuellen Regeln hinzugefügt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supports Clash / Surge .list rule sets over HTTPS, and TYPE,VALUE forms such as DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 and GEOIP. Once saved it appears under My Rule Sets, and only joins the current rules when you tap the plus."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admite conjuntos de reglas .list de Clash / Surge por HTTPS, así como formas TYPE,VALUE como DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 y GEOIP. Al guardarlo aparece en «Mis conjuntos de reglas» y solo se añade a las reglas actuales al tocar el signo más."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prend en charge les jeux de règles .list Clash / Surge en HTTPS, ainsi que les formes TYPE,VALUE comme DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 et GEOIP. Une fois enregistré, il apparaît dans « Mes jeux de règles » et n'est ajouté aux règles actuelles qu'en touchant le plus."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mendukung set aturan .list Clash / Surge melalui HTTPS, serta bentuk TYPE,VALUE seperti DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6, dan GEOIP. Setelah disimpan, set itu muncul di Set Aturan Saya dan baru masuk ke aturan saat ini ketika Anda menekan tanda plus."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS 経由の Clash / Surge の .list ルールセットに加え、DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP などの TYPE,VALUE 形式に対応します。保存すると「マイルールセット」に表示され、＋を押して初めて現在のルールに追加されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS로 제공되는 Clash / Surge .list 규칙 세트와 DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6, GEOIP 같은 TYPE,VALUE 형식을 지원합니다. 저장하면 '마이 룰셋'에 나타나며, 더하기를 눌러야 현재 규칙에 추가됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aceita conjuntos de regras .list do Clash / Surge por HTTPS e formas TYPE,VALUE como DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 e GEOIP. Depois de salvo, ele aparece em Meus conjuntos de regras e só entra nas regras atuais quando você toca no mais."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поддерживает наборы правил .list для Clash / Surge по HTTPS, а также формы TYPE,VALUE: DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6, GEOIP. После сохранения набор появляется в «Мои наборы правил» и добавляется к текущим правилам только по нажатию плюса."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รองรับชุดกฎ .list ของ Clash / Surge ผ่าน HTTPS และรูปแบบ TYPE,VALUE เช่น DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 และ GEOIP เมื่อบันทึกแล้วจะปรากฏใน “ชุดกฎของฉัน” และจะเข้าร่วมกฎปัจจุบันก็ต่อเมื่อแตะเครื่องหมายบวก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS üzerinden Clash / Surge .list kural kümelerini ve DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6, GEOIP gibi TYPE,VALUE yazımlarını destekler. Kaydedildikten sonra “Kural Kümelerim” altında görünür ve ancak artı işaretine dokununca geçerli kurallara katılır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hỗ trợ bộ quy tắc .list của Clash / Surge qua HTTPS, cùng các dạng TYPE,VALUE như DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 và GEOIP. Sau khi lưu, bộ quy tắc xuất hiện trong “Bộ quy tắc của tôi” và chỉ tham gia quy tắc hiện tại khi bạn chạm dấu cộng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 HTTPS 的 Clash / Surge .list 规则集，也支持 DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP 等 TYPE,VALUE 写法。保存后会出现在“我的规则集”，点击加号才会加入当前规则。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支援 HTTPS 的 Clash / Surge .list 規則集，也支援 DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP 等 TYPE,VALUE 寫法。儲存後會出現在「我的規則集」，點擊加號才會加入目前規則。"
           }
         }
       }
@@ -31319,6 +33763,100 @@
         }
       }
     },
+    "新建的规则集先保存在本机。点击右侧加号后才会加入当前规则，更新上游方案时不会被覆盖。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تُحفظ مجموعة القواعد الجديدة على هذا الجهاز أولاً. ولا تُضاف إلى القواعد الحالية إلا بالضغط على + على اليمين، ولا يستبدلها تحديث المخطط الأصلي."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein neuer Regelsatz wird zuerst nur auf diesem Gerät gesichert. Er wird erst über das Pluszeichen rechts zu den aktuellen Regeln hinzugefügt und beim Aktualisieren des Ursprungsschemas nicht überschrieben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new rule set is saved on this device first. It only joins the current rules when you tap the plus on the right, and refreshing the upstream scheme never overwrites it."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un conjunto de reglas nuevo se guarda primero en este dispositivo. Solo se añade a las reglas actuales al tocar el signo más de la derecha, y actualizar el esquema de origen nunca lo sobrescribe."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un nouveau jeu de règles est d'abord enregistré sur cet appareil. Il n'est ajouté aux règles actuelles qu'en touchant le plus à droite, et l'actualisation du schéma d'origine ne l'écrase jamais."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set aturan baru disimpan di perangkat ini terlebih dahulu. Set itu baru masuk ke aturan saat ini ketika Anda menekan tanda plus di kanan, dan menyegarkan skema hulu tidak akan menimpanya."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいルールセットはまずこの端末に保存されます。右の＋を押して初めて現在のルールに追加され、元のスキームを更新しても上書きされません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 룰셋은 먼저 이 기기에 저장됩니다. 오른쪽 더하기를 눌러야 현재 규칙에 추가되며, 원본 구성을 새로 고쳐도 덮어쓰이지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um novo conjunto de regras é salvo primeiro neste dispositivo. Ele só entra nas regras atuais quando você toca no mais à direita, e atualizar o esquema de origem nunca o sobrescreve."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый набор правил сначала сохраняется на этом устройстве. Он добавляется к текущим правилам только по нажатию плюса справа, и обновление исходной схемы его не перезаписывает."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ชุดกฎใหม่จะถูกบันทึกไว้บนอุปกรณ์นี้ก่อน จะเข้าร่วมกฎปัจจุบันก็ต่อเมื่อแตะเครื่องหมายบวกทางขวา และการอัปเดตชุดต้นทางจะไม่เขียนทับ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni bir kural kümesi önce bu cihazda saklanır. Ancak sağdaki artıya dokununca geçerli kurallara katılır ve kaynak şema yenilendiğinde üzerine yazılmaz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bộ quy tắc mới được lưu trên thiết bị này trước. Nó chỉ tham gia quy tắc hiện tại khi bạn chạm dấu cộng bên phải, và việc làm mới bộ nguồn không bao giờ ghi đè lên nó."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建的规则集先保存在本机。点击右侧加号后才会加入当前规则，更新上游方案时不会被覆盖。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建的規則集先保存在本機。點擊右側加號後才會加入目前規則，更新上游方案時不會被覆蓋。"
+          }
+        }
+      }
+    },
     "新建规则集": {
       "localizations": {
         "ar": {
@@ -31503,6 +34041,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "新訂閱 %lld"
+          }
+        }
+      }
+    },
+    "方案名称": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسم المخطط"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schemaname"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheme Name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre del esquema"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom du schéma"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nama Skema"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキーム名"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구성 이름"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome do esquema"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название схемы"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ชื่อชุด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Şema Adı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方案名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方案名稱"
           }
         }
       }
@@ -31785,6 +34417,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "無法儲存規則集"
+          }
+        }
+      }
+    },
+    "无法修改规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تعديل القاعدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regel kann nicht geändert werden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't change rule"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede modificar la regla"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de modifier la règle"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aturan tidak bisa diubah"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールを変更できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙을 수정할 수 없습니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não é possível alterar a regra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось изменить правило"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ไขกฎไม่ได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural değiştirilemiyor"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể sửa quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法修改规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法修改規則"
           }
         }
       }
@@ -34799,6 +37525,100 @@
         }
       }
     },
+    "未选": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غير محدد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht ausgewählt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not selected"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin seleccionar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non sélectionné"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak dipilih"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未選択"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택 안 됨"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não selecionado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не выбрано"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ยังไม่เลือก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seçili değil"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa chọn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未選"
+          }
+        }
+      }
+    },
     "未选择": {
       "extractionState": "stale",
       "localizations": {
@@ -35736,6 +38556,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "本機一鍵匯出"
+          }
+        }
+      }
+    },
+    "本机保存的自定义规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قواعد مخصصة محفوظة على هذا الجهاز"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Gerät gesicherte eigene Regeln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom rules saved on this device"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reglas personalizadas guardadas en este dispositivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Règles personnalisées enregistrées sur cet appareil"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aturan khusus yang disimpan di perangkat ini"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末に保存されたカスタムルール"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에 저장된 사용자 지정 규칙"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regras personalizadas salvas neste dispositivo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свои правила, сохранённые на этом устройстве"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กฎที่กำหนดเองซึ่งบันทึกไว้บนอุปกรณ์นี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu cihazda saklanan özel kurallar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quy tắc tuỳ chỉnh lưu trên thiết bị này"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机保存的自定义规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機保存的自訂規則"
           }
         }
       }
@@ -39689,6 +42603,100 @@
         }
       }
     },
+    "添加到自定义规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة إلى القواعد المخصصة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu eigenen Regeln hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to custom rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir a las reglas personalizadas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter aux règles personnalisées"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tambahkan ke aturan khusus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムルールに追加"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 지정 규칙에 추가"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar às regras personalizadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить в свои правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพิ่มลงในกฎที่กำหนดเอง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özel kurallara ekle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm vào quy tắc tuỳ chỉnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加到自定义规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入自訂規則"
+          }
+        }
+      }
+    },
     "添加自定义规则流": {
       "localizations": {
         "ar": {
@@ -41757,6 +44765,100 @@
         }
       }
     },
+    "第一项是默认策略。可拖动排序；导入客户端后仍可手动切换。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البند الأول هو السياسة الافتراضية. يمكنك السحب لإعادة الترتيب، ويظل التبديل اليدوي متاحاً بعد الاستيراد إلى العميل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der erste Eintrag ist die Standardrichtlinie. Zum Umsortieren ziehen; nach dem Import in den Client kann weiterhin manuell gewechselt werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first entry is the default policy. Drag to reorder; you can still switch manually after importing into the client."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La primera entrada es la política predeterminada. Arrastra para reordenar; tras importar en el cliente aún puedes cambiar manualmente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La première entrée est la politique par défaut. Faites glisser pour réordonner ; vous pouvez toujours changer manuellement après l'import dans le client."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entri pertama adalah kebijakan bawaan. Seret untuk mengurutkan ulang; setelah diimpor ke klien, Anda tetap bisa berganti secara manual."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初の項目がデフォルトのポリシーです。ドラッグで並べ替えでき、クライアントに読み込んだ後も手動で切り替えられます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "첫 번째 항목이 기본 정책입니다. 끌어서 순서를 바꿀 수 있고, 클라이언트로 가져온 뒤에도 수동으로 전환할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A primeira entrada é a política padrão. Arraste para reordenar; após importar no cliente, você ainda pode alternar manualmente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Первый пункт — политика по умолчанию. Перетащите, чтобы изменить порядок; после импорта в клиент можно переключать вручную."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รายการแรกคือนโยบายเริ่มต้น ลากเพื่อจัดลำดับใหม่ และยังสลับเองได้หลังนำเข้าไปยังไคลเอ็นต์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk giriş varsayılan politikadır. Sıralamak için sürükleyin; istemciye aktardıktan sonra da elle geçiş yapabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mục đầu tiên là chính sách mặc định. Kéo để sắp xếp; sau khi nhập vào ứng dụng khách bạn vẫn chuyển thủ công được."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第一项是默认策略。可拖动排序；导入客户端后仍可手动切换。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第一項是預設策略。可拖曳排序；匯入客戶端後仍可手動切換。"
+          }
+        }
+      }
+    },
     "等待有效的订阅链接或节点协议": {
       "localizations": {
         "ar": {
@@ -42223,6 +45325,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "貼上識別"
+          }
+        }
+      }
+    },
+    "结束编辑": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إنهاء التحرير"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeitung beenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done editing"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminar de editar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer la modification"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selesai mengedit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集を終了"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "편집 완료"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluir edição"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить правку"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สิ้นสุดการแก้ไข"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düzenlemeyi bitir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết thúc chỉnh sửa"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束编辑"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結束編輯"
           }
         }
       }
@@ -42697,6 +45893,288 @@
         }
       }
     },
+    "编辑 %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحرير %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bearbeiten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を編集"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 편집"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить %@"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ไข %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ögesini düzenle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯 %@"
+          }
+        }
+      }
+    },
+    "编辑规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحرير القواعد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regeln bearbeiten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar reglas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier les règles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールを編集"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 편집"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar regras"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ไขกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kuralları düzenle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯規則"
+          }
+        }
+      }
+    },
+    "编辑规则内容": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحرير محتوى القاعدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelinhalt bearbeiten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Rule Contents"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar el contenido de la regla"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier le contenu de la règle"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Isi Aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールの内容を編集"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 내용 편집"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar conteúdo da regra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить содержимое правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ไขเนื้อหากฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural İçeriğini Düzenle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa nội dung quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑规则内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯規則內容"
+          }
+        }
+      }
+    },
     "编辑规则方案": {
       "localizations": {
         "ar": {
@@ -42881,6 +46359,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "編輯規則流"
+          }
+        }
+      }
+    },
+    "编辑规则集": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحرير مجموعة القواعد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelsatz bearbeiten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Rule Set"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar conjunto de reglas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier le jeu de règles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Set Aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールセットを編集"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "룰셋 편집"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar conjunto de regras"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить набор правил"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ไขชุดกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural Kümesini Düzenle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa bộ quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑规则集"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯規則集"
           }
         }
       }
@@ -44295,6 +47867,100 @@
         }
       }
     },
+    "节点匹配": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مطابقة العقد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knotenabgleich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Node match"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coincidencia de nodos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correspondance de nœuds"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kecocokan node"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ノード一致"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노드 일치"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correspondência de nós"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Совпадение узлов"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การจับคู่โหนด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düğüm eşleşmesi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khớp nút"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "节点匹配"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "節點比對"
+          }
+        }
+      }
+    },
     "节点协议": {
       "localizations": {
         "ar": {
@@ -44479,6 +48145,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "節點名後顯示來源，方便區分多個訂閱服務。"
+          }
+        }
+      }
+    },
+    "节点名称匹配": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مطابقة اسم العقدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knotennamen-Abgleich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Node name match"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coincidencia por nombre de nodo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correspondance par nom de nœud"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kecocokan nama node"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ノード名の一致"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노드 이름 일치"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correspondência por nome do nó"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Совпадение по имени узла"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การจับคู่ชื่อโหนด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düğüm adı eşleşmesi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khớp tên nút"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "节点名称匹配"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "節點名稱比對"
           }
         }
       }
@@ -45423,6 +49183,194 @@
         }
       }
     },
+    "规则 Emoji": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيموجي القاعدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regel-Emoji"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rule emoji"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji de la regla"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Émoji de la règle"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールの絵文字"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 이모지"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji da regra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эмодзи правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อิโมจิของกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural emojisi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则 Emoji"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則 Emoji"
+          }
+        }
+      }
+    },
+    "规则从 ACL4SSR 与 blackmatrix7 的官方仓库按需下载。点击加号后会直接加入当前规则。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تُنزَّل القواعد عند الحاجة من المستودعين الرسميين ACL4SSR وblackmatrix7. والضغط على علامة + يضيفها مباشرة إلى القواعد الحالية."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regeln werden bei Bedarf aus den offiziellen Repositorys von ACL4SSR und blackmatrix7 geladen. Ein Tippen auf das Pluszeichen fügt sie direkt zu den aktuellen Regeln hinzu."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rules are downloaded on demand from the official ACL4SSR and blackmatrix7 repositories. Tapping the plus adds them straight to the current rules."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las reglas se descargan bajo demanda desde los repositorios oficiales de ACL4SSR y blackmatrix7. Al tocar el signo más se añaden directamente a las reglas actuales."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les règles sont téléchargées à la demande depuis les dépôts officiels ACL4SSR et blackmatrix7. Toucher le plus les ajoute directement aux règles actuelles."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aturan diunduh sesuai kebutuhan dari repositori resmi ACL4SSR dan blackmatrix7. Menekan tanda plus langsung menambahkannya ke aturan saat ini."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールは ACL4SSR と blackmatrix7 の公式リポジトリから必要に応じてダウンロードされます。＋を押すとそのまま現在のルールに追加されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙은 ACL4SSR과 blackmatrix7의 공식 저장소에서 필요할 때 내려받습니다. 더하기를 누르면 현재 규칙에 바로 추가됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As regras são baixadas sob demanda dos repositórios oficiais do ACL4SSR e do blackmatrix7. Tocar no mais as adiciona diretamente às regras atuais."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Правила загружаются по необходимости из официальных репозиториев ACL4SSR и blackmatrix7. Нажатие плюса добавляет их прямо к текущим правилам."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กฎจะดาวน์โหลดตามต้องการจากที่เก็บอย่างเป็นทางการของ ACL4SSR และ blackmatrix7 การแตะเครื่องหมายบวกจะเพิ่มเข้ากฎปัจจุบันทันที"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurallar, ACL4SSR ve blackmatrix7'nin resmi depolarından gerektikçe indirilir. Artıya dokunmak onları doğrudan geçerli kurallara ekler."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quy tắc được tải theo nhu cầu từ kho chính thức của ACL4SSR và blackmatrix7. Chạm dấu cộng sẽ thêm thẳng vào quy tắc hiện tại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则从 ACL4SSR 与 blackmatrix7 的官方仓库按需下载。点击加号后会直接加入当前规则。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則從 ACL4SSR 與 blackmatrix7 的官方倉庫按需下載。點擊加號後會直接加入目前規則。"
+          }
+        }
+      }
+    },
     "规则从 ACL4SSR 与 blackmatrix7 的官方仓库按需下载并保存在本机。": {
       "localizations": {
         "ar": {
@@ -45889,6 +49837,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "規則清單已下載至本機，產生設定時不再連網。"
+          }
+        }
+      }
+    },
+    "规则名称": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسم القاعدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelname"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rule Name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de la regla"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de la règle"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nama Aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルール名"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 이름"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome da regra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ชื่อกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural Adı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則名稱"
+          }
+        }
+      }
+    },
+    "规则名称不能为空。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يمكن ترك اسم القاعدة فارغاً."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Regelname darf nicht leer sein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rule name cannot be empty."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre de la regla no puede estar vacío."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom de la règle ne peut pas être vide."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nama aturan tidak boleh kosong."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルール名は空にできません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 이름은 비워 둘 수 없습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O nome da regra não pode ficar vazio."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название правила не может быть пустым."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ชื่อกฎต้องไม่ว่าง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural adı boş olamaz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên quy tắc không được để trống."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则名称不能为空。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則名稱不能為空。"
           }
         }
       }
@@ -46829,6 +50965,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "規則配置位址"
+          }
+        }
+      }
+    },
+    "规则集": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مجموعة القواعد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelsatz"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rule Set"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conjunto de reglas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeu de règles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールセット"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "룰셋"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conjunto de regras"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Набор правил"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ชุดกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kural Kümesi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bộ quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则集"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則集"
           }
         }
       }
@@ -50876,6 +55106,100 @@
         }
       }
     },
+    "这会删除本机保存的规则内容，并从所有当前方案中移除；不会修改上游仓库。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيؤدي هذا إلى حذف محتوى القاعدة المحفوظ على هذا الجهاز وإزالته من كل المخططات الحالية، دون تعديل المستودع الأصلي."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damit werden die auf diesem Gerät gesicherten Regelinhalte gelöscht und aus allen aktuellen Schemata entfernt; das Ursprungs-Repository bleibt unverändert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This deletes the rule contents saved on this device and removes them from every current scheme. The upstream repository is not modified."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto elimina el contenido de reglas guardado en este dispositivo y lo quita de todos los esquemas actuales. El repositorio de origen no se modifica."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela supprime le contenu de règles enregistré sur cet appareil et le retire de tous les schémas actuels. Le dépôt d'origine n'est pas modifié."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ini menghapus isi aturan yang tersimpan di perangkat ini dan mengeluarkannya dari semua skema saat ini. Repositori hulu tidak diubah."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末に保存されたルールの内容を削除し、現在のすべてのスキームから取り除きます。元のリポジトリは変更されません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에 저장된 규칙 내용을 삭제하고 현재 모든 구성에서 제거합니다. 원본 저장소는 변경되지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isto exclui o conteúdo de regras salvo neste dispositivo e o remove de todos os esquemas atuais. O repositório de origem não é modificado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это удалит содержимое правил, сохранённое на устройстве, и уберёт его из всех текущих схем. Исходный репозиторий не изменяется."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การทำเช่นนี้จะลบเนื้อหากฎที่บันทึกไว้บนอุปกรณ์นี้ และนำออกจากทุกชุดปัจจุบัน โดยไม่แก้ไขที่เก็บต้นทาง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu, cihazda saklanan kural içeriğini siler ve tüm geçerli şemalardan kaldırır. Kaynak depo değiştirilmez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thao tác này xoá nội dung quy tắc lưu trên thiết bị và gỡ khỏi mọi bộ hiện tại. Kho nguồn không bị thay đổi."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会删除本机保存的规则内容，并从所有当前方案中移除；不会修改上游仓库。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這會刪除本機保存的規則內容，並從所有目前方案中移除；不會修改上游倉庫。"
+          }
+        }
+      }
+    },
     "这会移除当前方案后来添加的规则、改名、Emoji 设置和排序；“我的规则集”中的本地内容会保留。": {
       "localizations": {
         "ar": {
@@ -50966,6 +55290,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "這會移除目前方案後來加入的規則、重新命名、Emoji 設定和排序；「我的規則集」中的本機內容會保留。"
+          }
+        }
+      }
+    },
+    "这会移除该分组以及指向它的规则，不会修改上游仓库。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيؤدي هذا إلى إزالة المجموعة والقواعد التي تشير إليها، دون تعديل المستودع الأصلي."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damit werden die Gruppe und die auf sie verweisenden Regeln entfernt; das Ursprungs-Repository bleibt unverändert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes the group and the rules that point at it. The upstream repository is not modified."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto quita el grupo y las reglas que apuntan a él. El repositorio de origen no se modifica."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela retire le groupe et les règles qui le désignent. Le dépôt d'origine n'est pas modifié."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ini menghapus grup beserta aturan yang menunjuk padanya. Repositori hulu tidak diubah."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このグループと、それを指すルールを取り除きます。元のリポジトリは変更されません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 그룹과 이를 가리키는 규칙을 제거합니다. 원본 저장소는 변경되지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isto remove o grupo e as regras que apontam para ele. O repositório de origem não é modificado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это уберёт группу и правила, указывающие на неё. Исходный репозиторий не изменяется."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การทำเช่นนี้จะนำกลุ่มและกฎที่ชี้ไปยังกลุ่มนั้นออก โดยไม่แก้ไขที่เก็บต้นทาง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu, grubu ve ona işaret eden kuralları kaldırır. Kaynak depo değiştirilmez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thao tác này gỡ nhóm và các quy tắc trỏ tới nó. Kho nguồn không bị thay đổi."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会移除该分组以及指向它的规则，不会修改上游仓库。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這會移除該群組以及指向它的規則，不會修改上游倉庫。"
           }
         }
       }
@@ -53693,6 +58111,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "預設關閉"
+          }
+        }
+      }
+    },
+    "🧩": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧩"
           }
         }
       }
