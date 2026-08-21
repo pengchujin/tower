@@ -30,9 +30,7 @@ struct ExportView: View {
                     LANSharingGuide()
                 } else if let configuration {
                     ExportContentModePicker()
-                    if configuration.contentMode != .rulesOnly {
-                        ProtocolFilter()
-                    }
+                    ProtocolFilter()
                     ConversionSummary(configuration: configuration)
                     ImportPrivacyNote(
                         target: model.selectedTarget,
@@ -66,9 +64,7 @@ struct ExportView: View {
                     target: model.selectedTarget,
                     contentMode: configuration.contentMode,
                     isImporting: isImporting,
-                    isDisabled: configuration.contentMode == .rulesOnly
-                        ? configuration.ruleCount == 0
-                        : configuration.supportedNodeCount == 0,
+                    isDisabled: configuration.supportedNodeCount == 0,
                     importAction: {
                         Task { await importConfiguration(configuration) }
                     },
@@ -199,8 +195,6 @@ private struct ExportContentModePicker: View {
         switch model.exportContentMode(for: model.selectedTarget) {
         case .nodesOnly:
             return String(localized: "只添加节点订阅，不替换客户端现有的规则和策略组。")
-        case .rulesOnly:
-            return String(localized: "导出节点、规则和策略组组成的完整配置。")
         case .fullConfiguration:
             return String(localized: "导出节点、规则和策略组组成的完整配置。")
         }
@@ -513,7 +507,7 @@ private struct ConversionSummary: View {
             HStack(spacing: 16) {
                 MetricPill(
                     value: configuration.supportedNodeCount,
-                    label: configuration.contentMode == .rulesOnly ? "本地规则" : "兼容节点"
+                    label: "兼容节点"
                 )
                 Divider().frame(height: 38)
                 MetricPill(value: configuration.ruleCount, label: "本地规则")
@@ -537,8 +531,6 @@ private struct ConversionSummary: View {
         switch configuration.contentMode {
         case .nodesOnly:
             String(localized: "仅节点 · \(model.selectedTarget.name)")
-        case .rulesOnly:
-            String(localized: "本地规则")
         case .fullConfiguration:
             "\(model.activeRuleName) · \(model.selectedTarget.name)"
         }
@@ -644,9 +636,6 @@ private struct ImportPrivacyNote: View {
         if contentMode == .nodesOnly {
             return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
         }
-        if contentMode == .rulesOnly {
-            return String(localized: "导出节点、规则和策略组组成的完整配置。")
-        }
         if target.supportsDirectConfigurationImport {
             return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
         }
@@ -713,8 +702,6 @@ private struct ImportActionBar: View {
         switch contentMode {
         case .nodesOnly:
             return String(localized: "仅导出节点到 \(target.name)")
-        case .rulesOnly:
-            return String(localized: "本地规则")
         case .fullConfiguration:
             return target.primaryImportTitle
         }

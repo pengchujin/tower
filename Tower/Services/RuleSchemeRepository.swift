@@ -39,9 +39,12 @@ struct RuleSchemeRepository {
     /// URL still receives YAML and must support that container explicitly.
     func isClashProviderYAML(_ resource: RuleSchemeRuleset.Resource) -> Bool {
         guard case .remote(let url) = resource else { return false }
-        let content = downloadStore?.content(for: url)
-            ?? bundledContent(named: Self.bundledResourceName(for: url))
-        guard let content else { return false }
+        // Answered from the same cached parse as `lines(for:)`, so deciding
+        // what a downloaded list *is* no longer costs a second full read of it.
+        if let downloaded = downloadStore?.isClashProvider(for: url) { return downloaded }
+        guard let content = bundledContent(named: Self.bundledResourceName(for: url)) else {
+            return false
+        }
         return content.components(separatedBy: .newlines).contains { rawLine in
             rawLine
                 .trimmingCharacters(in: .whitespacesAndNewlines)

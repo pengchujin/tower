@@ -39,7 +39,16 @@ struct NodeFilterView: View {
     @State private var localOnly = false
 
     var body: some View {
-        List {
+        // Filtering used to run once for the rows, once for the empty check,
+        // once for the header count, once for the select-all state and once for
+        // its disabled state — five passes over every node, each resolving a
+        // display name and running four case-insensitive searches, on every
+        // keystroke in the search field.
+        let filteredNodes = self.filteredNodes
+        let allFilteredNodesIncluded = !filteredNodes.isEmpty
+            && filteredNodes.allSatisfy(model.isNodeIncluded)
+
+        return List {
             Section {
                 LazyVGrid(columns: filterColumns, spacing: 9) {
                     countryFilter
@@ -68,7 +77,10 @@ struct NodeFilterView: View {
                 HStack(spacing: 12) {
                     Text("节点 · \(filteredNodes.count)")
                     Spacer()
-                    bulkSelectionButton
+                    bulkSelectionButton(
+                        filteredNodes: filteredNodes,
+                        allIncluded: allFilteredNodesIncluded
+                    )
                 }
                 .textCase(nil)
             }
@@ -106,22 +118,21 @@ struct NodeFilterView: View {
         }
     }
 
-    private var allFilteredNodesIncluded: Bool {
-        !filteredNodes.isEmpty && filteredNodes.allSatisfy(model.isNodeIncluded)
-    }
-
     private var filterColumns: [GridItem] {
         let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
         return Array(repeating: GridItem(.flexible(), spacing: 9), count: count)
     }
 
-    private var bulkSelectionButton: some View {
+    private func bulkSelectionButton(
+        filteredNodes: [ProxyNode],
+        allIncluded: Bool
+    ) -> some View {
         Button {
-            model.setNodes(filteredNodes, included: !allFilteredNodesIncluded)
+            model.setNodes(filteredNodes, included: !allIncluded)
         } label: {
             Label(
-                allFilteredNodesIncluded ? String(localized: "全不选") : String(localized: "全选"),
-                systemImage: allFilteredNodesIncluded ? "xmark.circle.fill" : "checkmark.circle.fill"
+                allIncluded ? String(localized: "全不选") : String(localized: "全选"),
+                systemImage: allIncluded ? "xmark.circle.fill" : "checkmark.circle.fill"
             )
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 14)

@@ -195,10 +195,15 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("rules-editing-hint"))
     }
 
-    func testRuleCustomizationUsesRequestedOnlineSearchPromptAndCompactRows() throws {
+    func testRuleCustomizationSearchPromptDoesNotClaimToGoOnline() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
-        XCTAssertTrue(source.contains("在线搜索规则：如 YouTube OpenAI"))
+        // The prompt used to read 在线搜索规则. The field searches the bundled
+        // catalog and the user's own local library and never opens a
+        // connection, so promising an online search contradicted the one thing
+        // this screen guarantees.
+        XCTAssertTrue(source.contains("搜索规则：如 YouTube OpenAI"))
+        XCTAssertFalse(source.contains("prompt: \"在线搜索规则"))
         XCTAssertTrue(source.contains("compactRuleRowInsets"))
         XCTAssertTrue(source.contains(".towerToast()"))
     }

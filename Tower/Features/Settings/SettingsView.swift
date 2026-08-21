@@ -62,6 +62,7 @@ private struct AutoRefreshSection: View {
 private struct CloudSyncCard: View {
     @Environment(AppModel.self) private var model
     @State private var isConfirming = false
+    @State private var isConfirmingDisable = false
 
     private var binding: Binding<Bool> {
         Binding(
@@ -70,7 +71,10 @@ private struct CloudSyncCard: View {
                 if wantsOn {
                     isConfirming = true
                 } else {
-                    Task { await model.setICloudSyncEnabled(false) }
+                    // Switching off is also the moment to offer taking the
+                    // uploaded credentials back out of iCloud, which is the
+                    // only place in Tower where they ever left the device.
+                    isConfirmingDisable = true
                 }
             }
         )
@@ -105,6 +109,17 @@ private struct CloudSyncCard: View {
                     .disabled(model.isCloudSyncing)
                 }
 
+                if !model.iCloudSyncEnabled {
+                    Divider()
+                    Button(role: .destructive) {
+                        Task { await model.removeCloudSnapshot() }
+                    } label: {
+                        Label("删除 iCloud 上的副本", systemImage: "trash")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("remove-cloud-snapshot")
+                }
+
                 Divider()
                 Label(
                     "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
@@ -121,7 +136,25 @@ private struct CloudSyncCard: View {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步不会删除 iCloud 上已有的副本。")
+            Text("您的订阅地址和节点密码会上传到您自己的 iCloud 账户，用于在同一 Apple 账户的设备之间同步。它们不会发给塔台或任何第三方。关闭同步后可以选择一并删除 iCloud 上的副本。")
+        }
+        .confirmationDialog(
+            "关闭 iCloud 同步？",
+            isPresented: $isConfirmingDisable,
+            titleVisibility: .visible
+        ) {
+            Button("关闭并删除 iCloud 副本", role: .destructive) {
+                Task {
+                    await model.setICloudSyncEnabled(false)
+                    await model.removeCloudSnapshot()
+                }
+            }
+            Button("只关闭同步") {
+                Task { await model.setICloudSyncEnabled(false) }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("只关闭同步会把已经上传的订阅地址和节点密码留在 iCloud 上。删除副本不影响这台设备上的配置。")
         }
     }
 

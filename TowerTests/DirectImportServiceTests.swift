@@ -103,13 +103,16 @@ final class DirectImportServiceTests: XCTestCase {
         XCTAssertNotNil(nodeJSON["server_remote"])
         XCTAssertNil(nodeJSON["filter_remote"])
         XCTAssertTrue(nodeJSON["server_remote"]?.first?.contains("as-policy=static") == true)
-        XCTAssertFalse(ClientTarget.quanx.supportedContentModes.contains(.rulesOnly))
-        XCTAssertFalse(ClientTarget.quanx.supportsDirectImport(mode: .rulesOnly))
+        // Quantumult X offers node and filter resources but no way to carry a
+        // [policy] section, so a complete configuration is never presented as a
+        // one-click import for it.
+        XCTAssertEqual(ClientTarget.quanx.supportedContentModes, [.fullConfiguration, .nodesOnly])
+        XCTAssertFalse(ClientTarget.quanx.supportsDirectImport(mode: .fullConfiguration))
         XCTAssertThrowsError(
             try ClientImportURLBuilder.make(
                 target: .quanx,
                 configurationURL: localURL,
-                contentMode: .rulesOnly
+                contentMode: .fullConfiguration
             )
         )
     }

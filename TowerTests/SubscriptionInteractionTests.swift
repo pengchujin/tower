@@ -415,8 +415,12 @@ final class SubscriptionInteractionTests: XCTestCase {
             XCTAssertTrue(source.contains(filter), "缺少筛选项：\(filter)")
         }
 
-        XCTAssertTrue(source.contains("private var bulkSelectionButton"))
-        XCTAssertTrue(source.contains("model.setNodes(filteredNodes, included: !allFilteredNodesIncluded)"))
+        // Still one bulk action, now taking the already-filtered list instead of
+        // recomputing it: the filter used to run five times per redraw, once per
+        // reader, which showed up as lag while typing in the search field.
+        XCTAssertTrue(source.contains("private func bulkSelectionButton"))
+        XCTAssertTrue(source.contains("model.setNodes(filteredNodes, included: !allIncluded)"))
+        XCTAssertTrue(source.contains("let filteredNodes = self.filteredNodes"))
         XCTAssertTrue(source.contains(".frame(minHeight: 44)"))
         XCTAssertFalse(source.contains("include-all-filtered-nodes"))
         XCTAssertFalse(source.contains("exclude-all-filtered-nodes"))

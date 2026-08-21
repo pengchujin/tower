@@ -42,7 +42,8 @@ flowchart LR
 - 订阅、节点、规则、目标客户端和标签页选择。
 - 拉取订阅、合并与去重节点、持久化快照。
 - 触发 DNS/IP 国家识别和批量延迟测试。
-- 缓存生成配置，缓存键包含目标、规则、节点和国家代码。
+- 缓存生成配置。`ConfigurationCache` 内部分成两份：完整客户端配置按「节点 + 国家 + 方案 + 规则」签名整体淘汰（单份可达数百 KB），节点订阅另存一份、只按节点签名淘汰。两者共用一个键，`contentMode` 是其中一项——早期让它们共用一份存储，会导致在「完整配置」和「仅节点」之间切换时互相清空，而那正是缓存最该省下的开销。
+- 控制写盘时机。`PersistencePolicy` 默认 `.immediate`（写完再返回，测试依赖这个语义）；App 用 `.coalesced(250ms)` 把一串连续编辑合并成一次写入，并在 `scenePhase` 离开前台时 `flushPendingWrite()`。
 - 处理页面间跳转与用户提示。
 
 网络、文件和解析工作下沉到 Service；UI 不应自行复制这些逻辑。增加状态时先判断它属于持久数据、运行期缓存还是纯页面状态，避免把瞬时动画状态写入 `AppModel`。
@@ -90,6 +91,10 @@ flowchart LR
 
 资源位于 `Tower/Resources/IPCountry/`。来源版本和许可记录在 `NOTICE.txt`。
 
+解析结果按 **host** 持久化在 `AppSnapshot.resolvedHostCountryCodes` 中，不按节点 id——节点 id 每次解析订阅都会重新生成，而决定答案的是 host。冷启动因此不再为所有「名字看不出地区」的节点重跑 `getaddrinfo`；写快照时按当前节点剪枝，不会无限增长。
+
+界面逐行发起的解析请求会先汇入 `AppModel` 的合并队列（50 ms 窗口）再成批执行。直接转发给批量接口会形成「一个节点一批」，使并发 `getaddrinfo` 数等于屏幕可见行数。
+
 ### `NodeRegionResolver.swift`
 
 名称优先：按国旗 Emoji、中英文国名/别名/城市、大写国家代码和主机名的顺序识别；这些都无结果时才使用离线 IP 国家库。这里统一维护国家代码、显示名、Emoji 和聚合地区，UI 与生成器不应各自维护一套映射。
@@ -106,7 +111,7 @@ flowchart LR
 
 ### `RuleSchemeRepository.swift`
 
-读取包内 ACL4SSR 快照，并从 `RuleDownloadStore` 读取用户主动下载的方案。Self-Configuration 不随 App 打包；规则页底部的按钮下载其 Clash YAML 和规则提供者，删除方案时一并删除本地内容。
+读取包内 ACL4SSR 快照，并从 `RuleDownloadStore` 读取用户主动下载的方案。两侧都有解析缓存：包内快照由 `RuleSchemeSnapshotCache` 持有，下载内容由 `RuleDownloadStore` 内部按文件的修改时间与大小失效。规则页会对每个方案的每个规则集、在每帧求值时读取它们，没有缓存时相当于每帧重新切分几百 KB 文本。`isClashProviderYAML` 复用同一份解析结果，不再为判断容器类型二次读盘。Self-Configuration 不随 App 打包；规则页底部的按钮下载其 Clash YAML 和规则提供者，删除方案时一并删除本地内容。
 
 ### 本地定制层
 
@@ -198,6 +203,9 @@ flowchart LR
 - 将 `AppSnapshot` 保存到 Application Support 的 `state.json`。
 - 文件使用完整数据保护。
 - 订阅 URL 属于敏感数据，不能写入日志、分析事件或崩溃附加信息。
+- 写入时机由 `AppModel` 的 `PersistencePolicy` 决定，见 §2。编码整份快照有实测成本（500 节点约 5 ms，真机更慢），而单个节点勾选这类操作会逐次触发，因此 App 侧合并写入并在退到后台时强制落盘。
+
+`AppSnapshot.updatedAt` 决定两台设备的快照谁胜出，`AppModel.apply()` **必须**把它恢复到 `lastLocalEditAt`。不恢复的话，启动后的第一次前台同步会拿 `.distantPast` 去比，任何远端快照都赢——包括更旧的那份，随后覆盖本地文件。
 
 延迟和短期导入 URL 属于运行期状态，不需要持久化。日志中也不得打印完整节点链接、密码、UUID、订阅 token 或生成配置。
 
@@ -219,6 +227,8 @@ flowchart LR
 - `AppLocalization` 从 `Bundle.main.preferredLocalizations` 读取用户为塔台单独选择的语言，并用对应 `Locale` 显示国家/地区名。
 - 导入内容属于用户数据，订阅名、节点名和上游规则名不做翻译。
 - `LocalizationTests` 检查目录完整性、关键人工校对文案和地区名称行为；维护脚本会校验格式化占位符没有被翻译破坏。
+- 两个维护脚本分工：`Scripts/check_localization.sh` **发现**缺口（只读），`Scripts/generate_localizations.py` **填补**（从 Xcode 导出的源目录生成两份目录）。
+- `LocalizationTests` 只能看到目录里**已有**的条目。「源码能显示、目录里没有」这一类缺口由 `Scripts/check_localization.sh` 负责，它调用 `xcodebuild -exportLocalizations` 比对。不要改成 grep 实现：手写扫描覆盖不到 `Text`、`Label`、`.navigationTitle`、`.accessibilityHint`、`Section`、`TextField` 占位符和弹窗标题，也无法把插值还原成 `%@` / `%lld`。目录里被标成 `stale` 的条目不要删，其中含运行时经 `String.LocalizationValue` 本地化的内置方案名。
 
 `TowerTests` 当前覆盖：
 
@@ -233,5 +243,6 @@ flowchart LR
 - 续费提醒授权、调度、关闭清理和敏感信息边界。
 - 客户端顺序持久化、拖动升级兼容与矢量标识唯一性。
 - 完整国家表坐标覆盖、地图投影和密集标签避让。
+- 刷新后排除状态的继承规则、批量添加的部分成功、快照编辑时间的恢复、地区解析结果落盘与剪枝、节点订阅与完整配置的独立缓存、合并写入与退后台 flush（`ReviewFixTests`）。
 
 自动测试不能替代以下真机验收：客户端 Scheme 接收、系统分享目标、剪贴板权限、真实 ICMP、平面点阵地图标注、首次 Sheet 动画和超长配置预览。

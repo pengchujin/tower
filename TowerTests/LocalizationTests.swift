@@ -36,8 +36,13 @@ final class LocalizationTests: XCTestCase {
         let catalog = try loadCatalog(named: "InfoPlist")
         let strings = try XCTUnwrap(catalog["strings"] as? [String: Any])
 
+        // Every key in the catalog, not a subset. CFBundleName was translated
+        // into all fifteen languages but guarded by nothing, so it could have
+        // lost a locale without a single test noticing — and it is the name
+        // the Home Screen falls back to.
         for key in [
             "CFBundleDisplayName",
+            "CFBundleName",
             "NSCameraUsageDescription",
             "NSLocalNetworkUsageDescription",
         ] {

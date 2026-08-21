@@ -49,10 +49,6 @@ struct SubscriptionService: SubscriptionFetching {
             throw SubscriptionError.invalidURL
         }
 
-        async let fallbackUsage: SubscriptionUsage? = {
-            guard let probe = Self.quotaProbe(for: url) else { return nil }
-            return try? await quota(at: probe, source: source)
-        }()
         var result = try await load(url, source: source)
 
         // The node list is authoritative for nodes; only the quota may be
@@ -61,15 +57,19 @@ struct SubscriptionService: SubscriptionFetching {
         // but its body is not used, because the panel's Clash converter drops
         // whatever it cannot express. One real airport returns 43 of its 55
         // nodes that way, silently losing every AnyTLS entry.
-        if result.usage?.hasPlanDetail != true {
-            if let usage = await fallbackUsage {
-                var merged = usage
-                merged.notices = result.usage?.notices ?? []
-                result.usage = merged
-            }
-        } else {
-            _ = await fallbackUsage
-        }
+        //
+        // This used to be an `async let` started before the main request, so
+        // every refresh put two requests on one airport panel simultaneously.
+        // That is precisely the burst the per-host refresh queue in AppModel
+        // exists to prevent, and precisely what a panel rate-limits. It now
+        // runs only when the list really carried no quota, and only after.
+        guard result.usage?.hasPlanDetail != true,
+              let probe = Self.quotaProbe(for: url),
+              let usage = try? await quota(at: probe, source: source) else { return result }
+
+        var merged = usage
+        merged.notices = result.usage?.notices ?? []
+        result.usage = merged
         return result
     }
 
@@ -294,6 +294,23 @@ protocol SubscriptionHTTPDataLoading {
 struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
     private static let gate = SubscriptionRequestGate()
 
+    /// One ephemeral session shared by every subscription request.
+    ///
+    /// Building a session per request threw the connection away with it, so a
+    /// refresh of ten subscriptions paid for ten full TLS handshakes — more
+    /// once the compatibility retries ran. Ephemeral keeps the property that
+    /// actually mattered: nothing about these requests is written to disk.
+    /// Cookie handling is switched off outright rather than merely kept in
+    /// memory, so a provider cannot use one to correlate refreshes.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        return URLSession(configuration: configuration)
+    }()
+
     func data(
         for request: URLRequest,
         dnsOverHTTPSURL: URL?
@@ -303,11 +320,7 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
         if let dnsOverHTTPSURL { applyDNSOverHTTPS(dnsOverHTTPSURL) }
 
         do {
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-            let session = URLSession(configuration: configuration)
-            let result = try await session.data(for: request)
-            session.finishTasksAndInvalidate()
+            let result = try await Self.session.data(for: request)
             if dnsOverHTTPSURL != nil { resetDNS() }
             await Self.gate.release(wasExclusiveAccess: needsExclusiveAccess)
             return result
@@ -318,6 +331,20 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
         }
     }
 
+    /// Switches the process-wide resolver to the user's encrypted one.
+    ///
+    /// This is deliberately not scoped to the request, because it cannot be:
+    /// an encrypted resolver is configured on an `NWParameters.PrivacyContext`,
+    /// and URLSession offers no way to attach one. Only a hand-written
+    /// NWConnection client could — which would mean reimplementing TLS
+    /// handling, redirects and chunked transfer to gain it.
+    ///
+    /// `SubscriptionRequestGate` therefore serialises subscription requests
+    /// around the window, but it cannot cover the rest of the app: a rule
+    /// download, a latency probe or a country lookup running at the same moment
+    /// also resolves through this resolver. The window is a single request long
+    /// and the setting is restored in both the success and failure paths, so
+    /// the exposure is bounded rather than eliminated.
     private func applyDNSOverHTTPS(_ url: URL) {
         let context = NWParameters.PrivacyContext.default
         context.requireEncryptedNameResolution(

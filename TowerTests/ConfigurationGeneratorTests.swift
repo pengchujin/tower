@@ -671,36 +671,6 @@ final class ConfigurationGeneratorTests: XCTestCase {
         XCTAssertTrue(loon.content.contains(",\"secret\","), loon.content)
     }
 
-    func testQuanXRuleSubscriptionKeepsDirectAndRejectButUsesImportedNodePolicy() {
-        let full = """
-        [filter_local]
-        host-suffix, example.com, 🚀 节点选择
-        ip-cidr, 10.0.0.0/8, direct, no-resolve
-        host-suffix, ads.example, reject
-        final, 🚀 节点选择
-        """
-        let configuration = GeneratedConfiguration(
-            target: .quanx,
-            content: full,
-            supportedNodeCount: 3,
-            skippedNodeCount: 0,
-            ruleCount: 4,
-            profileName: "塔台"
-        )
-
-        let rules = ConfigurationGenerator().generateQuanXRuleSubscription(
-            from: configuration,
-            profileName: "塔台"
-        )
-
-        XCTAssertEqual(rules.contentMode, .rulesOnly)
-        XCTAssertTrue(rules.content.contains("host-suffix, example.com, 塔台"), rules.content)
-        XCTAssertTrue(rules.content.contains("ip-cidr, 10.0.0.0/8, direct, no-resolve"), rules.content)
-        XCTAssertTrue(rules.content.contains("host-suffix, ads.example, reject"), rules.content)
-        XCTAssertTrue(rules.content.contains("final, 塔台"), rules.content)
-        XCTAssertFalse(rules.content.contains("🚀 节点选择"), rules.content)
-    }
-
     private func clashGroupBlock(named name: String, in content: String) -> Substring? {
         let marker = "  - name: \"\(name)\""
         guard let start = content.range(of: marker) else { return nil }

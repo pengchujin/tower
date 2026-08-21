@@ -311,6 +311,8 @@ private struct EditSubscriptionSheet: View {
     @State private var dnsOverHTTPSURL: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+    /// Held so 取消 stops the refetch instead of letting it finish unseen.
+    @State private var saveTask: Task<Void, Never>?
 
     init(source: SubscriptionSource, nameDraft: Binding<SubscriptionNameDraft>) {
         self.source = source
@@ -354,16 +356,20 @@ private struct EditSubscriptionSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") {
+                        saveTask?.cancel()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        Task { await save() }
+                        saveTask = Task { await save() }
                     }
                     .disabled(isSaving || urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .interactiveDismissDisabled(isSaving)
+            .onDisappear { saveTask?.cancel() }
         }
     }
 
@@ -501,7 +507,6 @@ private struct SubscriptionCard: View {
     @State private var sharePayload: SharePayload?
 
     private var isRefreshing: Bool { model.refreshingSourceIDs.contains(source.id) }
-    private var sourceNodes: [ProxyNode] { model.nodes(for: source) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -578,7 +583,7 @@ private struct SubscriptionCard: View {
                 Button {
                     isExpanded.toggle()
                 } label: {
-                    Label("\(sourceNodes.count) 个节点", systemImage: "circle.grid.2x2.fill")
+                    Label("\(model.nodeCount(for: source)) 个节点", systemImage: "circle.grid.2x2.fill")
                 }
                 .buttonStyle(.plain)
                 Spacer()
@@ -609,7 +614,9 @@ private struct SubscriptionCard: View {
                 // hundred rows, and building them all to show ten is what made
                 // expanding a big subscription stutter.
                 LazyVStack(spacing: 8) {
-                    ForEach(sourceNodes) { node in
+                    // Built only while expanded. Asking for it unconditionally
+                    // copied every node of every subscription on every redraw.
+                    ForEach(model.nodes(for: source)) { node in
                         ExpandableNodeRow(node: node)
                     }
                 }

@@ -13,14 +13,33 @@ struct NodeMapOverview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            map
+        // Grouping every node by region used to happen five times per redraw:
+        // once for the markers, again for the selected cluster, again for the
+        // empty check, again for the unlocated count, and again for the change
+        // watcher. Country resolution merges its results in batches of eight,
+        // so each batch triggered another five passes over every node.
+        let clusters = NodeRegionResolver.clusters(
+            for: nodes,
+            countryCodes: model.nodeIPCountryCodes
+        )
+        let selectedCluster = clusters.first { $0.id == selectedRegionCode }
+        let unlocatedCount = NodeRegionResolver.unlocatedNodes(
+            in: nodes,
+            countryCodes: model.nodeIPCountryCodes
+        ).count
+
+        return VStack(alignment: .leading, spacing: 14) {
+            map(clusters: clusters)
                 .id(SubscriptionScrollTarget.regions)
                 .accessibilityIdentifier("regions-section")
-            regionDetail
-                .padding(.horizontal, 4)
-                .id(SubscriptionScrollTarget.nodes)
-                .accessibilityIdentifier("nodes-section")
+            regionDetail(
+                clusters: clusters,
+                selectedCluster: selectedCluster,
+                unlocatedCount: unlocatedCount
+            )
+            .padding(.horizontal, 4)
+            .id(SubscriptionScrollTarget.nodes)
+            .accessibilityIdentifier("nodes-section")
         }
         .sensoryFeedback(.selection, trigger: selectedRegionCode)
         .task(id: ipCountryTaskID) {
@@ -38,8 +57,8 @@ struct NodeMapOverview: View {
         nodes.contains { model.latencyTestingNodeIDs.contains($0.id) }
     }
 
-    private var map: some View {
-        WorldDotMapView(markers: markers) { id in
+    private func map(clusters: [NodeRegionCluster]) -> some View {
+        WorldDotMapView(markers: markers(from: clusters)) { id in
             withAnimation(expansionAnimation) {
                 // Tapping the selected marker again collapses its node list.
                 selectedRegionCode = selectedRegionCode == id ? nil : id
@@ -110,7 +129,7 @@ struct NodeMapOverview: View {
         }
     }
 
-    private var markers: [WorldDotMarker] {
+    private func markers(from clusters: [NodeRegionCluster]) -> [WorldDotMarker] {
         clusters.map {
             WorldDotMarker(
                 id: $0.id,
@@ -124,7 +143,11 @@ struct NodeMapOverview: View {
     }
 
     @ViewBuilder
-    private var regionDetail: some View {
+    private func regionDetail(
+        clusters: [NodeRegionCluster],
+        selectedCluster: NodeRegionCluster?,
+        unlocatedCount: Int
+    ) -> some View {
         if let cluster = selectedCluster {
             SelectedRegionNodes(cluster: cluster) {
                 withAnimation(expansionAnimation) { selectedRegionCode = nil }
@@ -144,20 +167,6 @@ struct NodeMapOverview: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-
-    /// Nil means the list is collapsed, so there is no fallback to the first
-    /// cluster: that would make a second tap on a pin appear to do nothing.
-    private var selectedCluster: NodeRegionCluster? {
-        clusters.first { $0.id == selectedRegionCode }
-    }
-
-    private var clusters: [NodeRegionCluster] {
-        NodeRegionResolver.clusters(for: nodes, countryCodes: model.nodeIPCountryCodes)
-    }
-
-    private var unlocatedCount: Int {
-        NodeRegionResolver.unlocatedNodes(in: nodes, countryCodes: model.nodeIPCountryCodes).count
     }
 
     private var expansionAnimation: Animation {
@@ -377,7 +386,7 @@ private struct NodeRegionLogo: View {
                     // A name that already answers makes the lookup pointless
                     // work, and domain nodes would also need DNS resolution.
                     guard NodeRegionResolver.countryCode(for: node) == nil else { return }
-                    await model.resolveIPCountry(for: node)
+                    model.resolveIPCountry(for: node)
                 }
         } else {
             logo

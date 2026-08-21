@@ -2,7 +2,10 @@ import SwiftUI
 
 @main
 struct TowerApp: App {
-    @State private var model = AppModel()
+    // Coalesced rather than immediate: a burst of edits — ticking through the
+    // node filter, reordering policy groups — becomes one write shortly after
+    // the user stops, instead of a full snapshot encode inside every tap.
+    @State private var model = AppModel(persistencePolicy: .coalesced(.milliseconds(250)))
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
 
@@ -21,7 +24,13 @@ struct TowerApp: App {
                     await model.refreshOnOpenIfEnabled()
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
+                    guard phase == .active else {
+                        // Leaving the foreground is the last reliable moment to
+                        // close the coalescing window: iOS may stop the process
+                        // from here without another chance to write.
+                        model.flushPendingWrite()
+                        return
+                    }
                     guard hasSeenWelcome else { return }
                     Task {
                         await model.synchronizeWithCloud()
@@ -100,20 +109,34 @@ private struct ToastOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if let toast = model.toast {
-            ToastView(toast: toast)
-                .padding(.top, 8)
-                .transition(
-                    reduceMotion
-                        ? .opacity
-                        : .move(edge: .top).combined(with: .opacity)
-                )
-                .task(id: toast.id) {
-                    try? await Task.sleep(for: .seconds(2.6))
-                    withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.35, dampingFraction: 1)) {
+        // A container so the animation below has something stable to attach to.
+        // `showToast` assigns straight to the model, outside any transaction, so
+        // the insertion transition never ran: every message appeared abruptly
+        // and then slid away politely, which read as a glitch rather than a
+        // deliberate two-part motion. Driving both halves from the toast's id
+        // animates the arrival, the departure, and one message replacing
+        // another, without asking every caller to remember a transaction.
+        ZStack {
+            if let toast = model.toast {
+                ToastView(toast: toast)
+                    .padding(.top, 8)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .move(edge: .top).combined(with: .opacity)
+                    )
+                    .task(id: toast.id) {
+                        try? await Task.sleep(for: .seconds(2.6))
                         model.dismissToast(id: toast.id)
                     }
-                }
+            }
         }
+        .animation(appearance, value: model.toast?.id)
+    }
+
+    private var appearance: Animation {
+        reduceMotion
+            ? .easeOut(duration: 0.15)
+            : .spring(response: 0.35, dampingFraction: 1)
     }
 }

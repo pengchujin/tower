@@ -15,6 +15,24 @@ enum RuleGroupRenameError: LocalizedError {
     }
 }
 
+/// When a change reaches `state.json`.
+///
+/// Encoding a few hundred nodes and writing the file is milliseconds on a Mac
+/// and several times that on a phone, and it used to run on the main actor once
+/// per individual edit — every single node ticked in the filter screen paid for
+/// a complete rewrite of the snapshot, right in the middle of responding to the
+/// tap.
+enum PersistencePolicy {
+    /// Write before returning. The default, and what the tests rely on: they
+    /// assert on the file immediately after the call that should have written
+    /// it. Anything that forgets to opt in is merely slower, never wrong.
+    case immediate
+    /// Collapse a burst of edits into one write, shortly after they stop. Used
+    /// by the app, where the tap has to stay responsive. `flushPendingWrite()`
+    /// closes the window when Tower leaves the foreground.
+    case coalesced(Duration)
+}
+
 @MainActor
 @Observable
 final class AppModel {
@@ -93,7 +111,10 @@ final class AppModel {
     private(set) var isCloudSyncing = false
     private(set) var lastCloudSyncAt: Date?
     @ObservationIgnored private var cloudUploadTask: Task<Void, Never>?
-    @ObservationIgnored private var lastLocalEditAt: Date?
+    /// When the state now in memory was last edited. Readable so a test can
+    /// confirm a launch restores it: dropping it is what let an older iCloud
+    /// snapshot win and overwrite a local edit.
+    @ObservationIgnored private(set) var lastLocalEditAt: Date?
     private let subscriptionService: any SubscriptionFetching
     private let ruleRepository: RuleRepository
     private let schemeRepository: RuleSchemeRepository
@@ -113,7 +134,19 @@ final class AppModel {
     /// changes makes a simple mode switch block the main actor.
     @ObservationIgnored private var schemeRuleCountCache: [String: Int] = [:]
     @ObservationIgnored private var countryResolutionInFlightNodeIDs: Set<UUID> = []
+    /// Rows that have asked for their country and are waiting to be resolved as
+    /// one batch rather than one request each.
+    @ObservationIgnored private var pendingCountryResolutionNodes: [UUID: ProxyNode] = [:]
+    @ObservationIgnored private var countryResolutionDrainTask: Task<Void, Never>?
+    /// Country codes already resolved, keyed by host so they survive the node
+    /// ids being regenerated on every refresh. Persisted, so a cold launch does
+    /// not repeat a DNS lookup for every node the offline database already
+    /// answered for. Not observed: it only ever feeds `nodeIPCountryCodes`.
+    @ObservationIgnored private var resolvedHostCountryCodes: [String: String] = [:]
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
+    @ObservationIgnored private let persistencePolicy: PersistencePolicy
+    @ObservationIgnored private var pendingSnapshot: AppSnapshot?
+    @ObservationIgnored private var persistTask: Task<Void, Never>?
 
     init(
         persistence: PersistenceStore = PersistenceStore(),
@@ -127,8 +160,10 @@ final class AppModel {
         latencyService: NodeLatencyService = NodeLatencyService(),
         ipCountryLookupService: IPCountryLookupService = IPCountryLookupService(),
         reminderScheduler: (any SubscriptionReminderScheduling)? = nil,
+        persistencePolicy: PersistencePolicy = .immediate,
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) {
+        self.persistencePolicy = persistencePolicy
         self.persistence = persistence
         self.cloudSync = cloudSync
         self.subscriptionService = subscriptionService
@@ -861,6 +896,15 @@ final class AppModel {
         nodes.filter { $0.sourceID == source.id }
     }
 
+    /// How many nodes a subscription holds, without building the list.
+    ///
+    /// A collapsed subscription card only shows the number, but it used to ask
+    /// for the whole array to count it — copying every matching node, with all
+    /// its string fields, for every card, on every redraw of the screen.
+    func nodeCount(for source: SubscriptionSource) -> Int {
+        nodes.count { $0.sourceID == source.id }
+    }
+
     func nodeForPresentation(_ node: ProxyNode) -> ProxyNode {
         guard appendSubscriptionNameToNodes,
               let sourceID = node.sourceID,
@@ -992,8 +1036,32 @@ final class AppModel {
         countryResolutionCompletedNodeIDs.contains(node.id)
     }
 
-    func resolveIPCountry(for node: ProxyNode) async {
-        await resolveIPCountries(for: [node])
+    /// Queues one node, and resolves it together with whatever else asks in the
+    /// same moment.
+    ///
+    /// Every visible row asks for its own country as it appears. Forwarding
+    /// each one straight to `resolveIPCountries` made a "batch" of one, so the
+    /// batching that exists to stop a flood of simultaneous `getaddrinfo` calls
+    /// did nothing at all — the number in flight was simply the number of rows
+    /// on screen. The screens that resolve their whole list up front happened
+    /// to mask this; a screen that forgets to would not.
+    func resolveIPCountry(for node: ProxyNode) {
+        guard !countryResolutionCompletedNodeIDs.contains(node.id),
+              !countryResolutionInFlightNodeIDs.contains(node.id),
+              pendingCountryResolutionNodes[node.id] == nil else { return }
+        pendingCountryResolutionNodes[node.id] = node
+
+        guard countryResolutionDrainTask == nil else { return }
+        countryResolutionDrainTask = Task { [weak self] in
+            // Long enough to collect the rows of one scroll, short enough that
+            // a single tapped-open row still answers immediately.
+            try? await Task.sleep(for: .milliseconds(50))
+            guard let self else { return }
+            let queued = Array(self.pendingCountryResolutionNodes.values)
+            self.pendingCountryResolutionNodes.removeAll()
+            self.countryResolutionDrainTask = nil
+            await self.resolveIPCountries(for: queued)
+        }
     }
 
     func resolveIPCountries(for nodes: [ProxyNode]) async {
@@ -1007,23 +1075,47 @@ final class AppModel {
         countryResolutionInFlightNodeIDs.formUnion(candidateIDs)
         defer { countryResolutionInFlightNodeIDs.subtract(candidateIDs) }
 
+        // Answers carried over from an earlier run cost nothing to reuse: the
+        // host is what decided them, so they stay valid until the node's server
+        // changes. Only what is genuinely unknown reaches the network.
+        var unresolved: [ProxyNode] = []
+        for node in candidates {
+            if let code = resolvedHostCountryCodes[node.server.lowercased()] {
+                nodeIPCountryCodes[node.id] = code
+                countryResolutionCompletedNodeIDs.insert(node.id)
+            } else {
+                unresolved.append(node)
+            }
+        }
+        guard !unresolved.isEmpty else { return }
+
         // Each lookup can block on getaddrinfo, and every visible node row asks
         // for its own. Without the same batching the latency probes use, opening
         // a large region starts one DNS resolution per node at once.
         let service = ipCountryLookupService
-        for start in stride(from: 0, to: candidates.count, by: Self.resolutionBatchSize) {
-            guard !Task.isCancelled else { return }
-            let end = min(start + Self.resolutionBatchSize, candidates.count)
-            let batch = Array(candidates[start ..< end])
+        var learnedAnything = false
+        for start in stride(from: 0, to: unresolved.count, by: Self.resolutionBatchSize) {
+            guard !Task.isCancelled else { break }
+            let end = min(start + Self.resolutionBatchSize, unresolved.count)
+            let batch = Array(unresolved[start ..< end])
 
             let result = await NodeCountryResolutionBatch.resolve(nodes: batch) { node in
                 await service.countryCode(forHost: node.server)
             }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { break }
 
             countryResolutionCompletedNodeIDs.formUnion(result.completedIDs)
             nodeIPCountryCodes.merge(result.countryCodes) { _, new in new }
+            for node in batch {
+                guard let code = result.countryCodes[node.id] else { continue }
+                resolvedHostCountryCodes[node.server.lowercased()] = code
+                learnedAnything = true
+            }
         }
+
+        // Written once at the end rather than per batch: this is a cache, and
+        // losing it to a crash costs one round of lookups, not user data.
+        if learnedAnything { persist(invalidateRuleCounts: false) }
     }
 
     func testLatency(_ node: ProxyNode, force: Bool = true) async {
@@ -1193,28 +1285,63 @@ final class AppModel {
         var stagedSources: [SubscriptionSource] = []
         var stagedNodes: [ProxyNode] = []
         var rejectedLineCount = 0
+        var failures: [SubscriptionRefreshFailure] = []
+        var firstError: Error?
+
+        // One unreachable provider used to discard the whole batch. Pasting
+        // five links and having the third answer 404 left nothing added and
+        // the other four to paste again, so each link is now judged alone.
         for source in sources {
-            let result = try await subscriptionService.fetch(source)
-            var updated = source
-            if updated.nameWasAutoGenerated == true,
-               let suggestedName = result.suggestedName {
-                updated.name = suggestedName
+            do {
+                let result = try await subscriptionService.fetch(source)
+                var updated = source
+                if updated.nameWasAutoGenerated == true,
+                   let suggestedName = result.suggestedName {
+                    updated.name = suggestedName
+                }
+                updated.lastUpdatedAt = .now
+                updated.usage = result.usage
+                stagedSources.append(updated)
+                stagedNodes.append(contentsOf: result.nodes)
+                rejectedLineCount += result.rejectedLineCount
+            } catch {
+                // An explicit cancel means the user wants none of this, so the
+                // batch is abandoned rather than partly committed.
+                if Self.isCancellationError(error) { throw error }
+                firstError = firstError ?? error
+                failures.append(SubscriptionRefreshFailure(
+                    id: source.id,
+                    sourceName: source.name,
+                    message: error.localizedDescription
+                ))
             }
-            updated.lastUpdatedAt = .now
-            updated.usage = result.usage
-            stagedSources.append(updated)
-            stagedNodes.append(contentsOf: result.nodes)
-            rejectedLineCount += result.rejectedLineCount
+        }
+
+        // Nothing usable came back. Throwing keeps the add sheet open with the
+        // reason on it, which is where the user is still looking.
+        guard !stagedSources.isEmpty else {
+            throw firstError ?? SubscriptionError.noSupportedNodes
         }
 
         subscriptions.append(contentsOf: stagedSources)
         nodes.append(contentsOf: stagedNodes)
         persist()
         await synchronizeRenewalReminders(showFailure: false)
+
+        let result = ImportResult(nodes: stagedNodes, rejectedLineCount: rejectedLineCount, usage: nil)
+        guard failures.isEmpty else {
+            // The same report the pull-to-refresh failures use, so a partial
+            // add names every link that did not work instead of a bare count.
+            subscriptionRefreshReport = SubscriptionRefreshReport(
+                succeededCount: stagedSources.count,
+                totalCount: sources.count,
+                failures: failures
+            )
+            return
+        }
         let sourceSummary = sources.count == 1
             ? String(localized: "已添加")
             : String(localized: "已添加 \(sources.count) 个订阅，共")
-        let result = ImportResult(nodes: stagedNodes, rejectedLineCount: rejectedLineCount, usage: nil)
         showToast(importSummary(sourceSummary, result: result), symbol: "checkmark.circle.fill")
     }
 
@@ -1248,26 +1375,7 @@ final class AppModel {
             // before anything is written — and before this source's nodes are
             // replaced, since a deleted source should not get new ones.
             guard let index = subscriptions.firstIndex(where: { $0.id == id }) else { return false }
-            let replacedNodes = nodes.filter { $0.sourceID == source.id }
-            let replacedNodeIDs = Set(replacedNodes.map(\.id))
-            let excludedKeys = Set(
-                replacedNodes
-                    .filter { excludedNodeIDs.contains($0.id) }
-                    .map(Self.nodeRefreshIdentity)
-            )
-            nodes.removeAll { $0.sourceID == source.id }
-            excludedNodeIDs.subtract(replacedNodeIDs)
-            for id in replacedNodeIDs {
-                nodeLatencies[id] = nil
-                nodeIPCountryCodes[id] = nil
-                countryResolutionCompletedNodeIDs.remove(id)
-            }
-            nodes.append(contentsOf: result.nodes)
-            excludedNodeIDs.formUnion(
-                result.nodes
-                    .filter { excludedKeys.contains(Self.nodeRefreshIdentity($0)) }
-                    .map(\.id)
-            )
+            replaceNodes(ofSource: source.id, with: result.nodes)
             subscriptions[index].lastUpdatedAt = .now
             subscriptions[index].lastError = nil
             subscriptions[index].usage = result.usage
@@ -1296,6 +1404,31 @@ final class AppModel {
             }
             return false
         }
+    }
+
+    /// Swaps one subscription's nodes for a freshly parsed set.
+    ///
+    /// Node ids are regenerated by every parse, so the export selection has to
+    /// be carried across by identity and the diagnostics keyed by the old ids
+    /// have to go — nothing can read them again.
+    private func replaceNodes(ofSource sourceID: UUID, with refreshed: [ProxyNode]) {
+        let replacedNodes = nodes.filter { $0.sourceID == sourceID }
+        let replacedNodeIDs = Set(replacedNodes.map(\.id))
+        let carriedExclusions = Self.carriedOverExclusions(
+            previous: replacedNodes,
+            previouslyExcludedIDs: excludedNodeIDs,
+            refreshed: refreshed
+        )
+
+        nodes.removeAll { $0.sourceID == sourceID }
+        excludedNodeIDs.subtract(replacedNodeIDs)
+        for id in replacedNodeIDs {
+            nodeLatencies[id] = nil
+            nodeIPCountryCodes[id] = nil
+            countryResolutionCompletedNodeIDs.remove(id)
+        }
+        nodes.append(contentsOf: refreshed)
+        excludedNodeIDs.formUnion(carriedExclusions)
     }
 
     /// Match pressing each subscription's manual update button while keeping
@@ -1485,26 +1618,7 @@ final class AppModel {
             refreshingSourceIDs.insert(source.id)
             defer { refreshingSourceIDs.remove(source.id) }
             let result = try await subscriptionService.fetch(updated)
-            let replacedNodes = nodes.filter { $0.sourceID == source.id }
-            let replacedNodeIDs = Set(replacedNodes.map(\.id))
-            let excludedKeys = Set(
-                replacedNodes
-                    .filter { excludedNodeIDs.contains($0.id) }
-                    .map(Self.nodeRefreshIdentity)
-            )
-            nodes.removeAll { $0.sourceID == source.id }
-            excludedNodeIDs.subtract(replacedNodeIDs)
-            for id in replacedNodeIDs {
-                nodeLatencies[id] = nil
-                nodeIPCountryCodes[id] = nil
-                countryResolutionCompletedNodeIDs.remove(id)
-            }
-            nodes.append(contentsOf: result.nodes)
-            excludedNodeIDs.formUnion(
-                result.nodes
-                    .filter { excludedKeys.contains(Self.nodeRefreshIdentity($0)) }
-                    .map(\.id)
-            )
+            replaceNodes(ofSource: source.id, with: result.nodes)
             updated.lastUpdatedAt = .now
             updated.usage = result.usage
             if updated.nameWasAutoGenerated == true, let suggestedName = result.suggestedName {
@@ -1639,6 +1753,40 @@ final class AppModel {
         let resolvedTarget = target ?? selectedTarget
         let resolvedMode = contentMode ?? exportContentMode(for: resolvedTarget)
         let currentNodes = enabledNodes.map(nodeForPresentation)
+        let excluded = excludedKinds[resolvedTarget] ?? []
+        let supportedKindsHash = supportedKindsOverride?
+            .map(\.rawValue)
+            .sorted()
+            .joined(separator: "|")
+            .hashValue ?? 0
+        let excludedHash = excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
+            ^ supportedKindsHash
+
+        // A node subscription is nodes only: no rules, no policy groups, so
+        // none of the scheme materialization below applies to it. Producing the
+        // complete configuration first and discarding it cost a full generation
+        // on every redraw for the four clients that offer this mode, and the
+        // result was never cached either.
+        if resolvedMode == .nodesOnly {
+            let key = GenerationCacheKey(
+                target: resolvedTarget,
+                presetID: "",
+                nodesHash: currentNodes.hashValue,
+                countryCodesHash: 0,
+                excludedHash: excludedHash,
+                contentMode: .nodesOnly
+            )
+            if let cached = generationCache[key] { return cached.named(configurationName) }
+            let generated = ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
+                nodes: currentNodes,
+                target: resolvedTarget,
+                excludedKinds: excluded,
+                profileName: configurationName
+            )
+            generationCache[key] = generated
+            return generated
+        }
+
         let currentNodeIDs = Set(currentNodes.map(\.id))
         let currentCountryCodes = nodeIPCountryCodes.filter { currentNodeIDs.contains($0.key) }
         let countryCodesHash = currentCountryCodes
@@ -1647,12 +1795,6 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue
         let scheme = selectedScheme.map(effectiveScheme)
-        let excluded = excludedKinds[resolvedTarget] ?? []
-        let supportedKindsHash = supportedKindsOverride?
-            .map(\.rawValue)
-            .sorted()
-            .joined(separator: "|")
-            .hashValue ?? 0
         let key = GenerationCacheKey(
             target: resolvedTarget,
             presetID: scheme?.id ?? selectedPreset.id,
@@ -1661,28 +1803,11 @@ final class AppModel {
             rulesHash: scheme?.hashValue ?? selectedPreset.hashValue,
             // Without this, toggling a protocol would keep serving the cached
             // configuration for that client.
-            excludedHash: excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue ^ supportedKindsHash,
-            preferRuleSets: preferRuleSets
+            excludedHash: excludedHash,
+            preferRuleSets: preferRuleSets,
+            contentMode: .fullConfiguration
         )
-        if let cached = generationCache[key] {
-            let named = cached.named(configurationName)
-            switch resolvedMode {
-            case .fullConfiguration:
-                return named
-            case .nodesOnly:
-                return generatorForNodeOnly().generateNodeSubscription(
-                    nodes: currentNodes,
-                    target: resolvedTarget,
-                    excludedKinds: excluded,
-                    profileName: configurationName
-                )
-            case .rulesOnly:
-                return generatorForNodeOnly().generateQuanXRuleSubscription(
-                    from: named,
-                    profileName: configurationName
-                )
-            }
-        }
+        if let cached = generationCache[key] { return cached.named(configurationName) }
 
         let generator = ConfigurationGenerator(rules: ruleRepository)
         let generated: GeneratedConfiguration
@@ -1707,26 +1832,7 @@ final class AppModel {
             )
         }
         generationCache[key] = generated
-        if resolvedMode == .nodesOnly {
-            return generator.generateNodeSubscription(
-                nodes: currentNodes,
-                target: resolvedTarget,
-                excludedKinds: excluded,
-                profileName: configurationName
-            )
-        }
-        let named = generated.named(configurationName)
-        if resolvedMode == .rulesOnly {
-            return generator.generateQuanXRuleSubscription(
-                from: named,
-                profileName: configurationName
-            )
-        }
-        return named
-    }
-
-    private func generatorForNodeOnly() -> ConfigurationGenerator {
-        ConfigurationGenerator(rules: ruleRepository)
+        return generated.named(configurationName)
     }
 
     var isLANSharingActive: Bool { lanSharingURL != nil }
@@ -1899,6 +2005,23 @@ final class AppModel {
         }
     }
 
+    /// Deletes the snapshot Tower put in the user's iCloud.
+    ///
+    /// Everything else here keeps a subscription on the device; turning sync on
+    /// is the one moment that stops being true. Without this the upload was a
+    /// one-way door — the store could already remove the file, but nothing ever
+    /// called it, so the only way to take those credentials back out of iCloud
+    /// was to go and find the file in iCloud Drive.
+    func removeCloudSnapshot() async {
+        do {
+            try await cloudSync.removeRemoteSnapshot()
+            lastCloudSyncAt = nil
+            showToast(String(localized: "已删除 iCloud 上的副本"), symbol: "icloud.slash")
+        } catch {
+            showToast(error.localizedDescription, symbol: "exclamationmark.icloud.fill")
+        }
+    }
+
     /// Pulls whichever copy is newer, then makes sure iCloud holds it.
     func synchronizeWithCloud(showResult: Bool = false) async {
         guard iCloudSyncEnabled, !isDemoMode, !isCloudSyncing else { return }
@@ -1957,6 +2080,19 @@ final class AppModel {
     /// applied differently from a local one.
     private func apply(_ snapshot: AppSnapshot) {
         schemeRuleCountCache.removeAll(keepingCapacity: true)
+        // The moment this snapshot's edits became current. Without it a launch
+        // left `lastLocalEditAt` nil, so the next foreground sync compared
+        // `.distantPast` against iCloud and took the remote copy unconditionally
+        // — including a *older* one, which then overwrote the local file. An
+        // edit made while iCloud was unreachable was lost on the next launch.
+        lastLocalEditAt = snapshot.updatedAt
+        // Diagnostics are keyed by node id, and ids are regenerated whenever a
+        // subscription is parsed. Entries belonging to the replaced nodes can
+        // never be read again, so they are dropped rather than accumulated.
+        let retainedNodeIDs = Set(snapshot.nodes.map(\.id))
+        nodeLatencies = nodeLatencies.filter { retainedNodeIDs.contains($0.key) }
+        nodeIPCountryCodes = nodeIPCountryCodes.filter { retainedNodeIDs.contains($0.key) }
+        countryResolutionCompletedNodeIDs.formIntersection(retainedNodeIDs)
         subscriptions = snapshot.subscriptions.map { source in
             var source = source
             if Self.isCancellationMessage(source.lastError) { source.lastError = nil }
@@ -1988,6 +2124,7 @@ final class AppModel {
             ? (snapshot.preferRuleSets ?? false)
             : false
         exportContentModes = Self.decodeExportContentModes(snapshot.exportContentModes)
+        resolvedHostCountryCodes = snapshot.resolvedHostCountryCodes ?? [:]
         selectedPresetID = snapshot.selectedPresetID
         selectedTarget = snapshot.selectedTarget
     }
@@ -2070,8 +2207,18 @@ final class AppModel {
             preferRuleSets: preferRuleSets,
             preferRuleSetsWasExplicitlySet: preferRuleSetsWasExplicitlySet,
             exportContentModes: Self.encodeExportContentModes(exportContentModes),
+            // Pruned to the hosts still in use so a long-lived install does not
+            // carry every server it has ever seen in its snapshot.
+            resolvedHostCountryCodes: prunedResolvedHostCountryCodes(),
             updatedAt: updatedAt
         )
+    }
+
+    private func prunedResolvedHostCountryCodes() -> [String: String]? {
+        guard !resolvedHostCountryCodes.isEmpty else { return nil }
+        let liveHosts = Set(nodes.map { $0.server.lowercased() })
+        let retained = resolvedHostCountryCodes.filter { liveHosts.contains($0.key) }
+        return retained.isEmpty ? nil : retained
     }
 
     private func persist(invalidateRuleCounts: Bool = true) {
@@ -2080,13 +2227,43 @@ final class AppModel {
         }
         guard !isDemoMode else { return }
         let snapshot = currentSnapshot()
+        scheduleCloudUpload(snapshot)
+
+        switch persistencePolicy {
+        case .immediate:
+            write(snapshot)
+        case .coalesced(let delay):
+            pendingSnapshot = snapshot
+            persistTask?.cancel()
+            persistTask = Task { [weak self] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                self?.flushPendingWrite()
+            }
+        }
+    }
+
+    /// Writes whatever the coalescing window is still holding.
+    ///
+    /// Called when Tower leaves the foreground, because iOS may stop the
+    /// process outright from there and a pending edit would go with it.
+    func flushPendingWrite() {
+        persistTask?.cancel()
+        persistTask = nil
+        guard let snapshot = pendingSnapshot else { return }
+        pendingSnapshot = nil
+        write(snapshot)
+    }
+
+    private func write(_ snapshot: AppSnapshot) {
         do {
             try persistence.save(snapshot)
         } catch {
-            toast = ToastMessage(text: String(localized: "保存失败：\(error.localizedDescription)"), symbol: "exclamationmark.triangle.fill")
-            return
+            toast = ToastMessage(
+                text: String(localized: "保存失败：\(error.localizedDescription)"),
+                symbol: "exclamationmark.triangle.fill"
+            )
         }
-        scheduleCloudUpload(snapshot)
     }
 
     private static var demoSnapshot: AppSnapshot {
@@ -2139,7 +2316,7 @@ final class AppModel {
         )
     }
 
-    private static func nodeRefreshIdentity(_ node: ProxyNode) -> String {
+    nonisolated private static func nodeRefreshIdentity(_ node: ProxyNode) -> String {
         [
             node.kind.rawValue,
             node.server.lowercased(),
@@ -2147,6 +2324,72 @@ final class AppModel {
             node.name,
             node.rawURI,
         ].joined(separator: "|")
+    }
+
+    /// The same node with its remark ignored.
+    ///
+    /// Providers rewrite remarks constantly — remaining traffic, multipliers
+    /// and expiry dates all get written into the name — and `rawURI` often
+    /// carries a rotating parameter. Tower renumbers bare-flag names itself,
+    /// so adding or removing one node in a region shifts every later name.
+    nonisolated private static func nodeStableIdentity(_ node: ProxyNode) -> String {
+        [
+            node.kind.rawValue,
+            node.server.lowercased(),
+            String(node.port),
+            node.password ?? "",
+            node.uuid ?? "",
+            node.username ?? "",
+            node.cipher ?? "",
+        ].joined(separator: "|")
+    }
+
+    /// Which freshly parsed nodes inherit the user's "do not export" choice.
+    ///
+    /// Matching on the full identity alone lost the choice whenever the
+    /// provider touched the remark, and a lost exclusion is silent: the node
+    /// reappears in every generated profile without anything on screen
+    /// changing. So a node whose exact identity is gone is matched again with
+    /// the remark dropped.
+    ///
+    /// That looser key is only trusted when it named exactly one node before
+    /// the refresh and exactly one after. Airports do publish several distinct
+    /// routes through one endpoint and credential, and excluding a node the
+    /// user never excluded is the same class of silent error in the other
+    /// direction.
+    ///
+    /// Pure and non-isolated so the rule can be tested directly; observing it
+    /// through a refresh would need a network and would only show the outcome.
+    nonisolated static func carriedOverExclusions(
+        previous: [ProxyNode],
+        previouslyExcludedIDs: Set<UUID>,
+        refreshed: [ProxyNode]
+    ) -> Set<UUID> {
+        let excludedPrevious = previous.filter { previouslyExcludedIDs.contains($0.id) }
+        guard !excludedPrevious.isEmpty else { return [] }
+
+        let exactKeys = Set(excludedPrevious.map(nodeRefreshIdentity))
+        let excludedStableKeys = Set(excludedPrevious.map(nodeStableIdentity))
+
+        var previousStableCounts: [String: Int] = [:]
+        for node in previous {
+            previousStableCounts[nodeStableIdentity(node), default: 0] += 1
+        }
+        var refreshedStableCounts: [String: Int] = [:]
+        for node in refreshed {
+            refreshedStableCounts[nodeStableIdentity(node), default: 0] += 1
+        }
+
+        return Set(
+            refreshed.compactMap { node -> UUID? in
+                if exactKeys.contains(nodeRefreshIdentity(node)) { return node.id }
+                let stableKey = nodeStableIdentity(node)
+                guard excludedStableKeys.contains(stableKey),
+                      previousStableCounts[stableKey] == 1,
+                      refreshedStableCounts[stableKey] == 1 else { return nil }
+                return node.id
+            }
+        )
     }
 
     private static func fallbackSubscriptionName(urlString: String, index: Int) -> String {
@@ -2180,6 +2423,10 @@ struct GenerationCacheKey: Hashable {
     let rulesHash: Int
     let excludedHash: Int
     let preferRuleSets: Bool
+    /// A node subscription and a complete profile are different documents built
+    /// from the same nodes, so they need separate entries rather than one
+    /// overwriting the other.
+    let contentMode: ExportContentMode
 
     init(
         target: ClientTarget,
@@ -2188,7 +2435,8 @@ struct GenerationCacheKey: Hashable {
         countryCodesHash: Int,
         rulesHash: Int = 0,
         excludedHash: Int = 0,
-        preferRuleSets: Bool = true
+        preferRuleSets: Bool = true,
+        contentMode: ExportContentMode = .fullConfiguration
     ) {
         self.target = target
         self.presetID = presetID
@@ -2197,14 +2445,25 @@ struct GenerationCacheKey: Hashable {
         self.rulesHash = rulesHash
         self.excludedHash = excludedHash
         self.preferRuleSets = preferRuleSets
+        self.contentMode = contentMode
     }
 
+    /// What makes a previously generated profile obsolete.
     fileprivate var signature: GenerationCacheSignature {
         GenerationCacheSignature(
             presetID: presetID,
             nodesHash: nodesHash,
             countryCodesHash: countryCodesHash,
             rulesHash: rulesHash
+        )
+    }
+
+    /// The same, for node subscriptions. They contain no rules, so nothing
+    /// about the selected scheme belongs here.
+    fileprivate var nodeSubscriptionSignature: NodeSubscriptionSignature {
+        NodeSubscriptionSignature(
+            nodesHash: nodesHash,
+            countryCodesHash: countryCodesHash
         )
     }
 }
@@ -2216,24 +2475,56 @@ private struct GenerationCacheSignature: Hashable {
     let rulesHash: Int
 }
 
-struct ConfigurationCache {
-    private var values: [GenerationCacheKey: GeneratedConfiguration] = [:]
-    private var signature: GenerationCacheSignature?
+private struct NodeSubscriptionSignature: Hashable {
+    let nodesHash: Int
+    let countryCodesHash: Int
+}
 
-    var count: Int { values.count }
+struct ConfigurationCache {
+    /// Complete client profiles. One of these can be several hundred kilobytes,
+    /// so a superseded generation is dropped as soon as the nodes or the rules
+    /// change rather than accumulating one copy per client.
+    private var profiles: [GenerationCacheKey: GeneratedConfiguration] = [:]
+    private var profileSignature: GenerationCacheSignature?
+
+    /// Node subscriptions, held apart from the profiles.
+    ///
+    /// They are built from the nodes alone and name no scheme, so sharing one
+    /// signature with the profiles made the two evict each other every time the
+    /// user switched between 完整配置 and 仅节点 — which is exactly the switch
+    /// this cache exists to make cheap.
+    private var nodeSubscriptions: [GenerationCacheKey: GeneratedConfiguration] = [:]
+    private var nodeSubscriptionSignature: NodeSubscriptionSignature?
+
+    var count: Int { profiles.count + nodeSubscriptions.count }
 
     subscript(key: GenerationCacheKey) -> GeneratedConfiguration? {
-        get { values[key] }
+        get {
+            key.contentMode == .nodesOnly ? nodeSubscriptions[key] : profiles[key]
+        }
         set {
-            guard let newValue else {
-                values[key] = nil
+            if key.contentMode == .nodesOnly {
+                guard let newValue else {
+                    nodeSubscriptions[key] = nil
+                    return
+                }
+                if nodeSubscriptionSignature != key.nodeSubscriptionSignature {
+                    nodeSubscriptions.removeAll(keepingCapacity: true)
+                    nodeSubscriptionSignature = key.nodeSubscriptionSignature
+                }
+                nodeSubscriptions[key] = newValue
                 return
             }
-            if signature != key.signature {
-                values.removeAll(keepingCapacity: true)
-                signature = key.signature
+
+            guard let newValue else {
+                profiles[key] = nil
+                return
             }
-            values[key] = newValue
+            if profileSignature != key.signature {
+                profiles.removeAll(keepingCapacity: true)
+                profileSignature = key.signature
+            }
+            profiles[key] = newValue
         }
     }
 }

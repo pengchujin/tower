@@ -38,6 +38,8 @@
 19. 节点地区**先按节点名判断**（国旗 Emoji → 中英文国名/别名/城市 → 大写国家代码），名字看不出来才查内置离线 IP 库；策略分组和界面用同一个顺序，不要让两边给出不同的国家。国家表由 `Scripts/update_country_table.py` 生成到 `Tower/Services/CountryTable.swift`，不要手改。
 20. 国旗一律用 Emoji 正常渲染，不要为个别地区自绘图形；iOS 没有字形的（例如 TW）就显示成两个字母，这是系统行为。列表里国旗外面不加圆形底。
 21. `Tower/Resources/` 下的第三方数据不适用源码的 MIT 许可。新增或更新打包资源时，必须同步更新 `THIRD-PARTY-NOTICES.md` 和对应目录的 NOTICE，注明来源、固定版本和许可证。`LICENSE` 里「仅覆盖源码」那段说明不要删除，即使 GitHub 因此把许可证识别成 `Other`。
+22. 刷新订阅必须保住用户「取消勾选」的节点。节点 id 每次解析都会重新生成，机场又常把剩余流量、倍率写进 remark，塔台自己也会给纯国旗节点重编号——所以不能只按含 name 的精确 identity 匹配。`AppModel.carriedOverExclusions` 是唯一的判定入口：先精确匹配，失配再用去掉 remark 的宽松键，且只有该键在刷新前后都唯一时才认。丢失排除的后果是静默的——节点直接回到每一份导出配置里。
+23. `AppModel.apply()` 必须把 `snapshot.updatedAt` 恢复到 `lastLocalEditAt`。不恢复的话，启动后第一次前台同步会拿 `.distantPast` 去和 iCloud 比，任何远端快照都赢——包括更旧的那份，然后覆盖本地文件。离线时改的订阅会在下次启动被静默丢弃。
 
 ## 常用命令
 
@@ -64,6 +66,9 @@ xcodebuild -project Tower.xcodeproj \
 # 更新固定版本的规则和 IP 国家库
 python3 Scripts/update_self_configuration_rules.py
 python3 Scripts/update_ip_country_db.py --help
+
+# 检查有没有「源码能显示、目录里没有」的文案
+bash Scripts/check_localization.sh
 ```
 
 更新规则或 IP 库后，必须同时检查对应 `manifest.json` / `NOTICE.txt`、资源哈希和自动测试；不要只替换二进制资源。
@@ -71,6 +76,8 @@ python3 Scripts/update_ip_country_db.py --help
 ## 改动验收
 
 - 每次提交至少通过 TowerTests；配置生成相关修改要覆盖全部七种目标客户端。
+- 新增或修改界面文案后跑 `Scripts/check_localization.sh` 发现缺口，再用 `Scripts/generate_localizations.py --source-catalog <Xcode 导出的 Localizable.xcstrings>` 填补，短标签和无障碍文案需人工复核。`LocalizationTests` 只校验「目录里已有的条目是否 15 种语言齐全」，对「源码有、目录没有」完全无感——这类缺口不会报错，只会在其余 14 种语言下直接显示中文。该脚本用 Xcode 自己的提取器比对，不要改用 grep 手写：`Text`、`Label`、`.navigationTitle`、`.accessibilityHint`、弹窗标题等位置手写正则覆盖不全，插值也无法还原成 `%@` / `%lld`。
+- 目录里被 Xcode 标成 `stale` 的条目**不要删**。内置 ACL4SSR 方案名和简介来自 manifest，运行时经 `String(localized: String.LocalizationValue(name))` 本地化，静态提取器看不见它们。
 - 涉及导入、分享、剪贴板、地图、ICMP、动画或大文本预览时，模拟器结果只算基础验证，必须再用真机验收。
 - 发布新包前递增 `CURRENT_PROJECT_VERSION`，归档并核对 Bundle ID、版本号和签名团队。
 - 不提交 `.artifacts`、DerivedData、归档、IPA、证书、描述文件、App Store Connect API Key 或任何密码。

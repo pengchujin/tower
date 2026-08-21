@@ -723,7 +723,10 @@ private struct RuleCustomizationSheet: View {
             .searchable(
                 text: $searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "在线搜索规则：如 YouTube OpenAI"
+                // Not "在线搜索": this filters the bundled catalog and the
+                // user's own local library. Nothing here reaches the network,
+                // which is the whole promise of the screen.
+                prompt: "搜索规则：如 YouTube OpenAI"
             )
             .scrollDismissesKeyboard(.interactively)
             .accessibilityIdentifier("rule-customization-list")

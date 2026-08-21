@@ -14,6 +14,13 @@ struct AddSourceSheet: View {
     @State private var manualDraft = ManualNodeDraft()
     @State private var customUserAgent = ""
     @State private var dnsOverHTTPSURL = ""
+    /// Held so 取消 can actually stop the request.
+    ///
+    /// A fetch runs for up to 30 seconds per compatibility attempt, and the
+    /// task used to be unstructured and unowned: dismissing the sheet left it
+    /// running, so cancelling an add still added the subscription and still
+    /// announced it in a toast some seconds later.
+    @State private var saveTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
 
     private let detector = SourceInputDetector()
@@ -93,12 +100,15 @@ struct AddSourceSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") {
+                        saveTask?.cancel()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(saveButtonTitle) {
                         focusedField = nil
-                        Task { await save() }
+                        saveTask = Task { await save() }
                     }
                     .disabled(isSaveDisabled)
                     .accessibilityIdentifier("save-source")
@@ -112,6 +122,7 @@ struct AddSourceSheet: View {
             .onAppear {
                 if editingNode == nil { requestClipboardContent() }
             }
+            .onDisappear { saveTask?.cancel() }
             .onChange(of: sourceValue) {
                 errorMessage = nil
             }
