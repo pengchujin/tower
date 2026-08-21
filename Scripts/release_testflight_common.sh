@@ -46,6 +46,13 @@ tower_validate_team() {
     }
 }
 
+# Reads `security find-identity -v -p codesigning` output from stdin and emits
+# only the identity names. Unlike `find-certificate`, this list contains valid
+# code-signing identities backed by an accessible private key.
+tower_codesigning_identity_names() {
+    sed -nE 's/^[[:space:]]*[0-9]+\)[[:space:]]+[0-9A-Fa-f]{40}[[:space:]]+"([^"]+)"[[:space:]]*$/\1/p'
+}
+
 tower_validate_ssh_destination() {
     [[ "$1" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$ ]] || {
         printf 'Invalid SSH destination: %s\n' "$1" >&2
@@ -94,6 +101,17 @@ tower_validate_build() {
         printf 'Invalid build number: %s\n' "$1" >&2
         return 1
     }
+}
+
+tower_check_bundled_rules_current() {
+    local repo_root="$1"
+    local updater="$repo_root/Scripts/update_acl4ssr_rules.py"
+
+    [[ -f "$updater" ]] || {
+        printf 'Bundled rule updater not found: %s\n' "$updater" >&2
+        return 1
+    }
+    python3 "$updater" --check-latest
 }
 
 tower_validate_commit() {

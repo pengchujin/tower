@@ -291,8 +291,19 @@ protocol SubscriptionHTTPDataLoading {
     ) async throws -> (Data, URLResponse)
 }
 
+protocol SubscriptionURLSessionLoading {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+    func finishTasksAndInvalidate()
+}
+
+extension URLSession: SubscriptionURLSessionLoading {}
+
 struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
     private static let gate = SubscriptionRequestGate()
+    private let sharedSession: any SubscriptionURLSessionLoading
+    private let isolatedSessionFactory: () -> any SubscriptionURLSessionLoading
+    private let dnsApplier: (URL) -> Void
+    private let dnsResetter: () -> Void
 
     /// One ephemeral session shared by every subscription request.
     ///
@@ -302,14 +313,35 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
     /// actually mattered: nothing about these requests is written to disk.
     /// Cookie handling is switched off outright rather than merely kept in
     /// memory, so a provider cannot use one to correlate refreshes.
-    private static let session: URLSession = {
+    private static let session: URLSession = makeSession()
+
+    private static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         return URLSession(configuration: configuration)
-    }()
+    }
+
+    init() {
+        self.sharedSession = Self.session
+        self.isolatedSessionFactory = { Self.makeSession() }
+        self.dnsApplier = Self.applyDNSOverHTTPS
+        self.dnsResetter = Self.resetDNS
+    }
+
+    init(
+        sharedSession: any SubscriptionURLSessionLoading,
+        isolatedSessionFactory: @escaping () -> any SubscriptionURLSessionLoading,
+        applyDNSOverHTTPS: @escaping (URL) -> Void,
+        resetDNS: @escaping () -> Void
+    ) {
+        self.sharedSession = sharedSession
+        self.isolatedSessionFactory = isolatedSessionFactory
+        self.dnsApplier = applyDNSOverHTTPS
+        self.dnsResetter = resetDNS
+    }
 
     func data(
         for request: URLRequest,
@@ -317,15 +349,32 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
     ) async throws -> (Data, URLResponse) {
         let needsExclusiveAccess = dnsOverHTTPSURL != nil
         await Self.gate.acquire(needsExclusiveAccess: needsExclusiveAccess)
-        if let dnsOverHTTPSURL { applyDNSOverHTTPS(dnsOverHTTPSURL) }
+        let session: any SubscriptionURLSessionLoading
+        if let dnsOverHTTPSURL {
+            dnsApplier(dnsOverHTTPSURL)
+            // URLSession pools persistent connections. A shared session may
+            // therefore reuse a socket opened before the custom resolver was
+            // installed and skip DNS entirely. A request-scoped session starts
+            // with an empty pool, then is invalidated before the resolver is
+            // restored so no connection can escape this DNS window.
+            session = isolatedSessionFactory()
+        } else {
+            session = sharedSession
+        }
 
         do {
-            let result = try await Self.session.data(for: request)
-            if dnsOverHTTPSURL != nil { resetDNS() }
+            let result = try await session.data(for: request)
+            if dnsOverHTTPSURL != nil {
+                session.finishTasksAndInvalidate()
+                dnsResetter()
+            }
             await Self.gate.release(wasExclusiveAccess: needsExclusiveAccess)
             return result
         } catch {
-            if dnsOverHTTPSURL != nil { resetDNS() }
+            if dnsOverHTTPSURL != nil {
+                session.finishTasksAndInvalidate()
+                dnsResetter()
+            }
             await Self.gate.release(wasExclusiveAccess: needsExclusiveAccess)
             throw error
         }
@@ -345,7 +394,7 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
     /// also resolves through this resolver. The window is a single request long
     /// and the setting is restored in both the success and failure paths, so
     /// the exposure is bounded rather than eliminated.
-    private func applyDNSOverHTTPS(_ url: URL) {
+    private static func applyDNSOverHTTPS(_ url: URL) {
         let context = NWParameters.PrivacyContext.default
         context.requireEncryptedNameResolution(
             true,
@@ -354,7 +403,7 @@ struct SubscriptionHTTPClient: SubscriptionHTTPDataLoading {
         context.flushCache()
     }
 
-    private func resetDNS() {
+    private static func resetDNS() {
         let context = NWParameters.PrivacyContext.default
         context.requireEncryptedNameResolution(
             false,

@@ -29,9 +29,28 @@ actor CloudSyncStore {
     private static let fileName = "state.json"
 
     private let containerID: String?
+    private let fileURLOverride: URL?
+    private let removeItem: (URL) throws -> Void
+    private nonisolated let accountAvailableOverride: Bool?
 
     init(containerIdentifier: String? = CloudSyncStore.containerIdentifier) {
         self.containerID = containerIdentifier
+        self.fileURLOverride = nil
+        self.removeItem = { try FileManager.default.removeItem(at: $0) }
+        self.accountAvailableOverride = nil
+    }
+
+    /// Local file injection keeps the coordination and encoding paths under
+    /// test without requiring the test runner to own an iCloud container.
+    init(
+        fileURL: URL,
+        isAccountAvailable: Bool = true,
+        removeItem: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }
+    ) {
+        self.containerID = nil
+        self.fileURLOverride = fileURL
+        self.removeItem = removeItem
+        self.accountAvailableOverride = isAccountAvailable
     }
 
     /// Whether the device has an iCloud account Tower can write to.
@@ -39,7 +58,8 @@ actor CloudSyncStore {
     /// Signing out of iCloud leaves the identity token nil, which is the only
     /// check that does not block on the network.
     nonisolated var isAccountAvailable: Bool {
-        FileManager.default.ubiquityIdentityToken != nil
+        if let accountAvailableOverride { return accountAvailableOverride }
+        return FileManager.default.ubiquityIdentityToken != nil
     }
 
     /// Resolving the container touches the file system and can be slow the
@@ -54,15 +74,18 @@ actor CloudSyncStore {
     }
 
     private func fileURL() throws -> URL {
-        try documentsURL().appendingPathComponent(Self.fileName, isDirectory: false)
+        if let fileURLOverride { return fileURLOverride }
+        return try documentsURL().appendingPathComponent(Self.fileName, isDirectory: false)
     }
 
     func upload(_ snapshot: AppSnapshot) throws {
+        try Task.checkCancellation()
         let url = try fileURL()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(snapshot)
+        try Task.checkCancellation()
 
         var coordinationError: NSError?
         var writeError: Error?
@@ -109,10 +132,16 @@ actor CloudSyncStore {
         let url = try fileURL()
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         var coordinationError: NSError?
+        var removalError: Error?
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &coordinationError) { target in
-            try? FileManager.default.removeItem(at: target)
+            do {
+                try removeItem(target)
+            } catch {
+                removalError = error
+            }
         }
         if let coordinationError { throw coordinationError }
+        if let removalError { throw removalError }
     }
 }
 

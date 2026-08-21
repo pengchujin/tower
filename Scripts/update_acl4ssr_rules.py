@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 
 ACL4SSR_REVISION = "06ff293e02565adceef9aa92321efa2603f68f32"
 RAW_BASE = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR"
+LATEST_REVISION_URL = "https://api.github.com/repos/ACL4SSR/ACL4SSR/commits/master"
 # Keeps every ACL4SSR snapshot identifiable in Xcode's flat bundle namespace
 # and lets RuleRepository ignore them.
 RESOURCE_PREFIX = "ACL4SSR_"
@@ -51,6 +52,39 @@ def fetch(url: str) -> bytes:
     request = Request(url, headers={"User-Agent": "Tower ACL4SSR snapshot updater"})
     with urlopen(request, timeout=30) as response:
         return response.read()
+
+
+def latest_revision(fetcher=fetch) -> str:
+    """Resolve the current upstream head to an immutable Git commit."""
+    try:
+        payload = json.loads(fetcher(LATEST_REVISION_URL))
+        revision = payload["sha"].lower()
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise SystemExit("无法解析 ACL4SSR 上游最新提交") from error
+    if len(revision) != 40 or any(character not in "0123456789abcdef" for character in revision):
+        raise SystemExit("ACL4SSR 上游返回了无效的提交号")
+    return revision
+
+
+def bundled_revision(destination: Path = DESTINATION) -> str:
+    manifest_path = destination / f"{RESOURCE_PREFIX}manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return manifest["revision"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+        raise SystemExit(f"无法读取内置 ACL4SSR 清单：{manifest_path}") from error
+
+
+def check_latest_snapshot(destination: Path = DESTINATION, fetcher=fetch) -> None:
+    current = bundled_revision(destination)
+    latest = latest_revision(fetcher=fetcher)
+    if current != latest:
+        raise SystemExit(
+            "内置 ACL4SSR 规则不是最新版本。\n"
+            "请运行 python3 Scripts/update_acl4ssr_rules.py --latest，"
+            "完成测试并提交资源变更后再打包。"
+        )
+    print(f"ACL4SSR 内置规则已是上游最新提交：{current[:12]}")
 
 
 def config_url(file_name: str, revision: str) -> str:
@@ -102,15 +136,47 @@ def count_rules(text: str) -> int:
     return total
 
 
-def build(revision: str) -> None:
+def notice_text(revision: str) -> str:
+    return f"""ACL4SSR rules
+=============
+
+Source:      ACL4SSR/ACL4SSR
+Source URL:  https://github.com/ACL4SSR/ACL4SSR
+Revision:    {revision}
+License:     CC BY-SA 4.0
+             https://creativecommons.org/licenses/by-sa/4.0/
+
+Bundled here: the ACL4SSR_Online, ACL4SSR_Online_Mini and ACL4SSR_Online_Full
+remote configs, plus every .list rule file they reference.
+
+Modifications: none to the rule contents. Every file carries an "ACL4SSR_"
+prefix because Xcode flattens resources into the bundle root; this keeps their
+origin explicit and avoids future filename collisions. The configs' "master"
+URLs were rewritten to the pinned revision above so the snapshot is reproducible.
+
+Sources, rule counts and SHA-256 digests: ACL4SSR_manifest.json
+Regenerate with: python3 Scripts/update_acl4ssr_rules.py --latest
+
+These rule files remain under CC BY-SA 4.0 and are not covered by the MIT
+license that applies to this project's source code. See THIRD-PARTY-NOTICES.md
+in the repository root.
+"""
+
+
+def build(
+    revision: str,
+    destination: Path = DESTINATION,
+    fetcher=fetch,
+    configs=CONFIGS,
+) -> None:
     staging = Path(tempfile.mkdtemp(prefix="tower-acl4ssr-"))
     manifest: dict[str, object] = {"revision": revision, "configs": {}, "rulesets": {}}
 
     try:
-        for scheme_id, (file_name, display_name, summary) in CONFIGS.items():
+        for scheme_id, (file_name, display_name, summary) in configs.items():
             url = config_url(file_name, revision)
             print(f"config  {file_name}")
-            payload = fetch(url)
+            payload = fetcher(url)
             text = payload.decode("utf-8-sig")
 
             # Rewrite master URLs to the pinned revision so the copy that ships
@@ -132,7 +198,7 @@ def build(revision: str) -> None:
                     continue
                 print(f"  rule  {name}")
                 try:
-                    body = fetch(ruleset_url).decode("utf-8-sig")
+                    body = fetcher(ruleset_url).decode("utf-8-sig")
                 except (HTTPError, URLError) as error:
                     raise SystemExit(f"下载失败 {ruleset_url}: {error}") from error
                 (staging / name).write_text(body, encoding="utf-8")
@@ -141,6 +207,11 @@ def build(revision: str) -> None:
                     "ruleCount": count_rules(body),
                     "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
                 }
+
+        (staging / f"{RESOURCE_PREFIX}NOTICE.txt").write_text(
+            notice_text(revision),
+            encoding="utf-8",
+        )
 
         # Prefixed for the same reason as the rule lists: the flat bundle should
         # retain an origin-specific manifest name.
@@ -151,10 +222,10 @@ def build(revision: str) -> None:
 
         # Replace atomically so a failed download never leaves a half-written
         # snapshot behind in the app resources.
-        if DESTINATION.exists():
-            shutil.rmtree(DESTINATION)
-        DESTINATION.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(staging), str(DESTINATION))
+        if destination.exists():
+            shutil.rmtree(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(staging), str(destination))
         staging = None  # moved
     finally:
         if staging is not None and staging.exists():
@@ -162,18 +233,39 @@ def build(revision: str) -> None:
 
     print(
         f"\n完成：{len(manifest['configs'])} 份配置，"
-        f"{len(manifest['rulesets'])} 个规则文件 -> {DESTINATION}"
+        f"{len(manifest['rulesets'])} 个规则文件 -> {destination}"
     )
 
 
-def main() -> None:
+def main(
+    argv: list[str] | None = None,
+    destination: Path = DESTINATION,
+    fetcher=fetch,
+    builder=build,
+) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--check-latest",
+        action="store_true",
+        help="只检查随包快照是否对应上游最新提交，不修改文件。",
+    )
+    mode.add_argument(
+        "--latest",
+        action="store_true",
+        help="解析上游最新提交并生成可复现的随包快照。",
+    )
+    mode.add_argument(
         "--revision",
         default=ACL4SSR_REVISION,
         help="ACL4SSR/ACL4SSR 的提交号，默认使用脚本里固定的版本。",
     )
-    build(parser.parse_args().revision)
+    arguments = parser.parse_args(argv)
+    if arguments.check_latest:
+        check_latest_snapshot(destination=destination, fetcher=fetcher)
+        return
+    revision = latest_revision(fetcher=fetcher) if arguments.latest else arguments.revision
+    builder(revision)
 
 
 if __name__ == "__main__":

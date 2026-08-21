@@ -188,6 +188,25 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(cardSource.contains("rule-customization-\\(scheme.id)"))
     }
 
+    func testRuleSchemeInlinePreviewUsesTheSameLiveSchemeAsCustomization() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
+        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
+
+        XCTAssertEqual(
+            source.components(separatedBy: "previewScheme: model.customizableScheme(for:").count - 1,
+            3,
+            "每类规则卡片都必须从 AppModel 获取实时定制结果"
+        )
+        XCTAssertTrue(cardSource.contains("let previewScheme: RuleScheme"))
+        XCTAssertTrue(cardSource.contains("ForEach(previewScheme.groups"))
+        XCTAssertTrue(cardSource.contains("previewScheme.groups.count"))
+        XCTAssertTrue(cardSource.contains("previewScheme.remoteRulesetURLs.count"))
+        XCTAssertFalse(cardSource.contains("ForEach(scheme.groups"))
+        XCTAssertFalse(cardSource.contains("scheme.remoteRulesetURLs.count"))
+    }
+
     func testRulesHomeExplainsThatSchemeCardsAreEditable() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
@@ -195,15 +214,10 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("rules-editing-hint"))
     }
 
-    func testRuleCustomizationSearchPromptDoesNotClaimToGoOnline() throws {
+    func testRuleCustomizationUsesRequestedOnlineSearchPrompt() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
-        // The prompt used to read 在线搜索规则. The field searches the bundled
-        // catalog and the user's own local library and never opens a
-        // connection, so promising an online search contradicted the one thing
-        // this screen guarantees.
-        XCTAssertTrue(source.contains("搜索规则：如 YouTube OpenAI"))
-        XCTAssertFalse(source.contains("prompt: \"在线搜索规则"))
+        XCTAssertTrue(source.contains("在线搜索规则：如 YouTube OpenAI"))
         XCTAssertTrue(source.contains("compactRuleRowInsets"))
         XCTAssertTrue(source.contains(".towerToast()"))
     }

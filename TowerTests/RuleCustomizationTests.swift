@@ -1233,6 +1233,29 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertEqual(model.toast?.tone, .success)
     }
 
+    @MainActor
+    func testCustomizableSchemePreviewRefreshesAfterEditingAGroup() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-live-rule-preview-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: fileURL),
+            arguments: []
+        )
+        let scheme = makeScheme()
+
+        let initialPreview = model.customizableScheme(for: scheme)
+        XCTAssertTrue(initialPreview.groups.contains { $0.name == "海外媒体" })
+
+        try model.renameRuleGroup(named: "海外媒体", to: "流媒体", for: scheme)
+
+        let updatedPreview = model.customizableScheme(for: scheme)
+        XCTAssertFalse(updatedPreview.groups.contains { $0.name == "海外媒体" })
+        XCTAssertTrue(updatedPreview.groups.contains { $0.name == "流媒体" })
+        XCTAssertEqual(updatedPreview.groups, model.customizableRuleGroups(for: scheme))
+        XCTAssertTrue(updatedPreview.rulesets.contains { $0.groupName == "流媒体" })
+    }
+
     private func makeScheme() -> RuleScheme {
         RuleScheme(
             id: "custom",

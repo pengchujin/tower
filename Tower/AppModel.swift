@@ -128,6 +128,7 @@ final class AppModel {
     /// Latency probes and DNS lookups both run in small batches so expanding a
     /// large subscription cannot flood the network stack or stall the main actor.
     private static let resolutionBatchSize = 8
+    private static let resolvedHostCountryCodeTTL: TimeInterval = 24 * 60 * 60
     @ObservationIgnored private var generationCache = ConfigurationCache()
     /// The rules page shows every scheme's total at once. Re-materializing all
     /// schemes and re-reading imported lists whenever only the selected id
@@ -143,6 +144,7 @@ final class AppModel {
     /// not repeat a DNS lookup for every node the offline database already
     /// answered for. Not observed: it only ever feeds `nodeIPCountryCodes`.
     @ObservationIgnored private var resolvedHostCountryCodes: [String: String] = [:]
+    @ObservationIgnored private var resolvedHostCountryCodeUpdatedAt: [String: Date] = [:]
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
     @ObservationIgnored private let persistencePolicy: PersistencePolicy
     @ObservationIgnored private var pendingSnapshot: AppSnapshot?
@@ -282,13 +284,20 @@ final class AppModel {
         persist()
     }
 
-    func customizableRuleGroups(for scheme: RuleScheme) -> [RuleSchemeGroup] {
+    /// The live, unfiltered scheme shared by the customization editor and its
+    /// inline preview. Unlike `effectiveScheme`, this keeps every editable
+    /// group visible while still applying saved edits and custom rule flows.
+    func customizableScheme(for scheme: RuleScheme) -> RuleScheme {
         scheme.customized(
             enabledRuleGroupNames: nil,
             customRuleFlows: customRuleFlows,
             groupCustomization: ruleSchemeCustomizations[scheme.id],
             resolvedRuleLines: resolvedRuleLines(for: scheme)
-        ).groups
+        )
+    }
+
+    func customizableRuleGroups(for scheme: RuleScheme) -> [RuleSchemeGroup] {
+        customizableScheme(for: scheme).groups
     }
 
     func updateRuleGroup(_ group: RuleSchemeGroup, for scheme: RuleScheme) {
@@ -1075,15 +1084,21 @@ final class AppModel {
         countryResolutionInFlightNodeIDs.formUnion(candidateIDs)
         defer { countryResolutionInFlightNodeIDs.subtract(candidateIDs) }
 
-        // Answers carried over from an earlier run cost nothing to reuse: the
-        // host is what decided them, so they stay valid until the node's server
-        // changes. Only what is genuinely unknown reaches the network.
+        // Answers carried over from an earlier run cost nothing to reuse, but
+        // DNS-backed hosts can move. Re-resolve after one day rather than
+        // pinning a hostname to the first country this install ever saw.
         var unresolved: [ProxyNode] = []
         for node in candidates {
-            if let code = resolvedHostCountryCodes[node.server.lowercased()] {
+            let host = node.server.lowercased()
+            if let code = resolvedHostCountryCodes[host],
+               Self.isResolvedHostCountryCodeFresh(
+                   updatedAt: resolvedHostCountryCodeUpdatedAt[host]
+               ) {
                 nodeIPCountryCodes[node.id] = code
                 countryResolutionCompletedNodeIDs.insert(node.id)
             } else {
+                resolvedHostCountryCodes[host] = nil
+                resolvedHostCountryCodeUpdatedAt[host] = nil
                 unresolved.append(node)
             }
         }
@@ -1108,7 +1123,9 @@ final class AppModel {
             nodeIPCountryCodes.merge(result.countryCodes) { _, new in new }
             for node in batch {
                 guard let code = result.countryCodes[node.id] else { continue }
-                resolvedHostCountryCodes[node.server.lowercased()] = code
+                let host = node.server.lowercased()
+                resolvedHostCountryCodes[host] = code
+                resolvedHostCountryCodeUpdatedAt[host] = .now
                 learnedAnything = true
             }
         }
@@ -1116,6 +1133,14 @@ final class AppModel {
         // Written once at the end rather than per batch: this is a cache, and
         // losing it to a crash costs one round of lookups, not user data.
         if learnedAnything { persist(invalidateRuleCounts: false) }
+    }
+
+    private static func isResolvedHostCountryCodeFresh(
+        updatedAt: Date?,
+        now: Date = .now
+    ) -> Bool {
+        guard let updatedAt else { return false }
+        return now.timeIntervalSince(updatedAt) <= resolvedHostCountryCodeTTL
     }
 
     func testLatency(_ node: ProxyNode, force: Bool = true) async {
@@ -2028,15 +2053,23 @@ final class AppModel {
         isCloudSyncing = true
         defer { isCloudSyncing = false }
 
+        // A debounced edit may still be waiting to upload. The explicit sync
+        // below is authoritative and already carries the latest in-memory
+        // state, so letting that older task race the download can replace the
+        // remote winner before it is even compared.
+        cloudUploadTask?.cancel()
+        cloudUploadTask = nil
+
         let local = currentSnapshot(updatedAt: lastLocalEditAt ?? .distantPast)
         do {
             let remote = try await cloudSync.download()
             switch CloudSyncResolution.resolve(local: local.updatedAt, remote: remote?.updatedAt) {
             case .takeRemote:
                 if let remote {
+                    discardPendingLocalWrite()
                     apply(remote)
                     lastLocalEditAt = remote.updatedAt
-                    try? persistence.save(remote)
+                    try persistence.save(remote)
                     if showResult {
                         showToast(String(localized: "已从 iCloud 取回配置"), symbol: "icloud.and.arrow.down")
                     }
@@ -2053,6 +2086,12 @@ final class AppModel {
                 showToast(error.localizedDescription, symbol: "exclamationmark.icloud.fill")
             }
         }
+    }
+
+    private func discardPendingLocalWrite() {
+        persistTask?.cancel()
+        persistTask = nil
+        pendingSnapshot = nil
     }
 
     /// Uploads after edits settle, so a burst of changes costs one write.
@@ -2125,6 +2164,17 @@ final class AppModel {
             : false
         exportContentModes = Self.decodeExportContentModes(snapshot.exportContentModes)
         resolvedHostCountryCodes = snapshot.resolvedHostCountryCodes ?? [:]
+        resolvedHostCountryCodeUpdatedAt = snapshot.resolvedHostCountryCodeUpdatedAt ?? [:]
+        let now = Date.now
+        resolvedHostCountryCodes = resolvedHostCountryCodes.filter { host, _ in
+            Self.isResolvedHostCountryCodeFresh(
+                updatedAt: resolvedHostCountryCodeUpdatedAt[host],
+                now: now
+            )
+        }
+        resolvedHostCountryCodeUpdatedAt = resolvedHostCountryCodeUpdatedAt.filter {
+            resolvedHostCountryCodes[$0.key] != nil
+        }
         selectedPresetID = snapshot.selectedPresetID
         selectedTarget = snapshot.selectedTarget
     }
@@ -2210,6 +2260,7 @@ final class AppModel {
             // Pruned to the hosts still in use so a long-lived install does not
             // carry every server it has ever seen in its snapshot.
             resolvedHostCountryCodes: prunedResolvedHostCountryCodes(),
+            resolvedHostCountryCodeUpdatedAt: prunedResolvedHostCountryCodeUpdatedAt(),
             updatedAt: updatedAt
         )
     }
@@ -2217,7 +2268,20 @@ final class AppModel {
     private func prunedResolvedHostCountryCodes() -> [String: String]? {
         guard !resolvedHostCountryCodes.isEmpty else { return nil }
         let liveHosts = Set(nodes.map { $0.server.lowercased() })
-        let retained = resolvedHostCountryCodes.filter { liveHosts.contains($0.key) }
+        let retained = resolvedHostCountryCodes.filter {
+            liveHosts.contains($0.key)
+                && Self.isResolvedHostCountryCodeFresh(
+                    updatedAt: resolvedHostCountryCodeUpdatedAt[$0.key]
+                )
+        }
+        return retained.isEmpty ? nil : retained
+    }
+
+    private func prunedResolvedHostCountryCodeUpdatedAt() -> [String: Date]? {
+        let retainedCodes = prunedResolvedHostCountryCodes() ?? [:]
+        let retained = resolvedHostCountryCodeUpdatedAt.filter {
+            retainedCodes[$0.key] != nil
+        }
         return retained.isEmpty ? nil : retained
     }
 

@@ -15,6 +15,45 @@ private actor RequestConcurrencyProbe {
     }
 }
 
+private final class HTTPSessionFixture: SubscriptionURLSessionLoading, @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestCountStorage = 0
+    private var invalidationCountStorage = 0
+
+    var requestCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return requestCountStorage
+    }
+
+    var invalidationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return invalidationCountStorage
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        lock.lock()
+        requestCountStorage += 1
+        lock.unlock()
+        return (
+            Data(),
+            HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil
+            )!
+        )
+    }
+
+    func finishTasksAndInvalidate() {
+        lock.lock()
+        invalidationCountStorage += 1
+        lock.unlock()
+    }
+}
+
 private struct HTTPSubscriptionFixtureLoader: SubscriptionHTTPDataLoading {
     var headerFields: [String: String] = ["Content-Type": "text/plain"]
 
@@ -84,6 +123,43 @@ private actor UserAgentFallbackFixtureLoader: SubscriptionHTTPDataLoading {
 }
 
 final class SubscriptionRequestOptionsTests: XCTestCase {
+    func testCustomDoHUsesAndInvalidatesAFreshURLSession() async throws {
+        let shared = HTTPSessionFixture()
+        let isolated = HTTPSessionFixture()
+        let client = SubscriptionHTTPClient(
+            sharedSession: shared,
+            isolatedSessionFactory: { isolated },
+            applyDNSOverHTTPS: { _ in },
+            resetDNS: {}
+        )
+        let request = URLRequest(url: URL(string: "https://subscription.example/list")!)
+
+        _ = try await client.data(
+            for: request,
+            dnsOverHTTPSURL: URL(string: "https://resolver.example/dns-query")!
+        )
+
+        XCTAssertEqual(shared.requestCount, 0)
+        XCTAssertEqual(isolated.requestCount, 1)
+        XCTAssertEqual(isolated.invalidationCount, 1)
+    }
+
+    func testOrdinaryRequestKeepsUsingTheSharedURLSession() async throws {
+        let shared = HTTPSessionFixture()
+        let client = SubscriptionHTTPClient(
+            sharedSession: shared,
+            isolatedSessionFactory: { XCTFail("普通请求不应创建独立连接池"); return HTTPSessionFixture() },
+            applyDNSOverHTTPS: { _ in },
+            resetDNS: {}
+        )
+        let request = URLRequest(url: URL(string: "https://subscription.example/list")!)
+
+        _ = try await client.data(for: request, dnsOverHTTPSURL: nil)
+
+        XCTAssertEqual(shared.requestCount, 1)
+        XCTAssertEqual(shared.invalidationCount, 0)
+    }
+
     func testDefaultRequestUsesShadowrocketCompatibilityUserAgentWithoutRetry() async throws {
         let loader = UserAgentFallbackFixtureLoader()
         let source = SubscriptionSource(

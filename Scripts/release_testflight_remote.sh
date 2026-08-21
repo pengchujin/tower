@@ -82,6 +82,9 @@ actual_commit="$(git -C "$REPO_ROOT" rev-parse HEAD)"
     exit 1
 }
 
+printf 'Checking bundled ACL4SSR rules…\n'
+tower_check_bundled_rules_current "$REPO_ROOT"
+
 if [[ "$aqua_mode" == false ]]; then
     keychain="$HOME/Library/Keychains/login.keychain-db"
     printf '\nSigning access\n'
@@ -92,33 +95,41 @@ if [[ "$aqua_mode" == false ]]; then
         security unlock-keychain "$keychain" </dev/tty
     fi
 
-    # The team is the certificate's OU.
-    #
-    # It is NOT the value in parentheses in the common name: that string —
-    # "Apple Development: chujin peng (8N5HR3FDPZ)" — is the individual
-    # developer's id. Matching it rejected the correct certificate outright,
-    # whose subject reads `CN=…(8N5HR3FDPZ)/OU=G63LDXL9QJ`, and stopped a
-    # release the moment the keychain was unlocked.
-    certificate_subjects="$(
-        security find-certificate -a -p "$keychain" 2>/dev/null | awk '
-            /-----BEGIN CERTIFICATE-----/ { pem = $0 ORS; next }
-            { pem = pem $0 ORS }
-            /-----END CERTIFICATE-----/ {
-                command = "openssl x509 -noout -subject 2>/dev/null"
-                printf "%s", pem | command
-                close(command)
-                pem = ""
-            }
-        '
+    # Only a valid code-signing identity proves that the certificate is
+    # unexpired and its private key is available. For each such identity, read
+    # the certificate subject and match the requested team against its OU.
+    valid_identities="$(
+        security find-identity -v -p codesigning "$keychain" 2>/dev/null \
+            | tower_codesigning_identity_names
     )"
-    if ! printf '%s\n' "$certificate_subjects" | grep -q "OU=$team"; then
-        printf 'No Apple code-signing certificate for team %s in %s.\n\n' "$team" "$keychain" >&2
-        printf 'Signing certificates found:\n' >&2
-        printf '%s\n' "$certificate_subjects" \
-            | grep -E 'Apple (Development|Distribution)' \
-            | sed 's/^/  /' >&2
+    matching_identity=""
+    while IFS= read -r identity; do
+        [[ -n "$identity" ]] || continue
+        case "$identity" in
+            "Apple Development:"*|"Apple Distribution:"*) ;;
+            *) continue ;;
+        esac
+        certificate_subject="$(
+            security find-certificate -c "$identity" -p "$keychain" 2>/dev/null \
+                | openssl x509 -noout -subject 2>/dev/null \
+                || true
+        )"
+        if printf '%s\n' "$certificate_subject" \
+            | grep -Eq "(^|[/,[:space:]])OU[[:space:]]*=[[:space:]]*$team([/,[:space:]]|$)"; then
+            matching_identity="$identity"
+            break
+        fi
+    done <<< "$valid_identities"
+
+    if [[ -z "$matching_identity" ]]; then
+        printf 'No valid Apple code-signing identity for team %s in %s.\n\n' "$team" "$keychain" >&2
+        printf 'Valid Apple code-signing identities found:\n' >&2
+        printf '%s\n' "$valid_identities" \
+            | grep -E '^Apple (Development|Distribution):' \
+            | sed 's/^/  /' >&2 \
+            || true
         printf '\nOpen Xcode on this machine, sign in to the Apple ID that owns %s,\n' "$team" >&2
-        printf 'and let it create a signing certificate before releasing again.\n' >&2
+        printf 'and let it create a signing certificate and private key before releasing again.\n' >&2
         exit 1
     fi
 

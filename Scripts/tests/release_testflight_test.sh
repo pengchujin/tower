@@ -90,6 +90,44 @@ for bad in "abcde12345" "ABCDE1234" "ABCDE12345 " "ABC; rm -rf /"; do
     fi
 done
 
+identity_output='  1) 0123456789ABCDEF0123456789ABCDEF01234567 "Apple Development: Example (<DEVELOPER_ID>)"'
+assert_equal \
+    'Apple Development: Example (<DEVELOPER_ID>)' \
+    "$(printf '%s\n' "$identity_output" | tower_codesigning_identity_names)" \
+    "extracts only valid code-signing identities with private keys"
+
+invalid_identity_output='  0 valid identities found'
+assert_equal "" \
+    "$(printf '%s\n' "$invalid_identity_output" | tower_codesigning_identity_names)" \
+    "does not mistake a certificate without a private key for a signing identity"
+
+fake_repo="$fixture_dir/fake-repo"
+mkdir -p "$fake_repo/Scripts"
+cat > "$fake_repo/Scripts/update_acl4ssr_rules.py" <<'PY'
+import sys
+
+if sys.argv[1:] != ["--check-latest"]:
+    raise SystemExit(2)
+print("bundled rules current")
+PY
+assert_equal \
+    "bundled rules current" \
+    "$(tower_check_bundled_rules_current "$fake_repo")" \
+    "release preflight checks the bundled ACL4SSR snapshot"
+
+local_release_source="$(<"$REPO_ROOT/Scripts/release_testflight.sh")"
+remote_release_source="$(<"$REPO_ROOT/Scripts/release_testflight_remote.sh")"
+assert_contains "$local_release_source" 'tower_check_bundled_rules_current "$REPO_ROOT"' \
+    "local release checks bundled rules before connecting"
+assert_contains "$remote_release_source" 'tower_check_bundled_rules_current "$REPO_ROOT"' \
+    "remote archive checks bundled rules before signing"
+
+releasing_document="$(<"$REPO_ROOT/docs/RELEASING.md")"
+assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py --latest' \
+    "release documentation explains how to fetch the latest bundled rules"
+assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py --check-latest' \
+    "release documentation includes the non-mutating freshness check"
+
 if tower_validate_ssh_destination "user@host; touch /tmp/nope" >/dev/null 2>&1; then
     fail "rejects unsafe SSH destinations"
 fi
@@ -131,6 +169,18 @@ if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     # SSH destinations pointing at a private address: a build host, by shape.
     scan_tracked '[A-Za-z0-9._-]+@(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)[0-9]+\.[0-9]+' \
         "A build-host SSH destination is committed"
+
+    # Certificate examples are especially easy to paste from `security` or
+    # OpenSSL output. Their common-name suffix and OU expose personal/team
+    # identifiers even when no explicit teamID assignment exists.
+    scan_tracked 'Apple (Development|Distribution):[^\"]*\([A-Z0-9]{10}\)|OU[=/][A-Z0-9]{10}' \
+        "An Apple certificate subject containing a real identifier is committed"
+
+    remote_source="$(<"$REPO_ROOT/Scripts/release_testflight_remote.sh")"
+    assert_contains "$remote_source" 'find-identity -v -p codesigning' \
+        "release preflight checks usable code-signing identities"
+    assert_not_contains "$remote_source" 'find-certificate -a -p' \
+        "release preflight must not accept certificate-only keychain entries"
 
     local_config="$REPO_ROOT/Config/release.local.sh"
     if [[ -f "$local_config" ]]; then

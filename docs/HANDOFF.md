@@ -528,7 +528,7 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 
 - **删除不可达的 `.rulesOnly`**。`supportedContentModes` 只返回 `[.fullConfiguration, .nodesOnly]`，`decodeExportContentModes` 还会把它过滤掉，用户永远选不到、旧存档也恢复不出来，但生产代码里留着 9 处分支和一个生成器方法。`ExportView.modeExplanation` 给它和 `.fullConfiguration` 返回同一句话，是当初就没想清楚的证据。枚举 case、生成器、分支、两个测试一并移除。
 - **添加/编辑订阅的「取消」现在真的取消**。此前是脱离结构的 `Task`，面板关掉后请求继续跑完（最长 30 秒 × 多次 UA 尝试），仍会把订阅加进去并弹「已添加」。改为持有 task，取消与 `onDisappear` 都会 cancel。
-- **搜索框文案**：`在线搜索规则` → `搜索规则`。该字段只过滤内置目录和本机规则库，不联网，原文案与这块屏幕的核心承诺相反。**注意**：这推翻了此前一次明确要求（旧测试名为 `testRuleCustomizationUsesRequestedOnlineSearchPromptAndCompactRows`），若原意另有考虑请改回。
+- **搜索框文案**：按产品要求使用 `在线搜索规则：如 YouTube OpenAI`，并由回归测试固定，避免后续整理文案时再次误改。
 - **Toast 出现有动画了**。`showToast` 直接赋值、不在任何 transaction 内，插入过渡从不运行——每条提示都是「啪」地出现再优雅滑走。改由 toast id 驱动整段动画。
 
 ### 本地化
@@ -717,6 +717,7 @@ User interaction is not allowed.
 2026-08-03 那份成功上传的归档，实际签名就是 `Apple Development: …`。归档阶段用开发证书签名属正常流程，**分发签名发生在 Distribute / `-exportArchive` 这一步**，Xcode 会重新签名，分发证书可以由 Apple 云端托管、本地钥匙串不留私钥。
 
 所以排查上传问题时，不要以 `security find-identity` 里没有 Distribution 证书作为判据。
+发布脚本的预检会从 `security find-identity -v -p codesigning` 中接受同团队的有效 Development 或 Distribution 身份；仅有证书而没有可用私钥时会在归档前直接失败。
 
 归档命令基线：
 

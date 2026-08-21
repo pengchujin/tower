@@ -5,10 +5,39 @@
 ## 前置条件
 
 - 本地仓库工作区必须干净，并且 `HEAD` 与 `origin/main` 完全一致。
+- 随 App 打包的 ACL4SSR 快照必须对应上游最新提交；发布脚本会联网检查并在过期时中止。
 - 工程中的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION` 必须已经更新并推送。
 - 两台机器都需要各自的 `Config/release.local.sh`（见下一节）。
 - Mac mini 的登录钥匙串中需要存在可用的 Apple Development 或 Apple Distribution 签名身份。
 - 本机安装 Ghostty；SSH 优先使用现有公钥，没有公钥时由 SSH 自己交互询问密码。
+
+## 打包前更新内置规则
+
+内置 ACL4SSR 规则属于 App 资源，不会在用户设备上自动更新。每次 TestFlight 或 App Store 打包前，发布脚本会执行只读检查：
+
+```sh
+python3 Scripts/update_acl4ssr_rules.py --check-latest
+```
+
+如果上游已有新提交，脚本会在签名和归档之前停止。回到开发仓库执行：
+
+```sh
+python3 Scripts/update_acl4ssr_rules.py --latest
+```
+
+更新器会先解析上游最新提交号，再下载三份 ACL4SSR 配置及其引用的全部规则集，把 URL 固定到该提交，并重新生成 `Tower/Resources/ACL4SSR/ACL4SSR_manifest.json` 中的来源、规则数量和 SHA-256。下载全部成功后才会原子替换现有快照。
+
+更新完成后必须：
+
+1. 检查 `git diff -- Tower/Resources/ACL4SSR`，确认只有预期的上游规则变化。
+2. 运行 `python3 Scripts/tests/update_acl4ssr_rules_test.py`、`bash Scripts/tests/release_testflight_test.sh` 和完整 iOS 测试。
+3. 提交并推送规则资源，再重新运行发布脚本。不要在归档过程中保留未提交的资源变化，否则归档产物无法对应 Git 提交。
+
+需要复现旧快照时可以明确指定完整提交号：
+
+```sh
+python3 Scripts/update_acl4ssr_rules.py --revision <完整提交号>
+```
 
 ## 本地配置
 
@@ -46,7 +75,7 @@ Scripts/release_testflight.sh
 需要明确约束目标版本时：
 
 ```sh
-Scripts/release_testflight.sh --version 1.0.2 --build 29
+Scripts/release_testflight.sh --version 1.0.3 --build 30
 ```
 
 只做校验、不连接 Mac mini：
@@ -64,13 +93,14 @@ Scripts/release_testflight.sh --no-ghostty
 ## 脚本会做什么
 
 1. 拒绝带未提交文件的本地工作区。
-2. 拉取 `origin/main`，确认本地提交已经完整推送。
-3. 打开 Ghostty，以交互 SSH 连接 Mac mini。
-4. Mac mini 快进到同一个提交，并再次核对版本、构建号和工作区。
-5. 需要时交互解锁登录钥匙串，确认签名身份可见。
-6. 自动在 Mac mini 的 Terminal/Aqua 会话中使用 Release 配置归档，并将日志实时回传到 Ghostty。
-7. 把 `Config/ExportOptions-TestFlight.plist` 复制到发布目录、补上 `TOWER_DEVELOPMENT_TEAM`，再用它上传 App Store Connect。
-8. 将归档与日志保存在 Mac mini 的 `~/Builds/Tower-TestFlight-版本-构建号-时间/`。
+2. 联网上游检查随包 ACL4SSR 快照；不是最新版本就停止并给出更新命令。
+3. 拉取 `origin/main`，确认本地提交已经完整推送。
+4. 打开 Ghostty，以交互 SSH 连接 Mac mini。
+5. Mac mini 快进到同一个提交，再次核对版本、构建号、工作区和内置规则版本。
+6. 需要时交互解锁登录钥匙串，确认签名身份可见。
+7. 自动在 Mac mini 的 Terminal/Aqua 会话中使用 Release 配置归档，并将日志实时回传到 Ghostty。
+8. 把 `Config/ExportOptions-TestFlight.plist` 复制到发布目录、补上 `TOWER_DEVELOPMENT_TEAM`，再用它上传 App Store Connect。
+9. 将归档与日志保存在 Mac mini 的 `~/Builds/Tower-TestFlight-版本-构建号-时间/`。
 
 脚本成功只代表 Xcode 上传命令完成。发布后仍需在 App Store Connect 确认构建已出现、处理完成，以及是否加入了正确的 TestFlight 测试群组。
 
@@ -79,4 +109,3 @@ Scripts/release_testflight.sh --no-ghostty
 ```sh
 bash Scripts/tests/release_testflight_test.sh
 ```
-

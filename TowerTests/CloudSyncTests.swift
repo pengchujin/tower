@@ -1,6 +1,10 @@
 import XCTest
 @testable import Tower
 
+private enum CloudSyncFixtureError: Error {
+    case removalFailed
+}
+
 /// The rule that decides which device's copy survives.
 ///
 /// Split out of `CloudSyncStore` so it can be tested without an iCloud account
@@ -73,6 +77,76 @@ final class CloudSyncTests: XCTestCase {
 
         let snapshot = try decoder.decode(AppSnapshot.self, from: Data(json.utf8))
         XCTAssertNil(snapshot.updatedAt)
+    }
+
+    func testDeletingTheRemoteSnapshotPropagatesFileRemovalFailure() async throws {
+        let remoteURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-cloud-delete-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: remoteURL) }
+
+        let store = CloudSyncStore(
+            fileURL: remoteURL,
+            removeItem: { _ in throw CloudSyncFixtureError.removalFailed }
+        )
+        try await store.upload(AppSnapshot(
+            subscriptions: [], nodes: [], selectedPresetID: "x", selectedTarget: .surge
+        ))
+
+        do {
+            try await store.removeRemoteSnapshot()
+            XCTFail("删除失败不能被当成成功")
+        } catch CloudSyncFixtureError.removalFailed {
+            // Expected.
+        } catch {
+            XCTFail("错误类型不正确：\(error)")
+        }
+    }
+
+    @MainActor
+    func testTakingRemoteCancelsQueuedLocalDiskWriteAndCloudUpload() async throws {
+        let stateURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-cloud-local-\(UUID().uuidString).json")
+        let remoteURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-cloud-remote-\(UUID().uuidString).json")
+        defer {
+            try? FileManager.default.removeItem(at: stateURL)
+            try? FileManager.default.removeItem(at: remoteURL)
+        }
+
+        let wasEnabled = CloudSyncPreference.isEnabled()
+        CloudSyncPreference.setEnabled(true)
+        defer { CloudSyncPreference.setEnabled(wasEnabled) }
+
+        let remote = AppSnapshot(
+            subscriptions: [],
+            nodes: [],
+            selectedPresetID: AppModel.defaultRuleSchemeID,
+            selectedTarget: .surge,
+            configurationName: "Remote Winner",
+            updatedAt: Date.now.addingTimeInterval(60)
+        )
+        let cloud = CloudSyncStore(fileURL: remoteURL)
+        try await cloud.upload(remote)
+
+        let persistence = PersistenceStore(fileURL: stateURL)
+        let model = AppModel(
+            persistence: persistence,
+            cloudSync: cloud,
+            persistencePolicy: .coalesced(.seconds(30)),
+            arguments: []
+        )
+        model.setConfigurationName("Queued Local Edit")
+
+        await model.synchronizeWithCloud()
+        model.flushPendingWrite()
+
+        XCTAssertEqual(try persistence.load()?.configurationName, "Remote Winner")
+
+        // The local edit also queued a delayed iCloud upload. Let its old
+        // deadline pass and prove it cannot overwrite the accepted remote.
+        try await Task.sleep(for: .milliseconds(2_100))
+        let finalRemote = try await cloud.download()
+        XCTAssertEqual(finalRemote?.configurationName, "Remote Winner")
     }
 }
 

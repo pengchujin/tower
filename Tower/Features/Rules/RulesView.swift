@@ -83,6 +83,7 @@ struct RulesView: View {
             ForEach(schemes) { scheme in
                 RuleSchemeCard(
                     scheme: scheme,
+                    previewScheme: model.customizableScheme(for: scheme),
                     isSelected: model.selectedPresetID == scheme.id,
                     ruleCount: model.ruleCount(for: scheme),
                     isRefreshing: false,
@@ -98,6 +99,7 @@ struct RulesView: View {
             if let selfConfigurationScheme = model.selfConfigurationScheme {
                 RuleSchemeCard(
                     scheme: selfConfigurationScheme,
+                    previewScheme: model.customizableScheme(for: selfConfigurationScheme),
                     isSelected: model.selectedPresetID == selfConfigurationScheme.id,
                     ruleCount: model.ruleCount(for: selfConfigurationScheme),
                     isRefreshing: model.importingSchemeIDs.contains(selfConfigurationScheme.id),
@@ -137,6 +139,7 @@ struct RulesView: View {
                 ForEach(schemes) { scheme in
                     RuleSchemeCard(
                         scheme: scheme,
+                        previewScheme: model.customizableScheme(for: scheme),
                         isSelected: model.selectedPresetID == scheme.id,
                         ruleCount: model.ruleCount(for: scheme),
                         isRefreshing: model.importingSchemeIDs.contains(scheme.id),
@@ -345,6 +348,7 @@ private struct SelfConfigurationDownloadCard: View {
 private struct RuleSchemeCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let scheme: RuleScheme
+    let previewScheme: RuleScheme
     let isSelected: Bool
     let ruleCount: Int
     let isRefreshing: Bool
@@ -370,7 +374,7 @@ private struct RuleSchemeCard: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("\(ruleCount.formatted()) 条 · \(scheme.groups.count) 个策略组")
+                            Text("\(ruleCount.formatted()) 条 · \(previewScheme.groups.count) 个策略组")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                             if !isReady {
@@ -447,13 +451,13 @@ private struct RuleSchemeCard: View {
 
             if isExpanded {
                 LazyVStack(alignment: .leading, spacing: 10) {
-                    ForEach(scheme.groups, id: \.name) { group in
+                    ForEach(previewScheme.groups, id: \.name) { group in
                         RuleDetailLine(title: group.name, detail: description(of: group))
                     }
                     Divider()
                     RuleDetailLine(
                         title: String(localized: "规则列表"),
-                        detail: String(localized: "\(scheme.remoteRulesetURLs.count) 个")
+                        detail: String(localized: "\(previewScheme.remoteRulesetURLs.count) 个")
                     )
                     if let updatedAt = scheme.updatedAt {
                         RuleDetailLine(
@@ -726,7 +730,7 @@ private struct RuleCustomizationSheet: View {
                 // Not "在线搜索": this filters the bundled catalog and the
                 // user's own local library. Nothing here reaches the network,
                 // which is the whole promise of the screen.
-                prompt: "搜索规则：如 YouTube OpenAI"
+                prompt: "在线搜索规则：如 YouTube OpenAI"
             )
             .scrollDismissesKeyboard(.interactively)
             .accessibilityIdentifier("rule-customization-list")

@@ -301,6 +301,7 @@ final class ReviewFixTests: XCTestCase {
             "SG",
             "A resolved country must outlive the process that resolved it"
         )
+        XCTAssertNotNil(snapshot.resolvedHostCountryCodeUpdatedAt?[host])
 
         // Relaunching answers from the snapshot rather than resolving again.
         let relaunched = AppModel(
@@ -316,6 +317,40 @@ final class ReviewFixTests: XCTestCase {
         relaunched.deleteNode(restoredNode)
         let pruned = try XCTUnwrap(try store.load())
         XCTAssertNil(pruned.resolvedHostCountryCodes?[host])
+        XCTAssertNil(pruned.resolvedHostCountryCodeUpdatedAt?[host])
+    }
+
+    @MainActor
+    func testResolvedCountryCacheExpiresInsteadOfPinningAHostnameForever() async throws {
+        let stateURL = temporaryStateURL()
+        defer { try? FileManager.default.removeItem(at: stateURL) }
+        let store = PersistenceStore(fileURL: stateURL)
+        let host = "203.0.113.5"
+        let node = makeNode(name: "会漂移的域名", server: host)
+
+        try store.save(AppSnapshot(
+            subscriptions: [],
+            nodes: [node],
+            selectedPresetID: AppModel.defaultRuleSchemeID,
+            selectedTarget: .surge,
+            resolvedHostCountryCodes: [host: "SG"],
+            resolvedHostCountryCodeUpdatedAt: [host: .distantPast]
+        ))
+
+        let model = AppModel(
+            persistence: store,
+            ipCountryLookupService: makeIPCountryService(
+                range: 0xCB00_7100...0xCB00_71FF,
+                code: "ZZ"
+            ),
+            arguments: []
+        )
+        let restoredNode = try XCTUnwrap(model.nodes.first)
+
+        await model.resolveIPCountries(for: [restoredNode])
+
+        XCTAssertEqual(model.ipCountryCode(for: restoredNode), "ZZ")
+        XCTAssertNotEqual(try store.load()?.resolvedHostCountryCodes?[host], "SG")
     }
 
     // MARK: - Node-only export is its own cached document

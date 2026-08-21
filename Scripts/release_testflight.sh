@@ -110,6 +110,9 @@ if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
     exit 1
 fi
 
+printf 'Checking bundled ACL4SSR rules…\n'
+tower_check_bundled_rules_current "$REPO_ROOT"
+
 printf 'Checking origin/main…\n'
 git -C "$REPO_ROOT" fetch --quiet origin main
 local_commit="$(git -C "$REPO_ROOT" rev-parse HEAD)"

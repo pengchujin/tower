@@ -32447,96 +32447,96 @@
         }
       }
     },
-    "搜索规则：如 YouTube OpenAI": {
+    "在线搜索规则：如 YouTube OpenAI": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "البحث عن قواعد: مثل YouTube وOpenAI"
+            "value": "البحث عن قواعد عبر الإنترنت: مثل YouTube وOpenAI"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Regeln suchen: z. B. YouTube, OpenAI"
+            "value": "Online nach Regeln suchen: z. B. YouTube, OpenAI"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search rules, e.g. YouTube or OpenAI"
+            "value": "Search rules online, e.g. YouTube or OpenAI"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Buscar reglas: p. ej., YouTube u OpenAI"
+            "value": "Buscar reglas en línea: p. ej., YouTube u OpenAI"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rechercher des règles, par ex. YouTube ou OpenAI"
+            "value": "Rechercher des règles en ligne, par ex. YouTube ou OpenAI"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cari aturan, misalnya YouTube atau OpenAI"
+            "value": "Cari aturan online, misalnya YouTube atau OpenAI"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ルールを検索：例 YouTube、OpenAI"
+            "value": "オンラインでルールを検索：例 YouTube、OpenAI"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "규칙 검색: 예) YouTube, OpenAI"
+            "value": "온라인 규칙 검색: 예) YouTube, OpenAI"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Buscar regras, como YouTube ou OpenAI"
+            "value": "Buscar regras online, como YouTube ou OpenAI"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Поиск правил: например, YouTube или OpenAI"
+            "value": "Поиск правил в интернете: например, YouTube или OpenAI"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ค้นหากฎ เช่น YouTube หรือ OpenAI"
+            "value": "ค้นหากฎออนไลน์ เช่น YouTube หรือ OpenAI"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kural ara: ör. YouTube veya OpenAI"
+            "value": "Çevrimiçi kural ara: ör. YouTube veya OpenAI"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tìm quy tắc, ví dụ YouTube hoặc OpenAI"
+            "value": "Tìm quy tắc trực tuyến, ví dụ YouTube hoặc OpenAI"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "搜索规则：如 YouTube OpenAI"
+            "value": "在线搜索规则：如 YouTube OpenAI"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "搜尋規則：例如 YouTube、OpenAI"
+            "value": "在線搜尋規則：例如 YouTube、OpenAI"
           }
         }
       }

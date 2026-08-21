@@ -3,7 +3,7 @@ ACL4SSR rules
 
 Source:      ACL4SSR/ACL4SSR
 Source URL:  https://github.com/ACL4SSR/ACL4SSR
-Revision:    06ff293e02565adceef9aa92321efa2603f68f32
+Revision:    d1741176b528e92350cbf35688c5a2429262daf2
 License:     CC BY-SA 4.0
              https://creativecommons.org/licenses/by-sa/4.0/
 
@@ -16,7 +16,7 @@ origin explicit and avoids future filename collisions. The configs' "master"
 URLs were rewritten to the pinned revision above so the snapshot is reproducible.
 
 Sources, rule counts and SHA-256 digests: ACL4SSR_manifest.json
-Regenerate with: python3 Scripts/update_acl4ssr_rules.py
+Regenerate with: python3 Scripts/update_acl4ssr_rules.py --latest
 
 These rule files remain under CC BY-SA 4.0 and are not covered by the MIT
 license that applies to this project's source code. See THIRD-PARTY-NOTICES.md

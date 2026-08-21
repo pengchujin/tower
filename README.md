@@ -60,7 +60,7 @@ Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantu
 
 ### ACL4SSR
 
-[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，固定在 `ACL4SSR/ACL4SSR` 的 `06ff293e` 版本，资源位于 `Tower/Resources/ACL4SSR/`，来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。更新用 `python3 Scripts/update_acl4ssr_rules.py`。
+[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，资源位于 `Tower/Resources/ACL4SSR/`，固定提交号、来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。打包前用 `python3 Scripts/update_acl4ssr_rules.py --latest` 拉取上游最新提交；完整发布步骤见 [发布流程](docs/RELEASING.md)。
 
 这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。
 
