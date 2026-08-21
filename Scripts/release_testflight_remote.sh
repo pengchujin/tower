@@ -92,15 +92,31 @@ if [[ "$aqua_mode" == false ]]; then
         security unlock-keychain "$keychain" </dev/tty
     fi
 
-    # Matched against the team, not merely against "some Apple identity".
-    # A machine can hold a perfectly valid certificate for a different team —
-    # this one does — and the loose check passed it through, so the release
-    # failed minutes later inside xcodebuild with a signing error that does not
-    # name the cause.
-    if ! security find-identity -v -p codesigning "$keychain" | grep -q "($team)"; then
-        printf 'No Apple code-signing identity for team %s in %s.\n\n' "$team" "$keychain" >&2
-        printf 'Visible identities:\n' >&2
-        security find-identity -v -p codesigning "$keychain" | sed 's/^/  /' >&2
+    # The team is the certificate's OU.
+    #
+    # It is NOT the value in parentheses in the common name: that string —
+    # "Apple Development: chujin peng (8N5HR3FDPZ)" — is the individual
+    # developer's id. Matching it rejected the correct certificate outright,
+    # whose subject reads `CN=…(8N5HR3FDPZ)/OU=G63LDXL9QJ`, and stopped a
+    # release the moment the keychain was unlocked.
+    certificate_subjects="$(
+        security find-certificate -a -p "$keychain" 2>/dev/null | awk '
+            /-----BEGIN CERTIFICATE-----/ { pem = $0 ORS; next }
+            { pem = pem $0 ORS }
+            /-----END CERTIFICATE-----/ {
+                command = "openssl x509 -noout -subject 2>/dev/null"
+                printf "%s", pem | command
+                close(command)
+                pem = ""
+            }
+        '
+    )"
+    if ! printf '%s\n' "$certificate_subjects" | grep -q "OU=$team"; then
+        printf 'No Apple code-signing certificate for team %s in %s.\n\n' "$team" "$keychain" >&2
+        printf 'Signing certificates found:\n' >&2
+        printf '%s\n' "$certificate_subjects" \
+            | grep -E 'Apple (Development|Distribution)' \
+            | sed 's/^/  /' >&2
         printf '\nOpen Xcode on this machine, sign in to the Apple ID that owns %s,\n' "$team" >&2
         printf 'and let it create a signing certificate before releasing again.\n' >&2
         exit 1
