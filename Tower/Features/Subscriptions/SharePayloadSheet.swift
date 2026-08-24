@@ -17,9 +17,14 @@ struct SharePayloadSheet: View {
             ScrollView {
                 VStack(spacing: 20) {
                     VStack(spacing: 8) {
-                        Image(systemName: payload.symbol)
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                        if let kind = payload.protocolKind {
+                            ProtocolGlyph(kind: kind, size: 24)
+                                .foregroundStyle(Color.accentColor)
+                        } else {
+                            Image(systemName: payload.symbol)
+                                .font(.title2.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
                         Text(payload.title)
                             .font(.title3.weight(.semibold))
                             .multilineTextAlignment(.center)

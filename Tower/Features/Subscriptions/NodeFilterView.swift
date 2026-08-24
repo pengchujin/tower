@@ -185,10 +185,20 @@ struct NodeFilterView: View {
         Menu {
             Button("全部协议") { kind = nil }
             ForEach(protocolOptions, id: \.self) { option in
-                Button(option.title) { kind = option }
+                Button { kind = option } label: {
+                    Label {
+                        Text(option.title)
+                    } icon: {
+                        ProtocolGlyph(kind: option)
+                    }
+                }
             }
         } label: {
-            FilterChip(title: kind?.title ?? String(localized: "协议"), symbol: "network", isActive: kind != nil)
+            FilterChip(
+                title: kind?.title ?? String(localized: "协议"),
+                kind: kind,
+                isActive: kind != nil
+            )
         }
         .frame(maxWidth: .infinity)
     }
@@ -228,8 +238,7 @@ struct NodeFilterView: View {
             model.setNode(node, included: !included)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: node.kind.symbol)
-                    .font(.headline)
+                ProtocolGlyph(kind: node.kind, size: 18)
                     .foregroundStyle(included ? Color.accentColor : Color.secondary)
                     .frame(width: 38, height: 38)
                     .background(Color.accentColor.opacity(included ? 0.1 : 0.04), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
@@ -260,10 +269,32 @@ struct NodeFilterView: View {
 private struct FilterChip: View {
     let title: String
     let symbol: String
+    let kind: ProxyKind?
     let isActive: Bool
 
+    init(title: String, symbol: String, isActive: Bool) {
+        self.title = title
+        self.symbol = symbol
+        self.kind = nil
+        self.isActive = isActive
+    }
+
+    init(title: String, kind: ProxyKind?, isActive: Bool) {
+        self.title = title
+        self.symbol = "network"
+        self.kind = kind
+        self.isActive = isActive
+    }
+
     var body: some View {
-        Label(title, systemImage: symbol)
+        HStack(spacing: 7) {
+            if let kind {
+                ProtocolGlyph(kind: kind)
+            } else {
+                Image(systemName: symbol)
+            }
+            Text(title)
+        }
             .font(.subheadline.weight(.semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.8)

@@ -29,6 +29,17 @@ final class LegacyVLESSTests: XCTestCase {
         XCTAssertEqual(node.name, "🇹🇼 Taiwan 01")
     }
 
+    func testSingularRemarkBecomesTheNodeName() throws {
+        let singularRemarkLink = link.replacingOccurrences(
+            of: "?remarks=",
+            with: "?remark="
+        )
+
+        let node = try XCTUnwrap(parser.parseURI(singularRemarkLink))
+
+        XCTAssertEqual(node.name, "🇹🇼 Taiwan 01")
+    }
+
     func testParsesAutoPrefixedBase64Endpoint() throws {
         let endpoint = "auto:b831381d-6324-4d53-ad4f-8cda48b30811@edge.example.net:12001"
         let encoded = Data(endpoint.utf8).base64EncodedString()

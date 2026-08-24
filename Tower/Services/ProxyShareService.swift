@@ -6,6 +6,21 @@ struct SharePayload: Identifiable {
     let detail: String
     let value: String
     let symbol: String
+    let protocolKind: ProxyKind?
+
+    init(
+        title: String,
+        detail: String,
+        value: String,
+        symbol: String,
+        protocolKind: ProxyKind? = nil
+    ) {
+        self.title = title
+        self.detail = detail
+        self.value = value
+        self.symbol = symbol
+        self.protocolKind = protocolKind
+    }
 }
 
 enum SharePayloadFactory {
@@ -23,7 +38,8 @@ enum SharePayloadFactory {
             title: NodeRegionResolver.title(for: node),
             detail: node.protocolSummary,
             value: ProxyNodeShareLinkGenerator().link(for: node),
-            symbol: node.kind.symbol
+            symbol: node.kind.symbol,
+            protocolKind: node.kind
         )
     }
 }

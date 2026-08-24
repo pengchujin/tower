@@ -966,7 +966,7 @@ struct SubscriptionParser {
         let transport = normalizedTransport(rawTransport)
         let flow = query["flow"]?.removingPercentEncoding
             ?? (query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
-        let name = query["remarks"]?.removingPercentEncoding ?? fragmentName
+        let name = proxyNameQueryValue(query) ?? fragmentName
 
         return ProxyNode(
             sourceID: sourceID,
@@ -1444,6 +1444,12 @@ struct SubscriptionParser {
     }
 
     private func parseInlineYAMLMap(_ value: String) -> [String: String] {
+        // Sub-Store's Shadowrocket producer writes each proxy as a JSON object
+        // under `proxies:`. JSON is valid inline YAML, but its quoted keys and
+        // escaped strings must be decoded as JSON first: the small YAML reader
+        // below deliberately does not implement JSON string escaping.
+        if let json = parseInlineJSONMap(value) { return json }
+
         let body = value.trimmingCharacters(in: CharacterSet(charactersIn: "{} "))
         var pieces: [String] = []
         var current = ""
@@ -1466,6 +1472,27 @@ struct SubscriptionParser {
         }
         if !current.isEmpty { pieces.append(current) }
         return Dictionary(pieces.compactMap(parseYAMLPair)) { _, new in new }
+    }
+
+    private func parseInlineJSONMap(_ value: String) -> [String: String]? {
+        guard let data = value.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let dictionary = object as? [String: Any] else { return nil }
+
+        return dictionary.reduce(into: [:]) { result, entry in
+            guard let value = inlineJSONValue(entry.value) else { return }
+            result[entry.key.lowercased()] = value
+        }
+    }
+
+    private func inlineJSONValue(_ value: Any) -> String? {
+        if let string = value as? String { return string }
+        if value is NSNull { return nil }
+        if let number = value as? NSNumber { return number.stringValue }
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else { return nil }
+        return string
     }
 
     /// Inline Clash proxies can contain nested inline maps, for example

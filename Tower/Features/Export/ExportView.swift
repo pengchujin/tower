@@ -447,24 +447,22 @@ private struct ProtocolFilter: View {
                 SectionHeading(title: "协议筛选", detail: String(localized: "只影响 \(model.selectedTarget.name)"))
                 VStack(spacing: 0) {
                     ForEach(Array(kinds.enumerated()), id: \.element.kind) { index, entry in
-                        if index > 0 { Divider().padding(.leading, 16) }
+                        if index > 0 { Divider().padding(.leading, 66) }
                         Toggle(isOn: binding(for: entry.kind)) {
-                            HStack(spacing: 10) {
-                                Image(systemName: entry.kind.symbol)
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.accentColor)
-                                    .frame(width: 24)
+                            HStack(spacing: 12) {
+                                ProtocolSymbolBadge(kind: entry.kind)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entry.kind.title)
-                                        .font(.subheadline.weight(.medium))
+                                        .font(.body.weight(.semibold))
                                     Text("\(entry.count) 个节点")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                         }
+                        .tint(.accentColor)
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 11)
+                        .padding(.vertical, 10)
                         .accessibilityIdentifier("filter-\(entry.kind.rawValue)")
                     }
                 }
@@ -482,6 +480,21 @@ private struct ProtocolFilter: View {
             get: { !model.isExcluded(kind, for: model.selectedTarget) },
             set: { model.setExcluded(!$0, kind: kind, for: model.selectedTarget) }
         )
+    }
+}
+
+private struct ProtocolSymbolBadge: View {
+    let kind: ProxyKind
+
+    var body: some View {
+        ProtocolGlyph(kind: kind, size: 18)
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 38, height: 38)
+            .background(
+                Color.accentColor.opacity(0.1),
+                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            )
+            .accessibilityHidden(true)
     }
 }
 

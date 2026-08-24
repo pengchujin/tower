@@ -102,8 +102,16 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 
 ### 真机安装
 
-不需要登录 Apple ID。`.derived-data-device` 里留有一份仍然有效的开发描述文件，已装到
-`~/Library/MobileDevice/Provisioning Profiles/<描述文件 UUID>.mobileprovision`：
+本机开发、签名、安装和启动统一使用 Xcode Beta。不要依赖 `xcode-select` 的当前值；它可能指向正式版 Xcode，而开发账号和团队登录在 Xcode Beta。先固定工具链，再运行后续命令：
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+```
+
+如果命令行提示没有账号或团队，先确认 `xcodebuild -version` 来自 Xcode Beta，不要直接判断用户未登录。下面的 `xcodebuild` 和 `xcrun devicectl` 必须在同一个 `DEVELOPER_DIR` 环境中执行。
+
+Xcode Beta 已登录开发账号，无需重复登录；优先使用自动签名。新版 Xcode 管理的开发描述文件位于
+`~/Library/Developer/Xcode/UserData/Provisioning Profiles/`；旧版才可能使用 `~/Library/MobileDevice/Provisioning Profiles/`。本机已有一份仍然有效的开发描述文件：
 
 - `iOS Team Provisioning Profile: *`，团队 `<TEAM_ID>`，通配 App ID，有效期到 2027-07-29
 - 授权设备 UDID `<设备 UDID>`，即这台 iPhone 17 Pro
@@ -348,6 +356,12 @@ Shadowrocket 的 `obfsParam=` 只有手册出处，还没真机验过：**下次
 
 引导页只出现一次，之后想核对它的说法就没地方看了，所以设置页底部放一条可点的小行进去，点开是同样四条。做成一行而不是第五张整宽卡片：这是需要时才查的说明，不是每次进设置都要看的开关。两处共用 `WelcomeView.promises` 和 `PromiseRow`——隐私声明在两个地方说得不一样，比只说一次更糟。
 
+### 设置页的「重置所有配置」
+
+设置页最底部提供破坏性的“重置所有配置”。执行前必须用居中的 alert 明确确认；确认后清空本机订阅、自建节点、规则导入与自定义、导出偏好、测速和地区缓存，停止局域网共享并更换访问密钥，关闭续费提醒和本机 iCloud 同步，最后持久化为首次安装的默认状态。设置页里正在编辑的配置名称也要同时恢复为“塔台”，避免点“完成”时把旧草稿重新写回。
+
+重置只处理这台设备，不删除 iCloud 上的远端副本，也不撤销通知或本地网络等系统权限。前者可能仍被另一台设备使用，后两者只能由系统设置管理；确认文案必须把这些边界说清楚。删除 iCloud 副本仍由 iCloud 设置卡片里的独立操作负责。
+
 ### Clash YAML：嵌套序列会把节点截断（2026-08-10）
 
 `parseClashYAML` 判断「新节点开始」只看 `trimmed.hasPrefix("-")`，不看缩进。机场写的
@@ -569,8 +583,8 @@ Xcode 提取器（`xcodebuild -exportLocalizations`）比对发现 **42 条**源
 - 订阅可展开节点，但不显示“更多节点”，展开使用透明度/布局变化，不从顶部滑入。
 - 节点行显示 IP 国家/地区 Logo、名称、协议/传输/UDP 信息和真实延迟。
 - 订阅和单节点都可以分享；单节点导出协议链接和二维码。
-- 页面直接嵌入自绘的点阵世界地图（`WorldDotMapView`，不用 MapKit），显示带 Emoji 的节点标注，不单独设置“地球”标签页。
-- 世界点阵保留完整 `-180...180` 经度；斐济、新西兰和格陵兰不会再因裁剪被压到地图边缘。密集地区会按选中状态/节点数优先，再尝试 16 个近邻位置，无法避让的低权重文字才隐藏，节点本身始终显示。
+- 页面直接嵌入自绘的点阵世界地图（`WorldDotMapView`，不用 MapKit），有节点覆盖的国家直接把其地图点显示为鲜明绿色，当前选中国家用更深、更密的绿色；未覆盖国家保持灰色，不再叠加独立绿色定位点。
+- 世界点阵保留完整 `-180...180` 经度；斐济、新西兰和格陵兰不会再因裁剪被压到地图边缘。地图支持缩放、拖动和分层标签，密集地区按节点数稳定取舍文字。覆盖国家的整个点阵轮廓都可直接点击，选中标签使用中性文字和材质底色，不用绿字压在绿色地图上。
 
 ### 规则页
 
@@ -589,6 +603,7 @@ Xcode 提取器（`xcodebuild -exportLocalizations`）比对发现 **42 条**源
 - 主按钮固定在标签栏上方，一次点击就通过客户端 Scheme 导入。
 - Surge、Stash/Clash、Shadowrocket、Loon 使用本地临时 URL；Quantumult X 使用文件分享。
 - 支持配置摘要和完整预览，但不要在客户端切换动画中同步重复生成大文本。
+- 摘要和完整预览按配置语义着色：注释使用次要文字，INI 分区及键、YAML 顶层分类、URL、字符串、数字分色显示，并随深浅色模式调整对比度。着色层不得改写源文或破坏选择复制。
 
 ## 3. 已完成的关键实现
 

@@ -239,7 +239,12 @@ struct AddSourceSheet: View {
         Section("协议") {
             Picker("节点协议", selection: $manualDraft.kind) {
                 ForEach(ManualNodeDraft.supportedKinds) { kind in
-                    Text(kind.title).tag(kind)
+                    Label {
+                        Text(kind.title)
+                    } icon: {
+                        ProtocolGlyph(kind: kind)
+                    }
+                    .tag(kind)
                 }
             }
             .onChange(of: manualDraft.kind) { _, selectedKind in
@@ -567,7 +572,11 @@ struct AddSourceSheet: View {
             Label("已识别 \(count) 个订阅链接", systemImage: "link.badge.plus")
                 .foregroundStyle(Color.accentColor)
         case .node(let kind):
-            Label("已识别为 \(kind.title) 节点", systemImage: kind.symbol)
+            Label {
+                Text("已识别为 \(kind.title) 节点")
+            } icon: {
+                ProtocolGlyph(kind: kind)
+            }
                 .foregroundStyle(.green)
         case .nodeBatch(let count):
             Label("已识别 \(count) 个节点", systemImage: "square.stack.3d.up.fill")

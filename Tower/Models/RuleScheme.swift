@@ -491,8 +491,11 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             result.append(
                 RuleSchemeGroup(
                     name: reference,
-                    kind: .select,
-                    members: [.nodePattern(region.nodePattern)]
+                    kind: .urlTest,
+                    members: [.nodePattern(region.nodePattern)],
+                    testURLString: "http://www.gstatic.com/generate_204",
+                    interval: 300,
+                    tolerance: 50
                 )
             )
         }

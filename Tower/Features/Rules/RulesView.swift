@@ -58,20 +58,20 @@ struct RulesView: View {
         .sheet(item: $editingImportedScheme) { scheme in
             ImportedRuleSchemeEditor(scheme: scheme)
         }
-        .confirmationDialog(
+        .alert(
             pendingDeletion.map { String(localized: "删除“\($0.name)”？") } ?? String(localized: "确认删除"),
             isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
             ),
-            titleVisibility: .visible
-        ) {
+            presenting: pendingDeletion
+        ) { deletion in
             Button("删除", role: .destructive) {
-                if let pendingDeletion { model.deleteScheme(pendingDeletion) }
+                model.deleteScheme(deletion)
                 pendingDeletion = nil
             }
             Button("取消", role: .cancel) { pendingDeletion = nil }
-        } message: {
+        } message: { _ in
             Text("这个规则方案和它下载的规则列表会从这台设备移除。")
         }
     }
@@ -655,6 +655,45 @@ private struct RuleGroupDeletionRequest: Identifiable {
     var id: String { "\(scheme.id)::\(group.name)" }
 }
 
+private enum RuleCustomizationDeletion {
+    case catalog(CustomRuleFlow)
+    case localRuleSet(LocalRuleSet)
+    case group(RuleGroupDeletionRequest)
+
+    var title: String {
+        switch self {
+        case .catalog(let flow):
+            String(localized: "删除“\(flow.name)”？")
+        case .localRuleSet(let ruleSet):
+            String(localized: "删除“\(ruleSet.name)”？")
+        case .group(let request):
+            String(localized: "删除“\(request.group.name)”？")
+        }
+    }
+
+    var actionTitle: String {
+        switch self {
+        case .localRuleSet: String(localized: "删除本地规则集")
+        case .catalog, .group: String(localized: "删除")
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .catalog:
+            String(localized: "只移除塔台保存的这项自定义，不会修改上游仓库。")
+        case .localRuleSet:
+            String(localized: "这会删除本机保存的规则内容，并从所有当前方案中移除；不会修改上游仓库。")
+        case .group(let request) where !request.references.isEmpty:
+            String(
+                localized: "以下分组正在引用它：\(request.references.joined(separator: "、"))。继续删除后会同时移除这些引用；没有候选项的分组会回退到 DIRECT。"
+            )
+        case .group:
+            String(localized: "这会移除该分组以及指向它的规则，不会修改上游仓库。")
+        }
+    }
+}
+
 /// One predictable place for every rule-level decision: existing service
 /// groups, protected routing primitives, maintained catalogs and advanced
 /// hand-written rules. Search is the primary path; raw syntax stays one level
@@ -672,9 +711,7 @@ private struct RuleCustomizationSheet: View {
     @State private var catalogEditor: CatalogRuleEditorRequest?
     @State private var groupEditor: RuleGroupEditorRequest?
     @State private var identityEditor: RuleGroupIdentityEditorRequest?
-    @State private var pendingCatalogDeletion: CustomRuleFlow?
-    @State private var pendingLocalRuleSetDeletion: LocalRuleSet?
-    @State private var pendingGroupDeletion: RuleGroupDeletionRequest?
+    @State private var pendingDeletion: RuleCustomizationDeletion?
     @State private var installingIDs = Set<String>()
     @State private var errorMessage: String?
     @State private var showsSaveScheme = false
@@ -807,63 +844,28 @@ private struct RuleCustomizationSheet: View {
             } message: {
                 Text("这会移除当前方案后来添加的规则、改名、Emoji 设置和排序；“我的规则集”中的本地内容会保留。")
             }
-            .confirmationDialog(
-                pendingCatalogDeletion.map { String(localized: "删除“\($0.name)”？") } ?? String(localized: "确认删除"),
+            .alert(
+                pendingDeletion?.title ?? String(localized: "确认删除"),
                 isPresented: Binding(
-                    get: { pendingCatalogDeletion != nil },
-                    set: { if !$0 { pendingCatalogDeletion = nil } }
+                    get: { pendingDeletion != nil },
+                    set: { if !$0 { pendingDeletion = nil } }
                 ),
-                titleVisibility: .visible
-            ) {
-                Button("删除", role: .destructive) {
-                    if let pendingCatalogDeletion { model.deleteCustomRuleFlow(pendingCatalogDeletion) }
-                    pendingCatalogDeletion = nil
-                }
-                Button("取消", role: .cancel) { pendingCatalogDeletion = nil }
-            } message: {
-                Text("只移除塔台保存的这项自定义，不会修改上游仓库。")
-            }
-            .confirmationDialog(
-                pendingLocalRuleSetDeletion.map { String(localized: "删除“\($0.name)”？") }
-                    ?? String(localized: "确认删除"),
-                isPresented: Binding(
-                    get: { pendingLocalRuleSetDeletion != nil },
-                    set: { if !$0 { pendingLocalRuleSetDeletion = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("删除本地规则集", role: .destructive) {
-                    if let pendingLocalRuleSetDeletion {
-                        model.deleteLocalRuleSet(pendingLocalRuleSetDeletion)
-                    }
-                    pendingLocalRuleSetDeletion = nil
-                }
-                Button("取消", role: .cancel) { pendingLocalRuleSetDeletion = nil }
-            } message: {
-                Text("这会删除本机保存的规则内容，并从所有当前方案中移除；不会修改上游仓库。")
-            }
-            .confirmationDialog(
-                pendingGroupDeletion.map { String(localized: "删除“\($0.group.name)”？") }
-                    ?? String(localized: "确认删除"),
-                isPresented: Binding(
-                    get: { pendingGroupDeletion != nil },
-                    set: { if !$0 { pendingGroupDeletion = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("删除", role: .destructive) {
-                    if let request = pendingGroupDeletion {
+                presenting: pendingDeletion
+            ) { deletion in
+                Button(deletion.actionTitle, role: .destructive) {
+                    switch deletion {
+                    case .catalog(let flow):
+                        model.deleteCustomRuleFlow(flow)
+                    case .localRuleSet(let ruleSet):
+                        model.deleteLocalRuleSet(ruleSet)
+                    case .group(let request):
                         model.deleteRuleGroup(named: request.group.name, for: request.scheme)
                     }
-                    pendingGroupDeletion = nil
+                    pendingDeletion = nil
                 }
-                Button("取消", role: .cancel) { pendingGroupDeletion = nil }
-            } message: {
-                if let request = pendingGroupDeletion, !request.references.isEmpty {
-                    Text("以下分组正在引用它：\(request.references.joined(separator: "、"))。继续删除后会同时移除这些引用；没有候选项的分组会回退到 DIRECT。")
-                } else {
-                    Text("这会移除该分组以及指向它的规则，不会修改上游仓库。")
-                }
+                Button("取消", role: .cancel) { pendingDeletion = nil }
+            } message: { deletion in
+                Text(deletion.message)
             }
             .alert("无法添加规则", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -1029,7 +1031,7 @@ private struct RuleCustomizationSheet: View {
                             Label("编辑规则内容", systemImage: "pencil")
                         }
                         Button(role: .destructive) {
-                            pendingLocalRuleSetDeletion = ruleSet
+                            pendingDeletion = .localRuleSet(ruleSet)
                         } label: {
                             Label("删除本地规则集", systemImage: "trash")
                         }
@@ -1160,10 +1162,12 @@ private struct RuleCustomizationSheet: View {
     }
 
     private func requestDeletion(of group: RuleSchemeGroup) {
-        pendingGroupDeletion = RuleGroupDeletionRequest(
-            scheme: scheme,
-            group: group,
-            references: model.ruleGroupReferences(to: group.name, for: scheme)
+        pendingDeletion = .group(
+            RuleGroupDeletionRequest(
+                scheme: scheme,
+                group: group,
+                references: model.ruleGroupReferences(to: group.name, for: scheme)
+            )
         )
     }
 
@@ -1327,7 +1331,7 @@ private struct RuleCustomizationSheet: View {
                 } label: {
                     Label("编辑", systemImage: "pencil")
                 }
-                Button(role: .destructive) { pendingCatalogDeletion = installed } label: {
+                Button(role: .destructive) { pendingDeletion = .catalog(installed) } label: {
                     Label("删除", systemImage: "trash")
                 }
             }

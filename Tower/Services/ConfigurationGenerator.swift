@@ -1861,6 +1861,11 @@ struct ConfigurationGenerator {
             parts.insert(policyName, at: parts.count - 1)
         } else {
             parts.append(policyName)
+            if target == .surge, ruleType == "GEOIP" {
+                // A GEOIP rule above later domain rules otherwise makes Surge
+                // resolve the domain locally just to decide whether it matches.
+                parts.append("no-resolve")
+            }
         }
         let separator = target == .quanx ? ", " : ","
         return parts.joined(separator: separator)

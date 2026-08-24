@@ -16,6 +16,7 @@ struct SettingsView: View {
                 }
                 CloudSyncCard()
                 SecurityAndSourceLink()
+                ResetAllConfigurationCard(configurationNameDraft: $configurationNameDraft)
             }
             .padding(.horizontal, TowerTheme.pagePadding)
             .padding(.top, 12)
@@ -23,6 +24,76 @@ struct SettingsView: View {
         }
         .background(TowerTheme.background.ignoresSafeArea())
         .navigationTitle("设置")
+    }
+}
+
+/// Reset is intentionally the last setting and requires a stable alert.
+///
+/// A destructive confirmation dialog anchored to a scrolling row can appear
+/// to drift on iPad. An alert stays centered and gives the consequences enough
+/// room to remain readable on every device size.
+private struct ResetAllConfigurationCard: View {
+    @Environment(AppModel.self) private var model
+    @Binding var configurationNameDraft: ConfigurationNameDraft
+    @State private var isConfirmingReset = false
+    @State private var isResetting = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "重置", detail: "不可撤销")
+
+            Button(role: .destructive) {
+                isConfirmingReset = true
+            } label: {
+                HStack(spacing: 13) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .frame(width: 48, height: 48)
+                        .background(
+                            Color.red.opacity(0.1),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("重置所有配置")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                        Text("删除订阅、节点和这台设备上的设置")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if isResetting {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(16)
+                .contentShape(Rectangle())
+                .towerCard()
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .disabled(model.isCloudSyncing || isResetting)
+            .accessibilityIdentifier("reset-all-configuration")
+        }
+        .alert("重置所有配置？", isPresented: $isConfirmingReset) {
+            Button("重置所有配置", role: .destructive) {
+                isResetting = true
+                Task { @MainActor in
+                    await model.resetAllConfiguration()
+                    configurationNameDraft = ConfigurationNameDraft(text: TowerBrand.localizedName)
+                    isResetting = false
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("将清除这台设备上的订阅、自建节点、规则自定义、导出偏好和本机缓存，并关闭续费提醒、局域网共享及 iCloud 同步。此操作无法撤销；iCloud 上的副本不会被删除，系统权限也不会改变。")
+        }
     }
 }
 

@@ -85,6 +85,60 @@ final class ProtocolFilterTests: XCTestCase {
         XCTAssertFalse(ProtocolFilterPolicy.isVisible(compatibleKindCount: 0))
     }
 
+    func testEveryProtocolPickerUsesTheSemanticProtocolSymbol() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let nodeFilter = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Features/Subscriptions/NodeFilterView.swift"),
+            encoding: .utf8
+        )
+        let addSource = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Features/Subscriptions/AddSourceSheet.swift"),
+            encoding: .utf8
+        )
+        let export = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Features/Export/ExportView.swift"),
+            encoding: .utf8
+        )
+        let mapOverview = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Features/Subscriptions/NodeMapOverview.swift"),
+            encoding: .utf8
+        )
+        let shareSheet = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Features/Subscriptions/SharePayloadSheet.swift"),
+            encoding: .utf8
+        )
+        let shareService = try String(
+            contentsOf: projectRoot.appendingPathComponent("Tower/Services/ProxyShareService.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            nodeFilter.contains("ProtocolGlyph(kind: option)"),
+            "节点筛选菜单应在协议名称旁显示对应图标"
+        )
+        XCTAssertTrue(
+            nodeFilter.contains("ProtocolGlyph(kind: kind)"),
+            "选中协议后筛选按钮应切换成对应图标"
+        )
+        XCTAssertTrue(
+            addSource.contains("ProtocolGlyph(kind: kind)"),
+            "手动添加节点的协议选择也应使用同一套图标"
+        )
+        XCTAssertTrue(export.contains("ProtocolGlyph(kind: kind"))
+        XCTAssertTrue(mapOverview.contains("ProtocolGlyph(kind: node.kind"))
+        XCTAssertTrue(shareSheet.contains("ProtocolGlyph(kind: kind"))
+        XCTAssertTrue(shareService.contains("protocolKind: node.kind"))
+
+        for source in [nodeFilter, addSource, export, mapOverview, shareSheet] {
+            XCTAssertFalse(
+                source.contains("figure.equestrian.sports"),
+                "Trojan 不应再显示骑马人物"
+            )
+        }
+    }
+
     func testProtocolTheClientCannotWriteIsNotOffered() throws {
         let model = try makeModel()
         model.nodes.append(

@@ -110,8 +110,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testLocalNodeCardMatchesSubscriptionSurfaceAndExposesSelection() throws {
         let subscriptions = try sourceText("Tower/Features/Subscriptions/SubscriptionsView.swift")
         let cardStart = try XCTUnwrap(subscriptions.range(of: "private struct LocalNodeCard: View"))
-        let nextViewStart = try XCTUnwrap(subscriptions.range(of: "private struct SubscriptionUsageRow: View"))
-        let cardSource = String(subscriptions[cardStart.lowerBound..<nextViewStart.lowerBound])
+        let cardSource = String(subscriptions[cardStart.lowerBound...])
 
         XCTAssertTrue(cardSource.contains(".towerCard()"))
         XCTAssertTrue(
@@ -160,7 +159,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("DOMAIN,apple.comscoreresearch.com"))
         XCTAssertTrue(source.contains("IP-CIDR,17.0.0.0/8,no-resolve"))
         XCTAssertFalse(source.contains(".swipeActions"))
-        XCTAssertTrue(source.contains("pendingGroupDeletion"))
+        XCTAssertTrue(source.contains("pendingDeletion = .group("))
         XCTAssertTrue(source.contains("custom-rule-flow-editor"))
         XCTAssertTrue(source.contains("scrollDismissesKeyboard(.interactively)"))
         XCTAssertTrue(source.contains("scheme.routingTargetGroupNames("))
@@ -267,6 +266,42 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("TextField(\"简介\""))
     }
 
+    func testRuleDeletionUsesStableAlertsInsteadOfAnchoredDialogs() throws {
+        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
+        let rulesViewStart = try XCTUnwrap(source.range(of: "struct RulesView: View"))
+        let builtInSectionStart = try XCTUnwrap(source.range(of: "private var builtInSection"))
+        let rulesViewSource = String(
+            source[rulesViewStart.lowerBound..<builtInSectionStart.lowerBound]
+        )
+
+        XCTAssertTrue(rulesViewSource.contains(".alert("))
+        XCTAssertTrue(rulesViewSource.contains("presenting: pendingDeletion"))
+        XCTAssertFalse(
+            rulesViewSource.contains(".confirmationDialog("),
+            "规则方案删除确认不应锚定在长按菜单或滚动卡片上"
+        )
+
+        let sheetStart = try XCTUnwrap(
+            source.range(of: "private struct RuleCustomizationSheet: View")
+        )
+        let identityEditorStart = try XCTUnwrap(
+            source.range(of: "private struct RuleGroupIdentityEditor: View")
+        )
+        let sheetSource = String(source[sheetStart.lowerBound..<identityEditorStart.lowerBound])
+
+        XCTAssertTrue(sheetSource.contains("@State private var pendingDeletion: RuleCustomizationDeletion?"))
+        XCTAssertTrue(sheetSource.contains("presenting: pendingDeletion"))
+        XCTAssertEqual(
+            sheetSource.components(separatedBy: ".confirmationDialog(").count - 1,
+            1,
+            "规则定制中只保留非删除操作“恢复初始规则”的确认对话框"
+        )
+        XCTAssertFalse(sheetSource.contains("pendingCatalogDeletion"))
+        XCTAssertFalse(sheetSource.contains("pendingLocalRuleSetDeletion"))
+        XCTAssertFalse(sheetSource.contains("pendingGroupDeletion"))
+        XCTAssertTrue(source.contains("private enum RuleCustomizationDeletion"))
+    }
+
     func testRulesViewDoesNotShowRedundantTopSectionTabs() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
@@ -295,6 +330,22 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertTrue(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导入\")"))
         XCTAssertFalse(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导出\")"))
+    }
+
+    func testSettingsResetRequiresExplicitDestructiveConfirmation() throws {
+        let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
+
+        XCTAssertTrue(source.contains("ResetAllConfigurationCard("))
+        XCTAssertTrue(source.contains(".alert(\"重置所有配置？\""))
+        XCTAssertTrue(source.contains("Button(\"重置所有配置\", role: .destructive)"))
+        XCTAssertTrue(source.contains("此操作无法撤销"))
+        XCTAssertTrue(source.contains("iCloud 上的副本不会被删除"))
+        XCTAssertTrue(
+            source.contains(
+                "configurationNameDraft = ConfigurationNameDraft(text: TowerBrand.localizedName)"
+            )
+        )
+        XCTAssertTrue(source.contains("accessibilityIdentifier(\"reset-all-configuration\")"))
     }
 
     func testRuleGroupCustomizationUsesOneReorderableEditableList() throws {

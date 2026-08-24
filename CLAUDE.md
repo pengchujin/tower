@@ -9,6 +9,7 @@
 ## 工程基线
 
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
+- **本机开发固定使用 Xcode Beta**：`/Applications/Xcode-beta.app/Contents/Developer`。本机 `xcode-select` 可能仍指向正式版 Xcode，而开发账号和团队登录在 Xcode Beta；运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须先执行 `export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`。不要因为正式版 Xcode 读不到账号就判断本机未登录。远程 TestFlight 归档不套用这条，继续按 `docs/RELEASING.md` 的构建机配置执行。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
 - Bundle ID：`com.jzb.tower`。
 - App Store Connect App ID：`<App Store Connect App ID>`。
@@ -24,7 +25,7 @@
 5. 国家/地区组默认使用延迟优选，同时保留父级策略中的手动选择入口；不要让地区组互相引用或引用包含自己的上级组。
 6. 策略组名称只显示一个前置 Logo。生成配置时可附带各客户端支持的图标字段，但不要把同一个 Emoji 再拼进可见名称。
 7. 首页订阅展开不使用从顶部滑入的过渡；节点列表不再提供“显示更多节点”。
-8. 首页使用自绘的点阵世界地图（`WorldDotMapView`），不用 MapKit。地图数据是 `Tower/Resources/WorldMap/WorldDotMap.txt` 文本位图，用 `Scripts/update_world_dot_map.py` 重新生成；节点标注保留国家/地区 Emoji。
+8. 首页使用自绘的点阵世界地图（`WorldDotMapView`），不用 MapKit。地图数据是 `Tower/Resources/WorldMap/WorldDotMap.txt` 陆地点阵和 `WorldDotCountries.txt` 国家归属层，用 `Scripts/update_world_dot_map.py` 一并重新生成；有节点覆盖的国家直接显示绿色地图点，选中国家使用更深、更密的绿色且名称保持中性文字；覆盖国家的整个点阵轮廓必须可直接点击，不再叠加独立绿色定位点。
 9. 节点名来自机场 remark，属于不可信输入。写进配置前必须经过 `confName`（INI 系）或 `yaml()`（Clash），两者都会折掉换行；不要新增绕过它们的名称输出路径。
 10. 写到磁盘的凭据类文件一律使用 `.completeFileProtection`，临时目录必须有清理逻辑。这包括导出配置和二维码 PNG，不只是 `state.json`。
 11. 打开添加面板时自动发起一次系统剪贴板读取请求；只在内容是受支持的订阅或节点链接时自动填充，同一次面板展示不要重复读取。保留“从剪贴板粘贴”按钮作为手动入口。
@@ -44,6 +45,9 @@
 ## 常用命令
 
 ```sh
+# 本机所有 Xcode 命令先固定到已登录开发账号的 Xcode Beta
+export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+
 # 查看可用模拟器
 xcrun simctl list devices available
 

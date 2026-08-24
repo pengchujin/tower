@@ -400,8 +400,7 @@ private struct NodeRegionLogo: View {
             if let countryCode = model.countryCode(for: node) {
                 CountryFlagEmoji(countryCode: countryCode, size: 27)
             } else {
-                Image(systemName: node.kind.symbol)
-                    .font(.headline.weight(.semibold))
+                ProtocolGlyph(kind: node.kind, size: 18)
                     .foregroundStyle(protocolTint)
             }
         }

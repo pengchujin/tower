@@ -185,6 +185,24 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
         return max(totalBytes - usedBytes, 0)
     }
 
+    /// Remaining quota suitable for the subscription card.
+    ///
+    /// Prefer the standardized response header. Some providers only expose the
+    /// same fact in a metadata row such as `剩余流量：101.69 GB`; recover that
+    /// value so hiding the fake node does not hide the useful plan data too.
+    var displayRemainingBytes: Int64? {
+        remainingBytes ?? notices.lazy.compactMap(Self.remainingBytes(in:)).first
+    }
+
+    /// Expiry suitable for a calendar-day countdown on the subscription card.
+    /// The caller supplies its calendar so a provider's date-only notice is
+    /// interpreted in the same time zone used to calculate the remaining days.
+    func displayExpiresAt(calendar: Calendar) -> Date? {
+        expiresAt ?? notices.lazy.compactMap {
+            Self.expiryDate(in: $0, calendar: calendar)
+        }.first
+    }
+
     /// 0…1 for a progress bar, nil when the airport gave no total.
     var usedFraction: Double? {
         guard let totalBytes, totalBytes > 0, let usedBytes else { return nil }
@@ -251,6 +269,56 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
         "t": 1_099_511_627_776, "tb": 1_099_511_627_776
     ]
 
+    private static let byteCountPattern = try? NSRegularExpression(
+        pattern: #"([0-9]+(?:\.[0-9]+)?)\s*([kmgt]?b)"#,
+        options: [.caseInsensitive]
+    )
+    private static let expiryDatePattern = try? NSRegularExpression(
+        pattern: #"\b([0-9]{4})[-/.]([0-9]{1,2})[-/.]([0-9]{1,2})\b"#
+    )
+    private static let remainingTrafficMarkers = [
+        "剩余流量", "剩余流量余额", "remaining traffic", "traffic remaining",
+        "remaining data", "data remaining"
+    ]
+    private static let expiryMarkers = [
+        "套餐到期", "到期时间", "过期时间", "有效期至",
+        "expires", "expire", "expiration"
+    ]
+
+    private static func remainingBytes(in notice: String) -> Int64? {
+        let text = notice.lowercased()
+        guard let markerRange = remainingTrafficMarkers.lazy.compactMap({
+            text.range(of: $0)
+        }).first,
+        let byteCountPattern else { return nil }
+
+        let tail = String(text[markerRange.upperBound...])
+        let range = NSRange(tail.startIndex..<tail.endIndex, in: tail)
+        guard let match = byteCountPattern.firstMatch(in: tail, range: range),
+              let valueRange = Range(match.range(at: 1), in: tail),
+              let unitRange = Range(match.range(at: 2), in: tail),
+              let value = Double(tail[valueRange]),
+              let multiplier = unitMultipliers[String(tail[unitRange]).lowercased()] else {
+            return nil
+        }
+        return Int64(value * multiplier)
+    }
+
+    private static func expiryDate(in notice: String, calendar: Calendar) -> Date? {
+        let text = notice.lowercased()
+        guard expiryMarkers.contains(where: text.contains),
+              let expiryDatePattern else { return nil }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = expiryDatePattern.firstMatch(in: text, range: range),
+              let yearRange = Range(match.range(at: 1), in: text),
+              let monthRange = Range(match.range(at: 2), in: text),
+              let dayRange = Range(match.range(at: 3), in: text),
+              let year = Int(text[yearRange]),
+              let month = Int(text[monthRange]),
+              let day = Int(text[dayRange]) else { return nil }
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
+    }
+
     /// Reads `20.02GB` out of whatever follows `marker`.
     private static func bytes(after marker: String, in text: String) -> Int64? {
         guard let range = text.range(of: marker) else { return nil }
@@ -281,6 +349,19 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: String(text[range.upperBound...].prefix(10)))
+    }
+}
+
+enum ProxyIconDescriptor: Equatable, Sendable {
+    case system(String)
+    case trojanHorse
+
+    /// A system-only fallback for APIs that cannot host a custom SwiftUI view.
+    var systemFallback: String {
+        switch self {
+        case .system(let name): name
+        case .trojanHorse: "shippingbox.fill"
+        }
     }
 }
 
@@ -321,26 +402,36 @@ enum ProxyKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var symbol: String {
+    var iconDescriptor: ProxyIconDescriptor {
         switch self {
-        case .shadowsocks, .shadowsocksR: "bolt.horizontal.circle.fill"
-        case .vmess, .vless: "point.3.filled.connected.trianglepath.dotted"
-        case .trojan: "shield.lefthalf.filled"
-        case .hysteria, .hysteria2: "hare.fill"
+        // Shadowsocks clients have long used a paper plane as the familiar
+        // proxy metaphor. Keep SSR in the same family, but give it a circular
+        // enclosure so the two remain distinguishable in a mixed list.
+        case .shadowsocks: .system("paperplane.fill")
+        case .shadowsocksR: .system("paperplane.circle.fill")
+        case .vmess: .system("point.3.filled.connected.trianglepath.dotted")
+        case .vless: .system("v.circle.fill")
+        // There is no Trojan-horse SF Symbol. A dedicated, tintable wooden
+        // horse glyph avoids substituting an unrelated equestrian athlete.
+        case .trojan: .trojanHorse
+        case .hysteria, .hysteria2: .system("hare.fill")
         // TUIC is the low-latency QUIC option. Keep it distinct from the
         // Shadowsocks bolt while matching the filled, circular protocol icons
         // used by the export filter.
-        case .tuic: "bolt.circle.fill"
-        case .wireguard: "shield.checkered"
-        case .anytls: "lock.shield.fill"
+        case .tuic: .system("bolt.circle.fill")
+        case .wireguard: .system("shield.checkered")
+        case .anytls: .system("lock.shield.fill")
         // Snell is Surge's own protocol, so this echoes the rounded-square app
         // icon it ships under, with an S for the name. Not Surge's actual mark:
         // that is their trademark and this repository is public and MIT.
-        case .snell: "s.square.fill"
-        case .socks5, .http: "network"
-        case .unknown: "questionmark.circle.fill"
+        case .snell: .system("s.square.fill")
+        case .socks5: .system("5.circle.fill")
+        case .http: .system("globe")
+        case .unknown: .system("questionmark.circle.fill")
         }
     }
+
+    var symbol: String { iconDescriptor.systemFallback }
 }
 
 struct ProxyNode: Identifiable, Codable, Hashable {

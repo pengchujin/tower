@@ -277,7 +277,90 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testSubscriptionExpansionDoesNotAnimateTheWholeCardLayout() throws {
+    func testSubscriptionExpansionMatchesTheRulesPageAnimation() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let rulesURL = sourceURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Rules/RulesView.swift")
+        let rulesSource = try String(contentsOf: rulesURL, encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
+        let cardSource = String(source[start.lowerBound..<end.lowerBound])
+        let togglePattern = "withAnimation(expansionAnimation) { isExpanded.toggle() }"
+
+        XCTAssertTrue(rulesSource.contains(togglePattern), "规则页必须保留作为对照的展开动画")
+        XCTAssertTrue(cardSource.contains(togglePattern), "订阅节点应使用与规则页相同的弹簧状态切换")
+        XCTAssertTrue(cardSource.contains(".transition(.opacity)"), "订阅节点应与规则详情一样使用透明度过渡")
+        XCTAssertFalse(
+            cardSource.contains(".animation(expansionAnimation, value: isExpanded)"),
+            "箭头应由展开事务统一驱动，不再单独动画"
+        )
+        XCTAssertTrue(cardSource.contains("interactiveSpring(response: 0.34, dampingFraction: 1)"))
+        #else
+        throw XCTSkip("该测试检查订阅与规则页动画的一致性，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSubscriptionToggleMovesWithTheCollapsingCard() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let cardStart = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let cardEnd = try XCTUnwrap(source.range(of: "private struct SubscriptionTrafficBar"))
+        let cardSource = String(source[cardStart.lowerBound..<cardEnd.lowerBound])
+        let toggleStart = try XCTUnwrap(cardSource.range(of: "Toggle("))
+        let toggleEnd = try XCTUnwrap(
+            cardSource.range(of: ".accessibilityLabel(\"启用 ", range: toggleStart.lowerBound..<cardSource.endIndex)
+        )
+        let toggleSource = String(cardSource[toggleStart.lowerBound..<toggleEnd.lowerBound])
+
+        XCTAssertFalse(
+            toggleSource.contains(".transaction { $0.animation = nil }"),
+            "启用勾选必须继承卡片收起动画，否则会先瞬移到最终位置"
+        )
+        #else
+        throw XCTSkip("该测试检查订阅卡片动画事务，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSubscriptionDeletionUsesAStableAlertInsteadOfAnAnchoredDialog() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let viewStart = try XCTUnwrap(source.range(of: "struct SubscriptionsView: View"))
+        let viewEnd = try XCTUnwrap(source.range(of: "@ViewBuilder\n    private var subscriptionsSection"))
+        let viewSource = String(source[viewStart.lowerBound..<viewEnd.lowerBound])
+
+        XCTAssertTrue(
+            viewSource.contains(".alert("),
+            "订阅删除确认应使用固定居中的系统警告框"
+        )
+        XCTAssertTrue(
+            viewSource.contains("presenting: pendingDeletion"),
+            "删除警告框应持有触发时的删除对象"
+        )
+        XCTAssertFalse(
+            viewSource.contains(".confirmationDialog("),
+            "页面根视图上的确认对话框会产生与卡片无关的浮动锚点"
+        )
+        #else
+        throw XCTSkip("该测试检查订阅删除确认框的呈现方式，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSubscriptionCardUsesAirplaneIconInsteadOfCloud() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -288,17 +371,207 @@ final class SubscriptionInteractionTests: XCTestCase {
         let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
         let cardSource = String(source[start.lowerBound..<end.lowerBound])
 
-        XCTAssertFalse(
-            cardSource.contains("withAnimation(expansionAnimation)"),
-            "节点区域收起时不能让整张订阅卡片参与弹簧布局动画，否则下方按钮会向上漂移"
+        XCTAssertTrue(cardSource.contains("Image(systemName: \"airplane\")"))
+        XCTAssertFalse(cardSource.contains("Image(systemName: \"cloud.fill\")"))
+        #else
+        throw XCTSkip("该测试检查订阅卡片图标，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSubscriptionCardsUseCompactTrafficBarAndInlineFacts() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
+        let cardSource = String(source[start.lowerBound..<end.lowerBound])
+        XCTAssertTrue(
+            cardSource.contains("SubscriptionTrafficBar("),
+            "剩余流量应使用贯穿卡片的横向信息条"
         )
         XCTAssertTrue(
-            cardSource.contains(".animation(expansionAnimation, value: isExpanded)"),
-            "只保留箭头自身的轻量状态动画"
+            cardSource.contains("SubscriptionFactsRow("),
+            "节点数和到期天数应压缩在同一行直接显示"
+        )
+        XCTAssertFalse(
+            cardSource.contains("SubscriptionUsageRow(usage:"),
+            "流量、到期和机场公告不能在展开后重复成一段详情"
+        )
+        XCTAssertFalse(
+            cardSource.contains("SubscriptionMetricTile"),
+            "紧凑卡片不应继续使用三个等高大指标块"
+        )
+        XCTAssertFalse(
+            cardSource.contains("minimumTileHeight = 64.0"),
+            "订阅信息不应再被 64pt 指标块撑高"
+        )
+        XCTAssertFalse(
+            cardSource.contains("Text(isRefreshing ? String(localized: \"正在更新\") : String(localized: \"更新订阅\"))"),
+            "更新订阅应收成图标操作，不能继续占用整宽按钮"
         )
         #else
-        throw XCTSkip("该测试检查订阅卡片的动画作用域，只在模拟器构建环境运行")
+        throw XCTSkip("该测试检查订阅卡片布局层级，只在模拟器构建环境运行")
         #endif
+    }
+
+    func testSubscriptionTrafficUsesNeutralLabelsWithSemanticGreenProgress() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private struct SubscriptionTrafficBar"))
+        let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
+        let compactInfoSource = String(source[start.lowerBound..<end.lowerBound])
+
+        let trafficEnd = try XCTUnwrap(compactInfoSource.range(of: "private struct SubscriptionFactsRow"))
+        let trafficSource = String(compactInfoSource[..<trafficEnd.lowerBound])
+
+        XCTAssertFalse(compactInfoSource.contains("Color.purple"), "正常到期信息应使用中性色")
+        XCTAssertFalse(trafficSource.contains(".foregroundStyle(Color.green)"), "流量图标和标题不应继续使用绿色")
+        XCTAssertTrue(trafficSource.contains(".foregroundStyle(.primary)"), "流量图标和标题应使用主文字色")
+        XCTAssertTrue(trafficSource.contains(".tint(Color.green)"), "流量进度应使用语义绿色")
+        XCTAssertFalse(
+            trafficSource.contains(".background(Color.green.opacity(0.08)"),
+            "流量信息条不应再使用淡绿色围合背景"
+        )
+        XCTAssertTrue(
+            compactInfoSource.contains(".background(Color.primary.opacity(0.055)"),
+            "次要操作应使用中性按钮底色"
+        )
+        XCTAssertTrue(
+            compactInfoSource.contains("expiryDaysRemaining <= 3 ? Color.orange : Color.secondary"),
+            "只有临近到期时才使用语义警告色"
+        )
+        #else
+        throw XCTSkip("该测试检查订阅卡片的色彩层级，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testSubscriptionTrafficBarLabelsRemainingAndTotalTraffic() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let cardStart = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let trafficStart = try XCTUnwrap(source.range(of: "private struct SubscriptionTrafficBar"))
+        let trafficEnd = try XCTUnwrap(source.range(of: "private struct SubscriptionFactsRow"))
+        let cardSource = String(source[cardStart.lowerBound..<trafficStart.lowerBound])
+        let trafficSource = String(source[trafficStart.lowerBound..<trafficEnd.lowerBound])
+
+        XCTAssertTrue(
+            cardSource.contains("totalBytes: metrics.totalBytes"),
+            "订阅卡片应将套餐总流量传给流量条"
+        )
+        XCTAssertTrue(
+            trafficSource.contains("Text(\"剩余\")"),
+            "流量条的可见文案应精简为剩余"
+        )
+        XCTAssertTrue(trafficSource.contains("Text(\"总流量\")"))
+        #else
+        throw XCTSkip("该测试检查订阅流量条文案，只在模拟器构建环境运行")
+        #endif
+    }
+
+    @MainActor
+    func testSubscriptionPresentationNodesExcludeMetadataEntries() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-subscription-presentation-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let source = SubscriptionSource(name: "测试订阅", urlString: "https://example.com/sub")
+        let actualNode = ProxyNode(
+            sourceID: source.id,
+            kind: .shadowsocks,
+            name: "东京 01",
+            server: "node.example.com",
+            port: 8388,
+            cipher: "aes-256-gcm",
+            password: "password",
+            rawURI: "ss://node"
+        )
+        let metadataNode = ProxyNode(
+            sourceID: source.id,
+            kind: .shadowsocks,
+            name: "剩余流量：100 GB",
+            server: "metadata.invalid",
+            port: 1,
+            cipher: "none",
+            password: "metadata",
+            rawURI: "ss://metadata",
+            isSubscriptionMetadata: true
+        )
+        let store = PersistenceStore(fileURL: fileURL)
+        try store.save(AppSnapshot(
+            subscriptions: [source],
+            nodes: [metadataNode, actualNode],
+            selectedPresetID: AppModel.defaultRuleSchemeID,
+            selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+
+        XCTAssertEqual(model.nodes(for: source).map(\.id), [actualNode.id])
+        XCTAssertEqual(model.nodeCount(for: source), 1)
+    }
+
+    func testSubscriptionCardMetricsExposeAvailableQuotaAndExpiryDays() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let expiry = calendar.date(byAdding: .day, value: 20, to: now)!
+        let usage = SubscriptionUsage(
+            uploadBytes: 3 * 1_024,
+            downloadBytes: 7 * 1_024,
+            totalBytes: 100 * 1_024,
+            expiresAt: expiry
+        )
+
+        let metrics = SubscriptionCardMetrics(
+            nodeCount: 55,
+            usage: usage,
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(metrics.nodeCount, 55)
+        XCTAssertEqual(metrics.remainingBytes, 90 * 1_024)
+        XCTAssertEqual(metrics.totalBytes, 100 * 1_024)
+        XCTAssertEqual(metrics.expiryDaysRemaining, 20)
+        XCTAssertEqual(try XCTUnwrap(metrics.usedFraction), 0.1, accuracy: 0.000_001)
+    }
+
+    func testSubscriptionCardMetricsOmitUnavailableOptionalValues() {
+        let metrics = SubscriptionCardMetrics(nodeCount: 7, usage: nil)
+
+        XCTAssertEqual(metrics.nodeCount, 7)
+        XCTAssertNil(metrics.remainingBytes)
+        XCTAssertNil(metrics.totalBytes)
+        XCTAssertNil(metrics.expiryDaysRemaining)
+        XCTAssertNil(metrics.usedFraction)
+    }
+
+    func testSubscriptionCardMetricsRecoverNoticeOnlyTrafficAndExpiry() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 22))!
+        let usage = SubscriptionUsage(
+            notices: ["剩余流量：101.69 GB", "套餐到期：2026-09-11"]
+        )
+
+        let metrics = SubscriptionCardMetrics(
+            nodeCount: 1,
+            usage: usage,
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(metrics.remainingBytes, Int64(101.69 * 1_073_741_824))
+        XCTAssertEqual(metrics.expiryDaysRemaining, 20)
     }
 
     func testSubscriptionAndLocalNodeLongPressMenusOfferEditAndSorting() throws {

@@ -1,7 +1,7 @@
-World land outlines
-===================
+World land outlines and country ownership
+=========================================
 
-Source:     Natural Earth, ne_110m_land
+Sources:    Natural Earth, ne_110m_land and ne_110m_admin_0_countries
 Source URL: https://www.naturalearthdata.com
 Revision:   ca96624a56bd078437bca8184e78163e5039ad19
 License:    Public domain
@@ -12,6 +12,7 @@ anyway so the snapshot can be traced and regenerated.
 
 Grid:   220 x 149, mercator
 Bounds: longitude -180.0..180.0, latitude -60.0..84.0
-SHA256: 051d3bd3a2ffa0309d757b63bac6f50002ef1050b75149eb62e1de2fbcd34fe4
+WorldDotMap.txt SHA256:       051d3bd3a2ffa0309d757b63bac6f50002ef1050b75149eb62e1de2fbcd34fe4
+WorldDotCountries.txt SHA256: ba52ee318590f1a34d17bccea43bc4a3aa5f839b7f6e2511d0bedab7da685391
 
 Regenerate with: python3 Scripts/update_world_dot_map.py

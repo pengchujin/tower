@@ -95,22 +95,22 @@ struct SubscriptionsView: View {
             .navigationDestination(item: $nodeFilterRoute) { route in
                 NodeFilterView(initialFocus: route)
             }
-            .confirmationDialog(
+            .alert(
                 pendingDeletion?.title ?? String(localized: "确认删除"),
                 isPresented: Binding(
                     get: { pendingDeletion != nil },
                     set: { if !$0 { pendingDeletion = nil } }
                 ),
-                titleVisibility: .visible
-            ) {
+                presenting: pendingDeletion
+            ) { deletion in
                 Button("删除", role: .destructive) {
-                    if case .subscription(let source) = pendingDeletion { model.deleteSubscription(source) }
-                    if case .node(let node) = pendingDeletion { model.deleteNode(node) }
+                    if case .subscription(let source) = deletion { model.deleteSubscription(source) }
+                    if case .node(let node) = deletion { model.deleteNode(node) }
                     pendingDeletion = nil
                 }
                 Button("取消", role: .cancel) { pendingDeletion = nil }
-            } message: {
-                Text(pendingDeletion?.message ?? "")
+            } message: { deletion in
+                Text(deletion.message)
             }
         }
     }
@@ -494,6 +494,34 @@ private struct SubscriptionEmptyState: View {
     }
 }
 
+struct SubscriptionCardMetrics: Equatable {
+    let nodeCount: Int
+    let remainingBytes: Int64?
+    let totalBytes: Int64?
+    let expiryDaysRemaining: Int?
+    let usedFraction: Double?
+
+    init(
+        nodeCount: Int,
+        usage: SubscriptionUsage?,
+        now: Date = .now,
+        calendar: Calendar = .autoupdatingCurrent
+    ) {
+        self.nodeCount = nodeCount
+        remainingBytes = usage?.displayRemainingBytes
+        totalBytes = usage?.totalBytes
+        usedFraction = usage?.usedFraction
+        if let expiresAt = usage?.displayExpiresAt(calendar: calendar) {
+            let start = calendar.startOfDay(for: now)
+            let end = calendar.startOfDay(for: expiresAt)
+            let days = calendar.dateComponents([.day], from: start, to: end).day ?? 0
+            expiryDaysRemaining = max(days, 0)
+        } else {
+            expiryDaysRemaining = nil
+        }
+    }
+}
+
 private struct SubscriptionCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -509,17 +537,22 @@ private struct SubscriptionCard: View {
     private var isRefreshing: Bool { model.refreshingSourceIDs.contains(source.id) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 13) {
+        let metrics = SubscriptionCardMetrics(
+            nodeCount: model.nodeCount(for: source),
+            usage: source.usage
+        )
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
                 Button {
-                    isExpanded.toggle()
+                    withAnimation(expansionAnimation) { isExpanded.toggle() }
                 } label: {
-                    HStack(spacing: 13) {
-                        Image(systemName: "cloud.fill")
+                    HStack(spacing: 12) {
+                        Image(systemName: "airplane")
                             .font(.headline)
                             .foregroundStyle(Color.accentColor)
-                            .frame(width: 42, height: 42)
-                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .frame(width: 38, height: 38)
+                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(source.name)
                                 .font(.headline)
@@ -534,7 +567,6 @@ private struct SubscriptionCard: View {
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                            .animation(expansionAnimation, value: isExpanded)
                     }
                     .contentShape(Rectangle())
                 }
@@ -553,7 +585,6 @@ private struct SubscriptionCard: View {
                 .labelsHidden()
                 .toggleStyle(CheckmarkToggleStyle())
                 .frame(width: 34, height: 44)
-                .transaction { $0.animation = nil }
                 .accessibilityLabel("启用 \(source.name)")
             }
             // Scoped to the header. On the whole card a long press anywhere —
@@ -575,39 +606,21 @@ private struct SubscriptionCard: View {
                 Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
             }
 
-            if let usage = source.usage, !usage.isEmpty {
-                SubscriptionUsageRow(usage: usage)
+            if let remainingBytes = metrics.remainingBytes {
+                SubscriptionTrafficBar(
+                    remainingBytes: remainingBytes,
+                    totalBytes: metrics.totalBytes,
+                    usedFraction: metrics.usedFraction
+                )
             }
 
-            HStack {
-                Button {
-                    isExpanded.toggle()
-                } label: {
-                    Label("\(model.nodeCount(for: source)) 个节点", systemImage: "circle.grid.2x2.fill")
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                if let error = source.lastError {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .lineLimit(1)
-                } else if let date = source.lastUpdatedAt {
-                    Text(date, format: .relative(presentation: .named))
-                } else {
-                    Text("尚未更新")
-                }
-                Button {
-                    sharePayload = SharePayloadFactory.subscription(source)
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .accessibilityLabel("分享 \(source.name)")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            SubscriptionFactsRow(
+                metrics: metrics,
+                source: source,
+                isRefreshing: isRefreshing,
+                onRefresh: onRefresh,
+                onShare: { sharePayload = SharePayloadFactory.subscription(source) }
+            )
 
             if isExpanded {
                 // Lazy, not a plain VStack: a large airport expands to several
@@ -620,26 +633,11 @@ private struct SubscriptionCard: View {
                         ExpandableNodeRow(node: node)
                     }
                 }
+                .transition(.opacity)
             }
 
-            Button(action: onRefresh) {
-                HStack {
-                    if isRefreshing {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                    }
-                    Text(isRefreshing ? String(localized: "正在更新") : String(localized: "更新订阅"))
-                }
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(ResponsivePressButtonStyle())
-            .disabled(isRefreshing)
         }
-        .padding(16)
+        .padding(14)
         .towerCard()
         .sensoryFeedback(.selection, trigger: isExpanded)
         .sheet(item: $sharePayload) { payload in
@@ -651,6 +649,149 @@ private struct SubscriptionCard: View {
         reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
     }
 
+}
+
+private struct SubscriptionTrafficBar: View {
+    let remainingBytes: Int64
+    let totalBytes: Int64?
+    let usedFraction: Double?
+
+    private var formattedRemaining: String {
+        remainingBytes.formatted(.byteCount(style: .binary))
+    }
+
+    private var formattedTotal: String? {
+        totalBytes?.formatted(.byteCount(style: .binary))
+    }
+
+    private var accessibilityTrafficValue: String {
+        guard let formattedTotal else { return formattedRemaining }
+        return "\(formattedRemaining), \(String(localized: "总流量")) \(formattedTotal)"
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "chart.pie.fill")
+                    .foregroundStyle(.primary)
+                Text("剩余")
+                    .foregroundStyle(.primary)
+                Text(formattedRemaining)
+                    .monospacedDigit()
+
+                if let formattedTotal {
+                    Spacer(minLength: 6)
+                    Text("总流量")
+                        .foregroundStyle(.secondary)
+                    Text(formattedTotal)
+                        .monospacedDigit()
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+
+            if let usedFraction {
+                ProgressView(value: 1 - min(max(usedFraction, 0), 1))
+                    .progressViewStyle(.linear)
+                    .tint(Color.green)
+                    .scaleEffect(y: 0.72)
+                    .accessibilityHidden(true)
+            } else {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.16))
+                    .frame(height: 4)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("剩余流量")
+        .accessibilityValue(accessibilityTrafficValue)
+    }
+}
+
+private struct SubscriptionFactsRow: View {
+    let metrics: SubscriptionCardMetrics
+    let source: SubscriptionSource
+    let isRefreshing: Bool
+    let onRefresh: () -> Void
+    let onShare: () -> Void
+
+    var body: some View {
+        HStack(spacing: 7) {
+            HStack(spacing: 6) {
+                Text("\(metrics.nodeCount) 个节点")
+                    .foregroundStyle(.secondary)
+
+                if let expiryDaysRemaining = metrics.expiryDaysRemaining {
+                    Text(verbatim: "·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(expiryDaysRemaining) 天到期")
+                        .foregroundStyle(expiryDaysRemaining <= 3 ? Color.orange : Color.secondary)
+                }
+            }
+            .font(.caption.weight(.medium))
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .layoutPriority(2)
+
+            Spacer(minLength: 0)
+
+            status
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Button(action: onRefresh) {
+                Group {
+                    if isRefreshing {
+                        ProgressView()
+                            .controlSize(.mini)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                    }
+                }
+                .frame(width: 30, height: 30)
+                .background(Color.primary.opacity(0.055), in: Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .disabled(isRefreshing)
+            .accessibilityLabel(isRefreshing ? "正在更新" : "更新订阅")
+
+            Button(action: onShare) {
+                Image(systemName: "square.and.arrow.up")
+                    .frame(width: 30, height: 30)
+                    .background(Color.primary.opacity(0.055), in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .accessibilityLabel("分享 \(source.name)")
+        }
+    }
+
+    @ViewBuilder
+    private var status: some View {
+        if let error = source.lastError {
+            Label(error, systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        } else if let date = source.lastUpdatedAt {
+            Label {
+                Text(date, format: .relative(presentation: .named))
+            } icon: {
+                Image(systemName: "clock")
+                    .accessibilityHidden(true)
+            }
+        } else {
+            Label("尚未更新", systemImage: "clock")
+        }
+    }
 }
 
 private struct LocalNodeCard: View {
@@ -673,54 +814,5 @@ private struct LocalNodeCard: View {
                 .disabled(!model.canMoveLocalNode(node, by: 1))
             Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
         }
-    }
-}
-
-
-/// Plan usage as the airport reports it.
-///
-/// Some airports send a `subscription-userinfo` header, which gives byte counts
-/// worth a progress bar. Others only write sentences into the node list, which
-/// are shown verbatim because they are all there is.
-private struct SubscriptionUsageRow: View {
-    let usage: SubscriptionUsage
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let fraction = usage.usedFraction {
-                ProgressView(value: fraction)
-                    .tint(fraction > 0.9 ? .orange : Color.accentColor)
-            }
-            if let summary {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            // Airports that send structured quota often repeat it in their own
-            // wording; only what the summary above does not already say.
-            ForEach(usage.distinctNotices, id: \.self) { notice in
-                Text(notice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-    }
-
-    private var summary: String? {
-        var parts: [String] = []
-        if let used = usage.usedBytes, let total = usage.totalBytes {
-            parts.append(String(localized: "已用 \(format(used)) / \(format(total))"))
-        } else if let remaining = usage.remainingBytes {
-            parts.append(String(localized: "剩余 \(format(remaining))"))
-        }
-        if let expiresAt = usage.expiresAt {
-            parts.append(String(localized: "到期 \(expiresAt.formatted(date: .abbreviated, time: .omitted))"))
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    private func format(_ bytes: Int64) -> String {
-        bytes.formatted(.byteCount(style: .binary))
     }
 }

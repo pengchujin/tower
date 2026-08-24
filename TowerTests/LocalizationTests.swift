@@ -106,6 +106,15 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    func testSubscriptionMetricLabelsAreConciseAndHumanReviewed() throws {
+        let catalog = try loadCatalog(named: "Localizable")
+
+        XCTAssertEqual(try value(for: "剩余流量", locale: "en", in: catalog), "Remaining")
+        XCTAssertEqual(try value(for: "剩余流量", locale: "zh-Hant", in: catalog), "剩餘流量")
+        XCTAssertEqual(try value(for: "%lld 天到期", locale: "en", in: catalog), "Expires in %lld days")
+        XCTAssertEqual(try value(for: "%lld 天到期", locale: "zh-Hant", in: catalog), "%lld 天後到期")
+    }
+
     func testEnglishExportExplanationsAreNaturalAndSpecific() throws {
         let catalog = try loadCatalog(named: "Localizable")
         let expected = [
@@ -241,6 +250,35 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(
             AppLocalization.regionName(for: "JP", locale: Locale(identifier: "ja")),
             "日本"
+        )
+    }
+
+    func testChineseRegionNamesDoNotIncludeChinaQualifier() {
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+        let traditionalChinese = Locale(identifier: "zh-Hant")
+
+        XCTAssertEqual(AppLocalization.regionName(for: "HK", locale: simplifiedChinese), "香港")
+        XCTAssertEqual(AppLocalization.regionName(for: "MO", locale: simplifiedChinese), "澳门")
+        XCTAssertEqual(AppLocalization.regionName(for: "TW", locale: simplifiedChinese), "台湾")
+        XCTAssertEqual(AppLocalization.regionName(for: "HK", locale: traditionalChinese), "香港")
+        XCTAssertEqual(AppLocalization.regionName(for: "MO", locale: traditionalChinese), "澳門")
+        XCTAssertEqual(AppLocalization.regionName(for: "TW", locale: traditionalChinese), "台灣")
+
+        XCTAssertEqual(
+            AppLocalization.compactRegionName("香港（中国）", for: "HK", locale: simplifiedChinese),
+            "香港"
+        )
+        XCTAssertEqual(
+            AppLocalization.compactRegionName("澳门 (中国)", for: "MO", locale: simplifiedChinese),
+            "澳门"
+        )
+        XCTAssertEqual(
+            AppLocalization.compactRegionName("台湾（中国大陆）", for: "TW", locale: simplifiedChinese),
+            "台湾"
+        )
+        XCTAssertEqual(
+            AppLocalization.compactRegionName("日本（亚洲）", for: "JP", locale: simplifiedChinese),
+            "日本（亚洲）"
         )
     }
 

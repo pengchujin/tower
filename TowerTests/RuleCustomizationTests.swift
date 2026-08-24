@@ -739,7 +739,7 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertFalse(scheme.routingTargetGroupNames().contains("🌍 国外媒体"))
     }
 
-    func testSelectedMissingRegionalCandidatesAreInjectedAsOrderedSelectGroups() throws {
+    func testSelectedMissingRegionalCandidatesAreInjectedAsOrderedURLTestGroups() throws {
         let scheme = makeEditorRoleScheme()
         let customization = RuleSchemeCustomization(
             schemeID: scheme.id,
@@ -776,25 +776,70 @@ final class RuleCustomizationTests: XCTestCase {
             try XCTUnwrap(customized.groups.first { $0.name == "🇺🇸 美国节点" }),
             RuleSchemeGroup(
                 name: "🇺🇸 美国节点",
-                kind: .select,
-                members: [.nodePattern("(美国|美國|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|洛杉磯|圣何塞|圣克拉拉|西雅图|芝加哥|United States|USA|(^|[^A-Za-z])US([^A-Za-z]|$))")]
+                kind: .urlTest,
+                members: [.nodePattern("(美国|美國|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|洛杉磯|圣何塞|圣克拉拉|西雅图|芝加哥|United States|USA|(^|[^A-Za-z])US([^A-Za-z]|$))")],
+                testURLString: "http://www.gstatic.com/generate_204",
+                interval: 300,
+                tolerance: 50
             )
         )
         XCTAssertEqual(
             try XCTUnwrap(customized.groups.first { $0.name == "🇨🇳 台湾节点" }),
             RuleSchemeGroup(
                 name: "🇨🇳 台湾节点",
-                kind: .select,
-                members: [.nodePattern("(台湾|臺灣|台北|臺北|新北|彰化|TW|Taiwan)")]
+                kind: .urlTest,
+                members: [.nodePattern("(台湾|臺灣|台北|臺北|新北|彰化|TW|Taiwan)")],
+                testURLString: "http://www.gstatic.com/generate_204",
+                interval: 300,
+                tolerance: 50
             )
         )
         XCTAssertEqual(
             try XCTUnwrap(customized.groups.first { $0.name == "🇰🇷 韩国节点" }),
             RuleSchemeGroup(
                 name: "🇰🇷 韩国节点",
-                kind: .select,
-                members: [.nodePattern("(韩国|韓國|首尔|首爾|KR|KOR|Korea)")]
+                kind: .urlTest,
+                members: [.nodePattern("(韩国|韓國|首尔|首爾|KR|KOR|Korea)")],
+                testURLString: "http://www.gstatic.com/generate_204",
+                interval: 300,
+                tolerance: 50
             )
+        )
+    }
+
+    func testMissingAutomaticSelectionIsNotOfferedAsSeparateCandidate() {
+        let scheme = RuleScheme(
+            id: "missing-automatic-selection",
+            name: "缺少自动选择",
+            summary: "测试",
+            groups: [
+                RuleSchemeGroup(
+                    name: "🚀 节点选择",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                ),
+                RuleSchemeGroup(
+                    name: "🍎 苹果服务",
+                    kind: .select,
+                    members: [.reference("🚀 节点选择")]
+                ),
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "🍎 苹果服务",
+                    resource: .inline("DOMAIN-SUFFIX,apple.com")
+                ),
+                RuleSchemeRuleset(
+                    groupName: "🚀 节点选择",
+                    resource: .inline("FINAL")
+                ),
+            ]
+        )
+
+        XCTAssertFalse(
+            scheme.routingTargetGroupNames(excluding: "🚀 节点选择")
+                .contains("♻️ 自动选择"),
+            "url-test 应由香港、日本等地区策略自带，不应另外虚构一个自动选择项"
         )
     }
 

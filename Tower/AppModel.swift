@@ -902,7 +902,9 @@ final class AppModel {
     var currentRuleCount: Int { ruleRepository.count(for: selectedPreset) }
 
     func nodes(for source: SubscriptionSource) -> [ProxyNode] {
-        nodes.filter { $0.sourceID == source.id }
+        nodes.filter {
+            $0.sourceID == source.id && $0.isSubscriptionMetadata != true
+        }
     }
 
     /// How many nodes a subscription holds, without building the list.
@@ -911,7 +913,9 @@ final class AppModel {
     /// for the whole array to count it — copying every matching node, with all
     /// its string fields, for every card, on every redraw of the screen.
     func nodeCount(for source: SubscriptionSource) -> Int {
-        nodes.count { $0.sourceID == source.id }
+        nodes.count {
+            $0.sourceID == source.id && $0.isSubscriptionMetadata != true
+        }
     }
 
     func nodeForPresentation(_ node: ProxyNode) -> ProxyNode {
@@ -2001,6 +2005,83 @@ final class AppModel {
     func dismissToast(id: UUID) {
         guard toast?.id == id else { return }
         toast = nil
+    }
+
+    /// Returns this device to the same local state as a fresh installation.
+    ///
+    /// The remote iCloud snapshot is deliberately preserved: deleting a copy
+    /// shared with another device is a separate, cross-device destructive
+    /// action. Reset only turns sync off here, exactly as the confirmation in
+    /// Settings promises.
+    func resetAllConfiguration() async {
+        guard !isCloudSyncing else {
+            showToast(
+                String(localized: "请等待 iCloud 同步完成后再重置"),
+                symbol: "icloud.and.arrow.up"
+            )
+            return
+        }
+
+        let cachedRuleURLs = Set(
+            importedSchemes.flatMap(\.remoteRulesetURLs)
+                + localRuleSets.compactMap(\.remoteRuleURL)
+                + customRuleFlows.compactMap(\.remoteRuleURL)
+        )
+
+        refreshAllTask?.cancel()
+        refreshAllTask = nil
+        countryResolutionDrainTask?.cancel()
+        countryResolutionDrainTask = nil
+        cloudUploadTask?.cancel()
+        cloudUploadTask = nil
+        discardPendingLocalWrite()
+
+        lanSubscriptionServer?.stop()
+        lanSubscriptionServer = nil
+        lanSharingURL = nil
+        isLANSharingStarting = false
+        lanSharingToken = LANSubscriptionAccessTokenStore.rotate()
+
+        iCloudSyncEnabled = false
+        CloudSyncPreference.setEnabled(false)
+        lastCloudSyncAt = nil
+
+        apply(
+            AppSnapshot(
+                subscriptions: [],
+                nodes: [],
+                selectedPresetID: Self.defaultRuleSchemeID,
+                selectedTarget: .surge,
+                updatedAt: .now
+            )
+        )
+        selectedTab = .subscriptions
+        refreshingSourceIDs.removeAll()
+        nodeLatencies.removeAll()
+        latencyTestingNodeIDs.removeAll()
+        selectedLatencyTestMode = .automatic
+        nodeIPCountryCodes.removeAll()
+        countryResolutionCompletedNodeIDs.removeAll()
+        countryResolutionInFlightNodeIDs.removeAll()
+        pendingCountryResolutionNodes.removeAll()
+        subscriptionRefreshReport = nil
+        importingSchemeIDs.removeAll()
+        isImportingScheme = false
+        isUpdatingRenewalReminders = false
+        lastAutoRefreshAt = nil
+        generationCache = ConfigurationCache()
+        schemeRuleCountCache.removeAll()
+
+        downloadStore.removeRules(for: Array(cachedRuleURLs))
+        persist()
+        flushPendingWrite()
+        await reminderScheduler.removeReminders()
+
+        showToast(
+            String(localized: "所有配置已重置"),
+            symbol: "arrow.counterclockwise.circle.fill",
+            tone: .success
+        )
     }
 
     // MARK: - iCloud

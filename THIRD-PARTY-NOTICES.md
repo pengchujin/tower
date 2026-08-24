@@ -32,13 +32,13 @@ App 和本仓库不再包含 Self-Configuration 的配置、规则列表或图�
 
 ## 世界地图点阵
 
-- **来源**：[Natural Earth](https://www.naturalearthdata.com)，`ne_110m_land`
+- **来源**：[Natural Earth](https://www.naturalearthdata.com)，`ne_110m_land`、`ne_110m_admin_0_countries`
 - **本地路径**：`Tower/Resources/WorldMap/`
 - **许可证**：**公共领域**（Natural Earth 明确放弃所有权利，无需署名）
 - **更新脚本**：`Scripts/update_world_dot_map.py`
 - **说明文件**：`Tower/Resources/WorldMap/WorldMap-NOTICE.txt`
 
-首页地图不是 MapKit，而是把陆地多边形栅格化成等距圆柱投影的点阵文本位图，运行时只读这一个文件、不做图像解码。虽然公共领域无需署名，仍记录来源与版本以便追溯和重新生成。
+首页地图不是 MapKit，而是把陆地和国家边界栅格化成相同尺寸的 Mercator 点阵文本。运行时读取 `WorldDotMap.txt` 的陆地点和 `WorldDotCountries.txt` 的国家归属，不做图像解码；虽然公共领域无需署名，仍记录来源与版本以便追溯和重新生成。
 
 ## 国家/地区名称与坐标表
 

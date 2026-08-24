@@ -54,6 +54,24 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertEqual(result.nodes[1].sni, "jp.example.com")
     }
 
+    func testParsesSubStoreShadowrocketJSONLines() {
+        let yaml = #"""
+        proxies:
+          - {"type":"ss","name":"HK, \"Premium\"","server":"hk.example.com","port":8388,"cipher":"aes-256-gcm","password":"secret","udp":true}
+          - {"type":"trojan","name":"JP Trojan","server":"jp.example.com","port":443,"password":"secret","sni":"jp.example.com","udp":true}
+          - {"type":"vless","name":"US VLESS","server":"us.example.com","port":443,"uuid":"11111111-1111-4111-8111-111111111111","tls":true,"servername":"us.example.com","network":"ws","ws-opts":{"path":"/gateway","headers":{"Host":"cdn.example.com"}},"udp":true}
+        """#
+
+        let result = SubscriptionParser().parse(data: Data(yaml.utf8))
+
+        XCTAssertEqual(result.rejectedLineCount, 0)
+        XCTAssertEqual(result.nodes.map(\.kind), [.shadowsocks, .trojan, .vless])
+        XCTAssertEqual(result.nodes.map(\.name), ["HK, \"Premium\"", "JP Trojan", "US VLESS"])
+        XCTAssertEqual(result.nodes[2].transport, "ws")
+        XCTAssertEqual(result.nodes[2].path, "/gateway")
+        XCTAssertEqual(result.nodes[2].hostHeader, "cdn.example.com")
+    }
+
     func testRejectsUnknownNodeScheme() {
         let result = SubscriptionParser().parse(data: Data("unknown://example.com:443".utf8))
         XCTAssertTrue(result.nodes.isEmpty)

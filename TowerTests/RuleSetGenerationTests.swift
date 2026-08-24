@@ -42,6 +42,40 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(shadowrocket.contains("DOMAIN-SUFFIX,example.com,Proxy"), shadowrocket)
     }
 
+    func testSurgeAddsNoResolveToImportedGeoIPBeforeLaterDomainRule() throws {
+        let repository = RuleSchemeRepository(bundle: .main)
+        let mini = try XCTUnwrap(
+            repository.bundledSchemes().first { $0.id == "acl4ssr-mini" }
+        )
+        let customFlow = CustomRuleFlow.userCreatedRuleSet(
+            schemeID: mini.id,
+            name: "Issue 12",
+            rulesText: "DOMAIN-SUFFIX,issue12.example",
+            defaultPolicyName: "🚀 节点选择"
+        )
+        let scheme = mini.customized(
+            enabledRuleGroupNames: nil,
+            customRuleFlows: [customFlow]
+        )
+
+        let content = ConfigurationGenerator().generate(
+            nodes: [],
+            scheme: scheme,
+            target: .surge,
+            schemes: repository,
+            preferRuleSets: false
+        ).content
+
+        XCTAssertTrue(
+            content.contains("GEOIP,CN,🎯 全球直连,no-resolve"),
+            content
+        )
+        XCTAssertLessThan(
+            try XCTUnwrap(content.range(of: "GEOIP,CN")?.lowerBound),
+            try XCTUnwrap(content.range(of: "DOMAIN-SUFFIX,issue12.example")?.lowerBound)
+        )
+    }
+
     func testLoonUsesRemoteRuleSectionWhenEnabled() throws {
         let fixture = try makeFixture(content: "DOMAIN-SUFFIX,example.com")
         let content = fixture.generator.generate(
