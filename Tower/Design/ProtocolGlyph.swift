@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One rendering path for protocol identity across filters, node rows and
 /// sheets. Most protocols use SF Symbols; Trojan gets a purpose-built wooden
@@ -21,6 +22,49 @@ struct ProtocolGlyph: View {
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// The same identity, in the one form a menu can actually draw.
+///
+/// `Menu` and a menu-styled `Picker` are UIKit menus underneath, and a menu
+/// item's icon has to reduce to a plain `Image`. A resized, framed image or a
+/// `Shape` reduces to nothing, so the protocol icons silently disappeared from
+/// the filter menu and the manual-node picker while the source still read as
+/// if they were there. Trojan is rasterized once into a template image so it
+/// keeps its horse instead of falling back to an unrelated symbol.
+struct ProtocolMenuIcon: View {
+    let kind: ProxyKind
+
+    var body: some View {
+        switch kind.iconDescriptor {
+        case .system(let name):
+            Image(systemName: name)
+        case .trojanHorse:
+            Image(uiImage: TrojanHorseImage.shared)
+        }
+    }
+}
+
+/// A menu icon cannot be a `Shape`, and rendering the horse on every menu
+/// presentation would redo the same drawing, so it is rendered once.
+@MainActor
+enum TrojanHorseImage {
+    static let shared: UIImage = render()
+
+    private static func render() -> UIImage {
+        let side: CGFloat = 24
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
+        let image = renderer.image { context in
+            UIColor.label.setFill()
+            let path = TrojanHorseShape().path(
+                in: CGRect(x: 0, y: 0, width: side, height: side)
+            )
+            context.cgContext.addPath(path.cgPath)
+            context.cgContext.fillPath()
+        }
+        // Template mode so the menu tints it like every other item icon.
+        return image.withRenderingMode(.alwaysTemplate)
     }
 }
 

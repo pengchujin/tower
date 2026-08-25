@@ -26,6 +26,43 @@ enum TowerTheme {
     }
 }
 
+/// A small shared motion vocabulary for Tower's high-frequency controls.
+/// Keeping these transitions short and non-bouncy makes selection feel direct
+/// on both iPhone and iPad, while still preserving state continuity.
+enum TowerMotion {
+    static let pressInDuration = 0.10
+    static let pressReleaseDuration = 0.16
+    static let selectionDuration = 0.16
+    static let disclosureResponse = 0.28
+    static let reducedMotionDuration = 0.14
+
+    static func pressScale(isPressed: Bool, reduceMotion: Bool) -> CGFloat {
+        isPressed && !reduceMotion ? 0.97 : 1
+    }
+
+    static func pressAnimation(isPressed: Bool, reduceMotion: Bool) -> Animation {
+        .easeOut(
+            duration: reduceMotion
+                ? 0.10
+                : (isPressed ? pressInDuration : pressReleaseDuration)
+        )
+    }
+
+    static func selectionSymbolScale(isSelected: Bool, reduceMotion: Bool) -> CGFloat {
+        isSelected || reduceMotion ? 1 : 0.92
+    }
+
+    static func selection(reduceMotion: Bool) -> Animation {
+        .easeOut(duration: reduceMotion ? reducedMotionDuration : selectionDuration)
+    }
+
+    static func disclosure(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .easeOut(duration: reducedMotionDuration)
+            : .interactiveSpring(response: disclosureResponse, dampingFraction: 1)
+    }
+}
+
 struct TowerCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -38,6 +75,7 @@ struct TowerCardModifier: ViewModifier {
                     .stroke(Color.secondary.opacity(0.1), lineWidth: 0.75)
             }
             .shadow(color: .black.opacity(0.035), radius: 8, y: 3)
+            .geometryGroup()
     }
 }
 
@@ -52,10 +90,36 @@ struct ResponsivePressButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .scaleEffect(
+                TowerMotion.pressScale(
+                    isPressed: configuration.isPressed,
+                    reduceMotion: reduceMotion
+                )
+            )
             .opacity(configuration.isPressed ? 0.86 : 1)
             .animation(
-                reduceMotion ? .easeOut(duration: 0.12) : .interactiveSpring(response: 0.28, dampingFraction: 1),
+                TowerMotion.pressAnimation(
+                    isPressed: configuration.isPressed,
+                    reduceMotion: reduceMotion
+                ),
+                value: configuration.isPressed
+            )
+    }
+}
+
+/// Press feedback for controls whose surrounding text must remain stationary.
+/// Only the control's contrast changes; there is no geometry transform.
+struct SelectionIndicatorButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .animation(
+                TowerMotion.pressAnimation(
+                    isPressed: configuration.isPressed,
+                    reduceMotion: reduceMotion
+                ),
                 value: configuration.isPressed
             )
     }
@@ -89,7 +153,14 @@ struct SectionHeading: View {
                 .font(.title3.weight(.semibold))
             Spacer()
             if let detail {
-                Text(LocalizedStringKey(detail))
+                // Verbatim on purpose. A `LocalizedStringKey` built from a
+                // runtime string is invisible to Xcode's extractor, so a
+                // literal passed here never reached the catalog and rendered
+                // in Chinese in the other fourteen languages — with
+                // `check_localization.sh` still reporting PASS. Callers pass
+                // `String(localized:)`, which the extractor does see, or a
+                // value that is not translatable at all such as a file name.
+                Text(detail)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -187,18 +258,28 @@ struct ToastView: View {
 /// counts" choices, and a switch beside a checkmark read as two unrelated
 /// controls doing the same job.
 struct SelectionIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isSelected: Bool
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(isSelected ? Color.accentColor : Color.clear)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
             Circle()
                 .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1.5)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
             Image(systemName: "checkmark")
                 .font(.caption2.weight(.black))
                 .foregroundStyle(.white)
                 .opacity(isSelected ? 1 : 0)
+                .scaleEffect(
+                    TowerMotion.selectionSymbolScale(
+                        isSelected: isSelected,
+                        reduceMotion: reduceMotion
+                    )
+                )
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
         }
         .frame(width: 25, height: 25)
         .padding(.top, 2)
@@ -222,7 +303,7 @@ struct CheckmarkToggleStyle: ToggleStyle {
             SelectionIndicator(isSelected: configuration.isOn)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(ResponsivePressButtonStyle())
+        .buttonStyle(SelectionIndicatorButtonStyle())
         .accessibilityAddTraits(.isToggle)
         // Every other choice in the app taps back — the tab bar, the rule
         // list, the client picker. This one was the exception.

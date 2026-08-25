@@ -579,13 +579,16 @@ private struct ConfigurationPreviewSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let configuration: GeneratedConfiguration
-    @State private var isContentReady = false
+    @State private var highlightedSpans: [ConfigurationSyntaxHighlighter.Span]?
 
     var body: some View {
         NavigationStack {
             Group {
-                if isContentReady {
-                    ConfigurationTextView(text: configuration.content)
+                if let highlightedSpans {
+                    ConfigurationTextView(
+                        text: configuration.content,
+                        spans: highlightedSpans
+                    )
                 } else {
                     ProgressView("正在加载完整配置…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -605,9 +608,15 @@ private struct ConfigurationPreviewSheet: View {
                     }
                 }
             }
+            // Scanning a full configuration is measured in tenths of a second
+            // on a phone. Yielding first only moved the freeze one runloop
+            // turn later — long enough to show the progress view, not long
+            // enough to keep the sheet interactive while it happened.
             .task {
-                await Task.yield()
-                isContentReady = true
+                let content = configuration.content
+                highlightedSpans = await Task.detached(priority: .userInitiated) {
+                    ConfigurationSyntaxHighlighter.spans(in: content)
+                }.value
             }
         }
     }

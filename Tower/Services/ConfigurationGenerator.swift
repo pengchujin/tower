@@ -1861,9 +1861,13 @@ struct ConfigurationGenerator {
             parts.insert(policyName, at: parts.count - 1)
         } else {
             parts.append(policyName)
-            if target == .surge, ruleType == "GEOIP" {
-                // A GEOIP rule above later domain rules otherwise makes Surge
-                // resolve the domain locally just to decide whether it matches.
+            if ruleType == "GEOIP" {
+                // A GEOIP rule above later domain rules otherwise makes the
+                // client resolve the domain locally just to decide whether it
+                // matches — and the domains that reach it are the ones no rule
+                // list covered. Every built-in preset already writes the flag
+                // for all seven clients; an imported scheme must not route
+                // differently on Stash than it does on Surge.
                 parts.append("no-resolve")
             }
         }
@@ -2788,7 +2792,19 @@ extension ConfigurationGenerator {
         guard parts.count >= 2,
               let matcher = Self.egernRuleMatchers[parts[0].uppercased()],
               !parts[1].isEmpty else { return nil }
-        return "  - \(matcher):\n      match: \(yaml(parts[1]))\n      policy: \(yaml(policy))\n"
+
+        // Egern spells the flag as a neighbouring key rather than a trailing
+        // field, which is why it used to be dropped here. GEOIP always skips
+        // resolution, matching the built-in presets and the other six clients;
+        // an IP rule keeps whatever the source file asked for.
+        let isIPMatcher = matcher == "geoip" || matcher == "ip_cidr"
+        let skipsResolution = isIPMatcher
+            && (parts[0].uppercased() == "GEOIP"
+                || parts.dropFirst().contains { $0.lowercased() == "no-resolve" })
+
+        var line = "  - \(matcher):\n      match: \(yaml(parts[1]))\n"
+        if skipsResolution { line += "      no_resolve: true\n" }
+        return line + "      policy: \(yaml(policy))\n"
     }
 
     private static let egernRuleMatchers: [String: String] = [
@@ -2848,7 +2864,6 @@ extension ConfigurationGenerator {
             // Egern wants a list here even for the single value a URI carries.
             let alpn = ALPNList.values(node.alpn)
             body.append("      alpn: [\((alpn.isEmpty ? ["h3"] : alpn).map(yaml).joined(separator: ", "))]")
-            if node.skipCertificateVerification { body.append("      skip_tls_verify: true") }
         case .wireguard:
             type = "wireguard"
             endpoint()

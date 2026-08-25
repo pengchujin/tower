@@ -947,6 +947,12 @@ struct SubscriptionParser {
         let uuid: String
         if rawUUID.lowercased().hasPrefix("auto:") {
             uuid = String(rawUUID.dropFirst("auto:".count))
+        } else if rawUUID.lowercased().hasPrefix("none:") {
+            // Shadowrocket may preserve VLESS's `encryption=none` marker in
+            // its Base64 authority as `none:uuid@host:port`. It is not part of
+            // the UUID; retaining it makes an otherwise valid node impossible
+            // to export to every target client.
+            uuid = String(rawUUID.dropFirst("none:".count))
         } else if rawUUID.hasPrefix(":") {
             uuid = String(rawUUID.dropFirst())
         } else {

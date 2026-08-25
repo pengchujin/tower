@@ -242,7 +242,7 @@ struct AddSourceSheet: View {
                     Label {
                         Text(kind.title)
                     } icon: {
-                        ProtocolGlyph(kind: kind)
+                        ProtocolMenuIcon(kind: kind)
                     }
                     .tag(kind)
                 }

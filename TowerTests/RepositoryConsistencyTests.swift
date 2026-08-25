@@ -98,7 +98,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         let source = try sourceText("Tower/Features/Subscriptions/NodeMapOverview.swift")
 
         XCTAssertTrue(
-            source.contains("ExpandableNodeRow(node: node, resolvesRegionOnAppear: false)"),
+            source.contains("CompactNodeRow(node: node, resolvesRegionOnAppear: false)"),
             "The map already resolves every node as one bounded batch; its rows must not start duplicate lookups while scrolling."
         )
         XCTAssertTrue(
@@ -532,6 +532,10 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(
             cardSource.contains(".buttonStyle(ResponsivePressButtonStyle())"),
             "规则选择不能缩放整个多行卡片，否则松手与选中状态同时更新时文字会漂移"
+        )
+        XCTAssertTrue(
+            cardSource.contains(".buttonStyle(SelectionIndicatorButtonStyle())"),
+            "规则勾选只应改变按钮透明度，不能缩放多行卡片文字"
         )
     }
 

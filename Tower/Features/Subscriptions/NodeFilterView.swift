@@ -189,7 +189,7 @@ struct NodeFilterView: View {
                     Label {
                         Text(option.title)
                     } icon: {
-                        ProtocolGlyph(kind: option)
+                        ProtocolMenuIcon(kind: option)
                     }
                 }
             }

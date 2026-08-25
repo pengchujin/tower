@@ -1301,6 +1301,30 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertTrue(updatedPreview.rulesets.contains { $0.groupName == "流媒体" })
     }
 
+    @MainActor
+    func testCustomizableSchemePreviewIsReusedWhenOnlySelectionChanges() {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-rule-preview-selection-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: fileURL),
+            arguments: []
+        )
+        let scheme = makeScheme()
+
+        _ = model.customizableScheme(for: scheme)
+        let materializationCount = model.ruleSchemeMaterializationCount
+
+        model.selectScheme(scheme)
+        _ = model.customizableScheme(for: scheme)
+
+        XCTAssertEqual(
+            model.ruleSchemeMaterializationCount,
+            materializationCount,
+            "Selecting a rule scheme must reuse its already rendered preview"
+        )
+    }
+
     private func makeScheme() -> RuleScheme {
         RuleScheme(
             id: "custom",

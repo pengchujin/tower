@@ -136,6 +136,25 @@ final class SubscriptionUsageTests: XCTestCase {
         XCTAssertEqual(usage.distinctNotices, ["距离下次重置剩余：3 天"])
     }
 
+    func testActionableAnnouncementsSurviveStructuredFactsAndAreDeduplicated() {
+        let usage = SubscriptionUsage(
+            totalBytes: 220 * 1_073_741_824,
+            expiresAt: Date(timeIntervalSince1970: 1_735_660_800),
+            notices: [
+                "Traffic: 220GB",
+                "套餐到期：2026-08-09",
+                "流量重置日：每月 1 日",
+                "流量重置日：每月 1 日",
+                "套餐即将到期，请及时续费"
+            ]
+        )
+
+        XCTAssertEqual(
+            usage.distinctNotices,
+            ["流量重置日：每月 1 日", "套餐即将到期，请及时续费"]
+        )
+    }
+
     // MARK: - Notices in the node list
 
     func testAnnouncementEntriesRemainNodesAndAreMarkedAsMetadata() {

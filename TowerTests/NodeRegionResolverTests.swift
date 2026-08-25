@@ -64,6 +64,20 @@ final class NodeRegionResolverTests: XCTestCase {
         XCTAssertEqual(NodeRegionResolver.unlocatedNodes(in: nodes).count, 1)
     }
 
+    func testMapPresentationBuildsClustersAndUnlocatedCountTogether() {
+        let anonymous = node(name: "Premium", server: "198.51.100.8")
+        let unknown = node(name: "Unknown", server: "203.0.113.8")
+        let nodes = [node(name: "香港 01"), anonymous, unknown]
+
+        let presentation = NodeMapPresentation(
+            nodes: nodes,
+            countryCodes: [anonymous.id: "US"]
+        )
+
+        XCTAssertEqual(Set(presentation.clusters.map(\.region.code)), ["HK", "US"])
+        XCTAssertEqual(presentation.unlocatedCount, 1)
+    }
+
     func testNodeNameOutranksTheIPDatabaseWhenClustering() {
         // The airport named the node; that is what the user reads and what the
         // policy group should agree with, even when the exit IP is elsewhere.

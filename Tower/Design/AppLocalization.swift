@@ -39,13 +39,18 @@ enum AppLocalization {
 
         let localeIdentifier = locale.identifier.lowercased()
         if localeIdentifier.hasPrefix("zh") {
-            let usesTraditionalChinese = localeIdentifier.contains("hant")
-                || localeIdentifier.contains("_tw")
-                || localeIdentifier.contains("-tw")
-                || localeIdentifier.contains("_hk")
-                || localeIdentifier.contains("-hk")
-                || localeIdentifier.contains("_mo")
-                || localeIdentifier.contains("-mo")
+            // The script wins over the region. `zh-Hans-HK` is Simplified
+            // Chinese as written in Hong Kong, and reading only the region
+            // turned it Traditional.
+            let usesTraditionalChinese: Bool
+            if localeIdentifier.contains("hans") {
+                usesTraditionalChinese = false
+            } else if localeIdentifier.contains("hant") {
+                usesTraditionalChinese = true
+            } else {
+                usesTraditionalChinese = ["_tw", "-tw", "_hk", "-hk", "_mo", "-mo"]
+                    .contains { localeIdentifier.contains($0) }
+            }
 
             switch normalizedCode {
             case "HK": return "香港"

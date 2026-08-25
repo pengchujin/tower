@@ -1,32 +1,37 @@
 import CoreLocation
 import SwiftUI
 
+struct NodeMapPresentation {
+    let clusters: [NodeRegionCluster]
+    let unlocatedCount: Int
+
+    init(nodes: [ProxyNode], countryCodes: [UUID: String]) {
+        clusters = NodeRegionResolver.clusters(for: nodes, countryCodes: countryCodes)
+        let locatedCount = clusters.reduce(into: 0) { count, cluster in
+            count += cluster.nodes.count
+        }
+        unlocatedCount = max(nodes.count - locatedCount, 0)
+    }
+}
+
 struct NodeMapOverview: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let nodes: [ProxyNode]
 
     @State private var selectedRegionCode: String?
+    @State private var presentation: NodeMapPresentation
 
     init(nodes: [ProxyNode]) {
         self.nodes = nodes
+        _presentation = State(
+            initialValue: NodeMapPresentation(nodes: nodes, countryCodes: [:])
+        )
     }
 
     var body: some View {
-        // Grouping every node by region used to happen five times per redraw:
-        // once for the markers, again for the selected cluster, again for the
-        // empty check, again for the unlocated count, and again for the change
-        // watcher. Country resolution merges its results in batches of eight,
-        // so each batch triggered another five passes over every node.
-        let clusters = NodeRegionResolver.clusters(
-            for: nodes,
-            countryCodes: model.nodeIPCountryCodes
-        )
+        let clusters = presentation.clusters
         let selectedCluster = clusters.first { $0.id == selectedRegionCode }
-        let unlocatedCount = NodeRegionResolver.unlocatedNodes(
-            in: nodes,
-            countryCodes: model.nodeIPCountryCodes
-        ).count
 
         return VStack(alignment: .leading, spacing: 14) {
             map(clusters: clusters)
@@ -35,7 +40,7 @@ struct NodeMapOverview: View {
             regionDetail(
                 clusters: clusters,
                 selectedCluster: selectedCluster,
-                unlocatedCount: unlocatedCount
+                unlocatedCount: presentation.unlocatedCount
             )
             .padding(.horizontal, 4)
             .id(SubscriptionScrollTarget.nodes)
@@ -44,6 +49,18 @@ struct NodeMapOverview: View {
         .sensoryFeedback(.selection, trigger: selectedRegionCode)
         .task(id: ipCountryTaskID) {
             await model.resolveIPCountries(for: nodes)
+        }
+        .task(id: presentationTaskID) {
+            let latestNodes = nodes
+            let countryCodes = model.nodeIPCountryCodes
+            // Keep subscription selection responsive: render its selected
+            // state first, then rebuild the map's derived clusters.
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            presentation = NodeMapPresentation(
+                nodes: latestNodes,
+                countryCodes: countryCodes
+            )
         }
         .onChange(of: clusters.map(\.id)) { _, clusterIDs in
             // A collapsed list stays collapsed; only a selection that no longer
@@ -59,7 +76,7 @@ struct NodeMapOverview: View {
 
     private func map(clusters: [NodeRegionCluster]) -> some View {
         WorldDotMapView(markers: markers(from: clusters)) { id in
-            withAnimation(expansionAnimation) {
+            withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
                 // Tapping the selected marker again collapses its node list.
                 selectedRegionCode = selectedRegionCode == id ? nil : id
             }
@@ -150,7 +167,7 @@ struct NodeMapOverview: View {
     ) -> some View {
         if let cluster = selectedCluster {
             SelectedRegionNodes(cluster: cluster) {
-                withAnimation(expansionAnimation) { selectedRegionCode = nil }
+                withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { selectedRegionCode = nil }
             }
             .id(cluster.id)
         } else if clusters.isEmpty && !nodes.isEmpty {
@@ -169,12 +186,18 @@ struct NodeMapOverview: View {
         }
     }
 
-    private var expansionAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.36, dampingFraction: 1)
-    }
-
     private var ipCountryTaskID: String {
         "\(nodes.map { "\($0.id):\($0.server)" }.hashValue)"
+    }
+
+    private var presentationTaskID: Int {
+        var hasher = Hasher()
+        hasher.combine(nodes.count)
+        for node in nodes {
+            hasher.combine(node.id)
+            hasher.combine(model.nodeIPCountryCodes[node.id])
+        }
+        return hasher.finalize()
     }
 
 }
@@ -187,7 +210,7 @@ private struct SelectedRegionNodes: View {
     var body: some View {
         // Lazy for the same reason the subscription list is: a popular region
         // can hold a hundred nodes and only a few are ever on screen.
-        LazyVStack(alignment: .leading, spacing: 10) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             // The heading collapses the list, matching a second tap on the map
             // marker. Without it the only way back was to find the dot again.
             Button(action: onCollapse) {
@@ -215,9 +238,14 @@ private struct SelectedRegionNodes: View {
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .accessibilityLabel(Text("收起 \(cluster.region.localizedName) 的节点"))
+            .padding(.bottom, 4)
 
             ForEach(cluster.nodes) { node in
-                ExpandableNodeRow(node: node, resolvesRegionOnAppear: false)
+                CompactNodeRow(node: node, resolvesRegionOnAppear: false)
+                    .overlay(alignment: .bottom) {
+                        Divider()
+                            .padding(.leading, 42)
+                    }
             }
         }
         .padding(.top, 2)
@@ -225,6 +253,62 @@ private struct SelectedRegionNodes: View {
 
     private var bestLatency: Int? {
         cluster.nodes.compactMap { model.nodeLatencies[$0.id]?.milliseconds }.min()
+    }
+}
+
+struct CompactNodeRow: View {
+    @Environment(AppModel.self) private var model
+    let node: ProxyNode
+    let resolvesRegionOnAppear: Bool
+    @State private var sharePayload: SharePayload?
+
+    init(node: ProxyNode, resolvesRegionOnAppear: Bool = true) {
+        self.node = node
+        self.resolvesRegionOnAppear = resolvesRegionOnAppear
+    }
+
+    var body: some View {
+        let presentedNode = model.nodeForPresentation(node)
+        HStack(spacing: 8) {
+            NodeRegionLogo(
+                node: node,
+                resolvesRegionOnAppear: resolvesRegionOnAppear,
+                diameter: 34
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                NodeDisplayNameLabel(node: presentedNode)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(node.protocolSummary)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.18)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+
+            Spacer(minLength: 6)
+            NodeLatencyBadge(node: node, showsUntestedState: false)
+
+            Button {
+                sharePayload = SharePayloadFactory.node(presentedNode)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.body.weight(.medium))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .foregroundStyle(Color.accentColor)
+            .accessibilityLabel("分享 \(NodeRegionResolver.displayName(for: presentedNode))")
+        }
+        .frame(minHeight: 54)
+        .padding(.horizontal, 2)
+        .padding(.vertical, 3)
+        .sheet(item: $sharePayload) { payload in
+            SharePayloadSheet(payload: payload)
+        }
     }
 }
 
@@ -255,12 +339,15 @@ struct ExpandableNodeRow: View {
         VStack(alignment: .leading, spacing: isExpanded ? 12 : 0) {
             HStack(spacing: 5) {
                 Button {
-                    withAnimation(expansionAnimation) {
+                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
                         isExpanded.toggle()
                     }
                 } label: {
                     HStack(spacing: 12) {
-                        NodeRegionLogo(node: node, resolvesRegionOnAppear: resolvesRegionOnAppear)
+                        NodeRegionLogo(
+                            node: node,
+                            resolvesRegionOnAppear: resolvesRegionOnAppear
+                        )
 
                         VStack(alignment: .leading, spacing: 3) {
                             NodeDisplayNameLabel(node: presentedNode)
@@ -277,12 +364,13 @@ struct ExpandableNodeRow: View {
                         NodeLatencyBadge(node: node)
                         Image(systemName: "chevron.down")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
+                    .frame(minHeight: 44)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(ResponsivePressButtonStyle())
+                .buttonStyle(.plain)
                 .accessibilityLabel(
                     isExpanded
                         ? String(localized: "收起 \(NodeRegionResolver.displayName(for: presentedNode))")
@@ -349,7 +437,8 @@ struct ExpandableNodeRow: View {
                 .transition(.opacity)
             }
         }
-        .padding(11)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 11)
         .background(
             usesInsetBackground ? Color.primary.opacity(0.045) : Color.clear,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -360,9 +449,6 @@ struct ExpandableNodeRow: View {
         }
     }
 
-    private var expansionAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.32, dampingFraction: 1)
-    }
 }
 
 private struct NodeDisplayNameLabel: View {
@@ -377,6 +463,13 @@ private struct NodeRegionLogo: View {
     @Environment(AppModel.self) private var model
     let node: ProxyNode
     let resolvesRegionOnAppear: Bool
+    let diameter: CGFloat
+
+    init(node: ProxyNode, resolvesRegionOnAppear: Bool, diameter: CGFloat = 42) {
+        self.node = node
+        self.resolvesRegionOnAppear = resolvesRegionOnAppear
+        self.diameter = diameter
+    }
 
     @ViewBuilder
     var body: some View {
@@ -398,13 +491,13 @@ private struct NodeRegionLogo: View {
             // The node's own name decides the flag; the IP database only
             // answers for names that say nothing about where they are.
             if let countryCode = model.countryCode(for: node) {
-                CountryFlagEmoji(countryCode: countryCode, size: 27)
+                CountryFlagEmoji(countryCode: countryCode, size: diameter * 0.64)
             } else {
-                ProtocolGlyph(kind: node.kind, size: 18)
+                ProtocolGlyph(kind: node.kind, size: diameter * 0.43)
                     .foregroundStyle(protocolTint)
             }
         }
-        .frame(width: 42, height: 42)
+        .frame(width: diameter, height: diameter)
         .accessibilityHidden(true)
     }
 
@@ -495,6 +588,12 @@ private struct CountryFlagEmoji: View {
 private struct NodeLatencyBadge: View {
     @Environment(AppModel.self) private var model
     let node: ProxyNode
+    let showsUntestedState: Bool
+
+    init(node: ProxyNode, showsUntestedState: Bool = true) {
+        self.node = node
+        self.showsUntestedState = showsUntestedState
+    }
 
     var body: some View {
         Group {
@@ -517,7 +616,7 @@ private struct NodeLatencyBadge: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.red)
                 }
-            } else {
+            } else if showsUntestedState {
                 Text("待测试")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)

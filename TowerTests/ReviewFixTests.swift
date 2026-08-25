@@ -403,4 +403,29 @@ final class ReviewFixTests: XCTestCase {
         let snapshot = try XCTUnwrap(try store.load())
         XCTAssertEqual(snapshot.excludedNodeIDs?.count, 3)
     }
+
+    @MainActor
+    func testCoalescedPersistenceDefersSnapshotConstructionUntilFlush() throws {
+        let stateURL = temporaryStateURL()
+        defer { try? FileManager.default.removeItem(at: stateURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: stateURL),
+            persistencePolicy: .coalesced(.seconds(30)),
+            arguments: []
+        )
+        let node = makeNode(name: "节点", server: "node.example.com")
+        model.nodes = [node]
+
+        model.setNode(node, included: false)
+
+        XCTAssertEqual(
+            model.persistenceSnapshotBuildCount,
+            0,
+            "A coalesced edit must return before constructing the full snapshot"
+        )
+
+        model.flushPendingWrite()
+
+        XCTAssertEqual(model.persistenceSnapshotBuildCount, 1)
+    }
 }

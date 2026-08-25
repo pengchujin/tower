@@ -13,6 +13,12 @@ struct WorldDotGrid {
     /// ISO 3166-1 alpha-2 ownership for each cell, or `nil` for water and
     /// Natural Earth cells that are not assigned to a country.
     let countryCodes: [String?]
+    /// Indexes of the land cells, in row-major order.
+    ///
+    /// Roughly a fifth of the grid is land, and every renderer and every
+    /// covered-country scan used to walk all 32,780 cells to find them —
+    /// including the detail canvas, once per frame of a pan or a spring.
+    let landCells: [Int]
 
     init(columns: Int, rows: Int, land: [Bool], countryCodes: [String?] = []) {
         self.columns = columns
@@ -21,6 +27,7 @@ struct WorldDotGrid {
         self.countryCodes = countryCodes.count == land.count
             ? countryCodes
             : Array(repeating: nil, count: land.count)
+        landCells = land.indices.filter { land[$0] }
     }
 
     /// Must match the bounds the generator wrote.
@@ -63,7 +70,7 @@ struct WorldDotGrid {
         var covered: Set<Int> = []
         var representedCodes: Set<String> = []
 
-        for index in land.indices where land[index] {
+        for index in landCells {
             guard let code = countryCodes[index], requestedCodes.contains(code) else { continue }
             covered.insert(index)
             representedCodes.insert(code)
@@ -581,13 +588,14 @@ struct WorldDotMapView: View {
                     return
                 }
 
-                if let markerID = RegionHitTester.markerID(
+                switch RegionHitTester.hit(
                     at: value.location,
                     markers: markers,
                     grid: grid,
                     layout: layout,
                     viewport: viewport
                 ) {
+                case .marker(let markerID):
                     if markerID == selectedMarkerID,
                        let marker = markers.first(where: { $0.id == markerID }) {
                         recenterSelection(
@@ -597,6 +605,13 @@ struct WorldDotMapView: View {
                     }
                     onSelect(markerID)
                     return
+                case .uncoveredCountry:
+                    // The tap landed inside a country with no nodes. Falling
+                    // through to the proximity search below would select a
+                    // neighbour the user did not touch.
+                    return
+                case .none:
+                    break
                 }
 
                 guard let item = RegionHitTester.displayItem(
@@ -1025,6 +1040,19 @@ struct WorldDotMapView: View {
     }
 
     enum RegionHitTester {
+        /// What a tap on the map itself resolved to.
+        ///
+        /// `uncoveredCountry` is deliberately distinct from `none`: the map
+        /// answered the tap, and the answer is "this country has no nodes".
+        /// Collapsing the two let the caller's proximity fallback hand the tap
+        /// to whichever covered neighbour happened to be within a few points,
+        /// which is the very thing the country layer exists to prevent.
+        enum Hit: Equatable {
+            case marker(String)
+            case uncoveredCountry
+            case none
+        }
+
         static func markerID(
             at visiblePoint: CGPoint,
             markers: [WorldDotMarker],
@@ -1032,7 +1060,24 @@ struct WorldDotMapView: View {
             layout: Layout,
             viewport: Viewport
         ) -> String? {
-            guard !grid.isEmpty, !markers.isEmpty else { return nil }
+            guard case .marker(let id) = hit(
+                at: visiblePoint,
+                markers: markers,
+                grid: grid,
+                layout: layout,
+                viewport: viewport
+            ) else { return nil }
+            return id
+        }
+
+        static func hit(
+            at visiblePoint: CGPoint,
+            markers: [WorldDotMarker],
+            grid: WorldDotGrid,
+            layout: Layout,
+            viewport: Viewport
+        ) -> Hit {
+            guard !grid.isEmpty, !markers.isEmpty else { return .none }
 
             let requestedMarkers = Dictionary(
                 uniqueKeysWithValues: markers.map { ($0.id.uppercased(), $0) }
@@ -1042,7 +1087,10 @@ struct WorldDotMapView: View {
                let countryCode = grid.countryCode(column: cell.column, row: cell.row) {
                 // A different, uncovered country owns this cell. Do not let a
                 // nearby covered microstate steal that explicit map hit.
-                return requestedMarkers[countryCode]?.id
+                guard let marker = requestedMarkers[countryCode] else {
+                    return .uncoveredCountry
+                }
+                return .marker(marker.id)
             }
 
             // Water has no competing country identity, so give every marker a
@@ -1050,8 +1098,8 @@ struct WorldDotMapView: View {
             // Singapore, Macao and other microstates may still occupy only a
             // few dots even though their map is visually much larger.
             let fallbackRadius: CGFloat = 26
-            return markers
-                .map { marker in
+            let nearest: String? = markers
+                .map { (marker: WorldDotMarker) -> (marker: WorldDotMarker, distance: CGFloat) in
                     let position = layout.position(for: marker, viewport: viewport)
                     return (
                         marker: marker,
@@ -1061,6 +1109,8 @@ struct WorldDotMapView: View {
                 .filter { $0.distance <= fallbackRadius }
                 .min { $0.distance < $1.distance }?
                 .marker.id
+            guard let nearest else { return .none }
+            return .marker(nearest)
         }
 
         static func displayItem(
@@ -1392,23 +1442,23 @@ private struct WorldDotCanvas: View, Equatable {
         Canvas { context, _ in
             guard !grid.isEmpty else { return }
 
-            for row in 0 ..< grid.rows {
-                for column in 0 ..< grid.columns where grid.isLand(column: column, row: row) {
-                    let index = row * grid.columns + column
-                    let center = layout.center(column: column, row: row)
-                    let appearance = appearance(for: index)
-                    context.fill(
-                        Path(
-                            ellipseIn: CGRect(
-                                x: center.x - appearance.diameter / 2,
-                                y: center.y - appearance.diameter / 2,
-                                width: appearance.diameter,
-                                height: appearance.diameter
-                            )
-                        ),
-                        with: .color(appearance.color)
-                    )
-                }
+            for index in grid.landCells {
+                let center = layout.center(
+                    column: index % grid.columns,
+                    row: index / grid.columns
+                )
+                let appearance = appearance(for: index)
+                context.fill(
+                    Path(
+                        ellipseIn: CGRect(
+                            x: center.x - appearance.diameter / 2,
+                            y: center.y - appearance.diameter / 2,
+                            width: appearance.diameter,
+                            height: appearance.diameter
+                        )
+                    ),
+                    with: .color(appearance.color)
+                )
             }
         }
     }
@@ -1460,36 +1510,36 @@ private struct WorldDotDetailCanvas: View, Animatable {
             let visibleBounds = CGRect(origin: .zero, size: size)
                 .insetBy(dx: -screenCell, dy: -screenCell)
 
-            for row in 0 ..< grid.rows {
-                for column in 0 ..< grid.columns where grid.isLand(column: column, row: row) {
-                    let index = row * grid.columns + column
-                    let base = viewport.transform(
-                        layout.center(column: column, row: row),
-                        in: layout.size
-                    )
-                    guard visibleBounds.contains(base) else { continue }
+            for index in grid.landCells {
+                let base = viewport.transform(
+                    layout.center(
+                        column: index % grid.columns,
+                        row: index / grid.columns
+                    ),
+                    in: layout.size
+                )
+                guard visibleBounds.contains(base) else { continue }
 
-                    let style = WorldDotCellStyle.resolve(
-                        index: index,
-                        coveredCells: coveredCells,
-                        selectedCells: selectedCells
+                let style = WorldDotCellStyle.resolve(
+                    index: index,
+                    coveredCells: coveredCells,
+                    selectedCells: selectedCells
+                )
+                let diameter = style.detailDiameter(step: step)
+                let color = style.color(in: colorScheme)
+                for offset in offsets {
+                    let center = CGPoint(x: base.x + offset.width, y: base.y + offset.height)
+                    context.fill(
+                        Path(
+                            ellipseIn: CGRect(
+                                x: center.x - diameter / 2,
+                                y: center.y - diameter / 2,
+                                width: diameter,
+                                height: diameter
+                            )
+                        ),
+                        with: .color(color)
                     )
-                    let diameter = style.detailDiameter(step: step)
-                    let color = style.color(in: colorScheme)
-                    for offset in offsets {
-                        let center = CGPoint(x: base.x + offset.width, y: base.y + offset.height)
-                        context.fill(
-                            Path(
-                                ellipseIn: CGRect(
-                                    x: center.x - diameter / 2,
-                                    y: center.y - diameter / 2,
-                                    width: diameter,
-                                    height: diameter
-                                )
-                            ),
-                            with: .color(color)
-                        )
-                    }
                 }
             }
         }

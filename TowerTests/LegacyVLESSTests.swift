@@ -53,6 +53,31 @@ final class LegacyVLESSTests: XCTestCase {
         XCTAssertEqual(node.exportableUUID, "b831381d-6324-4d53-ad4f-8cda48b30811")
     }
 
+    func testNonePrefixedBase64EndpointRemainsExportableToShadowrocket() throws {
+        let uuid = "11111111-2222-4333-8444-555555555555"
+        let endpoint = "none:\(uuid)@edge.example.net:443"
+        let encoded = Data(endpoint.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        let link = "vless://\(encoded)"
+            + "?tls=1&peer=cover.example.com&udp=1&xtls=2"
+            + "&pbk=TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            + "&sid=0123456789abcdef&fingerprint=chrome"
+
+        let node = try XCTUnwrap(parser.parseURI(link))
+        let output = ConfigurationGenerator().generate(
+            nodes: [node],
+            preset: RulePreset.builtIns[0],
+            target: .shadowrocket
+        )
+
+        XCTAssertEqual(node.uuid, uuid)
+        XCTAssertEqual(node.exportableUUID, uuid)
+        XCTAssertEqual(output.supportedNodeCount, 1)
+        XCTAssertEqual(output.skippedNodeCount, 0)
+    }
+
     func testPreservesShadowrocketRealityOptions() throws {
         let node = try XCTUnwrap(parser.parseURI(link))
 

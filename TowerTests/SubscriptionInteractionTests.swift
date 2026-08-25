@@ -292,16 +292,16 @@ final class SubscriptionInteractionTests: XCTestCase {
         let start = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
         let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
         let cardSource = String(source[start.lowerBound..<end.lowerBound])
-        let togglePattern = "withAnimation(expansionAnimation) { isExpanded.toggle() }"
+        let togglePattern = "withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }"
 
         XCTAssertTrue(rulesSource.contains(togglePattern), "规则页必须保留作为对照的展开动画")
         XCTAssertTrue(cardSource.contains(togglePattern), "订阅节点应使用与规则页相同的弹簧状态切换")
         XCTAssertTrue(cardSource.contains(".transition(.opacity)"), "订阅节点应与规则详情一样使用透明度过渡")
         XCTAssertFalse(
-            cardSource.contains(".animation(expansionAnimation, value: isExpanded)"),
+            cardSource.contains(".animation(TowerMotion.disclosure(reduceMotion: reduceMotion), value: isExpanded)"),
             "箭头应由展开事务统一驱动，不再单独动画"
         )
-        XCTAssertTrue(cardSource.contains("interactiveSpring(response: 0.34, dampingFraction: 1)"))
+        XCTAssertFalse(cardSource.contains("private var expansionAnimation"))
         #else
         throw XCTSkip("该测试检查订阅与规则页动画的一致性，只在模拟器构建环境运行")
         #endif
@@ -417,6 +417,94 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
+    func testExpandedSubscriptionShowsDistinctAnnouncementsBeforeNodes() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let end = try XCTUnwrap(source.range(of: "private struct SubscriptionTrafficBar"))
+        let cardSource = String(source[start.lowerBound..<end.lowerBound])
+        let announcementCall = try XCTUnwrap(
+            cardSource.range(of: "SubscriptionAnnouncementSection(notices: source.usage?.distinctNotices ?? [])")
+        )
+        let nodeRows = try XCTUnwrap(cardSource.range(of: "ForEach(model.nodes(for: source))"))
+
+        XCTAssertLessThan(
+            announcementCall.lowerBound,
+            nodeRows.lowerBound,
+            "机场公告应在展开后先于节点列表出现"
+        )
+        XCTAssertTrue(
+            cardSource.contains("if isExpanded"),
+            "公告应跟随节点展开区显示，不能撑高所有收起卡片"
+        )
+        #else
+        throw XCTSkip("该测试检查订阅展开区的公告层级，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testMapAndSubscriptionReuseAStaticCompactNodeList() throws {
+        #if targetEnvironment(simulator)
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let subscriptions = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift"),
+            encoding: .utf8
+        )
+        let cardStart = try XCTUnwrap(subscriptions.range(of: "private struct SubscriptionCard"))
+        let cardEnd = try XCTUnwrap(subscriptions.range(of: "private struct SubscriptionTrafficBar"))
+        let cardSource = String(subscriptions[cardStart.lowerBound..<cardEnd.lowerBound])
+
+        XCTAssertTrue(
+            cardSource.contains("LazyVStack(spacing: 0)"),
+            "订阅展开后应是紧密平铺列表，不再给每个节点留卡片间距"
+        )
+        XCTAssertTrue(
+            cardSource.contains("CompactNodeRow(node: node)"),
+            "订阅展开区应使用不再二次展开的紧凑节点行"
+        )
+        XCTAssertTrue(
+            cardSource.contains(".overlay(alignment: .bottom)"),
+            "平铺节点应使用细分隔线建立行边界"
+        )
+
+        let nodeRows = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/NodeMapOverview.swift"),
+            encoding: .utf8
+        )
+        let selectedRegionStart = try XCTUnwrap(nodeRows.range(of: "private struct SelectedRegionNodes"))
+        let selectedRegionEnd = try XCTUnwrap(nodeRows.range(of: "struct CompactNodeRow"))
+        let selectedRegionSource = String(nodeRows[selectedRegionStart.lowerBound..<selectedRegionEnd.lowerBound])
+        XCTAssertTrue(
+            selectedRegionSource.contains("CompactNodeRow(node: node, resolvesRegionOnAppear: false)"),
+            "地图选中地区后的节点应和订阅展开列表共用同一行样式"
+        )
+
+        let rowStart = try XCTUnwrap(nodeRows.range(of: "struct CompactNodeRow"))
+        let rowEnd = try XCTUnwrap(nodeRows.range(of: "struct ExpandableNodeRow"))
+        let rowSource = String(nodeRows[rowStart.lowerBound..<rowEnd.lowerBound])
+
+        XCTAssertTrue(
+            rowSource.contains("NodeLatencyBadge(node: node, showsUntestedState: false)"),
+            "未测速的紧凑行应留空，测试后再直接显示结果"
+        )
+        XCTAssertTrue(
+            rowSource.contains("Image(systemName: \"square.and.arrow.up\")"),
+            "紧凑行右侧应直接提供分享"
+        )
+        XCTAssertFalse(
+            rowSource.contains("isExpanded") || rowSource.contains("info.circle"),
+            "紧凑节点行不应再提供第二层详情展开"
+        )
+        #else
+        throw XCTSkip("该测试检查订阅展开区的 SwiftUI 层级，只在模拟器构建环境运行")
+        #endif
+    }
+
     func testSubscriptionTrafficUsesNeutralLabelsWithSemanticGreenProgress() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
@@ -515,8 +603,21 @@ final class SubscriptionInteractionTests: XCTestCase {
         ))
         let model = AppModel(persistence: store, arguments: [])
 
+        // Off — the switch's default — the notice is an ordinary node: it shows
+        // on the card, and it is also in every exported configuration. The card
+        // must not report a number the export does not honour.
+        XCTAssertFalse(model.filterSubscriptionInfoNodes)
+        XCTAssertEqual(model.nodeCount(for: source), model.enabledNodes.count)
+        XCTAssertEqual(
+            Set(model.nodes(for: source).map(\.id)),
+            [metadataNode.id, actualNode.id]
+        )
+
+        model.setFilterSubscriptionInfoNodes(true)
+
         XCTAssertEqual(model.nodes(for: source).map(\.id), [actualNode.id])
         XCTAssertEqual(model.nodeCount(for: source), 1)
+        XCTAssertEqual(model.enabledNodes.map(\.id), [actualNode.id])
     }
 
     func testSubscriptionCardMetricsExposeAvailableQuotaAndExpiryDays() throws {
@@ -633,14 +734,27 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testSectionHeadingLocalizesStaticDetailText() throws {
+    /// `detail` used to be re-localized here with a `LocalizedStringKey` built
+    /// at runtime — a key no extractor can see, so a literal passed in never
+    /// reached the catalog and rendered in Chinese in the other fourteen
+    /// languages while `check_localization.sh` still reported PASS. Callers now
+    /// localize before they pass, and this component prints what it is given.
+    func testSectionHeadingDoesNotHideKeysFromTheExtractor() throws {
         #if targetEnvironment(simulator)
-        let sourceURL = URL(fileURLWithPath: #filePath)
+        let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Tower/Design/TowerTheme.swift")
-        let source = try String(contentsOf: sourceURL, encoding: .utf8)
-        XCTAssertTrue(source.contains("Text(LocalizedStringKey(detail))"))
+        let theme = try String(
+            contentsOf: root.appendingPathComponent("Tower/Design/TowerTheme.swift"),
+            encoding: .utf8
+        )
+        XCTAssertFalse(theme.contains("LocalizedStringKey(detail)"))
+
+        let settings = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Settings/SettingsView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(settings.contains("detail: String(localized: \"不可撤销\")"))
         #else
         throw XCTSkip("该测试检查自定义标题组件，只在模拟器构建环境运行")
         #endif

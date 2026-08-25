@@ -98,16 +98,24 @@ final class ExportPresentationTests: XCTestCase {
     }
 
     @MainActor
-    func testConfigurationTextViewAppliesHighlightingWithoutLosingSelection() {
+    func testConfigurationTextViewAppliesHighlightingWithoutLosingSelection() throws {
         let textView = ConfigurationTextViewFactory.make()
         let content = "# note\n[general]\ntimeout = 5000"
+        let expectedFont = UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        )
 
         ConfigurationTextViewFactory.render(content, in: textView)
 
         XCTAssertEqual(textView.text, content)
         XCTAssertGreaterThan(textView.attributedText.length, 0)
         XCTAssertTrue(textView.isSelectable)
-        XCTAssertGreaterThanOrEqual(textView.font?.pointSize ?? 0, 13)
+        XCTAssertEqual(
+            try XCTUnwrap(textView.font).pointSize,
+            expectedFont.pointSize,
+            accuracy: 0.01,
+            "The preview should respect the current Dynamic Type category, including smaller text sizes."
+        )
         XCTAssertGreaterThanOrEqual(textView.textContainerInset.left, 14)
     }
 

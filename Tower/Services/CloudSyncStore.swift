@@ -92,7 +92,12 @@ actor CloudSyncStore {
         // Coordinated so a sync that lands mid-write cannot read a half file.
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { target in
             do {
-                try data.write(to: target, options: .atomic)
+                // Same protection class as `state.json`: this snapshot carries
+                // subscription URLs and node credentials, and the copy in the
+                // ubiquity container is a local file like any other. Tower only
+                // syncs in the foreground, so requiring an unlocked device to
+                // read it costs nothing here.
+                try data.write(to: target, options: [.atomic, .completeFileProtection])
             } catch {
                 writeError = error
             }

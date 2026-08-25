@@ -134,6 +134,11 @@ final class AppModel {
     /// schemes and re-reading imported lists whenever only the selected id
     /// changes makes a simple mode switch block the main actor.
     @ObservationIgnored private var schemeRuleCountCache: [String: Int] = [:]
+    @ObservationIgnored private var customizableSchemeCache: [String: RuleScheme] = [:]
+    @ObservationIgnored private var materializedSchemeCache: [String: RuleScheme] = [:]
+    /// Test-visible instrumentation proving that selection-only renders reuse
+    /// the already materialized rule presentation.
+    @ObservationIgnored private(set) var ruleSchemeMaterializationCount = 0
     @ObservationIgnored private var countryResolutionInFlightNodeIDs: Set<UUID> = []
     /// Rows that have asked for their country and are waiting to be resolved as
     /// one batch rather than one request each.
@@ -147,8 +152,11 @@ final class AppModel {
     @ObservationIgnored private var resolvedHostCountryCodeUpdatedAt: [String: Date] = [:]
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
     @ObservationIgnored private let persistencePolicy: PersistencePolicy
-    @ObservationIgnored private var pendingSnapshot: AppSnapshot?
+    @ObservationIgnored private var pendingPersistenceUpdatedAt: Date?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// Test-visible instrumentation for the interaction contract: coalesced
+    /// edits return before Tower walks the complete state into a snapshot.
+    @ObservationIgnored private(set) var persistenceSnapshotBuildCount = 0
 
     init(
         persistence: PersistenceStore = PersistenceStore(),
@@ -288,12 +296,18 @@ final class AppModel {
     /// inline preview. Unlike `effectiveScheme`, this keeps every editable
     /// group visible while still applying saved edits and custom rule flows.
     func customizableScheme(for scheme: RuleScheme) -> RuleScheme {
-        scheme.customized(
+        if let cached = customizableSchemeCache[scheme.id] {
+            return cached
+        }
+        let customized = scheme.customized(
             enabledRuleGroupNames: nil,
             customRuleFlows: customRuleFlows,
             groupCustomization: ruleSchemeCustomizations[scheme.id],
             resolvedRuleLines: resolvedRuleLines(for: scheme)
         )
+        ruleSchemeMaterializationCount += 1
+        customizableSchemeCache[scheme.id] = customized
+        return customized
     }
 
     func customizableRuleGroups(for scheme: RuleScheme) -> [RuleSchemeGroup] {
@@ -736,17 +750,28 @@ final class AppModel {
     }
 
     private func materializedScheme(_ scheme: RuleScheme) -> RuleScheme {
+        if let cached = materializedSchemeCache[scheme.id] {
+            return cached
+        }
         let customization = ruleSchemeCustomizations[scheme.id]
         let fixed = Set(scheme.protectedRuleGroupNames)
             .intersection(scheme.selectableRuleGroupNames)
             .map { customization?.renamedGroupName($0) ?? $0 }
         let enabledGroups = selectedRuleGroups[scheme.id].map { $0.union(fixed) }
-        return scheme.customized(
+        let materialized = scheme.customized(
             enabledRuleGroupNames: enabledGroups,
             customRuleFlows: customRuleFlows,
             groupCustomization: customization,
             resolvedRuleLines: resolvedRuleLines(for: scheme)
         )
+        ruleSchemeMaterializationCount += 1
+        materializedSchemeCache[scheme.id] = materialized
+        return materialized
+    }
+
+    private func invalidateRuleSchemePresentationCaches() {
+        customizableSchemeCache.removeAll(keepingCapacity: true)
+        materializedSchemeCache.removeAll(keepingCapacity: true)
     }
 
     private func resolvedRuleLines(for scheme: RuleScheme) -> [URL: [String]] {
@@ -820,6 +845,7 @@ final class AppModel {
 
         let failed = await schemeImportService.cacheRulesets(refreshURLs)
         schemeRuleCountCache[scheme.id] = nil
+        invalidateRuleSchemePresentationCaches()
         if let index = importedSchemes.firstIndex(where: { $0.id == scheme.id }) {
             importedSchemes[index].updatedAt = .now
             persist()
@@ -884,9 +910,20 @@ final class AppModel {
         let enabledSourceIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
         return nodes.filter { node in
             let sourceIsEnabled = node.sourceID == nil || enabledSourceIDs.contains(node.sourceID!)
-            let metadataIsVisible = !filterSubscriptionInfoNodes || node.isSubscriptionMetadata != true
-            return sourceIsEnabled && metadataIsVisible
+            return sourceIsEnabled && isVisibleUnderInfoFilter(node)
         }
+    }
+
+    /// The single answer to "does this node count as a node right now".
+    ///
+    /// One switch, one meaning: Settings promises that turning the filter on
+    /// hides the traffic, expiry and support-contact entries. While it is off
+    /// they are ordinary nodes — they appear on the card, in the filter list
+    /// and in every exported configuration alike. Hiding them from the card
+    /// alone made a subscription report fewer nodes than it exported, and the
+    /// rows it hid were the ones worth deleting.
+    private func isVisibleUnderInfoFilter(_ node: ProxyNode) -> Bool {
+        !filterSubscriptionInfoNodes || node.isSubscriptionMetadata != true
     }
 
     /// The single source of truth used by every configuration generator.
@@ -903,7 +940,7 @@ final class AppModel {
 
     func nodes(for source: SubscriptionSource) -> [ProxyNode] {
         nodes.filter {
-            $0.sourceID == source.id && $0.isSubscriptionMetadata != true
+            $0.sourceID == source.id && isVisibleUnderInfoFilter($0)
         }
     }
 
@@ -914,7 +951,7 @@ final class AppModel {
     /// its string fields, for every card, on every redraw of the screen.
     func nodeCount(for source: SubscriptionSource) -> Int {
         nodes.count {
-            $0.sourceID == source.id && $0.isSubscriptionMetadata != true
+            $0.sourceID == source.id && isVisibleUnderInfoFilter($0)
         }
     }
 
@@ -2007,6 +2044,16 @@ final class AppModel {
         toast = nil
     }
 
+    /// The timestamp a reset snapshot carries.
+    ///
+    /// A reset is not an edit worth propagating: it is this device saying it
+    /// has nothing. Stamping it `.now` made the empty snapshot the *newest*
+    /// copy, so turning sync back on — the obvious way to ask for the data
+    /// back — uploaded the emptiness over another device's subscriptions
+    /// instead. Dated to the beginning of time, the remote copy always wins
+    /// that comparison and reset keeps meaning "only this device".
+    static let resetSnapshotDate = Date.distantPast
+
     /// Returns this device to the same local state as a fresh installation.
     ///
     /// The remote iCloud snapshot is deliberately preserved: deleting a copy
@@ -2052,7 +2099,7 @@ final class AppModel {
                 nodes: [],
                 selectedPresetID: Self.defaultRuleSchemeID,
                 selectedTarget: .surge,
-                updatedAt: .now
+                updatedAt: Self.resetSnapshotDate
             )
         )
         selectedTab = .subscriptions
@@ -2071,9 +2118,14 @@ final class AppModel {
         lastAutoRefreshAt = nil
         generationCache = ConfigurationCache()
         schemeRuleCountCache.removeAll()
+        invalidateRuleSchemePresentationCaches()
 
+        // Named URLs cover what this install is still tracking; the sweep also
+        // takes lists left behind by schemes deleted earlier, which is what a
+        // fresh installation would have.
         downloadStore.removeRules(for: Array(cachedRuleURLs))
-        persist()
+        downloadStore.removeAllRules()
+        persist(updatedAt: Self.resetSnapshotDate)
         flushPendingWrite()
         await reminderScheduler.removeReminders()
 
@@ -2172,7 +2224,7 @@ final class AppModel {
     private func discardPendingLocalWrite() {
         persistTask?.cancel()
         persistTask = nil
-        pendingSnapshot = nil
+        pendingPersistenceUpdatedAt = nil
     }
 
     /// Uploads after edits settle, so a burst of changes costs one write.
@@ -2200,6 +2252,7 @@ final class AppModel {
     /// applied differently from a local one.
     private func apply(_ snapshot: AppSnapshot) {
         schemeRuleCountCache.removeAll(keepingCapacity: true)
+        invalidateRuleSchemePresentationCaches()
         // The moment this snapshot's edits became current. Without it a launch
         // left `lastLocalEditAt` nil, so the next foreground sync compared
         // `.distantPast` against iCloud and took the remote copy unconditionally
@@ -2308,7 +2361,8 @@ final class AppModel {
     /// The snapshot both the local file and iCloud are written from, so the
     /// two can never describe different states.
     private func currentSnapshot(updatedAt: Date = .now) -> AppSnapshot {
-        AppSnapshot(
+        persistenceSnapshotBuildCount += 1
+        return AppSnapshot(
             subscriptions: subscriptions,
             nodes: nodes,
             selectedPresetID: selectedPresetID,
@@ -2366,19 +2420,26 @@ final class AppModel {
         return retained.isEmpty ? nil : retained
     }
 
-    private func persist(invalidateRuleCounts: Bool = true) {
+    /// `updatedAt` is only ever passed by reset, which must not present an
+    /// empty device as the newest edit anyone made. Every ordinary edit keeps
+    /// the default and is stamped with the moment it happened.
+    private func persist(invalidateRuleCounts: Bool = true, updatedAt: Date = .now) {
         if invalidateRuleCounts {
             schemeRuleCountCache.removeAll(keepingCapacity: true)
+            invalidateRuleSchemePresentationCaches()
         }
         guard !isDemoMode else { return }
-        let snapshot = currentSnapshot()
-        scheduleCloudUpload(snapshot)
+        // Stamp the edit now, but leave the full state walk until after SwiftUI
+        // has rendered the pressed/selected state.
+        lastLocalEditAt = updatedAt
 
         switch persistencePolicy {
         case .immediate:
+            let snapshot = currentSnapshot(updatedAt: updatedAt)
+            scheduleCloudUpload(snapshot)
             write(snapshot)
         case .coalesced(let delay):
-            pendingSnapshot = snapshot
+            pendingPersistenceUpdatedAt = updatedAt
             persistTask?.cancel()
             persistTask = Task { [weak self] in
                 try? await Task.sleep(for: delay)
@@ -2395,8 +2456,10 @@ final class AppModel {
     func flushPendingWrite() {
         persistTask?.cancel()
         persistTask = nil
-        guard let snapshot = pendingSnapshot else { return }
-        pendingSnapshot = nil
+        guard let updatedAt = pendingPersistenceUpdatedAt else { return }
+        pendingPersistenceUpdatedAt = nil
+        let snapshot = currentSnapshot(updatedAt: updatedAt)
+        scheduleCloudUpload(snapshot)
         write(snapshot)
     }
 

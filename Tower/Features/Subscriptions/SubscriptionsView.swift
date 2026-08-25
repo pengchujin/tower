@@ -545,7 +545,7 @@ private struct SubscriptionCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 Button {
-                    withAnimation(expansionAnimation) { isExpanded.toggle() }
+                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "airplane")
@@ -570,7 +570,7 @@ private struct SubscriptionCard: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(ResponsivePressButtonStyle())
+                .buttonStyle(.plain)
                 .accessibilityLabel(isExpanded
                     ? String(localized: "收起 \(source.name) 的节点")
                     : String(localized: "展开 \(source.name) 的节点"))
@@ -626,11 +626,17 @@ private struct SubscriptionCard: View {
                 // Lazy, not a plain VStack: a large airport expands to several
                 // hundred rows, and building them all to show ten is what made
                 // expanding a big subscription stutter.
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 0) {
+                    SubscriptionAnnouncementSection(notices: source.usage?.distinctNotices ?? [])
+
                     // Built only while expanded. Asking for it unconditionally
                     // copied every node of every subscription on every redraw.
                     ForEach(model.nodes(for: source)) { node in
-                        ExpandableNodeRow(node: node)
+                        CompactNodeRow(node: node)
+                            .overlay(alignment: .bottom) {
+                                Divider()
+                                    .padding(.leading, 42)
+                            }
                     }
                 }
                 .transition(.opacity)
@@ -645,10 +651,43 @@ private struct SubscriptionCard: View {
         }
     }
 
-    private var expansionAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
-    }
+}
 
+private struct SubscriptionAnnouncementSection: View {
+    let notices: [String]
+
+    @ViewBuilder
+    var body: some View {
+        if !notices.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("机场公告", systemImage: "megaphone.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(Array(notices.enumerated()), id: \.offset) { index, notice in
+                        Text(notice)
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if index < notices.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .bottom) {
+                Divider()
+            }
+            .accessibilityIdentifier("subscription-announcements")
+        }
+    }
 }
 
 private struct SubscriptionTrafficBar: View {

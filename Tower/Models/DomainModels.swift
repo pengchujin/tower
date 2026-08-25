@@ -164,20 +164,38 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
     /// when the structured data already covers that exact fact; a reset
     /// countdown survives an expiry date because they are different dates.
     var distinctNotices: [String] {
-        notices.filter { notice in
+        var seen = Set<String>()
+        return notices.compactMap { rawNotice in
+            let notice = rawNotice.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !notice.isEmpty else { return nil }
             let text = notice.lowercased()
-            if totalBytes != nil, Self.trafficWords.contains(where: text.contains) { return false }
-            if expiresAt != nil, Self.expiryWords.contains(where: text.contains) { return false }
-            return true
+            let isActionableAnnouncement = Self.actionableAnnouncementWords.contains(where: text.contains)
+            if !isActionableAnnouncement {
+                if totalBytes != nil, Self.trafficWords.contains(where: text.contains) { return nil }
+                if expiresAt != nil, Self.expiryWords.contains(where: text.contains) { return nil }
+            }
+
+            // Providers sometimes repeat the same metadata node more than
+            // once. Keep the first spelling and order so the announcement
+            // reads exactly as the provider wrote it without showing twice.
+            guard seen.insert(text).inserted else { return nil }
+            return notice
         }
     }
 
     private static let trafficWords = ["流量", "traffic", "余额", "balance", "↑:", "↓:", "tot:"]
     private static let expiryWords = ["到期", "过期", "有效期至", "expire"]
+    private static let actionableAnnouncementWords = [
+        "公告", "通知", "提醒", "重置", "续费", "客服", "官网", "网址", "联系",
+        "announcement", "notice", "reminder", "reset", "renew", "support", "website", "contact"
+    ]
 
     var usedBytes: Int64? {
         guard uploadBytes != nil || downloadBytes != nil else { return nil }
-        return (uploadBytes ?? 0) + (downloadBytes ?? 0)
+        // Saturating: two clamped halves would otherwise overflow their sum,
+        // which traps exactly like the conversion this guards against.
+        let (sum, overflowed) = (uploadBytes ?? 0).addingReportingOverflow(downloadBytes ?? 0)
+        return overflowed ? .max : sum
     }
 
     var remainingBytes: Int64? {
@@ -226,9 +244,9 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
             guard let value = Double(raw) else { continue }
 
             switch key {
-            case "upload": usage.uploadBytes = Int64(value); matched = true
-            case "download": usage.downloadBytes = Int64(value); matched = true
-            case "total": usage.totalBytes = Int64(value); matched = true
+            case "upload": usage.uploadBytes = clampedBytes(value); matched = true
+            case "download": usage.downloadBytes = clampedBytes(value); matched = true
+            case "total": usage.totalBytes = clampedBytes(value); matched = true
             case "expire":
                 // A zero expiry means "never", not 1970.
                 if value > 0 { usage.expiresAt = Date(timeIntervalSince1970: value) }
@@ -260,6 +278,21 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
     }
 
     static let statusPrefix = "STATUS="
+
+    /// Every byte count here comes from the provider — a response header, a
+    /// `STATUS=` line, or a remark the airport wrote. `Int64(someDouble)`
+    /// *traps* once the value passes `Int64.max`, so a header as ordinary as
+    /// `total=99999999999999999999` crashed Tower on refresh, and a notice
+    /// reading `剩余流量：1e30 GB` crashed it again while drawing the card.
+    /// Saturating instead keeps a nonsensical quota a display problem.
+    private static func clampedBytes(_ value: Double) -> Int64? {
+        guard value.isFinite else { return nil }
+        // A byte count is never negative, and clamping the low end to zero
+        // rather than `Int64.min` keeps the arithmetic below overflow-free too.
+        if value <= 0 { return 0 }
+        if value >= Double(Int64.max) { return .max }
+        return Int64(value)
+    }
 
     private static let unitMultipliers: [String: Double] = [
         "": 1, "b": 1,
@@ -301,7 +334,7 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
               let multiplier = unitMultipliers[String(tail[unitRange]).lowercased()] else {
             return nil
         }
-        return Int64(value * multiplier)
+        return clampedBytes(value * multiplier)
     }
 
     private static func expiryDate(in notice: String, calendar: Calendar) -> Date? {
@@ -339,7 +372,7 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
         guard let value = Double(digits), let multiplier = unitMultipliers[unit.lowercased()] else {
             return nil
         }
-        return Int64(value * multiplier)
+        return clampedBytes(value * multiplier)
     }
 
     private static func day(after marker: String, in text: String) -> Date? {

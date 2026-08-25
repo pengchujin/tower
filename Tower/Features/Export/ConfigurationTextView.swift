@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 enum ConfigurationSyntaxHighlighter {
-    enum Accent: Equatable {
+    enum Accent: Hashable, Sendable {
         case blue
         case purple
         case teal
@@ -43,7 +43,7 @@ enum ConfigurationSyntaxHighlighter {
         }
     }
 
-    enum Style: Equatable {
+    enum Style: Hashable, Sendable {
         case comment
         case section(Accent)
         case key(Accent)
@@ -54,7 +54,7 @@ enum ConfigurationSyntaxHighlighter {
         case url
     }
 
-    struct Span: Equatable {
+    struct Span: Equatable, Sendable {
         let range: NSRange
         let style: Style
     }
@@ -210,6 +210,23 @@ enum ConfigurationSyntaxHighlighter {
 
     @MainActor
     static func attributedString(for text: String, baseFont: UIFont) -> NSAttributedString {
+        attributedString(for: text, spans: spans(in: text), baseFont: baseFont)
+    }
+
+    /// Applies spans someone else already computed.
+    ///
+    /// Scanning a full configuration is the expensive half — tens of thousands
+    /// of rule lines and four regular expressions over the whole document —
+    /// and it needs no main-actor state, so the full-screen preview computes it
+    /// off the main thread while its progress view is on screen. Attributes are
+    /// still applied here, because the fonts and dynamic colours they carry are
+    /// UIKit objects.
+    @MainActor
+    static func attributedString(
+        for text: String,
+        spans: [Span],
+        baseFont: UIFont
+    ) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 3
         paragraph.paragraphSpacing = 0
@@ -222,8 +239,12 @@ enum ConfigurationSyntaxHighlighter {
                 .paragraphStyle: paragraph,
             ]
         )
-        for span in spans(in: text) where NSMaxRange(span.range) <= attributed.length {
-            attributed.addAttributes(attributes(for: span.style, baseFont: baseFont), range: span.range)
+        var cachedAttributes: [Style: [NSAttributedString.Key: Any]] = [:]
+        for span in spans where NSMaxRange(span.range) <= attributed.length {
+            let resolved = cachedAttributes[span.style]
+                ?? attributes(for: span.style, baseFont: baseFont)
+            cachedAttributes[span.style] = resolved
+            attributed.addAttributes(resolved, range: span.range)
         }
         return attributed
     }
@@ -508,11 +529,16 @@ enum ConfigurationTextViewFactory {
         return textView
     }
 
-    static func render(_ text: String, in textView: UITextView) {
+    static func render(
+        _ text: String,
+        spans: [ConfigurationSyntaxHighlighter.Span]? = nil,
+        in textView: UITextView
+    ) {
         let font = baseFont()
         textView.font = font
         textView.attributedText = ConfigurationSyntaxHighlighter.attributedString(
             for: text,
+            spans: spans ?? ConfigurationSyntaxHighlighter.spans(in: text),
             baseFont: font
         )
     }
@@ -526,6 +552,9 @@ enum ConfigurationTextViewFactory {
 
 struct ConfigurationTextView: UIViewRepresentable {
     let text: String
+    /// Spans the caller already computed off the main thread. Nil means this
+    /// view scans the text itself, which is fine for the short summary.
+    var spans: [ConfigurationSyntaxHighlighter.Span]?
     var isScrollEnabled = true
 
     final class Coordinator {
@@ -539,7 +568,7 @@ struct ConfigurationTextView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = ConfigurationTextViewFactory.make(isScrollEnabled: isScrollEnabled)
-        ConfigurationTextViewFactory.render(text, in: textView)
+        ConfigurationTextViewFactory.render(text, spans: spans, in: textView)
         context.coordinator.renderedText = text
         context.coordinator.contentSizeCategory = textView.traitCollection.preferredContentSizeCategory
         return textView
@@ -556,7 +585,7 @@ struct ConfigurationTextView: UIViewRepresentable {
 
         let selection = textView.selectedRange
         let contentOffset = textView.contentOffset
-        ConfigurationTextViewFactory.render(text, in: textView)
+        ConfigurationTextViewFactory.render(text, spans: spans, in: textView)
         context.coordinator.renderedText = text
         context.coordinator.contentSizeCategory = contentSizeCategory
 

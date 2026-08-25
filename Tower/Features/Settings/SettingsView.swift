@@ -40,7 +40,7 @@ private struct ResetAllConfigurationCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "重置", detail: "不可撤销")
+            SectionHeading(title: "重置", detail: String(localized: "不可撤销"))
 
             Button(role: .destructive) {
                 isConfirmingReset = true
@@ -153,7 +153,7 @@ private struct CloudSyncCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "iCloud 同步", detail: "默认关闭")
+            SectionHeading(title: "iCloud 同步", detail: String(localized: "默认关闭"))
             VStack(alignment: .leading, spacing: 13) {
                 Toggle(isOn: binding) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -342,7 +342,7 @@ private struct NodeAndExportSettingsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionHeading(title: "节点与配置", detail: "默认保持原始订阅")
+            SectionHeading(title: "节点与配置", detail: String(localized: "默认保持原始订阅"))
 
             RenewalReminderSection()
 
@@ -550,7 +550,7 @@ private struct RenewalReminderSection: View {
                 Divider()
 
                 Button {
-                    withAnimation(expansionAnimation) {
+                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
                         isExpanded.toggle()
                     }
                 } label: {
@@ -571,7 +571,7 @@ private struct RenewalReminderSection: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(ResponsivePressButtonStyle())
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("renewal-reminder-disclosure")
 
                 if isExpanded {
@@ -593,9 +593,6 @@ private struct RenewalReminderSection: View {
         }
     }
 
-    private var expansionAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
-    }
 }
 
 private struct RenewalReminderDetailRow: View {

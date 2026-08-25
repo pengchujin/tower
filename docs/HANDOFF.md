@@ -771,6 +771,26 @@ xcodebuild -project Tower.xcodeproj \
 
 **验收状态**：生成语法及回归测试已通过；XHTTP 已按报告人的可用导出值修正。真机导入后的实际连通性仍以节点服务端和 Shadowrocket 当前版本为准，发布后继续观察 issue 反馈。
 
+### 已实现：订阅展开后展示机场公告（2026-08-25）
+
+订阅卡保持原来的紧凑收起高度；展开后，节点列表前会出现一块中性的「机场公告」区域，
+完整显示机场写入订阅的重置日、官网、客服、续费提醒等自由文本。公告和节点共用原有的
+展开事务，没有额外的弹出动画或材质层；长文支持自动换行与选择复制。
+
+展示仍由 `SubscriptionUsage.distinctNotices` 驱动：已有结构化流量、到期数据时，重复的
+配额/到期句子不会再显示；带「重置」「续费」「客服」等含义的可操作公告即使也出现
+「流量」或「到期」字样仍会保留。相同公告只展示第一次，空白行忽略。
+
+回归覆盖在 `SubscriptionUsageTests.testActionableAnnouncementsSurviveStructuredFactsAndAreDeduplicated`
+和 `SubscriptionInteractionTests.testExpandedSubscriptionShowsDistinctAnnouncementsBeforeNodes`。
+
+同日的订阅展开列表与地图选中地区列表统一复用 `CompactNodeRow`：保留旗帜、节点名、
+协议副标题和测速结果，去掉每行的圆角底色与卡片间距，换成约 54pt 高的平铺行和
+细分隔线。未测试时不再显示「待测试」；测速进行中显示进度，完成后才直接显示延迟或
+不可达。节点不再提供第二层详情展开，右侧固定为 44pt 分享按钮，避免同一种节点行在
+地图和订阅里表现不同。自有节点仍使用原来的可展开详情样式。
+对应回归为 `SubscriptionInteractionTests.testMapAndSubscriptionReuseAStaticCompactNodeList`。
+
 ### 待修：UA 兜底重试会让机场少给节点（2026-08-12 记录）
 
 订阅返回 403 / 406 / 421 / 426 时，`SubscriptionParser` 会依次改用伪装 UA 重试：先 `Shadowrocket/...`，再 `clash.meta`。

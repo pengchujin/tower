@@ -69,6 +69,23 @@ struct RuleDownloadStore {
         }
     }
 
+    /// Empties the cache folder.
+    ///
+    /// `removeRules(for:)` can only name the lists something still references,
+    /// so a reset that promises the state of a fresh installation cannot be
+    /// built out of it: lists belonging to schemes deleted long ago have no
+    /// URL left to name them.
+    func removeAllRules() {
+        guard let names = try? fileManager.contentsOfDirectory(atPath: folderURL.path) else {
+            return
+        }
+        for name in names where name.hasSuffix(".list") {
+            try? fileManager.removeItem(
+                at: folderURL.appendingPathComponent(name, isDirectory: false)
+            )
+        }
+    }
+
     /// A URL can be any length and contain characters the filesystem rejects,
     /// so the digest of the absolute URL names the file.
     static func fileName(for url: URL) -> String {

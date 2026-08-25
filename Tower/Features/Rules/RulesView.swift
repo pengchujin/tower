@@ -399,7 +399,7 @@ private struct RuleSchemeCard: View {
                         .frame(width: 44, height: 44, alignment: .topTrailing)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .accessibilityLabel(isSelected ? "\(scheme.name)，当前使用" : "使用 \(scheme.name)")
             }
             .padding(16)
@@ -426,7 +426,7 @@ private struct RuleSchemeCard: View {
 
             HStack(spacing: 0) {
                 RuleDisclosureRow(title: String(localized: "查看策略组"), isExpanded: isExpanded) {
-                    withAnimation(expansionAnimation) { isExpanded.toggle() }
+                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
                 }
                 .accessibilityIdentifier("scheme-detail-\(scheme.id)")
 
@@ -481,12 +481,9 @@ private struct RuleSchemeCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous)
                 .stroke(isSelected ? Color.accentColor.opacity(0.65) : Color.clear, lineWidth: 1.5)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
         }
         .sensoryFeedback(.selection, trigger: isExpanded)
-    }
-
-    private var expansionAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .interactiveSpring(response: 0.34, dampingFraction: 1)
     }
 
     private func description(of group: RuleSchemeGroup) -> String {
