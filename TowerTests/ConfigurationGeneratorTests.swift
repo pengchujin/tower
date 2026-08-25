@@ -31,7 +31,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let preset = RulePreset.builtIns[0]
         let generator = ConfigurationGenerator()
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let result = generator.generate(nodes: nodes, preset: preset, target: target)
             XCTAssertGreaterThan(result.content.count, 200, target.name)
             XCTAssertTrue(result.content.contains("Hong Kong"), target.name)
@@ -50,6 +50,24 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
+    func testClashAppUsesTheSameClashYAMLDocumentAsStash() throws {
+        let clashApp = try XCTUnwrap(ClientTarget(rawValue: "clash-apple"))
+        let preset = RulePreset.builtIns[0]
+        let generator = ConfigurationGenerator()
+
+        let stash = generator.generate(nodes: nodes, preset: preset, target: .clash)
+        let clash = generator.generate(nodes: nodes, preset: preset, target: clashApp)
+
+        XCTAssertTrue(clash.content.hasPrefix("# Generated locally by 塔台 for Clash"))
+        XCTAssertEqual(
+            clash.content.replacingOccurrences(of: "for Clash", with: "for Stash"),
+            stash.content
+        )
+        XCTAssertEqual(clash.supportedNodeCount, stash.supportedNodeCount)
+        XCTAssertEqual(clash.skippedNodeCount, stash.skippedNodeCount)
+        XCTAssertEqual(clash.ruleCount, stash.ruleCount)
+    }
+
     func testImportedHTTPProxyReachesEveryClientFormat() {
         let node = ProxyNode(
             kind: .http,
@@ -63,7 +81,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             rawURI: "https://alice:password@proxy.example.com:8443#Office"
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let result = ConfigurationGenerator().generate(
                 nodes: [node],
                 preset: RulePreset.builtIns[0],
@@ -114,7 +132,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let generator = ConfigurationGenerator()
         let preset = RulePreset.builtIns[0]
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = generator.generate(nodes: nodes, preset: preset, target: target).content
             XCTAssertFalse(content.contains("icon-url="), target.name)
             XCTAssertFalse(content.contains("img-url="), target.name)
@@ -129,6 +147,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let preset = RulePreset.builtIns[0]
         let expectations: [ClientTarget: String] = [
             .clash: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
+            .clashApple: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .surge: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
             .shadowrocket: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .loon: "AI服务 = select,🚀 节点选择,♻️ 自动选择,🎛️ 手动切换",
@@ -136,7 +155,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             .egern: "  - select:\n      name: \"AI服务\"\n      policies:\n        - \"🚀 节点选择\"\n        - \"♻️ 自动选择\"\n        - \"🎛️ 手动切换\""
         ]
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = generator.generate(nodes: nodes, preset: preset, target: target).content
             XCTAssertTrue(content.contains("🎯 直接连接"), "\(target.name) 未将 DIRECT 显示为中文")
             // The sing-box document is serialised, so it is checked by shape
@@ -208,6 +227,10 @@ final class ConfigurationGeneratorTests: XCTestCase {
                 "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
                 "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
             ],
+            .clashApple: [
+                "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
+                "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
+            ],
             .surge: [
                 "🇭🇰 香港 = select, 🇭🇰 香港 · 延迟优选, Hong Kong",
                 "🇭🇰 香港 · 延迟优选 = url-test, Hong Kong, url="
@@ -226,7 +249,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             ]
         ]
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = generator.generate(
                 nodes: nodes,
                 preset: preset,
@@ -313,7 +336,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             uniquingKeysWith: { current, _ in current }
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: nodes + extraNodes,
                 preset: RulePreset.builtIns[0],
@@ -419,7 +442,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             "🌍 其他地区"
         ]
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: nodes + [germany, brazil],
                 preset: RulePreset.builtIns[0],
@@ -460,7 +483,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
             }
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: collidingNodes,
                 preset: RulePreset.builtIns[0],
@@ -510,7 +533,7 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let generator = ConfigurationGenerator()
         let preset = RulePreset.builtIns[0]
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = generator.generate(nodes: [damagedNode], preset: preset, target: target).content
             XCTAssertTrue(content.contains("🇭🇰 香港 02"), target.name)
             XCTAssertFalse(content.contains("?? 香港 02"), target.name)
@@ -596,6 +619,73 @@ final class ConfigurationGeneratorTests: XCTestCase {
             .flatMap { String(data: $0, encoding: .utf8) }
         XCTAssertNotNil(decoded)
         XCTAssertTrue(decoded?.contains("ss://") == true)
+    }
+
+    func testV2BoxNodeSubscriptionUsesBase64EncodedCanonicalLinks() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "v2box"))
+        let result = ConfigurationGenerator().generateNodeSubscription(
+            nodes: nodes,
+            target: target,
+            profileName: "塔台"
+        )
+        let decoded = try XCTUnwrap(
+            Data(base64Encoded: result.content).flatMap { String(data: $0, encoding: .utf8) }
+        )
+
+        XCTAssertEqual(result.contentMode, .nodesOnly)
+        XCTAssertEqual(result.fileName, "塔台.txt")
+        XCTAssertEqual(result.supportedNodeCount, 2)
+        XCTAssertTrue(decoded.contains("ss://"), decoded)
+        XCTAssertTrue(decoded.contains("vmess://"), decoded)
+        XCTAssertFalse(decoded.contains("[Rule]"), decoded)
+    }
+
+    func testV2BoxNodeSubscriptionIncludesNativeWireGuardHysteria2AndHTTPLinks() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "v2box"))
+        let additionalNodes = [
+            ProxyNode(
+                kind: .wireguard,
+                name: "WireGuard",
+                server: "wg.example.com",
+                port: 51820,
+                wireGuardPrivateKey: "private-key",
+                wireGuardPublicKey: "public-key",
+                wireGuardIPv4: "10.0.0.2/32",
+                wireGuardAllowedIPs: "0.0.0.0/0,::/0",
+                rawURI: "wireguard://test"
+            ),
+            ProxyNode(
+                kind: .hysteria2,
+                name: "Hysteria 2",
+                server: "hy2.example.com",
+                port: 443,
+                password: "secret",
+                tls: true,
+                rawURI: "hysteria2://test"
+            ),
+            ProxyNode(
+                kind: .http,
+                name: "HTTP",
+                server: "proxy.example.com",
+                port: 8080,
+                password: "secret",
+                username: "alice",
+                rawURI: "http://test"
+            )
+        ]
+        let result = ConfigurationGenerator().generateNodeSubscription(
+            nodes: additionalNodes,
+            target: target,
+            profileName: "塔台"
+        )
+        let decoded = try XCTUnwrap(
+            Data(base64Encoded: result.content).flatMap { String(data: $0, encoding: .utf8) }
+        )
+
+        XCTAssertEqual(result.supportedNodeCount, 3)
+        XCTAssertTrue(decoded.contains("wireguard://"), decoded)
+        XCTAssertTrue(decoded.contains("hysteria2://"), decoded)
+        XCTAssertTrue(decoded.contains("http://"), decoded)
     }
 
     func testShadowrocketNodeOnlyExportPreservesTLSFingerprintsAndPortHopping() throws {

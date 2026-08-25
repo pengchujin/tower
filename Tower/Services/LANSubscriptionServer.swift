@@ -113,15 +113,16 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         }
     }
 
-    init(target: ClientTarget) {
+    init?(target: ClientTarget) {
         switch target {
-        case .clash: self = .clash
+        case .clash, .clashApple: self = .clash
         case .surge: self = .surge
         case .shadowrocket: self = .shadowrocket
         case .loon: self = .loon
         case .quanx: self = .quanx
         case .hiddify: self = .hiddify
         case .egern: self = .egern
+        case .v2box: return nil
         }
     }
 }

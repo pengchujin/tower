@@ -58,8 +58,8 @@ struct ConfigurationGenerator {
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
         let content: String
         switch target {
-        case .clash:
-            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: .clash)
+        case .clash, .clashApple:
+            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: target)
         case .surge:
             content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: false)
         case .shadowrocket:
@@ -77,6 +77,8 @@ struct ConfigurationGenerator {
             content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .egern:
             content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
+        case .v2box:
+            content = ""
         }
 
         return GeneratedConfiguration(
@@ -126,8 +128,8 @@ struct ConfigurationGenerator {
         )
         let content: String
         switch target {
-        case .clash:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, target: .clash, rulePlan: rulePlan)
+        case .clash, .clashApple:
+            content = clashScheme(scheme, groups: resolved, nodes: supported, target: target, rulePlan: rulePlan)
         case .shadowrocket:
             content = clashScheme(scheme, groups: resolved, nodes: supported, target: .shadowrocket, rulePlan: rulePlan)
         case .surge:
@@ -140,6 +142,8 @@ struct ConfigurationGenerator {
             content = singBoxScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .egern:
             content = egernScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
+        case .v2box:
+            content = ""
         }
 
         return GeneratedConfiguration(
@@ -199,6 +203,11 @@ struct ConfigurationGenerator {
             let generator = ProxyNodeShareLinkGenerator()
             content = supported.map { generator.canonicalLink(for: $0) }.joined(separator: "\n")
                 + (supported.isEmpty ? "" : "\n")
+        case .v2box:
+            let generator = ProxyNodeShareLinkGenerator()
+            let links = supported.map { generator.canonicalLink(for: $0) }
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            content = Data(links.joined(separator: "\n").utf8).base64EncodedString()
         default:
             content = ""
             supported = []
@@ -254,7 +263,7 @@ struct ConfigurationGenerator {
         if node.usesReality, !target.expressesReality { return false }
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
-        if node.kind == .snell, target == .clash, (node.version ?? 4) >= 4 { return false }
+        if node.kind == .snell, [.clash, .clashApple].contains(target), (node.version ?? 4) >= 4 { return false }
         // Surge and Shadowrocket carry Hysteria 2's obfuscator in the key name
         // — `salamander-password` and a bare `obfsParam` — so neither has any
         // way to say "some other obfuscator". (Surge also documents its own
@@ -269,7 +278,7 @@ struct ConfigurationGenerator {
             // SIP003 directly or have a documented equivalent; the others must
             // skip instead of silently exporting plain Shadowsocks.
             guard node.transport == "ws",
-                  [.clash, .shadowrocket, .quanx, .hiddify].contains(target) else { return false }
+                  [.clash, .clashApple, .shadowrocket, .quanx, .hiddify].contains(target) else { return false }
         }
         if !canExpressTransport(of: node, on: target) { return false }
         return true
@@ -280,7 +289,7 @@ struct ConfigurationGenerator {
         let transport = node.transport?.lowercased() ?? "tcp"
         if transport == "tcp" || transport.isEmpty { return true }
         switch target {
-        case .clash:
+        case .clash, .clashApple:
             if transport == "xhttp" { return node.kind == .vless }
             return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
         case .surge:
@@ -298,6 +307,9 @@ struct ConfigurationGenerator {
         case .egern:
             if node.kind == .trojan { return ["ws", "http"].contains(transport) }
             return ["ws", "http", "h2", "grpc"].contains(transport)
+        case .v2box:
+            return ["ws", "http", "h2", "grpc", "httpupgrade", "xhttp"].contains(transport)
+                && (transport != "xhttp" || node.kind == .vless)
         }
     }
 
@@ -421,7 +433,7 @@ struct ConfigurationGenerator {
 
         guard let finalGroup = plan.finalGroupName else { return output }
         switch target {
-        case .clash: output += "\(indent)MATCH,\(finalGroup)\n"
+        case .clash, .clashApple: output += "\(indent)MATCH,\(finalGroup)\n"
         case .quanx: output += "\(indent)final, \(finalGroup)\n"
         default: output += "\(indent)FINAL,\(finalGroup)\n"
         }
@@ -1814,7 +1826,7 @@ struct ConfigurationGenerator {
     private func mappedRule(_ rule: String, policy: RulePolicy, target: ClientTarget) -> String? {
         let policyName: String
         switch target {
-        case .clash: policyName = clashPolicyName(policy)
+        case .clash, .clashApple: policyName = clashPolicyName(policy)
         case .quanx: policyName = quanXPolicyName(policy)
         default: policyName = surgePolicyName(policy)
         }
@@ -1833,7 +1845,7 @@ struct ConfigurationGenerator {
         // Clash/Mihomo does not implement Surge's URL-REGEX dialect. These
         // expressions may inspect the URL path, so converting them to a domain
         // rule would silently change their meaning; omit them for Clash only.
-        if target == .clash, ruleType == "URL-REGEX" {
+        if [.clash, .clashApple].contains(target), ruleType == "URL-REGEX" {
             return nil
         }
 

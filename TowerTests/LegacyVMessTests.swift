@@ -110,7 +110,8 @@ final class LegacyVMessTests: XCTestCase {
             XCTAssertEqual(node.sni, "tls.example.com")
             XCTAssertTrue(node.tls)
 
-            for target in ClientTarget.allCases where target.supports(.vmess) {
+            for target in ClientTarget.allCases
+                where target.supportsFullConfigurationExport && target.supports(.vmess) {
                 let content = ConfigurationGenerator().generate(
                     nodes: [node],
                     preset: RulePreset.builtIns[0],
@@ -153,7 +154,8 @@ final class LegacyVMessTests: XCTestCase {
             parser.parseURI("vmess://\(endpoint)?obfs=websocket&path=%2Fgw&tls=1")
         )
 
-        for target in ClientTarget.allCases where target.supports(.vmess) {
+        for target in ClientTarget.allCases
+            where target.supportsFullConfigurationExport && target.supports(.vmess) {
             let content = ConfigurationGenerator().generate(
                 nodes: [node],
                 preset: RulePreset.builtIns[0],

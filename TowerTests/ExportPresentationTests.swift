@@ -136,6 +136,39 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(ClientTarget.clash.brandColorHex, "1473E6")
     }
 
+    func testClashAppUsesASeparateOfficialAppStoreIdentity() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "clash-apple"))
+
+        XCTAssertEqual(target.name, "Clash")
+        XCTAssertEqual(target.subtitle, "Clash / mihomo")
+        XCTAssertEqual(target.fileExtension, "yaml")
+        XCTAssertEqual(target.appIconAssetName, "ClientClashOfficial")
+        XCTAssertNotNil(UIImage(named: "ClientClashOfficial"))
+        XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
+        XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
+        XCTAssertEqual(ClientTarget.allCases.last, target)
+    }
+
+    func testV2BoxOnlyOffersNodeSubscription() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "v2box"))
+
+        XCTAssertEqual(target.name, "V2Box")
+        XCTAssertEqual(target.supportedContentModes, [.nodesOnly])
+        XCTAssertFalse(target.supportsDirectImport(mode: .fullConfiguration))
+        XCTAssertTrue(target.supportsDirectImport(mode: .nodesOnly))
+        XCTAssertEqual(target.fileExtension, "txt")
+    }
+
+    func testV2BoxSupportsEveryScreenshotConfirmedTowerProtocol() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "v2box"))
+        let supported = Set(ProxyKind.allCases.filter(target.supports))
+
+        XCTAssertEqual(
+            supported,
+            [.shadowsocks, .vmess, .vless, .trojan, .wireguard, .hysteria2, .socks5, .http]
+        )
+    }
+
     func testExportedConfigurationUsesAStableClientSpecificFileName() {
         let localizedAppName = String(localized: "塔台")
 

@@ -89,7 +89,7 @@ final class RuleCatalogTests: XCTestCase {
             rawURI: "ss://demo"
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let result = ConfigurationGenerator().generate(
                 nodes: [node],
                 scheme: effective,

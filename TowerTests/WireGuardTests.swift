@@ -95,7 +95,9 @@ final class WireGuardTests: XCTestCase {
     }
 
     func testWireGuardSupportMatrixMatchesFormatsThatCanCarryIt() {
-        let supported: Set<ClientTarget> = [.surge, .shadowrocket, .clash, .loon, .hiddify, .egern]
+        let supported: Set<ClientTarget> = [
+            .surge, .shadowrocket, .clash, .clashApple, .loon, .hiddify, .egern, .v2box
+        ]
         XCTAssertEqual(Set(ClientTarget.allCases.filter { $0.supports(.wireguard) }), supported)
     }
 

@@ -56,7 +56,8 @@ final class ProxyIDNormalizationTests: XCTestCase {
             cipher: "auto", uuid: "abcd1234", tls: true, rawURI: "vmess://x"
         )
 
-        for target in ClientTarget.allCases where target.supports(.vmess) {
+        for target in ClientTarget.allCases
+            where target.supportsFullConfigurationExport && target.supports(.vmess) {
             let output = generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
             XCTAssertTrue(
                 output.content.contains("b0421856-f473-5c64-a137-cdce51bda057"),
@@ -117,7 +118,8 @@ final class TransportPathNormalizationTests: XCTestCase {
     }
 
     func testEveryTargetWritesAnAbsolutePath() {
-        for target in ClientTarget.allCases where target.supports(.vmess) {
+        for target in ClientTarget.allCases
+            where target.supportsFullConfigurationExport && target.supports(.vmess) {
             let content = generator.generate(
                 nodes: [node(path: "1c503beb-vm")], preset: RulePreset.builtIns[0], target: target
             ).content

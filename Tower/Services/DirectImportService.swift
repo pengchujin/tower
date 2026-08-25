@@ -35,7 +35,9 @@ struct ClientImportURLBuilder {
         case .surge:
             value = "surge:///install-config?url=\(encodedURL)"
         case .clash:
-            value = "clash://install-config?url=\(encodedURL)&name=\(encodedName)"
+            value = "stash://install-config?url=\(encodedURL)"
+        case .clashApple:
+            value = "clashmeta://install-config?url=\(encodedURL)"
         case .shadowrocket:
             value = contentMode == .nodesOnly
                 ? "shadowrocket://add/\(configurationURL.absoluteString)#\(displayName)"
@@ -65,6 +67,11 @@ struct ClientImportURLBuilder {
             // in Profile-Title; a percent-encoded fragment is displayed
             // literally by current Hiddify releases.
             value = "hiddify://import/\(configurationURL.absoluteString)"
+        case .v2box:
+            guard contentMode == .nodesOnly else {
+                throw DirectImportError.unsupportedTarget(target)
+            }
+            value = "v2box://install-sub?url=\(encodedURL)&name=\(encodedName)"
         case .quanx:
             guard contentMode == .nodesOnly else {
                 throw DirectImportError.unsupportedTarget(target)

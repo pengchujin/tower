@@ -1012,14 +1012,16 @@ final class AppModel {
     }
 
     func exportContentMode(for target: ClientTarget) -> ExportContentMode {
-        let saved = exportContentModes[target] ?? .fullConfiguration
-        return target.supportedContentModes.contains(saved) ? saved : .fullConfiguration
+        let fallback = target.supportedContentModes.first ?? .fullConfiguration
+        let saved = exportContentModes[target] ?? fallback
+        return target.supportedContentModes.contains(saved) ? saved : fallback
     }
 
     func setExportContentMode(_ mode: ExportContentMode, for target: ClientTarget) {
-        let resolved = target.supportedContentModes.contains(mode) ? mode : .fullConfiguration
+        let fallback = target.supportedContentModes.first ?? .fullConfiguration
+        let resolved = target.supportedContentModes.contains(mode) ? mode : fallback
         guard exportContentMode(for: target) != resolved else { return }
-        if resolved == .fullConfiguration {
+        if resolved == fallback {
             exportContentModes[target] = nil
         } else {
             exportContentModes[target] = resolved
@@ -1959,7 +1961,7 @@ final class AppModel {
     }
 
     func lanSubscriptionURL(target: ClientTarget?) -> URL? {
-        lanSubscriptionURL(format: target.map(LANSubscriptionFormat.init(target:)))
+        lanSubscriptionURL(format: target.flatMap { LANSubscriptionFormat(target: $0) })
     }
 
     func lanSubscriptionURL(format: LANSubscriptionFormat?) -> URL? {

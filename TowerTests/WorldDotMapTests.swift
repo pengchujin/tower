@@ -781,6 +781,43 @@ final class WorldDotMapTests: XCTestCase {
         )
     }
 
+    func testOverviewAndDetailRenderersKeepEquivalentDotCoverageAtEveryDetailDensity() {
+        for (cell, scale) in [
+            (CGFloat(1.6), CGFloat(2.2)),
+            (CGFloat(1.6), CGFloat(4.2)),
+            (CGFloat(4), CGFloat(2.2)),
+            (CGFloat(4), CGFloat(4.2)),
+        ] {
+            let screenCell = cell * scale
+            let subdivision = WorldDotMapView.DetailRenderer.subdivision(
+                forScreenCell: screenCell
+            )
+
+            for style in [
+                WorldDotCellStyle.selected,
+                WorldDotCellStyle.covered,
+                WorldDotCellStyle.uncovered,
+            ] {
+                let overviewDiameter = style.overviewDiameter(cell: cell) * scale
+                let overviewCoverage = overviewDiameter * overviewDiameter
+                let detailDiameter = style.detailDiameter(
+                    cell: cell,
+                    scale: scale,
+                    subdivision: subdivision
+                )
+                let detailCoverage = CGFloat(subdivision * subdivision)
+                    * detailDiameter * detailDiameter
+
+                XCTAssertEqual(
+                    overviewCoverage,
+                    detailCoverage,
+                    accuracy: 0.01,
+                    "Switching renderers must not make \(style) dots look lighter or darker."
+                )
+            }
+        }
+    }
+
     func testOverviewClustersDenseCountriesAndCountryLevelSplitsThem() throws {
         try XCTSkipIf(WorldDotGrid.shared.isEmpty)
         let markers = [

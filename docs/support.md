@@ -18,7 +18,7 @@ title: 塔台 · 使用与支持
 
 ### 支持哪些客户端？
 
-Surge、Stash、Shadowrocket、Loon、Quantumult X、Hiddify、Egern，共七种。
+Surge、Stash、Shadowrocket、Loon、Quantumult X、Hiddify、Egern，以及仅接收节点订阅的 V2Box。V2Box 默认排在客户端列表最后，可接收 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S)，不会替换它现有的规则和策略组。
 
 ### 支持哪些协议？
 

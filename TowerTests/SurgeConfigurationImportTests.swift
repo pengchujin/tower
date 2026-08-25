@@ -146,7 +146,7 @@ final class SurgeConfigurationImportTests: XCTestCase {
             rawURI: "ss://x"
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [node],
                 scheme: scheme,

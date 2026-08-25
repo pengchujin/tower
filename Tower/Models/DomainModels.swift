@@ -1009,6 +1009,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case quanx
     case hiddify
     case egern
+    case v2box
+    case clashApple = "clash-apple"
 
     var id: String { rawValue }
 
@@ -1016,11 +1018,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: "Surge"
         case .clash: "Stash"
+        case .clashApple: "Clash"
         case .shadowrocket: "Shadowrocket"
         case .loon: "Loon"
         case .quanx: "QuanX"
         case .hiddify: "Hiddify"
         case .egern: "Egern"
+        case .v2box: "V2Box"
         }
     }
 
@@ -1028,11 +1032,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: String(localized: "完整配置")
         case .clash: "Clash YAML"
+        case .clashApple: "Clash / mihomo"
         case .shadowrocket: String(localized: "本地配置")
         case .loon: String(localized: "完整配置")
         case .quanx: "Quantumult X"
         case .hiddify: String(localized: "sing-box 内核")
         case .egern: "Egern YAML"
+        case .v2box: "V2Ray / Xray"
         }
     }
 
@@ -1040,11 +1046,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: "wave.3.right.circle.fill"
         case .clash: "square.3.layers.3d.top.filled"
+        case .clashApple: "point.3.connected.trianglepath.dotted"
         case .shadowrocket: "paperplane.circle.fill"
         case .loon: "moon.stars.circle.fill"
         case .quanx: "q.circle.fill"
         case .hiddify: "eye.slash.circle.fill"
         case .egern: "e.circle.fill"
+        case .v2box: "shippingbox.circle.fill"
         }
     }
 
@@ -1054,11 +1062,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: "ClientSurge"
         case .clash: "ClientStash"
+        case .clashApple: "ClientClashOfficial"
         case .shadowrocket: "ClientShadowrocket"
         case .loon: "ClientLoon"
         case .quanx: "ClientQuantumultX"
         case .hiddify: "ClientHiddify"
         case .egern: "ClientEgern"
+        case .v2box: "ClientV2Box"
         }
     }
 
@@ -1066,11 +1076,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: "waveform.path.ecg"
         case .clash: "square.3.layers.3d.top.filled"
+        case .clashApple: "point.3.connected.trianglepath.dotted"
         case .shadowrocket: "paperplane.fill"
         case .loon: "moon.stars.fill"
         case .quanx: "q.circle.fill"
         case .hiddify: "shield.lefthalf.filled"
         case .egern: "e.circle.fill"
+        case .v2box: "shippingbox.fill"
         }
     }
 
@@ -1078,11 +1090,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .surge: "3157D5"
         case .clash: "1473E6"
+        case .clashApple: "2F82F7"
         case .shadowrocket: "1B98F5"
         case .loon: "6B45D8"
         case .quanx: "14A69A"
         case .hiddify: "6047D9"
         case .egern: "F08A2B"
+        case .v2box: "246BFD"
         }
     }
 
@@ -1105,22 +1119,25 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var fileExtension: String {
         switch self {
-        case .clash, .egern: "yaml"
+        case .clash, .clashApple, .egern: "yaml"
         case .hiddify: "json"
+        case .v2box: "txt"
         default: "conf"
         }
     }
 
     var supportsDirectConfigurationImport: Bool {
-        // Quantumult X is the only one left without an install scheme.
+        // Quantumult X has no public full-profile install scheme. V2Box
+        // publishes only a node-subscription route, not a complete profile
+        // schema with Tower's rules and policy groups.
         switch self {
-        case .quanx: false
+        case .quanx, .v2box: false
         default: true
         }
     }
 
     var supportsNodesOnlyImport: Bool {
-        [.shadowrocket, .loon, .quanx, .hiddify].contains(self)
+        [.shadowrocket, .loon, .quanx, .hiddify, .v2box].contains(self)
     }
 
     func supportsDirectImport(mode: ExportContentMode) -> Bool {
@@ -1131,8 +1148,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     }
 
     var supportedContentModes: [ExportContentMode] {
+        if self == .v2box { return [.nodesOnly] }
         guard supportsNodesOnlyImport else { return [.fullConfiguration] }
         return [.fullConfiguration, .nodesOnly]
+    }
+
+    var supportsFullConfigurationExport: Bool {
+        supportedContentModes.contains(.fullConfiguration)
     }
 
     var primaryImportTitle: String {
@@ -1143,7 +1165,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     func supports(_ kind: ProxyKind) -> Bool {
         switch self {
-        case .clash:
+        case .clash, .clashApple:
             kind != .unknown
         case .surge:
             // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
@@ -1169,6 +1191,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern:
             // Egern's own producer lists tuic but no hysteria 1.
             [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http].contains(kind)
+        case .v2box:
+            // V2Box's native protocol picker also exposes WireGuard,
+            // Hysteria 2 and HTTP. Tower can preserve each of those as a
+            // canonical subscription URI, while JSON/SSH/PING are not Tower
+            // proxy protocol models and stay out of this capability matrix.
+            [.shadowsocks, .vmess, .vless, .trojan, .wireguard, .hysteria2, .socks5, .http]
+                .contains(kind)
         }
     }
 }
@@ -1189,12 +1218,25 @@ enum ExportContentMode: String, CaseIterable, Codable, Identifiable {
 
 enum ClientTargetOrder {
     static func normalized(rawValues: [String]?) -> [ClientTarget] {
+        guard let rawValues, !rawValues.isEmpty else {
+            return ClientTarget.allCases
+        }
         var seen = Set<ClientTarget>()
         var result: [ClientTarget] = []
 
-        for rawValue in rawValues ?? [] {
+        for rawValue in rawValues {
             guard let target = ClientTarget(rawValue: rawValue), seen.insert(target).inserted else { continue }
             result.append(target)
+        }
+
+        // The first standalone Clash build placed it directly after Stash.
+        // Migrate that former default to the new trailing position, while
+        // leaving an explicitly customised position untouched.
+        if let clashIndex = result.firstIndex(of: .clashApple),
+           let stashIndex = result.firstIndex(of: .clash),
+           clashIndex == result.index(after: stashIndex) {
+            result.remove(at: clashIndex)
+            result.append(.clashApple)
         }
         for target in ClientTarget.allCases where seen.insert(target).inserted {
             result.append(target)

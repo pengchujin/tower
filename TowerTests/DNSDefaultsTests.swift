@@ -19,7 +19,7 @@ final class DNSDefaultsTests: XCTestCase {
     /// resolver, which is the exact path a leak takes. Writing it was worse
     /// than writing nothing at all.
     func testNoTargetAsksForTheSystemResolver() {
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = configuration(for: target)
             XCTAssertFalse(
                 content.contains("dns-server = system") || content.contains("dns-server=system"),
@@ -74,7 +74,7 @@ final class DNSDefaultsTests: XCTestCase {
     /// chance to match. The domains it happens to are the ones no rule list
     /// covered, which are the ones worth protecting.
     func testEveryGeoIPRuleSkipsResolution() {
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = configuration(for: target)
 
             // Egern writes the rule as a mapping, so its flag is a neighbouring

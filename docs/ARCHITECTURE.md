@@ -4,7 +4,7 @@
 
 ## 1. 总览
 
-塔台是一个本地优先的 SwiftUI iOS App。用户导入机场订阅或自有节点，App 在本机解析、识别地区、测速、套用本地规则，最后为七类客户端生成配置并交付。
+塔台是一个本地优先的 SwiftUI iOS App。用户导入机场订阅或自有节点，App 在本机解析、识别地区、测速、套用本地规则，最后生成七类完整客户端配置，并为 V2Box 生成独立的节点订阅。
 
 ```mermaid
 flowchart LR
@@ -146,6 +146,8 @@ flowchart LR
 - Hiddify：sing-box JSON 出站、选择器和路由规则。
 - Egern：YAML 节点、策略组和路由规则。
 
+V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S) 节点写成换行分隔的标准 URI，再整体 Base64 编码成节点订阅；不生成规则或策略组。
+
 生成阶段还负责：
 
 - 节点名去重和目标客户端转义。
@@ -169,7 +171,7 @@ flowchart LR
 
 ### `DirectImportService.swift`
 
-除 Quantumult X 外的目标客户端都可通过 Scheme 接收本地配置 URL，因此 App 临时启动 `NWListener`：
+除 Quantumult X 外的目标客户端都可通过 Scheme 接收本地 URL，因此 App 临时启动 `NWListener`。其中 V2Box 使用节点订阅 Scheme，其余客户端接收自身支持的完整配置或节点资源：
 
 - 只绑定 `127.0.0.1`。
 - URL 带随机 token。
@@ -177,7 +179,7 @@ flowchart LR
 - 进入短暂后台时申请 background task，给目标客户端留出读取时间。
 - 配置不上传互联网，也不作为远程订阅长期存活。
 
-如果目标客户端未安装或 Scheme 打开失败，回退系统分享。Quantumult X 始终使用本地文件分享，因为公开 Scheme 不能完整导入本地配置。
+如果目标客户端未安装或 Scheme 打开失败，回退系统分享。Quantumult X 始终使用本地文件分享，因为公开 Scheme 不能完整导入本地配置。V2Box 公开的是节点订阅入口，因此不能把七种完整配置中的规则与策略组交给它。
 
 ### `LANSubscriptionServer.swift`
 
@@ -236,7 +238,7 @@ flowchart LR
 - 节点分享链接与展示字段。
 - IP 国家库、地区回退和延迟服务。
 - 规则预设迁移与首页交互模型。
-- 七种配置生成、地区策略、图标及兼容跳过。
+- 七种完整配置生成、V2Box 节点订阅、地区策略、图标及兼容跳过。
 - HTTP/HTTPS 代理节点从链接或手动输入进入本地节点，并在七种客户端格式中均不被跳过。
 - 一键导入 URL/Scheme 与导出呈现。
 - 局域网订阅 token、target/User-Agent 路由、GET/HEAD、响应格式，以及通过真实回环 `NWListener`/`URLSession` 完成的端到端请求。

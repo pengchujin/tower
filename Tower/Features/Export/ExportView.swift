@@ -164,7 +164,7 @@ private struct ExportContentModePicker: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if model.selectedTarget.supportsNodesOnlyImport {
+        if model.selectedTarget.supportedContentModes.count > 1 {
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeading(title: "导出内容", detail: model.selectedTarget.name)
                 Picker(

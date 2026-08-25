@@ -5,7 +5,6 @@
 1. `README.md`：产品能力、隐私模型和已知边界。
 2. `docs/HANDOFF.md`：截至 2026-08-03 的实现状态、TestFlight 状态和优先事项。
 3. `docs/ARCHITECTURE.md`：模块、数据流、配置生成和测试结构。
-4. `docs/ANDROID-PORT.md`：Android 版技术方案、可移植性实测和双端同步机制（仅在涉及 Android 移植时读）。
 
 ## 工程基线
 

@@ -253,7 +253,7 @@ final class RuleSchemeTests: XCTestCase {
     func testEveryTargetReproducesImportedGroups() throws {
         let scheme = try parse()
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: nodes,
                 scheme: scheme,

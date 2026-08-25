@@ -106,7 +106,7 @@ struct RuleSetEmissionPlanner {
         isClashProviderYAML: Bool
     ) -> NativeFormat? {
         switch target {
-        case .clash:
+        case .clash, .clashApple:
             guard linesAreClassical(lines, allowedTypes: Self.clashRuleTypes) else { return nil }
             return isClashProviderYAML ? .clashProviderYAML : .classicalText
         case .surge, .shadowrocket:
@@ -123,6 +123,8 @@ struct RuleSetEmissionPlanner {
             return isSingBoxSource(url: url, lines: lines) ? .singBoxSource : nil
         case .egern:
             return isEgernRuleSet(lines) ? .egernYAML : nil
+        case .v2box:
+            return nil
         }
     }
 

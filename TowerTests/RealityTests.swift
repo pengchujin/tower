@@ -142,8 +142,9 @@ final class RealityTests: XCTestCase {
     /// "reality is unsupported", and it takes no VLESS at all.
     func testSurgeIsTheOnlyTargetThatSkipsReality() throws {
         let node = try node()
-        let skipping = ClientTarget.allCases.filter {
-            generator.generate(nodes: [node], preset: preset, target: $0).supportedNodeCount == 0
+        let skipping = ClientTarget.allCases.filter { target in
+            guard target.supportsFullConfigurationExport else { return false }
+            return generator.generate(nodes: [node], preset: preset, target: target).supportedNodeCount == 0
         }
 
         XCTAssertEqual(skipping, [.surge])
@@ -152,7 +153,7 @@ final class RealityTests: XCTestCase {
     func testNoTargetEverWritesARealityNodeWithoutItsPublicKey() throws {
         let node = try node()
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let output = generator.generate(nodes: [node], preset: preset, target: target)
             guard output.supportedNodeCount > 0 else { continue }
             XCTAssertTrue(

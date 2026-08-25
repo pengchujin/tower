@@ -1361,7 +1361,7 @@ struct WorldDotMapView: View {
     }
 }
 
-private enum WorldDotCellStyle {
+enum WorldDotCellStyle {
     case selected
     case covered
     case uncovered
@@ -1399,21 +1399,17 @@ private enum WorldDotCellStyle {
         }
     }
 
-    func detailDiameter(step: CGFloat) -> CGFloat {
-        let factor: CGFloat
-        let maximum: CGFloat
-        switch self {
-        case .selected:
-            factor = 0.66
-            maximum = 2
-        case .covered:
-            factor = 0.56
-            maximum = 1.65
-        case .uncovered:
-            factor = 0.46
-            maximum = 1.65
-        }
-        return min(max(step * factor, 1), maximum)
+    func detailDiameter(
+        cell: CGFloat,
+        scale: CGFloat,
+        subdivision: Int
+    ) -> CGFloat {
+        // The detail renderer replaces one magnified overview dot with an
+        // `subdivision × subdivision` group of micro dots. Dividing the
+        // magnified source diameter by the same subdivision keeps their total
+        // filled area identical, so switching renderers cannot make selected
+        // or covered countries appear to change colour.
+        overviewDiameter(cell: cell) * scale / CGFloat(max(subdivision, 1))
     }
 }
 
@@ -1505,7 +1501,6 @@ private struct WorldDotDetailCanvas: View, Animatable {
             let subdivision = WorldDotMapView.DetailRenderer.subdivision(
                 forScreenCell: screenCell
             )
-            let step = screenCell / CGFloat(subdivision)
             let offsets = WorldDotMapView.DetailRenderer.offsets(forScreenCell: screenCell)
             let visibleBounds = CGRect(origin: .zero, size: size)
                 .insetBy(dx: -screenCell, dy: -screenCell)
@@ -1525,7 +1520,11 @@ private struct WorldDotDetailCanvas: View, Animatable {
                     coveredCells: coveredCells,
                     selectedCells: selectedCells
                 )
-                let diameter = style.detailDiameter(step: step)
+                let diameter = style.detailDiameter(
+                    cell: layout.cell,
+                    scale: scale,
+                    subdivision: subdivision
+                )
                 let color = style.color(in: colorScheme)
                 for offset in offsets {
                     let center = CGPoint(x: base.x + offset.width, y: base.y + offset.height)

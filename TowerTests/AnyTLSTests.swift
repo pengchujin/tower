@@ -2,8 +2,8 @@ import XCTest
 @testable import Tower
 
 /// AnyTLS arrived in a real subscription as twelve `anytls://` links that were
-/// counted as unrecognised. Every target client supports the protocol, so it is
-/// parsed and emitted rather than skipped.
+/// counted as unrecognised. Every full-configuration target supports the
+/// protocol, so it is parsed and emitted rather than skipped.
 final class AnyTLSTests: XCTestCase {
     private let parser = SubscriptionParser()
 
@@ -52,8 +52,8 @@ final class AnyTLSTests: XCTestCase {
 
     // MARK: - Client support
 
-    func testEveryTargetAcceptsAnyTLS() {
-        for target in ClientTarget.allCases {
+    func testEveryFullConfigurationTargetAcceptsAnyTLS() {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             XCTAssertTrue(target.supports(.anytls), "\(target.name) 应支持 AnyTLS")
         }
     }
@@ -105,10 +105,10 @@ final class AnyTLSTests: XCTestCase {
         }
     }
 
-    func testNoNodeIsSkippedForAnyTarget() throws {
+    func testNoNodeIsSkippedForAnyFullConfigurationTarget() throws {
         let node = try XCTUnwrap(parser.parseURI(uri))
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let result = ConfigurationGenerator().generate(
                 nodes: [node],
                 preset: RulePreset.builtIns[0],

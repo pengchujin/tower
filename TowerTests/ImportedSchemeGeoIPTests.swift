@@ -22,7 +22,7 @@ final class ImportedSchemeGeoIPTests: XCTestCase {
             customRuleFlows: [customFlow]
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [],
                 scheme: scheme,
@@ -118,7 +118,7 @@ final class ImportedSchemeGeoIPTests: XCTestCase {
             ]
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [],
                 scheme: scheme,

@@ -381,7 +381,7 @@ final class RuleCustomizationTests: XCTestCase {
             ]
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let result = ConfigurationGenerator().generate(
                 nodes: nodes,
                 scheme: scheme,

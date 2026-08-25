@@ -164,7 +164,7 @@ final class ConfigurationCredentialTests: XCTestCase {
     func testNodeNameCannotBreakOutOfTheProxyLine() {
         let hostileName = "HK 01\nREJECT = reject # owned"
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let hostile = generate(name: hostileName, target: target)
             let benign = generate(name: "HK 01", target: target)
 
@@ -188,7 +188,10 @@ final class ConfigurationCredentialTests: XCTestCase {
             }
             // Both YAML formats quote the name, so the injected text survives
             // inside the scalar and only the line count proves it stayed put.
-            guard target != .clash, target != .shadowrocket, target != .egern else {
+            guard target != .clash,
+                  target != .clashApple,
+                  target != .shadowrocket,
+                  target != .egern else {
                 XCTAssertTrue(
                     hostile.contains(#""HK 01 REJECT = reject # owned""#),
                     "\(target.name) 应把节点名保留为单行带引号标量"
@@ -246,7 +249,7 @@ final class ConfigurationCredentialTests: XCTestCase {
     // MARK: - Rule types
 
     func testUnsupportedRuleTypesAreDroppedForEveryTarget() {
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [],
                 preset: preset,

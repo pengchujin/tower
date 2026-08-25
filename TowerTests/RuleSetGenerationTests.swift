@@ -250,7 +250,7 @@ final class RuleSetGenerationTests: XCTestCase {
             ).content
 
             switch target {
-            case .clash, .surge, .shadowrocket, .loon:
+            case .clash, .clashApple, .surge, .shadowrocket, .loon:
                 XCTAssertTrue(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), "\(target.name): \(content)")
             case .quanx:
                 XCTAssertTrue(content.contains("host-suffix, example.com, Proxy"), content)
@@ -258,6 +258,8 @@ final class RuleSetGenerationTests: XCTestCase {
                 XCTAssertFalse(content.contains(#""rule_set""#), content)
             case .egern:
                 XCTAssertTrue(content.contains("  - domain_suffix:"), content)
+            case .v2box:
+                XCTAssertTrue(content.isEmpty, "V2Box 只接收节点订阅，不生成完整规则配置")
             }
         }
     }

@@ -97,7 +97,7 @@ final class ShadowsocksObfsTests: XCTestCase {
             rawURI: "ss://plain"
         )
 
-        for target in ClientTarget.allCases {
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [plain],
                 preset: RulePreset.builtIns[0],

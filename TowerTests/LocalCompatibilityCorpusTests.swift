@@ -164,28 +164,30 @@ final class LocalCompatibilityCorpusTests: XCTestCase {
             var generationReports: [GenerationReport] = []
 
             for target in ClientTarget.allCases {
-                for preferRuleSets in [false, true] {
-                    let generated = generator.generate(
-                        nodes: selected.nodes,
-                        scheme: scheme,
-                        target: target,
-                        preferRuleSets: preferRuleSets
-                    )
-                    let mode = preferRuleSets ? "rulesets-on" : "rulesets-off"
-                    try store(
-                        generated.content,
-                        at: sourceOutput.appendingPathComponent(
-                            "\(target.rawValue).full.\(mode).\(generated.fileExtension)"
-                        )
-                    )
-                    generationReports.append(
-                        report(
-                            generated,
+                if target.supportsFullConfigurationExport {
+                    for preferRuleSets in [false, true] {
+                        let generated = generator.generate(
+                            nodes: selected.nodes,
+                            scheme: scheme,
                             target: target,
-                            mode: "full",
                             preferRuleSets: preferRuleSets
                         )
-                    )
+                        let mode = preferRuleSets ? "rulesets-on" : "rulesets-off"
+                        try store(
+                            generated.content,
+                            at: sourceOutput.appendingPathComponent(
+                                "\(target.rawValue).full.\(mode).\(generated.fileExtension)"
+                            )
+                        )
+                        generationReports.append(
+                            report(
+                                generated,
+                                target: target,
+                                mode: "full",
+                                preferRuleSets: preferRuleSets
+                            )
+                        )
+                    }
                 }
 
                 guard target.supportsNodesOnlyImport else { continue }
