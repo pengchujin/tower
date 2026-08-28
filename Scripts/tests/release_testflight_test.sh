@@ -37,6 +37,25 @@ assert_not_contains() {
 fixture_dir="$(mktemp -d)"
 trap 'rm -rf "$fixture_dir"' EXIT
 
+unicode_repo="$fixture_dir/塔台"
+mkdir -p "$unicode_repo"
+cat > "$unicode_repo/capture.sh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$@"
+SH
+chmod +x "$unicode_repo/capture.sh"
+
+ghostty_launcher="$(tower_create_ghostty_launcher "$unicode_repo/capture.sh")"
+[[ "$ghostty_launcher" == /tmp/* || "$ghostty_launcher" == /var/folders/* ]] \
+    || fail "Ghostty launcher must use an ASCII temporary path"
+[[ "$ghostty_launcher" != *"塔台"* ]] \
+    || fail "Ghostty launcher path must not contain the Unicode repository name"
+assert_equal \
+    $'argument with spaces\n中文参数' \
+    "$("$ghostty_launcher" "argument with spaces" "中文参数")" \
+    "Ghostty launcher preserves a Unicode script path and its arguments"
+[[ ! -e "$ghostty_launcher" ]] || fail "Ghostty launcher removes itself after starting"
+
 cat > "$fixture_dir/project.pbxproj" <<'PBX'
 				CURRENT_PROJECT_VERSION = 28;
 				MARKETING_VERSION = 1.0.2;
@@ -119,6 +138,10 @@ local_release_source="$(<"$REPO_ROOT/Scripts/release_testflight.sh")"
 remote_release_source="$(<"$REPO_ROOT/Scripts/release_testflight_remote.sh")"
 assert_contains "$local_release_source" 'tower_check_bundled_rules_current "$REPO_ROOT"' \
     "local release checks bundled rules before connecting"
+assert_contains "$local_release_source" 'ghostty_launcher="$(tower_create_ghostty_launcher "$SCRIPT_PATH")"' \
+    "local release launches Ghostty through the Unicode-safe helper"
+assert_contains "$local_release_source" '-e "$ghostty_launcher"' \
+    "Ghostty receives only the ASCII launcher path"
 assert_contains "$remote_release_source" 'tower_check_bundled_rules_current "$REPO_ROOT"' \
     "remote archive checks bundled rules before signing"
 

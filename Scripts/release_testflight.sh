@@ -142,9 +142,10 @@ if [[ "$inside_ghostty" == false && "$no_ghostty" == false ]]; then
         exit 1
     }
 
+    ghostty_launcher="$(tower_create_ghostty_launcher "$SCRIPT_PATH")"
     open -na "$ghostty_app" --args \
         --title="Tower TestFlight ${project_version} (${project_build})" \
-        -e "$SCRIPT_PATH" \
+        -e "$ghostty_launcher" \
         --inside-ghostty \
         --version "$project_version" \
         --build "$project_build" \

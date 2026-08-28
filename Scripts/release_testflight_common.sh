@@ -114,6 +114,43 @@ tower_check_bundled_rules_current() {
     python3 "$updater" --check-latest
 }
 
+# Ghostty 1.3.1 on macOS can round-trip a `-e` executable path through the
+# login shell with the wrong encoding. Keep the path passed through Launch
+# Services ASCII-only, then let Bash read the real UTF-8 script path from this
+# private, one-shot launcher.
+tower_create_ghostty_launcher() {
+    local script_path="$1"
+    local launcher_dir
+    local launcher_path
+    local quoted_script
+    local quoted_launcher
+    local quoted_dir
+
+    [[ "$script_path" == /* && "$script_path" != *$'\n'* && -x "$script_path" ]] || {
+        printf 'Ghostty target must be an executable absolute path without newlines: %s\n' "$script_path" >&2
+        return 1
+    }
+
+    launcher_dir="$(mktemp -d /tmp/tower-testflight-ghostty.XXXXXX)"
+    launcher_path="$launcher_dir/launch.sh"
+    printf -v quoted_script '%q' "$script_path"
+    printf -v quoted_launcher '%q' "$launcher_path"
+    printf -v quoted_dir '%q' "$launcher_dir"
+
+    {
+        printf '#!/usr/bin/env bash\n'
+        printf 'set -euo pipefail\n'
+        printf 'script_path=%s\n' "$quoted_script"
+        printf 'launcher_path=%s\n' "$quoted_launcher"
+        printf 'launcher_dir=%s\n' "$quoted_dir"
+        printf 'rm -f -- "$launcher_path"\n'
+        printf 'rmdir -- "$launcher_dir" 2>/dev/null || true\n'
+        printf 'exec "$script_path" "$@"\n'
+    } > "$launcher_path"
+    chmod 700 "$launcher_path"
+    printf '%s\n' "$launcher_path"
+}
+
 tower_validate_commit() {
     [[ "$1" =~ ^[0-9a-f]{40}$ ]] || {
         printf 'Invalid Git commit: %s\n' "$1" >&2
