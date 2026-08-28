@@ -335,7 +335,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testSettingsResetRequiresExplicitDestructiveConfirmation() throws {
         let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
 
-        XCTAssertTrue(source.contains("ResetAllConfigurationCard("))
+        XCTAssertTrue(source.contains("ConfigurationManagementCard("))
         XCTAssertTrue(source.contains(".alert(\"重置所有配置？\""))
         XCTAssertTrue(source.contains("Button(\"重置所有配置\", role: .destructive)"))
         XCTAssertTrue(source.contains("此操作无法撤销"))
@@ -346,6 +346,32 @@ final class RepositoryConsistencyTests: XCTestCase {
             )
         )
         XCTAssertTrue(source.contains("accessibilityIdentifier(\"reset-all-configuration\")"))
+    }
+
+    func testSettingsGroupsConfigurationManagementAndUsesAQuietVersionFooter() throws {
+        let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
+        let managementStart = try XCTUnwrap(source.range(of: "private struct ConfigurationManagementCard: View"))
+        let footerStart = try XCTUnwrap(source.range(of: "private struct SettingsFooter: View"))
+        let securityViewStart = try XCTUnwrap(source.range(of: "struct SecurityAndSourceView: View"))
+        let management = String(source[managementStart.lowerBound..<footerStart.lowerBound])
+        let footer = String(source[footerStart.lowerBound..<securityViewStart.lowerBound])
+
+        XCTAssertTrue(source.contains("ConfigurationManagementCard(configurationNameDraft:"), source)
+        XCTAssertFalse(source.contains("CloudSyncCard()"), source)
+        XCTAssertFalse(source.contains("ResetAllConfigurationCard("), source)
+        XCTAssertTrue(management.contains("SectionHeading(title: \"配置管理\""), management)
+        XCTAssertTrue(management.contains("CloudSyncControls()"), management)
+        XCTAssertTrue(management.contains("ResetAllConfigurationRow(configurationNameDraft:"), management)
+        XCTAssertTrue(source.contains("Text(\"同步到我的 iCloud\")"), source)
+        XCTAssertTrue(source.contains("Text(\"重置所有配置\")"), source)
+
+        XCTAssertTrue(source.contains("SettingsFooter()"), source)
+        XCTAssertTrue(footer.contains("Text(\"安全与开源\")"), footer)
+        XCTAssertTrue(footer.contains("CFBundleShortVersionString"), footer)
+        XCTAssertTrue(footer.contains("CFBundleVersion"), footer)
+        XCTAssertTrue(footer.contains("Text(\"版本 \\(versionText)\")"), footer)
+        XCTAssertTrue(footer.contains(".font(.caption)"), footer)
+        XCTAssertFalse(footer.contains(".towerCard()"), footer)
     }
 
     func testRuleGroupCustomizationUsesOneReorderableEditableList() throws {

@@ -5,7 +5,7 @@ struct SubscriptionsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAddSourcePresented = false
     @State private var pendingDeletion: PendingDeletion?
-    @State private var nodeFilterRoute: NodeFilterRoute?
+    @State private var sourceManagementRoute: SourceManagementRoute?
     @State private var editingSubscription: SubscriptionSource?
     @State private var subscriptionNameDraft = SubscriptionNameDraft()
     @State private var editingLocalNode: ProxyNode?
@@ -18,14 +18,7 @@ struct SubscriptionsView: View {
                         .frame(height: 0)
                         .id(SubscriptionScrollTarget.top)
                     SubscriptionOverviewCard { metric in
-                        switch metric {
-                        case .nodes:
-                            nodeFilterRoute = .all
-                        case .regions:
-                            nodeFilterRoute = .regions
-                        case .subscriptions, .localNodes:
-                            proxy.scrollTo(metric.scrollTarget, anchor: .top)
-                        }
+                        sourceManagementRoute = metric.managementRoute
                     }
 
                     NodeMapOverview(nodes: model.enabledNodes)
@@ -54,6 +47,13 @@ struct SubscriptionsView: View {
             .background(TowerTheme.background.ignoresSafeArea())
             .navigationTitle("我的订阅")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("管理") {
+                        sourceManagementRoute = .subscriptions
+                    }
+                    .accessibilityLabel("批量管理订阅和自有节点")
+                    .accessibilityIdentifier("source-management-button")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isAddSourcePresented = true
@@ -85,15 +85,9 @@ struct SubscriptionsView: View {
             .sheet(item: $editingLocalNode) { node in
                 AddSourceSheet(editingNode: node)
             }
-            .overlay {
-                if let report = model.subscriptionRefreshReport {
-                    SubscriptionRefreshReportOverlay(report: report)
-                        .transition(.opacity)
-                        .zIndex(10)
-                }
-            }
-            .navigationDestination(item: $nodeFilterRoute) { route in
-                NodeFilterView(initialFocus: route)
+            .subscriptionRefreshReport()
+            .navigationDestination(item: $sourceManagementRoute) { route in
+                SourceManagementView(initialRoute: route)
             }
             .alert(
                 pendingDeletion?.title ?? String(localized: "确认删除"),
@@ -120,16 +114,12 @@ struct SubscriptionsView: View {
         if !model.subscriptions.isEmpty {
             VStack(spacing: 12) {
                 SectionHeading(title: "订阅", detail: String(localized: "\(model.subscriptions.count) 个来源"))
-                ForEach(model.subscriptions) { source in
+                ForEach(displayedSubscriptions) { source in
                     SubscriptionCard(source: source) {
                         Task { await model.updateSubscription(id: source.id) }
                     } onEdit: {
                         subscriptionNameDraft = SubscriptionNameDraft(text: source.name)
                         editingSubscription = source
-                    } onMoveUp: {
-                        model.moveSubscription(source, by: -1)
-                    } onMoveDown: {
-                        model.moveSubscription(source, by: 1)
                     } onDelete: {
                         pendingDeletion = .subscription(source)
                     }
@@ -145,13 +135,9 @@ struct SubscriptionsView: View {
         if !model.localNodes.isEmpty {
             LazyVStack(spacing: 12) {
                 SectionHeading(title: "自有节点", detail: String(localized: "\(model.localNodes.count) 个"))
-                ForEach(model.localNodes) { node in
+                ForEach(displayedLocalNodes) { node in
                     LocalNodeCard(node: node) {
                         editingLocalNode = node
-                    } onMoveUp: {
-                        model.moveLocalNode(node, by: -1)
-                    } onMoveDown: {
-                        model.moveLocalNode(node, by: 1)
                     } onDelete: {
                         pendingDeletion = .node(node)
                     }
@@ -160,6 +146,42 @@ struct SubscriptionsView: View {
             .id(SubscriptionScrollTarget.localNodes)
             .accessibilityIdentifier("local-nodes-section")
         }
+    }
+
+    private var displayedSubscriptions: [SubscriptionSource] {
+        EnabledFirstOrdering.apply(model.subscriptions, isEnabled: \.isEnabled)
+    }
+
+    private var displayedLocalNodes: [ProxyNode] {
+        EnabledFirstOrdering.apply(model.localNodes, isEnabled: model.isNodeIncluded)
+    }
+}
+
+extension View {
+    /// Hosts batch-refresh failures in the page currently covering the screen.
+    /// A host attached only to the subscriptions root sits behind a pushed
+    /// management page and makes the report appear only after navigating back.
+    func subscriptionRefreshReport() -> some View {
+        overlay { SubscriptionRefreshReportHost() }
+    }
+}
+
+private struct SubscriptionRefreshReportHost: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            if let report = model.subscriptionRefreshReport {
+                SubscriptionRefreshReportOverlay(report: report)
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+        }
+        .animation(
+            reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.18),
+            value: model.subscriptionRefreshReport?.id
+        )
     }
 }
 
@@ -272,7 +294,7 @@ enum SubscriptionOverviewMetric: CaseIterable {
     case regions
     case localNodes
 
-    var scrollTarget: SubscriptionScrollTarget {
+    var managementRoute: SourceManagementRoute {
         switch self {
         case .subscriptions: .subscriptions
         case .nodes: .nodes
@@ -528,8 +550,6 @@ private struct SubscriptionCard: View {
     let source: SubscriptionSource
     let onRefresh: () -> Void
     let onEdit: () -> Void
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
     let onDelete: () -> Void
     @State private var isExpanded = false
     @State private var sharePayload: SharePayload?
@@ -593,10 +613,6 @@ private struct SubscriptionCard: View {
             // into a delete affordance.
             .contextMenu {
                 Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
-                Button(action: onMoveUp) { Label("上移", systemImage: "arrow.up") }
-                    .disabled(!model.canMoveSubscription(source, by: -1))
-                Button(action: onMoveDown) { Label("下移", systemImage: "arrow.down") }
-                    .disabled(!model.canMoveSubscription(source, by: 1))
                 Button(action: onRefresh) { Label("更新订阅", systemImage: "arrow.triangle.2.circlepath") }
                 Button {
                     sharePayload = SharePayloadFactory.subscription(source)
@@ -834,11 +850,8 @@ private struct SubscriptionFactsRow: View {
 }
 
 private struct LocalNodeCard: View {
-    @Environment(AppModel.self) private var model
     let node: ProxyNode
     let onEdit: () -> Void
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -847,10 +860,6 @@ private struct LocalNodeCard: View {
             .towerCard()
         .contextMenu {
             Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
-            Button(action: onMoveUp) { Label("上移", systemImage: "arrow.up") }
-                .disabled(!model.canMoveLocalNode(node, by: -1))
-            Button(action: onMoveDown) { Label("下移", systemImage: "arrow.down") }
-                .disabled(!model.canMoveLocalNode(node, by: 1))
             Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
         }
     }

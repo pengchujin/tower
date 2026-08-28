@@ -9,7 +9,137 @@ private struct EditingSubscriptionFetcher: SubscriptionFetching {
 
 final class SubscriptionInteractionTests: XCTestCase {
     @MainActor
-    func testSubscriptionsCanBeEditedAndReorderedPersistently() async throws {
+    func testBatchSubscriptionEnablementChangesOnlySelectedSources() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-batch-subscription-enable-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let first = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let second = SubscriptionSource(name: "二", urlString: "https://two.example/sub")
+        let third = SubscriptionSource(name: "三", urlString: "https://three.example/sub")
+        try store.save(AppSnapshot(
+            subscriptions: [first, second, third], nodes: [],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+
+        model.setSubscriptions([first, third], enabled: false)
+
+        XCTAssertEqual(model.subscriptions.map(\.isEnabled), [false, true, false])
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.subscriptions.map(\.isEnabled), [false, true, false])
+    }
+
+    @MainActor
+    func testBatchSubscriptionDeletionRemovesOnlySelectedSourcesAndTheirNodes() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-batch-subscription-delete-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let first = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let second = SubscriptionSource(name: "二", urlString: "https://two.example/sub")
+        let firstNode = ProxyNode(
+            sourceID: first.id, kind: .shadowsocks, name: "一号节点",
+            server: "one.example", port: 8388, cipher: "aes-256-gcm", password: "one",
+            rawURI: "ss://one"
+        )
+        let secondNode = ProxyNode(
+            sourceID: second.id, kind: .shadowsocks, name: "二号节点",
+            server: "two.example", port: 8388, cipher: "aes-256-gcm", password: "two",
+            rawURI: "ss://two"
+        )
+        try store.save(AppSnapshot(
+            subscriptions: [first, second], nodes: [firstNode, secondNode],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+
+        model.deleteSubscriptions([first])
+
+        XCTAssertEqual(model.subscriptions.map(\.id), [second.id])
+        XCTAssertEqual(model.nodes.map(\.id), [secondNode.id])
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.subscriptions.map(\.id), [second.id])
+        XCTAssertEqual(reloaded.nodes.map(\.id), [secondNode.id])
+    }
+
+    @MainActor
+    func testBatchLocalNodeDeletionDoesNotRemoveSubscriptionNodes() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-batch-local-node-delete-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let local = ProxyNode(
+            kind: .shadowsocks, name: "本地节点", server: "local.example", port: 8388,
+            cipher: "aes-256-gcm", password: "local", rawURI: "ss://local"
+        )
+        let subscriptionNode = ProxyNode(
+            sourceID: UUID(), kind: .shadowsocks, name: "机场节点", server: "airport.example",
+            port: 8388, cipher: "aes-256-gcm", password: "airport", rawURI: "ss://airport"
+        )
+        try store.save(AppSnapshot(
+            subscriptions: [], nodes: [local, subscriptionNode],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
+
+        model.deleteLocalNodes([local, subscriptionNode])
+
+        XCTAssertEqual(model.nodes.map(\.id), [subscriptionNode.id])
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.nodes.map(\.id), [subscriptionNode.id])
+    }
+
+    @MainActor
+    func testBatchRefreshUpdatesOnlySelectedSubscriptions() async throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-batch-subscription-refresh-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let first = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let second = SubscriptionSource(name: "二", urlString: "https://two.example/sub")
+        try store.save(AppSnapshot(
+            subscriptions: [first, second], nodes: [],
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge
+        ))
+        let model = AppModel(
+            persistence: store,
+            subscriptionService: EditingSubscriptionFetcher(),
+            arguments: []
+        )
+
+        await model.refreshSubscriptions([first])
+
+        XCTAssertNotNil(model.subscriptions.first { $0.id == first.id }?.lastUpdatedAt)
+        XCTAssertNil(model.subscriptions.first { $0.id == second.id }?.lastUpdatedAt)
+    }
+
+    func testHomeOffersDedicatedSourceManagementEntry() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let managementURL = sourceURL.deletingLastPathComponent()
+            .appendingPathComponent("SourceManagementView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+            + String(contentsOf: managementURL, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("source-management-button"))
+        XCTAssertTrue(source.contains("SourceManagementView(initialRoute: route)"))
+        XCTAssertTrue(source.contains("source-management-list"))
+        XCTAssertTrue(source.contains("批量管理"))
+        XCTAssertTrue(source.contains("自有节点"))
+        for route in ["subscriptions", "nodes", "regions", "localNodes"] {
+            XCTAssertTrue(source.contains("case .\(route)"), "管理页面缺少对应入口：\(route)")
+        }
+        #else
+        throw XCTSkip("该测试检查首页批量管理入口，只在模拟器构建环境运行")
+        #endif
+    }
+
+    @MainActor
+    func testSubscriptionsCanBeEditedPersistently() async throws {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-subscription-edit-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -43,19 +173,17 @@ final class SubscriptionInteractionTests: XCTestCase {
             userAgent: nil,
             dnsOverHTTPSURL: nil
         )
-        model.moveSubscription(first, by: 1)
-
-        XCTAssertEqual(model.subscriptions.map(\.id), [second.id, first.id])
-        XCTAssertEqual(model.availableNodes.map(\.id), [secondNode.id, firstNode.id])
-        XCTAssertEqual(model.subscriptions[1].name, "第一机场")
+        XCTAssertEqual(model.subscriptions.map(\.id), [first.id, second.id])
+        XCTAssertEqual(model.availableNodes.map(\.id), [firstNode.id, secondNode.id])
+        XCTAssertEqual(model.subscriptions[0].name, "第一机场")
         let reloaded = AppModel(persistence: store, arguments: [])
-        XCTAssertEqual(reloaded.subscriptions.map(\.id), [second.id, first.id])
-        XCTAssertEqual(reloaded.availableNodes.map(\.id), [secondNode.id, firstNode.id])
-        XCTAssertEqual(reloaded.subscriptions[1].name, "第一机场")
+        XCTAssertEqual(reloaded.subscriptions.map(\.id), [first.id, second.id])
+        XCTAssertEqual(reloaded.availableNodes.map(\.id), [firstNode.id, secondNode.id])
+        XCTAssertEqual(reloaded.subscriptions[0].name, "第一机场")
     }
 
     @MainActor
-    func testLocalNodesCanBeEditedAndReorderedPersistently() throws {
+    func testLocalNodesCanBeEditedPersistently() throws {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-local-node-edit-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -82,15 +210,13 @@ final class SubscriptionInteractionTests: XCTestCase {
         draft.server = "edited.example"
 
         try model.updateLocalNode(first, with: draft)
-        model.moveLocalNode(first, by: 1)
-
-        XCTAssertEqual(model.localNodes.map(\.id), [second.id, first.id])
-        XCTAssertEqual(model.localNodes[1].name, "编辑后的节点")
-        XCTAssertEqual(model.localNodes[1].server, "edited.example")
-        XCTAssertEqual(model.nodes[1].id, airport.id, "重排自有节点不能移动机场节点")
+        XCTAssertEqual(model.localNodes.map(\.id), [first.id, second.id])
+        XCTAssertEqual(model.localNodes[0].name, "编辑后的节点")
+        XCTAssertEqual(model.localNodes[0].server, "edited.example")
+        XCTAssertEqual(model.nodes[1].id, airport.id, "编辑自有节点不能移动机场节点")
         let reloaded = AppModel(persistence: store, arguments: [])
-        XCTAssertEqual(reloaded.localNodes.map(\.id), [second.id, first.id])
-        XCTAssertEqual(reloaded.localNodes[1].name, "编辑后的节点")
+        XCTAssertEqual(reloaded.localNodes.map(\.id), [first.id, second.id])
+        XCTAssertEqual(reloaded.localNodes[0].name, "编辑后的节点")
     }
 
     func testAddSourceSheetRequestsClipboardWhenPresented() throws {
@@ -121,16 +247,23 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testOverviewMetricsRouteToDedicatedScrollTargets() {
-        XCTAssertEqual(SubscriptionOverviewMetric.subscriptions.scrollTarget, .subscriptions)
-        XCTAssertEqual(SubscriptionOverviewMetric.nodes.scrollTarget, .nodes)
-        XCTAssertEqual(SubscriptionOverviewMetric.regions.scrollTarget, .regions)
-        XCTAssertEqual(SubscriptionOverviewMetric.localNodes.scrollTarget, .localNodes)
+    func testOverviewMetricsOpenMatchingManagementSections() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        XCTAssertEqual(
-            Set(SubscriptionOverviewMetric.allCases.map(\.scrollTarget)).count,
-            SubscriptionOverviewMetric.allCases.count
-        )
+        XCTAssertTrue(source.contains("sourceManagementRoute = metric.managementRoute"))
+        XCTAssertTrue(source.contains("case .subscriptions: .subscriptions"))
+        XCTAssertTrue(source.contains("case .nodes: .nodes"))
+        XCTAssertTrue(source.contains("case .regions: .regions"))
+        XCTAssertTrue(source.contains("case .localNodes: .localNodes"))
+        XCTAssertFalse(source.contains("proxy.scrollTo(metric.scrollTarget"))
+        #else
+        throw XCTSkip("该测试检查首页概览入口，只在模拟器构建环境运行")
+        #endif
     }
 
     func testAddSourceSheetDismissesKeyboardBeforeSaving() throws {
@@ -675,7 +808,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         XCTAssertEqual(metrics.expiryDaysRemaining, 20)
     }
 
-    func testSubscriptionAndLocalNodeLongPressMenusOfferEditAndSorting() throws {
+    func testSubscriptionAndLocalNodeLongPressMenusOfferEditingWithoutSorting() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -683,11 +816,11 @@ final class SubscriptionInteractionTests: XCTestCase {
             .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        for action in ["编辑", "上移", "下移"] {
-            XCTAssertTrue(source.contains("Label(\"\(action)\""), "长按菜单缺少 \(action)")
-        }
-        XCTAssertTrue(source.contains("model.moveSubscription"))
-        XCTAssertTrue(source.contains("model.moveLocalNode"))
+        XCTAssertTrue(source.contains("Label(\"编辑\""), "长按菜单缺少编辑")
+        XCTAssertFalse(source.contains("Label(\"上移\""))
+        XCTAssertFalse(source.contains("Label(\"下移\""))
+        XCTAssertFalse(source.contains("model.moveSubscription"))
+        XCTAssertFalse(source.contains("model.moveLocalNode"))
         XCTAssertTrue(source.contains("AddSourceSheet(editingNode:"))
         #else
         throw XCTSkip("该测试检查首页长按菜单，只在模拟器构建环境运行")
@@ -754,7 +887,7 @@ final class SubscriptionInteractionTests: XCTestCase {
             contentsOf: root.appendingPathComponent("Tower/Features/Settings/SettingsView.swift"),
             encoding: .utf8
         )
-        XCTAssertTrue(settings.contains("detail: String(localized: \"不可撤销\")"))
+        XCTAssertTrue(settings.contains("SectionHeading(title: \"配置管理\")"))
         #else
         throw XCTSkip("该测试检查自定义标题组件，只在模拟器构建环境运行")
         #endif
@@ -766,26 +899,76 @@ final class SubscriptionInteractionTests: XCTestCase {
         XCTAssertEqual(TowerBrand.migratedDefaultName("My Profile"), "My Profile")
     }
 
-    func testAvailableNodesAndRegionsOpenTheNodeFilterPage() throws {
+    func testAvailableNodesAndRegionsOpenTheIntegratedManagementPage() throws {
         #if targetEnvironment(simulator)
-        let sourceURL = URL(fileURLWithPath: #filePath)
+        let subscriptionsURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift")
-        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let managementURL = subscriptionsURL.deletingLastPathComponent()
+            .appendingPathComponent("SourceManagementView.swift")
+        let subscriptionsSource = try String(contentsOf: subscriptionsURL, encoding: .utf8)
+        let managementSource = try String(contentsOf: managementURL, encoding: .utf8)
 
-        XCTAssertTrue(source.contains("navigationDestination(item: $nodeFilterRoute)"))
-        XCTAssertTrue(source.contains("NodeFilterView(initialFocus: route)"))
-        XCTAssertTrue(source.contains("case .nodes:"))
-        XCTAssertTrue(source.contains("case .regions:"))
-        XCTAssertTrue(source.contains("nodeFilterRoute ="))
-        XCTAssertFalse(source.contains("withAnimation(.smooth(duration: 0.32))"))
+        XCTAssertTrue(subscriptionsSource.contains("navigationDestination(item: $sourceManagementRoute)"))
+        XCTAssertFalse(subscriptionsSource.contains("navigationDestination(item: $nodeFilterRoute)"))
+        XCTAssertFalse(subscriptionsSource.contains("proxy.scrollTo(metric.scrollTarget"))
+        XCTAssertTrue(managementSource.contains("case .nodes, .regions: .exportFilter"))
+        XCTAssertTrue(managementSource.contains("@State private var tab: SourceManagementTab"))
+        XCTAssertTrue(managementSource.contains("ForEach(SourceManagementTab.allCases)"))
+        XCTAssertTrue(managementSource.contains("case .exportFilter:"))
+        XCTAssertTrue(managementSource.contains("NodeFilterSections(searchText: $searchText)"))
+        XCTAssertTrue(managementSource.contains("Picker(\"管理内容\", selection: $tab)"))
         #else
-        throw XCTSkip("该测试检查开发源码中的首页导航，只在模拟器构建环境运行")
+        throw XCTSkip("该测试检查统一管理页面，只在模拟器构建环境运行")
         #endif
     }
 
-    func testNodeFilterKeepsEveryFilterVisibleAndUsesOneLargeBulkAction() throws {
+    func testExportGroupsAreSortedByDescendingNodeCount() {
+        let hongKongOne = ProxyNode(
+            kind: .shadowsocks, name: "🇭🇰 香港 01", server: "hk-one.example", port: 8388,
+            cipher: "aes-256-gcm", password: "one", rawURI: "ss://one"
+        )
+        let hongKongTwo = ProxyNode(
+            kind: .shadowsocks, name: "🇭🇰 香港 02", server: "hk-two.example", port: 8388,
+            cipher: "aes-256-gcm", password: "two", rawURI: "ss://two"
+        )
+        let japan = ProxyNode(
+            kind: .trojan, name: "🇯🇵 日本 01", server: "jp.example", port: 443,
+            password: "three", rawURI: "trojan://three"
+        )
+
+        let countries = NodeExportGroupBuilder.countryGroups(
+            nodes: [japan, hongKongOne, hongKongTwo],
+            countryCodes: [:]
+        )
+        XCTAssertEqual(countries.map(\.code), ["HK", "JP"])
+        XCTAssertEqual(countries.map { $0.nodes.count }, [2, 1])
+
+        let protocols = NodeExportGroupBuilder.protocolGroups(
+            nodes: [japan, hongKongOne, hongKongTwo]
+        )
+        XCTAssertEqual(protocols.map(\.kind), [.shadowsocks, .trojan])
+        XCTAssertEqual(protocols.map { $0.nodes.count }, [2, 1])
+    }
+
+    func testExportGroupSelectionStateDistinguishesNonePartialAndAll() {
+        let none = NodeExportGroupSelectionState(includedCount: 0, totalCount: 3)
+        let partial = NodeExportGroupSelectionState(includedCount: 1, totalCount: 3)
+        let all = NodeExportGroupSelectionState(includedCount: 3, totalCount: 3)
+
+        XCTAssertEqual(none, .none)
+        XCTAssertEqual(partial, .partial)
+        XCTAssertEqual(all, .all)
+        XCTAssertFalse(none.isMenuSelected)
+        XCTAssertTrue(
+            partial.isMenuSelected,
+            "地区或协议里只要还有一个启用节点，筛选菜单就应保留勾选"
+        )
+        XCTAssertTrue(all.isMenuSelected)
+    }
+
+    func testExportFilterKeepsRegionAndProtocolGroupSelectorsVisible() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -796,11 +979,21 @@ final class SubscriptionInteractionTests: XCTestCase {
         XCTAssertTrue(source.contains("LazyVGrid(columns: filterColumns"))
         XCTAssertFalse(
             source.contains("ScrollView(.horizontal)"),
-            "四个节点筛选项必须同时可见，不能把自有节点隐藏在横向滚动区域"
+            "地区和协议必须同时可见"
         )
-        for filter in ["countryFilter", "protocolFilter", "sourceFilter", "localFilter"] {
+        for filter in ["countryFilter", "protocolFilter"] {
             XCTAssertTrue(source.contains(filter), "缺少筛选项：\(filter)")
         }
+        XCTAssertFalse(source.contains("private var sourceFilter"))
+        XCTAssertFalse(source.contains("private var localFilter"))
+        XCTAssertFalse(source.contains("Picker(\"国家地区\", selection: $countryCode)"))
+        XCTAssertFalse(source.contains("Picker(\"协议\", selection: $kind)"))
+        XCTAssertTrue(source.contains("exportGroupSelectionToggle("))
+        XCTAssertTrue(source.contains("title: String(localized: \"全部地区\")"))
+        XCTAssertTrue(source.contains("title: String(localized: \"全部协议\")"))
+        XCTAssertTrue(source.contains("model.setNodes(nodes, included: shouldInclude)"))
+        XCTAssertTrue(source.contains("NodeExportGroupBuilder.countryGroups"))
+        XCTAssertTrue(source.contains("NodeExportGroupBuilder.protocolGroups"))
 
         // Still one bulk action, now taking the already-filtered list instead of
         // recomputing it: the filter used to run five times per redraw, once per
@@ -814,5 +1007,140 @@ final class SubscriptionInteractionTests: XCTestCase {
         #else
         throw XCTSkip("该测试检查节点筛选页面结构，只在模拟器构建环境运行")
         #endif
+    }
+
+    func testBatchManagementRemovesManualSortingAndKeepsOnlyTopUpdate() throws {
+        #if targetEnvironment(simulator)
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let management = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(management.contains("ToolbarItem(placement: .topBarTrailing)"))
+        XCTAssertTrue(management.contains("SubscriptionRefreshToolbarButton(sources: subscriptionsToRefresh)"))
+        XCTAssertFalse(management.contains("EditMode"))
+        XCTAssertFalse(management.contains(".onMove("))
+        XCTAssertFalse(management.contains("\"排序\""))
+        #else
+        throw XCTSkip("该测试检查批量管理页面结构，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testBatchManagementShowsNotificationsInItsCurrentNavigationLayer() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains(".towerToast()"),
+            "批量管理页必须在当前导航层承载通知，否则通知会被页面盖住，直到返回首页才显示"
+        )
+        XCTAssertTrue(
+            source.contains(".subscriptionRefreshReport()"),
+            "部分更新失败的报告也必须显示在当前批量管理页面"
+        )
+        #else
+        throw XCTSkip("该测试检查批量管理页的通知层，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testBatchRefreshProgressIsScopedToToolbarInsteadOfInvalidatingNodeList() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let rootEnd = try XCTUnwrap(source.range(of: "private struct SubscriptionRefreshToolbarButton"))
+        let rootSource = String(source[..<rootEnd.lowerBound])
+        let buttonSource = String(source[rootEnd.lowerBound...])
+
+        XCTAssertFalse(
+            rootSource.contains("@State private var isRefreshing"),
+            "更新进度状态放在整页会让千节点筛选列表跟着每次动画重算"
+        )
+        XCTAssertTrue(buttonSource.contains("@State private var isRefreshing"))
+        XCTAssertTrue(buttonSource.contains("ProgressView()"))
+        XCTAssertTrue(buttonSource.contains("isRefreshing = true"))
+        XCTAssertTrue(buttonSource.contains("await model.refreshSubscriptions(sources)"))
+        #else
+        throw XCTSkip("该测试检查批量更新按钮的状态范围，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testBatchManagementPlacesSelectAllBesideEachManagedSection() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("private var subscriptionSectionHeader"))
+        XCTAssertTrue(source.contains("private var localNodeSectionHeader"))
+        XCTAssertTrue(source.contains("selectAllVisibleSubscriptions"))
+        XCTAssertTrue(source.contains("selectAllVisibleLocalNodes"))
+        XCTAssertGreaterThanOrEqual(source.components(separatedBy: "Button(\"全选\")").count - 1, 2)
+        #else
+        throw XCTSkip("该测试检查分区全选按钮，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testHomeAndManagementListsUseStableEnabledFirstOrdering() throws {
+        #if targetEnvironment(simulator)
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let home = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift"),
+            encoding: .utf8
+        )
+        let management = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift"),
+            encoding: .utf8
+        )
+        let nodeFilter = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/NodeFilterView.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertGreaterThanOrEqual(home.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
+        XCTAssertGreaterThanOrEqual(management.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
+        XCTAssertTrue(nodeFilter.contains("EnabledFirstOrdering.apply"))
+        XCTAssertTrue(management.contains("values.filter(isEnabled) + values.filter { !isEnabled($0) }"))
+        XCTAssertFalse(home.contains("onMoveUp"))
+        XCTAssertFalse(home.contains("onMoveDown"))
+        #else
+        throw XCTSkip("该测试检查启用优先排序，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testNodeFilterShowsOnlyEnabledOverTotalCount() throws {
+        #if targetEnvironment(simulator)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Tower/Features/Subscriptions/NodeFilterView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("Text(\"节点 · \\(includedFilteredNodeCount) / \\(filteredNodes.count)\")"))
+        XCTAssertFalse(source.contains("Text(\"节点 · \\(filteredNodes.count)\")"))
+        XCTAssertFalse(source.contains("Text(verbatim: \"\\(String(localized: \\\"已启用\\\"))"))
+        #else
+        throw XCTSkip("该测试检查节点数量展示，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testEnabledFirstOrderingKeepsRelativeOrderWithinEachState() {
+        let values = [1, 2, 3, 4, 5]
+
+        let displayed = EnabledFirstOrdering.apply(values) { $0.isMultiple(of: 2) }
+
+        XCTAssertEqual(displayed, [2, 4, 1, 3, 5])
     }
 }

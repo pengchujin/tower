@@ -27,16 +27,107 @@ struct NodeFilterCriteria: Equatable {
     }
 }
 
+struct CountryNodeExportGroup: Identifiable {
+    let code: String
+    let title: String
+    let nodes: [ProxyNode]
+
+    var id: String { code }
+}
+
+struct ProtocolNodeExportGroup: Identifiable {
+    let kind: ProxyKind
+    let nodes: [ProxyNode]
+
+    var id: ProxyKind { kind }
+}
+
+enum NodeExportGroupBuilder {
+    static func countryGroups(
+        nodes: [ProxyNode],
+        countryCodes: [UUID: String]
+    ) -> [CountryNodeExportGroup] {
+        var groupedNodes: [String: [ProxyNode]] = [:]
+        for node in nodes {
+            guard let code = (
+                NodeRegionResolver.countryCode(for: node) ?? countryCodes[node.id]
+            )?.uppercased() else { continue }
+            groupedNodes[code, default: []].append(node)
+        }
+
+        return groupedNodes.map { code, nodes in
+            CountryNodeExportGroup(
+                code: code,
+                title: AppLocalization.regionName(for: code),
+                nodes: nodes
+            )
+        }.sorted { lhs, rhs in
+            if lhs.nodes.count != rhs.nodes.count {
+                return lhs.nodes.count > rhs.nodes.count
+            }
+            return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+        }
+    }
+
+    static func protocolGroups(nodes: [ProxyNode]) -> [ProtocolNodeExportGroup] {
+        Dictionary(grouping: nodes, by: \.kind)
+            .map { ProtocolNodeExportGroup(kind: $0.key, nodes: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.nodes.count != rhs.nodes.count {
+                    return lhs.nodes.count > rhs.nodes.count
+                }
+                return lhs.kind.title.localizedStandardCompare(rhs.kind.title) == .orderedAscending
+            }
+    }
+}
+
+enum NodeExportGroupSelectionState: Equatable {
+    case none
+    case partial
+    case all
+
+    init(includedCount: Int, totalCount: Int) {
+        if totalCount > 0, includedCount >= totalCount {
+            self = .all
+        } else if includedCount > 0 {
+            self = .partial
+        } else {
+            self = .none
+        }
+    }
+
+    /// A group remains selected while it still contributes at least one node.
+    /// The count beside a partial group communicates the exceptions; removing
+    /// the checkmark as soon as one child is disabled incorrectly reads as if
+    /// the entire country or protocol were excluded.
+    var isMenuSelected: Bool {
+        self != .none
+    }
+}
+
 struct NodeFilterView: View {
+    let initialFocus: NodeFilterRoute
+    @State private var searchText = ""
+
+    var body: some View {
+        List {
+            NodeFilterSections(searchText: $searchText)
+        }
+        .navigationTitle(initialFocus == .regions
+            ? String(localized: "覆盖地区")
+            : String(localized: "节点筛选"))
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "搜索节点、服务器或来源")
+        .scrollDismissesKeyboard(.interactively)
+        .accessibilityIdentifier("node-filter-list")
+    }
+}
+
+struct NodeFilterSections: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    let initialFocus: NodeFilterRoute
 
-    @State private var searchText = ""
-    @State private var countryCode: String?
-    @State private var kind: ProxyKind?
-    @State private var sourceID: UUID?
-    @State private var localOnly = false
+    @Binding var searchText: String
 
     var body: some View {
         // Filtering used to run once for the rows, once for the empty check,
@@ -45,16 +136,19 @@ struct NodeFilterView: View {
         // display name and running four case-insensitive searches, on every
         // keystroke in the search field.
         let filteredNodes = self.filteredNodes
+        let displayedNodes = EnabledFirstOrdering.apply(
+            filteredNodes,
+            isEnabled: model.isNodeIncluded
+        )
+        let includedFilteredNodeCount = filteredNodes.lazy.filter(model.isNodeIncluded).count
         let allFilteredNodesIncluded = !filteredNodes.isEmpty
             && filteredNodes.allSatisfy(model.isNodeIncluded)
 
-        return List {
+        return Group {
             Section {
                 LazyVGrid(columns: filterColumns, spacing: 9) {
                     countryFilter
                     protocolFilter
-                    sourceFilter
-                    localFilter
                 }
                 .padding(.vertical, 2)
                 .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
@@ -69,13 +163,14 @@ struct NodeFilterView: View {
                     ContentUnavailableView.search(text: searchText)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(filteredNodes) { node in
+                    ForEach(displayedNodes) { node in
                         nodeRow(node)
                     }
                 }
             } header: {
                 HStack(spacing: 12) {
-                    Text("节点 · \(filteredNodes.count)")
+                    Text("节点 · \(includedFilteredNodeCount) / \(filteredNodes.count)")
+                        .contentTransition(.numericText())
                     Spacer()
                     bulkSelectionButton(
                         filteredNodes: filteredNodes,
@@ -85,28 +180,14 @@ struct NodeFilterView: View {
                 .textCase(nil)
             }
         }
-        .navigationTitle(initialFocus == .regions
-            ? String(localized: "覆盖地区")
-            : String(localized: "节点筛选"))
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "搜索节点、服务器或来源")
-        .scrollDismissesKeyboard(.interactively)
         .task(id: resolutionTaskID) {
             await model.resolveIPCountries(for: model.availableNodes)
         }
-        .accessibilityIdentifier("node-filter-list")
     }
 
     private var filteredNodes: [ProxyNode] {
-        let criteria = NodeFilterCriteria(
-            countryCode: countryCode,
-            kind: kind,
-            sourceID: sourceID,
-            localOnly: localOnly
-        )
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return model.availableNodes.filter { node in
-            guard criteria.matches(node, countryCodes: model.nodeIPCountryCodes) else { return false }
             guard !query.isEmpty else { return true }
             let presentedNode = model.nodeForPresentation(node)
             return [
@@ -145,37 +226,32 @@ struct NodeFilterView: View {
         .accessibilityIdentifier("toggle-all-filtered-nodes")
     }
 
-    private var countryOptions: [(code: String, name: String)] {
-        let codes = Set(model.availableNodes.compactMap { node in
-            model.countryCode(for: node)
-        })
-        return codes.map { code in
-            (code.uppercased(), AppLocalization.regionName(for: code))
-        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    private var countryOptions: [CountryNodeExportGroup] {
+        NodeExportGroupBuilder.countryGroups(
+            nodes: model.availableNodes,
+            countryCodes: model.nodeIPCountryCodes
+        )
     }
 
-    private var protocolOptions: [ProxyKind] {
-        Set(model.availableNodes.map(\.kind)).sorted { $0.title < $1.title }
-    }
-
-    private var sourceOptions: [SubscriptionSource] {
-        model.subscriptions.filter { source in
-            source.isEnabled && model.availableNodes.contains { $0.sourceID == source.id }
-        }
+    private var protocolOptions: [ProtocolNodeExportGroup] {
+        NodeExportGroupBuilder.protocolGroups(nodes: model.availableNodes)
     }
 
     private var countryFilter: some View {
         Menu {
-            Button("全部地区") { countryCode = nil }
-            ForEach(countryOptions, id: \.code) { option in
-                Button(option.name) { countryCode = option.code }
+            exportGroupSelectionToggle(
+                title: String(localized: "全部地区"),
+                nodes: model.availableNodes
+            )
+            Divider()
+            ForEach(countryOptions) { option in
+                exportGroupSelectionToggle(title: option.title, nodes: option.nodes)
             }
         } label: {
             FilterChip(
-                title: countryCode.flatMap { code in countryOptions.first { $0.code == code }?.name }
-                    ?? String(localized: "国家地区"),
+                title: String(localized: "国家地区"),
                 symbol: "globe.asia.australia",
-                isActive: countryCode != nil
+                isActive: false
             )
         }
         .frame(maxWidth: .infinity)
@@ -183,52 +259,62 @@ struct NodeFilterView: View {
 
     private var protocolFilter: some View {
         Menu {
-            Button("全部协议") { kind = nil }
-            ForEach(protocolOptions, id: \.self) { option in
-                Button { kind = option } label: {
-                    Label {
-                        Text(option.title)
-                    } icon: {
-                        ProtocolMenuIcon(kind: option)
-                    }
+            exportGroupSelectionToggle(
+                title: String(localized: "全部协议"),
+                nodes: model.availableNodes
+            )
+            Divider()
+            ForEach(protocolOptions) { group in
+                let option = group.kind
+                exportGroupSelectionToggle(
+                    title: option.title,
+                    nodes: group.nodes,
+                    kind: option
+                )
+            }
+        } label: {
+            FilterChip(
+                title: String(localized: "协议"),
+                kind: nil,
+                isActive: false
+            )
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func exportGroupSelectionToggle(
+        title: String,
+        nodes: [ProxyNode],
+        kind: ProxyKind? = nil
+    ) -> some View {
+        let includedCount = nodes.lazy.filter(model.isNodeIncluded).count
+        let selectionState = NodeExportGroupSelectionState(
+            includedCount: includedCount,
+            totalCount: nodes.count
+        )
+        let countSummary = selectionState == .partial
+            ? "\(includedCount)/\(nodes.count)"
+            : "\(nodes.count)"
+
+        return Toggle(
+            isOn: Binding(
+                get: { selectionState.isMenuSelected },
+                set: { shouldInclude in
+                    model.setNodes(nodes, included: shouldInclude)
                 }
-            }
-        } label: {
-            FilterChip(
-                title: kind?.title ?? String(localized: "协议"),
-                kind: kind,
-                isActive: kind != nil
             )
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var sourceFilter: some View {
-        Menu {
-            Button("全部订阅来源") { sourceID = nil }
-            ForEach(sourceOptions) { source in
-                Button(source.name) { sourceID = source.id }
+        ) {
+            if let option = kind {
+                Label {
+                    Text("\(title) · \(countSummary)")
+                } icon: {
+                    ProtocolMenuIcon(kind: option)
+                }
+            } else {
+                Text("\(title) · \(countSummary)")
             }
-        } label: {
-            FilterChip(
-                title: sourceID.flatMap { id in sourceOptions.first { $0.id == id }?.name }
-                    ?? String(localized: "订阅来源"),
-                symbol: "cloud",
-                isActive: sourceID != nil
-            )
         }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var localFilter: some View {
-        Button {
-            localOnly.toggle()
-            if localOnly { sourceID = nil }
-        } label: {
-            FilterChip(title: String(localized: "自有节点"), symbol: "house", isActive: localOnly)
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+        .disabled(nodes.isEmpty)
     }
 
     private func nodeRow(_ node: ProxyNode) -> some View {
@@ -253,12 +339,15 @@ struct NodeFilterView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
+                Text(included ? "已启用" : "已停用")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(included ? Color.accentColor : Color.secondary)
                 SelectionIndicator(isSelected: included)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityValue(included ? String(localized: "会导出") : String(localized: "不导出"))
+        .accessibilityValue(included ? String(localized: "已启用") : String(localized: "已停用"))
     }
 
     private var resolutionTaskID: Int {

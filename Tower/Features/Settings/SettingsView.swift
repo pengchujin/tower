@@ -14,9 +14,8 @@ struct SettingsView: View {
                     openLANSharing()
                     dismiss()
                 }
-                CloudSyncCard()
-                SecurityAndSourceLink()
-                ResetAllConfigurationCard(configurationNameDraft: $configurationNameDraft)
+                ConfigurationManagementCard(configurationNameDraft: $configurationNameDraft)
+                SettingsFooter()
             }
             .padding(.horizontal, TowerTheme.pagePadding)
             .padding(.top, 12)
@@ -27,60 +26,72 @@ struct SettingsView: View {
     }
 }
 
-/// Reset is intentionally the last setting and requires a stable alert.
+/// iCloud and reset both decide where Tower's configuration lives.
+///
+/// Keeping them inside one card makes that relationship visible without
+/// weakening the destructive confirmation around a local reset.
+private struct ConfigurationManagementCard: View {
+    @Binding var configurationNameDraft: ConfigurationNameDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "配置管理")
+
+            VStack(alignment: .leading, spacing: 13) {
+                CloudSyncControls()
+
+                Divider()
+
+                ResetAllConfigurationRow(configurationNameDraft: $configurationNameDraft)
+            }
+            .padding(17)
+            .towerCard()
+        }
+    }
+}
+
+/// Reset remains a stable row with a centered alert.
 ///
 /// A destructive confirmation dialog anchored to a scrolling row can appear
 /// to drift on iPad. An alert stays centered and gives the consequences enough
 /// room to remain readable on every device size.
-private struct ResetAllConfigurationCard: View {
+private struct ResetAllConfigurationRow: View {
     @Environment(AppModel.self) private var model
     @Binding var configurationNameDraft: ConfigurationNameDraft
     @State private var isConfirmingReset = false
     @State private var isResetting = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "重置", detail: String(localized: "不可撤销"))
+        Button(role: .destructive) {
+            isConfirmingReset = true
+        } label: {
+            HStack(spacing: 13) {
+                SettingsIconTile(symbol: "arrow.counterclockwise.circle.fill", color: .red)
 
-            Button(role: .destructive) {
-                isConfirmingReset = true
-            } label: {
-                HStack(spacing: 13) {
-                    Image(systemName: "arrow.counterclockwise.circle.fill")
-                        .font(.system(size: 24, weight: .semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("重置所有配置")
+                        .font(.headline)
                         .foregroundStyle(.red)
-                        .frame(width: 48, height: 48)
-                        .background(
-                            Color.red.opacity(0.1),
-                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        )
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("重置所有配置")
-                            .font(.headline)
-                            .foregroundStyle(.red)
-                        Text("删除订阅、节点和这台设备上的设置")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if isResetting {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
+                    Text("删除订阅、节点和这台设备上的设置")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(16)
-                .contentShape(Rectangle())
-                .towerCard()
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if isResetting {
+                    ProgressView()
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .buttonStyle(ResponsivePressButtonStyle())
-            .disabled(model.isCloudSyncing || isResetting)
-            .accessibilityIdentifier("reset-all-configuration")
+            .frame(minHeight: 48)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .disabled(model.isCloudSyncing || isResetting)
+        .accessibilityIdentifier("reset-all-configuration")
         .alert("重置所有配置？", isPresented: $isConfirmingReset) {
             Button("重置所有配置", role: .destructive) {
                 isResetting = true
@@ -130,7 +141,7 @@ private struct AutoRefreshSection: View {
 /// on is the one action that changes that, so the card says what actually
 /// happens rather than "sync your settings" — the user is agreeing to put
 /// subscription URLs and node passwords in their iCloud account.
-private struct CloudSyncCard: View {
+private struct CloudSyncControls: View {
     @Environment(AppModel.self) private var model
     @State private var isConfirming = false
     @State private var isConfirmingDisable = false
@@ -152,56 +163,51 @@ private struct CloudSyncCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "iCloud 同步", detail: String(localized: "默认关闭"))
-            VStack(alignment: .leading, spacing: 13) {
-                Toggle(isOn: binding) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("同步到我的 iCloud")
-                            .font(.subheadline.weight(.semibold))
-                        Text(statusText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(alignment: .leading, spacing: 13) {
+            Toggle(isOn: binding) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("同步到我的 iCloud")
+                        .font(.subheadline.weight(.semibold))
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(model.isCloudSyncing)
+
+            if model.iCloudSyncEnabled {
+                Divider()
+                Button {
+                    Task { await model.synchronizeWithCloud(showResult: true) }
+                } label: {
+                    Label(
+                        model.isCloudSyncing ? "正在同步…" : "立即同步",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                    .font(.subheadline.weight(.semibold))
                 }
                 .disabled(model.isCloudSyncing)
-
-                if model.iCloudSyncEnabled {
-                    Divider()
-                    Button {
-                        Task { await model.synchronizeWithCloud(showResult: true) }
-                    } label: {
-                        Label(
-                            model.isCloudSyncing ? "正在同步…" : "立即同步",
-                            systemImage: "arrow.triangle.2.circlepath"
-                        )
-                        .font(.subheadline.weight(.semibold))
-                    }
-                    .disabled(model.isCloudSyncing)
-                }
-
-                if !model.iCloudSyncEnabled {
-                    Divider()
-                    Button(role: .destructive) {
-                        Task { await model.removeCloudSnapshot() }
-                    } label: {
-                        Label("删除 iCloud 上的副本", systemImage: "trash")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .accessibilityIdentifier("remove-cloud-snapshot")
-                }
-
-                Divider()
-                Label(
-                    "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
-                    systemImage: "info.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(17)
-            .towerCard()
+
+            if !model.iCloudSyncEnabled {
+                Divider()
+                Button(role: .destructive) {
+                    Task { await model.removeCloudSnapshot() }
+                } label: {
+                    Label("删除 iCloud 上的副本", systemImage: "trash")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .accessibilityIdentifier("remove-cloud-snapshot")
+            }
+
+            Divider()
+            Label(
+                "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
+                systemImage: "info.circle"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .alert("开启 iCloud 同步？", isPresented: $isConfirming) {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }
@@ -237,49 +243,37 @@ private struct CloudSyncCard: View {
     }
 }
 
-/// The first-launch promises, kept somewhere permanent.
-///
-/// That page is shown once and then never again, so the claims it makes about
-/// where a subscription goes would otherwise be unreadable the moment someone
-/// wants to check them. Settings carries one quiet row instead of a fifth
-/// full-width card: this is reference material, not a setting anyone acts on
-/// every visit, and the page behind it holds the same four rows.
-private struct SecurityAndSourceLink: View {
-    var body: some View {
-        NavigationLink {
-            SecurityAndSourceView()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 26, height: 26)
-                    .background(
-                        Color.accentColor.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    )
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("安全与开源")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text("全部在这台设备上处理")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 8)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .contentShape(Rectangle())
-            .towerCard()
+/// Reference information belongs at the end of the page, below every setting.
+/// It remains reachable without looking like another configuration control.
+private struct SettingsFooter: View {
+    private var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        guard let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+              !build.isEmpty else {
+            return version
         }
-        .buttonStyle(ResponsivePressButtonStyle())
+        return "\(version) (\(build))"
+    }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            NavigationLink {
+                SecurityAndSourceView()
+            } label: {
+                Text("安全与开源")
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("security-and-source-link")
+
+            Text(verbatim: "·")
+            Text("版本 \(versionText)")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+        .padding(.bottom, 6)
     }
 }
 

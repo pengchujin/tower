@@ -107,18 +107,13 @@ extension View {
 private struct ToastOverlay: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var presentedToast: ToastMessage?
 
     var body: some View {
-        // A container so the animation below has something stable to attach to.
-        // `showToast` assigns straight to the model, outside any transaction, so
-        // the insertion transition never ran: every message appeared abruptly
-        // and then slid away politely, which read as a glitch rather than a
-        // deliberate two-part motion. Driving both halves from the toast's id
-        // animates the arrival, the departure, and one message replacing
-        // another, without asking every caller to remember a transaction.
         ZStack {
-            if let toast = model.toast {
+            if let toast = presentedToast {
                 ToastView(toast: toast)
+                    .id(toast.id)
                     .padding(.top, 8)
                     .transition(
                         reduceMotion
@@ -131,7 +126,14 @@ private struct ToastOverlay: View {
                     }
             }
         }
-        .animation(appearance, value: model.toast?.id)
+        .onAppear {
+            presentedToast = model.toast
+        }
+        .onChange(of: model.toast) { _, toast in
+            withAnimation(appearance) {
+                presentedToast = toast
+            }
+        }
     }
 
     private var appearance: Animation {

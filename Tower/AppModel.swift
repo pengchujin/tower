@@ -1610,6 +1610,14 @@ final class AppModel {
         refreshAllTask = nil
     }
 
+    /// Refreshes only the sources selected in the management screen while
+    /// preserving the same provider-aware queue used by pull-to-refresh.
+    func refreshSubscriptions(_ selectedSources: [SubscriptionSource]) async {
+        let selectedIDs = Set(selectedSources.map(\.id))
+        let sourceIDs = subscriptions.map(\.id).filter(selectedIDs.contains)
+        await performRefreshSubscriptions(sourceIDs: sourceIDs)
+    }
+
     /// Splits the queue into one lane per provider, preserving the order the
     /// user arranged inside each lane.
     ///
@@ -1642,6 +1650,10 @@ final class AppModel {
 
     private func performRefreshAllSubscriptions() async {
         let sourceIDs = subscriptions.map(\.id)
+        await performRefreshSubscriptions(sourceIDs: sourceIDs)
+    }
+
+    private func performRefreshSubscriptions(sourceIDs: [UUID]) async {
         guard !sourceIDs.isEmpty else { return }
 
         subscriptionRefreshReport = nil
@@ -1791,16 +1803,8 @@ final class AppModel {
         showToast(String(localized: "节点已保存在本机"), symbol: "checkmark.circle.fill")
     }
 
-    func moveSubscription(_ source: SubscriptionSource, by offset: Int) {
-        guard let sourceIndex = subscriptions.firstIndex(where: { $0.id == source.id }) else { return }
-        let destinationIndex = min(max(sourceIndex + offset, 0), subscriptions.count - 1)
-        guard destinationIndex != sourceIndex else { return }
-        let value = subscriptions.remove(at: sourceIndex)
-        subscriptions.insert(value, at: destinationIndex)
-        sortNodesToMatchSubscriptionOrder()
-        persist()
-    }
-
+    /// Keeps refreshed node groups aligned with their source order. This is
+    /// internal normalization, not a user-facing manual sorting feature.
     private func sortNodesToMatchSubscriptionOrder() {
         let sourceRanks = Dictionary(uniqueKeysWithValues: subscriptions.enumerated().map { ($1.id, $0) })
         nodes = nodes.enumerated().sorted { lhs, rhs in
@@ -1810,30 +1814,38 @@ final class AppModel {
         }.map(\.element)
     }
 
-    func moveLocalNode(_ node: ProxyNode, by offset: Int) {
-        let localIndices = nodes.indices.filter { nodes[$0].isLocal }
-        guard let localPosition = localIndices.firstIndex(where: { nodes[$0].id == node.id }) else { return }
-        let destinationPosition = min(max(localPosition + offset, 0), localIndices.count - 1)
-        guard destinationPosition != localPosition else { return }
-        nodes.swapAt(localIndices[localPosition], localIndices[destinationPosition])
-        persist()
-    }
-
-    func canMoveSubscription(_ source: SubscriptionSource, by offset: Int) -> Bool {
-        guard let index = subscriptions.firstIndex(where: { $0.id == source.id }) else { return false }
-        return subscriptions.indices.contains(index + offset)
-    }
-
-    func canMoveLocalNode(_ node: ProxyNode, by offset: Int) -> Bool {
-        let localNodes = self.localNodes
-        guard let index = localNodes.firstIndex(where: { $0.id == node.id }) else { return false }
-        return localNodes.indices.contains(index + offset)
-    }
-
     func deleteSubscription(_ source: SubscriptionSource) {
         subscriptions.removeAll { $0.id == source.id }
         let removedNodeIDs = Set(nodes.filter { $0.sourceID == source.id }.map(\.id))
         nodes.removeAll { $0.sourceID == source.id }
+        excludedNodeIDs.subtract(removedNodeIDs)
+        for id in removedNodeIDs {
+            nodeLatencies[id] = nil
+            nodeIPCountryCodes[id] = nil
+            countryResolutionCompletedNodeIDs.remove(id)
+        }
+        persist()
+        Task { [weak self] in
+            await self?.synchronizeRenewalReminders(showFailure: false)
+        }
+    }
+
+    /// Removes several saved sources and their nodes in one persistence
+    /// transaction. A management selection can contain dozens of sources, so
+    /// forwarding each row to `deleteSubscription` would rewrite the snapshot
+    /// and reschedule reminders once per item.
+    func deleteSubscriptions(_ selectedSources: [SubscriptionSource]) {
+        let savedSourceIDs = Set(subscriptions.map(\.id))
+        let selectedSourceIDs = Set(selectedSources.map(\.id)).intersection(savedSourceIDs)
+        guard !selectedSourceIDs.isEmpty else { return }
+
+        let removedNodeIDs = Set(
+            nodes.lazy
+                .filter { node in node.sourceID.map(selectedSourceIDs.contains) == true }
+                .map(\.id)
+        )
+        subscriptions.removeAll { selectedSourceIDs.contains($0.id) }
+        nodes.removeAll { node in node.sourceID.map(selectedSourceIDs.contains) == true }
         excludedNodeIDs.subtract(removedNodeIDs)
         for id in removedNodeIDs {
             nodeLatencies[id] = nil
@@ -1855,9 +1867,42 @@ final class AppModel {
         persist()
     }
 
+    /// Deletes only true local nodes, even if a caller accidentally includes a
+    /// subscription node in the selected array.
+    func deleteLocalNodes(_ selectedNodes: [ProxyNode]) {
+        let localNodeIDs = Set(nodes.lazy.filter(\.isLocal).map(\.id))
+        let selectedNodeIDs = Set(selectedNodes.map(\.id)).intersection(localNodeIDs)
+        guard !selectedNodeIDs.isEmpty else { return }
+
+        nodes.removeAll { selectedNodeIDs.contains($0.id) }
+        excludedNodeIDs.subtract(selectedNodeIDs)
+        for id in selectedNodeIDs {
+            nodeLatencies[id] = nil
+            nodeIPCountryCodes[id] = nil
+            countryResolutionCompletedNodeIDs.remove(id)
+        }
+        persist()
+    }
+
     func setSubscription(_ source: SubscriptionSource, enabled: Bool) {
         guard let index = subscriptions.firstIndex(where: { $0.id == source.id }) else { return }
         subscriptions[index].isEnabled = enabled
+        persist()
+    }
+
+    /// Applies one enabled state to a management selection and saves once.
+    func setSubscriptions(_ selectedSources: [SubscriptionSource], enabled: Bool) {
+        let selectedSourceIDs = Set(selectedSources.map(\.id))
+        guard !selectedSourceIDs.isEmpty else { return }
+
+        var changed = false
+        for index in subscriptions.indices
+        where selectedSourceIDs.contains(subscriptions[index].id)
+            && subscriptions[index].isEnabled != enabled {
+            subscriptions[index].isEnabled = enabled
+            changed = true
+        }
+        guard changed else { return }
         persist()
     }
 

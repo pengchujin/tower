@@ -108,4 +108,24 @@ final class MotionDesignTests: XCTestCase {
             )
         }
     }
+
+    func testToastPresentationUsesAnExplicitAnimatedState() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("Tower/TowerApp.swift"),
+            encoding: .utf8
+        )
+        let overlayStart = try XCTUnwrap(source.range(of: "private struct ToastOverlay: View"))
+        let overlaySource = String(source[overlayStart.lowerBound...])
+
+        XCTAssertTrue(overlaySource.contains("@State private var presentedToast"))
+        XCTAssertTrue(overlaySource.contains(".onChange(of: model.toast)"))
+        XCTAssertTrue(overlaySource.contains("withAnimation(appearance)"))
+        XCTAssertFalse(
+            overlaySource.contains(".animation(appearance, value: model.toast?.id)"),
+            "只依赖模型值的隐式动画会让异步更新通知直接跳到最终状态"
+        )
+    }
 }
