@@ -482,6 +482,18 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 
 真机未验证：各客户端对新 DNS 段的接受情况，尤其 Surge 的 `encrypted-dns-server` 和 Clash 的 fake-ip 是否影响节点连通。
 
+### DNS 保护档位（2026-08-28）
+
+规则方案的“DNS 与网络”页新增三档保护，保存在当前 `RuleScheme` 的本地定制中，不修改订阅、上游规则文件或其他规则方案。旧存档没有该字段时迁移为“标准保护”，所以升级不会改变既有输出。
+
+| 档位 | 生成行为 |
+| --- | --- |
+| 跟随方案 | 保留用户填写的普通／加密 DNS，不额外启用 Clash Fake-IP、fallback 或 DNS 接管 |
+| 标准保护 | 保持此前的默认输出：加密 DNS、Fake-IP、节点域名专用解析与 `no-resolve` |
+| 严格保护 | 在标准保护上，仅为已确认支持的 Clash 增加 TUN `dns-hijack` / `strict-route`，并为 Surge 增加 `hijack-dns = *:53` / `encrypted-dns-follow-outbound-mode = true` |
+
+严格保护没有推广到 Stash、Shadowrocket 或其他客户端，因为这些客户端的等价字段和副作用尚未逐项验证。它可能影响局域网、公共网络认证，以及服务器地址本身是域名的代理节点；界面会在选择时显示风险提示。
+
 ## 1.8 Mac 上的局域网共享（2026-08-12，未验证）
 
 塔台当时以 "Designed for iPhone" 出现在 Apple 芯片 Mac 上。工程现已恢复 iPhone + iPad 通用支持（`TARGETED_DEVICE_FAMILY = "1,2"`），Mac 可用性仍是 App Store Connect 里的单独开关。用户曾报告：Mac 上装得上，但局域网共享给出的链接打不开。

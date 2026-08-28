@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import Tower
 
@@ -13,6 +14,220 @@ final class RuleCustomizationTests: XCTestCase {
             rawURI: "ss://demo"
         )
     ]
+
+    func testNetworkCustomizationOverridesImportedDNSWithoutChangingSource() {
+        var scheme = makeScheme()
+        let imported = RuleSchemeNetworkSettings(
+            ipv6Enabled: false,
+            dnsServers: ["9.9.9.9"],
+            encryptedDNSServers: ["https://dns.quad9.net/dns-query"],
+            proxyTestURLString: "https://example.com/generate_204"
+        )
+        let customizedSettings = RuleSchemeNetworkSettings(
+            ipv6Enabled: true,
+            dnsServers: ["1.1.1.1"],
+            encryptedDNSServers: ["https://cloudflare-dns.com/dns-query"],
+            proxyTestURLString: "https://cp.cloudflare.com/generate_204"
+        )
+        scheme.networkSettings = imported
+        let customization = RuleSchemeCustomization(
+            schemeID: scheme.id,
+            networkSettingsOverride: customizedSettings,
+            overridesNetworkSettings: true
+        )
+
+        let result = scheme.customized(
+            enabledRuleGroupNames: nil,
+            customRuleFlows: [],
+            groupCustomization: customization
+        )
+
+        XCTAssertEqual(result.networkSettings, customizedSettings)
+        XCTAssertEqual(scheme.networkSettings, imported, "上游方案本身不应被可视化设置改写")
+    }
+
+    func testNetworkCustomizationCanUseTowerDefaultsInsteadOfImportedDNS() {
+        var scheme = makeScheme()
+        scheme.networkSettings = RuleSchemeNetworkSettings(
+            dnsServers: ["9.9.9.9"],
+            encryptedDNSServers: ["https://dns.quad9.net/dns-query"]
+        )
+        let customization = RuleSchemeCustomization(
+            schemeID: scheme.id,
+            networkSettingsOverride: nil,
+            overridesNetworkSettings: true
+        )
+
+        let result = scheme.customized(
+            enabledRuleGroupNames: nil,
+            customRuleFlows: [],
+            groupCustomization: customization
+        )
+
+        XCTAssertNil(result.networkSettings, "nil 要明确表示恢复塔台的内置 DNS")
+    }
+
+    func testDNSDraftStartsFromTowerDefaultsAndBuildsTrimmedSettings() throws {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+        XCTAssertEqual(draft.dnsServers, ["223.5.5.5", "119.29.29.29"])
+        XCTAssertEqual(
+            draft.encryptedDNSServers,
+            ["https://223.5.5.5/dns-query", "https://doh.pub/dns-query"]
+        )
+
+        draft.dnsServers = [" 1.1.1.1 ", "1.0.0.1"]
+        draft.encryptedDNSServers = [" https://cloudflare-dns.com/dns-query "]
+
+        let settings = try draft.validatedSettings()
+
+        XCTAssertEqual(settings.dnsServers, ["1.1.1.1", "1.0.0.1"])
+        XCTAssertEqual(
+            settings.encryptedDNSServers,
+            ["https://cloudflare-dns.com/dns-query"]
+        )
+    }
+
+    func testDNSDraftRejectsPlaintextValueInEncryptedDNSField() {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+        draft.encryptedDNSServers = ["8.8.8.8"]
+
+        XCTAssertThrowsError(try draft.validatedSettings())
+    }
+
+    func testLegacyDNSSettingsDecodeAsStandardProtection() throws {
+        let legacy = """
+        {
+          "ipv6Enabled": true,
+          "dnsServers": ["1.1.1.1"],
+          "encryptedDNSServers": ["https://cloudflare-dns.com/dns-query"],
+          "proxyTestURLString": "https://cp.cloudflare.com/generate_204"
+        }
+        """
+
+        let settings = try JSONDecoder().decode(
+            RuleSchemeNetworkSettings.self,
+            from: Data(legacy.utf8)
+        )
+
+        XCTAssertEqual(settings.dnsProtectionMode, .standard)
+    }
+
+    func testDNSDraftPreservesStrictProtectionSelection() throws {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+        draft.dnsProtectionMode = .strict
+
+        let settings = try draft.validatedSettings()
+
+        XCTAssertEqual(settings.dnsProtectionMode, .strict)
+    }
+
+    func testLatencyTestPresetsOfferSeveralDistinctHTTPProbes() throws {
+        let presets = RuleSchemeLatencyTestPreset.selectableCases
+
+        XCTAssertEqual(presets.count, 4)
+        XCTAssertEqual(Set(presets.compactMap(\.urlString)).count, presets.count)
+        for preset in presets {
+            let url = try XCTUnwrap(preset.urlString.flatMap(URL.init(string:)))
+            XCTAssertTrue(["http", "https"].contains(url.scheme?.lowercased() ?? ""))
+            XCTAssertNotNil(url.host)
+        }
+    }
+
+    func testLatencyTestMenuChoicesExposeBrandLogosAndCustomEntry() {
+        let choices = RuleSchemeLatencyTestPreset.menuChoices
+
+        XCTAssertEqual(choices, [.google, .cloudflare, .apple, .microsoft, .custom])
+        XCTAssertEqual(
+            choices.map(\.brandLogo),
+            [.google, .cloudflare, .apple, .microsoft, .custom]
+        )
+        XCTAssertEqual(Set(choices.map(\.brandLogo)).count, choices.count)
+    }
+
+    func testLatencyTestMenuUsesConsistentNetworkCheckNames() {
+        XCTAssertEqual(
+            RuleSchemeLatencyTestPreset.menuChoices.map(\.title),
+            [
+                "Google 网络检查",
+                "Cloudflare 网络检查",
+                "Apple 网络检查",
+                "Microsoft 网络检查",
+                "自定义网络检查",
+            ]
+        )
+    }
+
+    func testLatencyTestBrandLogosLoadColorAssets() {
+        let assetNames = RuleSchemeLatencyTestPreset.menuChoices.map {
+            $0.brandLogo.assetName
+        }
+
+        XCTAssertEqual(
+            assetNames,
+            [
+                "LatencyGoogle",
+                "LatencyCloudflare",
+                "LatencyApple",
+                "LatencyMicrosoft",
+                "LatencyCustom",
+            ]
+        )
+        for assetName in assetNames {
+            XCTAssertNotNil(UIImage(named: assetName), "\(assetName) 未打进资源包")
+        }
+    }
+
+    func testLatencyTestAddressValidationRequiresCompleteHTTPURL() {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+
+        draft.proxyTestURLString = "example.com/generate_204"
+        XCTAssertEqual(
+            draft.latencyTestURLValidationError,
+            .invalidTestURL("example.com/generate_204")
+        )
+
+        draft.proxyTestURLString = "ftp://example.com/generate_204"
+        XCTAssertEqual(
+            draft.latencyTestURLValidationError,
+            .invalidTestURL("ftp://example.com/generate_204")
+        )
+
+        draft.proxyTestURLString = " https://example.com/generate_204 "
+        XCTAssertNil(draft.latencyTestURLValidationError)
+    }
+
+    func testLatencyTestPresetRecognizesBuiltInAndCustomAddresses() {
+        XCTAssertEqual(
+            RuleSchemeLatencyTestPreset.selection(
+                for: "http://www.gstatic.com/generate_204"
+            ),
+            .google
+        )
+        XCTAssertEqual(
+            RuleSchemeLatencyTestPreset.selection(
+                for: "https://latency.example.com/ping"
+            ),
+            .custom
+        )
+        XCTAssertNil(RuleSchemeLatencyTestPreset.custom.urlString)
+    }
+
+    func testApplyingLatencyTestPresetKeepsCustomAddressEditable() {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+
+        draft.applyLatencyTestPreset(.cloudflare)
+        XCTAssertEqual(
+            draft.proxyTestURLString,
+            RuleSchemeLatencyTestPreset.cloudflare.urlString
+        )
+
+        draft.applyLatencyTestPreset(.custom)
+        XCTAssertEqual(
+            draft.proxyTestURLString,
+            RuleSchemeLatencyTestPreset.cloudflare.urlString,
+            "切到自定义时应保留当前地址，让用户可以在此基础上编辑"
+        )
+    }
 
     func testExplicitSelectionKeepsFinalGroupAndTransitiveDependencies() {
         let scheme = makeScheme()
@@ -1109,6 +1324,59 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertEqual(reloaded.importedSchemes.first?.name, "我的分流方案")
         XCTAssertEqual(reloaded.importedSchemes.first?.localizedSummary(), "家庭设备使用")
         XCTAssertEqual(reloaded.selectedRuleGroups[scheme.id], selectedGroups)
+    }
+
+    @MainActor
+    func testSavingManualConfigurationReplacesImportedSchemeAndClearsStaleCustomization() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-manual-rule-scheme-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        let scheme = makeScheme()
+        model.importedSchemes = [scheme]
+        model.selectedPresetID = scheme.id
+        model.setRuleGroup("Overseas Media", enabled: false, for: scheme)
+
+        let source = """
+        [custom]
+        ruleset=Proxy,[]FINAL
+        custom_proxy_group=Proxy`select`[]DIRECT
+        """
+        let saved = try model.saveManualRuleSchemeConfiguration(source, for: scheme)
+
+        XCTAssertEqual(saved.id, scheme.id)
+        XCTAssertEqual(model.importedSchemes.first?.groups.map(\.name), ["Proxy"])
+        XCTAssertNil(model.selectedRuleGroups[scheme.id])
+        XCTAssertEqual(model.importedSchemes.first?.rawConfigurationText, source)
+
+        let reloaded = AppModel(
+            persistence: PersistenceStore(fileURL: fileURL),
+            arguments: []
+        )
+        XCTAssertEqual(reloaded.importedSchemes.first?.groups.map(\.name), ["Proxy"])
+        XCTAssertEqual(reloaded.importedSchemes.first?.rawConfigurationText, source)
+    }
+
+    @MainActor
+    func testSavingManualConfigurationForBundledSchemeCreatesAnEditableCopy() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-bundled-manual-rule-scheme-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        let bundled = try XCTUnwrap(model.ruleSchemes.first(where: \.isBundled))
+        let source = """
+        [custom]
+        ruleset=Proxy,[]FINAL
+        custom_proxy_group=Proxy`select`[]DIRECT
+        """
+
+        let saved = try model.saveManualRuleSchemeConfiguration(source, for: bundled)
+
+        XCTAssertNotEqual(saved.id, bundled.id)
+        XCTAssertFalse(saved.isBundled)
+        XCTAssertEqual(saved.name, "\(bundled.name) 自定义")
+        XCTAssertEqual(model.selectedPresetID, saved.id)
+        XCTAssertTrue(model.importedSchemes.contains(where: { $0.id == saved.id }))
     }
 
     @MainActor

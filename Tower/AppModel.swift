@@ -328,6 +328,39 @@ final class AppModel {
         persist()
     }
 
+    func updateRuleSchemeNetworkSettings(
+        _ settings: RuleSchemeNetworkSettings,
+        for scheme: RuleScheme
+    ) {
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        customization.networkSettingsOverride = settings
+        customization.overridesNetworkSettings = true
+        ruleSchemeCustomizations[scheme.id] = customization
+        persist()
+        showToast(
+            String(localized: "DNS 与网络设置已保存"),
+            symbol: "checkmark.circle.fill",
+            tone: .success
+        )
+    }
+
+    /// Explicitly ignores DNS fields carried by an imported rule source and
+    /// returns this scheme to the defaults built into Tower.
+    func useTowerNetworkDefaults(for scheme: RuleScheme) {
+        var customization = ruleSchemeCustomizations[scheme.id]
+            ?? RuleSchemeCustomization(schemeID: scheme.id)
+        customization.networkSettingsOverride = nil
+        customization.overridesNetworkSettings = true
+        ruleSchemeCustomizations[scheme.id] = customization
+        persist()
+        showToast(
+            String(localized: "已恢复塔台默认 DNS"),
+            symbol: "arrow.counterclockwise.circle.fill",
+            tone: .success
+        )
+    }
+
     func renameRuleGroup(named oldName: String, to requestedName: String, for scheme: RuleScheme) throws {
         let newName = requestedName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty else { throw RuleGroupRenameError.emptyName }
@@ -447,6 +480,55 @@ final class AppModel {
         }
         selectedPresetID = saved.id
         persist()
+        return saved
+    }
+
+    /// Replaces the parsed rule graph with a manually authored source file.
+    /// Bundled snapshots remain immutable: editing one creates a local copy,
+    /// while an imported/custom scheme keeps its stable identifier.
+    @discardableResult
+    func saveManualRuleSchemeConfiguration(
+        _ text: String,
+        for scheme: RuleScheme
+    ) throws -> RuleScheme {
+        let base: RuleScheme
+        if scheme.isBundled {
+            base = RuleScheme(
+                id: "custom-\(UUID().uuidString.lowercased())",
+                name: String(localized: "\(scheme.name) 自定义"),
+                summary: String(localized: "本机保存的自定义规则"),
+                groups: scheme.groups,
+                rulesets: scheme.rulesets,
+                isBundled: false
+            )
+        } else {
+            base = scheme
+        }
+
+        let saved = try RuleSchemeTextEditorService().validatedScheme(
+            from: text,
+            replacing: base
+        )
+        if let index = importedSchemes.firstIndex(where: { $0.id == saved.id }) {
+            importedSchemes[index] = saved
+        } else {
+            importedSchemes.append(saved)
+        }
+
+        selectedRuleGroups[saved.id] = nil
+        ruleSchemeCustomizations[saved.id] = nil
+        ruleGroupEmojisEnabled[saved.id] = nil
+        customRuleFlows.removeAll { $0.schemeID == saved.id }
+        selectedPresetID = saved.id
+        persist()
+        showToast(
+            String(localized: "规则配置已保存"),
+            symbol: "checkmark.circle.fill",
+            tone: .success
+        )
+        if !saved.remoteRulesetURLs.isEmpty {
+            Task { await refreshScheme(saved) }
+        }
         return saved
     }
 

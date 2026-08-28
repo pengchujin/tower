@@ -55,6 +55,7 @@ struct RuleSchemeParser {
         sourceURLString: String? = nil,
         isBundled: Bool = false
     ) throws -> RuleScheme {
+        let networkSettings = parseNetworkSettings(in: text)
         // Self-Configuration publishes a complete Clash YAML document rather
         // than a subconverter INI. Only the three sections Tower needs are
         // read: policy groups, rules and their remote providers. Nodes and DNS
@@ -66,6 +67,7 @@ struct RuleSchemeParser {
                 name: name,
                 summary: summary,
                 sourceURLString: sourceURLString,
+                networkSettings: networkSettings,
                 isBundled: isBundled
             )
         }
@@ -80,6 +82,7 @@ struct RuleSchemeParser {
                 name: name,
                 summary: summary,
                 sourceURLString: sourceURLString,
+                networkSettings: networkSettings,
                 isBundled: isBundled
             )
         }
@@ -112,6 +115,8 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
+            rawConfigurationText: text,
+            networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
         )
@@ -136,6 +141,7 @@ struct RuleSchemeParser {
         name: String,
         summary: String,
         sourceURLString: String?,
+        networkSettings: RuleSchemeNetworkSettings?,
         isBundled: Bool
     ) throws -> RuleScheme {
         let lines = text.components(separatedBy: .newlines)
@@ -177,6 +183,8 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
+            rawConfigurationText: text,
+            networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
         )
@@ -360,6 +368,7 @@ struct RuleSchemeParser {
         name: String,
         summary: String,
         sourceURLString: String?,
+        networkSettings: RuleSchemeNetworkSettings?,
         isBundled: Bool
     ) throws -> RuleScheme {
         var section = ""
@@ -443,9 +452,130 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
+            rawConfigurationText: text,
+            networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
         )
+    }
+
+    // MARK: - Network settings
+
+    /// Reads the small cross-client subset Tower can map without guessing.
+    /// Surge-style General keys are also accepted in subconverter files, while
+    /// Clash DNS lists are translated into the same target-neutral model.
+    private func parseNetworkSettings(in text: String) -> RuleSchemeNetworkSettings? {
+        let lines = text.components(separatedBy: .newlines)
+        var ipv6Enabled: Bool?
+        var dnsServers: [String] = []
+        var encryptedDNSServers: [String] = []
+        var proxyTestURLString: String?
+        var inGeneral = false
+        var inClashDNS = false
+        var clashDNSList: String?
+
+        for rawLine in lines {
+            let indent = rawLine.prefix { $0 == " " }.count
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), !line.hasPrefix(";") else { continue }
+
+            if line.hasPrefix("[") {
+                inGeneral = line.lowercased() == "[general]"
+                inClashDNS = false
+                clashDNSList = nil
+                continue
+            }
+
+            if indent == 0, line == "dns:" {
+                inClashDNS = true
+                clashDNSList = nil
+                continue
+            }
+            if indent == 0, line.contains(":") {
+                inClashDNS = false
+                clashDNSList = nil
+            }
+
+            if indent == 0, let value = scalar(after: "ipv6:", in: line) {
+                ipv6Enabled = parseBool(value)
+            } else if inGeneral, let value = assignmentValue(for: "ipv6", in: line) {
+                ipv6Enabled = parseBool(value)
+            }
+
+            if inGeneral, let value = assignmentValue(for: "dns-server", in: line) {
+                dnsServers += commaSeparatedValues(value)
+            } else if inGeneral,
+                      let value = assignmentValue(for: "encrypted-dns-server", in: line) {
+                encryptedDNSServers += commaSeparatedValues(value)
+            } else if inGeneral,
+                      let value = assignmentValue(for: "proxy-test-url", in: line)
+                        ?? assignmentValue(for: "server_check_url", in: line) {
+                proxyTestURLString = value
+            }
+
+            guard inClashDNS else { continue }
+            if indent == 2, line.hasSuffix(":"), !line.hasPrefix("-") {
+                clashDNSList = String(line.dropLast()).lowercased()
+                continue
+            }
+            guard indent >= 4, line.hasPrefix("- "), let clashDNSList else { continue }
+            let value = unquotedYAMLScalar(String(line.dropFirst(2)))
+            switch clashDNSList {
+            case "default-nameserver":
+                dnsServers.append(value)
+            case "nameserver", "fallback":
+                if isEncryptedDNS(value) {
+                    encryptedDNSServers.append(value)
+                } else {
+                    dnsServers.append(value)
+                }
+            default:
+                break
+            }
+        }
+
+        let settings = RuleSchemeNetworkSettings(
+            ipv6Enabled: ipv6Enabled,
+            dnsServers: unique(dnsServers),
+            encryptedDNSServers: unique(encryptedDNSServers),
+            proxyTestURLString: proxyTestURLString
+        )
+        return settings.isEmpty ? nil : settings
+    }
+
+    private func assignmentValue(for key: String, in line: String) -> String? {
+        guard let separator = line.firstIndex(of: "=") else { return nil }
+        let candidate = line[..<separator].trimmingCharacters(in: .whitespaces).lowercased()
+        guard candidate == key else { return nil }
+        return line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
+    }
+
+    private func scalar(after key: String, in line: String) -> String? {
+        guard line.lowercased().hasPrefix(key.lowercased()) else { return nil }
+        return String(line.dropFirst(key.count)).trimmingCharacters(in: .whitespaces)
+    }
+
+    private func commaSeparatedValues(_ value: String) -> [String] {
+        value.split(separator: ",").map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty }
+    }
+
+    private func parseBool(_ value: String) -> Bool? {
+        switch value.lowercased() {
+        case "true", "yes", "1": true
+        case "false", "no", "0": false
+        default: nil
+        }
+    }
+
+    private func isEncryptedDNS(_ value: String) -> Bool {
+        ["https://", "tls://", "quic://"].contains { value.lowercased().hasPrefix($0) }
+    }
+
+    private func unique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
     }
 
     /// `名称 = select,成员,…` or `名称 = url-test,成员,…,url=…,interval=…`.

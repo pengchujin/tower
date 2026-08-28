@@ -117,6 +117,118 @@ final class RuleSchemeTests: XCTestCase {
         }
     }
 
+    func testParserPreservesEditableSourceAndSchemeNetworkSettings() throws {
+        let source = """
+        [General]
+        ipv6 = false
+        dns-server = 9.9.9.9, 149.112.112.112
+        encrypted-dns-server = https://dns.quad9.net/dns-query
+        proxy-test-url = https://www.gstatic.com/generate_204
+
+        [Proxy Group]
+        Proxy = select, DIRECT
+
+        [Rule]
+        FINAL,Proxy
+        """
+
+        let scheme = try parser.parse(
+            text: source,
+            id: "manual-source",
+            name: "Manual",
+            summary: "Manual"
+        )
+
+        XCTAssertEqual(scheme.rawConfigurationText, source)
+        XCTAssertEqual(scheme.networkSettings?.ipv6Enabled, false)
+        XCTAssertEqual(scheme.networkSettings?.dnsServers, ["9.9.9.9", "149.112.112.112"])
+        XCTAssertEqual(
+            scheme.networkSettings?.encryptedDNSServers,
+            ["https://dns.quad9.net/dns-query"]
+        )
+        XCTAssertEqual(
+            scheme.networkSettings?.proxyTestURLString,
+            "https://www.gstatic.com/generate_204"
+        )
+    }
+
+    func testManualConfigurationValidationReportsTheLineForAnUnknownPolicy() throws {
+        let source = """
+        [custom]
+        ruleset=Missing,[]FINAL
+        custom_proxy_group=Proxy`select`[]DIRECT
+        """
+
+        XCTAssertThrowsError(
+            try RuleSchemeTextEditorService().validatedScheme(
+                from: source,
+                replacing: RuleScheme(
+                    id: "manual-validation",
+                    name: "Manual",
+                    summary: "Manual",
+                    groups: [],
+                    rulesets: []
+                )
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? RuleSchemeTextValidationError,
+                .unknownPolicy(name: "Missing", line: 2)
+            )
+        }
+    }
+
+    func testManualConfigurationValidationRejectsInvalidEncryptedDNS() throws {
+        let source = """
+        [General]
+        encrypted-dns-server = 8.8.8.8
+        [custom]
+        ruleset=Proxy,[]FINAL
+        custom_proxy_group=Proxy`select`[]DIRECT
+        """
+
+        XCTAssertThrowsError(
+            try RuleSchemeTextEditorService().validatedScheme(
+                from: source,
+                replacing: RuleScheme(
+                    id: "manual-dns-validation",
+                    name: "Manual",
+                    summary: "Manual",
+                    groups: [],
+                    rulesets: []
+                )
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? RuleSchemeTextValidationError,
+                .invalidEncryptedDNS(value: "8.8.8.8", line: 2)
+            )
+        }
+    }
+
+    func testManualConfigurationCanRenderAnOlderSchemeWithoutStoredSource() {
+        let scheme = RuleScheme(
+            id: "legacy-manual",
+            name: "Legacy",
+            summary: "Legacy",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))
+            ]
+        )
+
+        let text = RuleSchemeTextEditorService().editableText(for: scheme)
+
+        XCTAssertTrue(text.contains("ruleset=Proxy,[]FINAL"), text)
+        XCTAssertTrue(text.contains("custom_proxy_group=Proxy`select`[]DIRECT"), text)
+    }
+
     func testParsesClashYAMLForManualSelfConfigurationDownload() throws {
         let yaml = """
         proxy-groups:

@@ -54,6 +54,76 @@ final class SubscriptionParserTests: XCTestCase {
         XCTAssertEqual(result.nodes[1].sni, "jp.example.com")
     }
 
+    func testParsesShadowrocketProxySectionWithoutTreatingConfigurationURLsAsNodes() throws {
+        let configuration = """
+        [General]
+        encrypted-dns-server = https://resolver.example/dns-query
+
+        [Proxy]
+        Hong Kong = ss, hk.example.com, 8388, encrypt-method=aes-128-gcm, password=first-secret, obfs=http, obfs-host=cover.example.com, udp-relay=true
+        Japan = ss, jp.example.com, 8389, encrypt-method=aes-128-gcm, password=second-secret, obfs=http, obfs-host=cover.example.com, udp-relay=true
+
+        [URL Rewrite]
+        ^https://old.example/path https://new.example/path 302
+        """
+
+        let result = SubscriptionParser().parse(data: Data(configuration.utf8))
+
+        XCTAssertEqual(result.nodes.count, 2)
+        XCTAssertEqual(result.rejectedLineCount, 0)
+        XCTAssertEqual(result.nodes.map(\.kind), [.shadowsocks, .shadowsocks])
+        XCTAssertEqual(result.nodes.map(\.name), ["Hong Kong", "Japan"])
+        let first = try XCTUnwrap(result.nodes.first)
+        XCTAssertEqual(first.server, "hk.example.com")
+        XCTAssertEqual(first.port, 8388)
+        XCTAssertEqual(first.cipher, "aes-128-gcm")
+        XCTAssertEqual(first.password, "first-secret")
+        XCTAssertEqual(first.obfs, "http")
+        XCTAssertEqual(first.obfsParam, "cover.example.com")
+        XCTAssertFalse(result.nodes.contains { $0.kind == .http })
+    }
+
+    func testImportsAllNinetyShadowsocksNodesFromShadowrocketProfile() {
+        let proxyLines = (1...90).map { index in
+            "Node \(index) = ss, node-\(index).example.com, \(8_000 + index), encrypt-method=aes-128-gcm, password=secret-\(index), obfs=http, obfs-host=cover.example.com, udp-relay=true"
+        }.joined(separator: "\n")
+        let configuration = """
+        [General]
+        encrypted-dns-server = https://resolver.example/dns-query
+
+        [Proxy]
+        \(proxyLines)
+
+        [URL Rewrite]
+        ^https://old.example/path https://new.example/path 302
+        """
+
+        let result = SubscriptionParser().parse(data: Data(configuration.utf8))
+
+        XCTAssertEqual(result.nodes.count, 90)
+        XCTAssertEqual(result.rejectedLineCount, 0)
+        XCTAssertTrue(result.nodes.allSatisfy { $0.kind == .shadowsocks })
+        XCTAssertFalse(result.nodes.contains { $0.kind == .http })
+    }
+
+    func testClashTrojanDefaultsToTLSWhenTheFieldIsOmitted() throws {
+        let yaml = """
+        proxies:
+          - name: Tokyo Trojan
+            type: trojan
+            server: jp.example.com
+            port: 443
+            password: secret
+            sni: edge.example.com
+            skip-cert-verify: false
+        """
+
+        let node = try XCTUnwrap(SubscriptionParser().parse(data: Data(yaml.utf8)).nodes.first)
+
+        XCTAssertEqual(node.kind, .trojan)
+        XCTAssertTrue(node.tls)
+    }
+
     func testParsesSubStoreShadowrocketJSONLines() {
         let yaml = #"""
         proxies:

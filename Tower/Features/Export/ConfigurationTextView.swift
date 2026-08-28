@@ -597,3 +597,328 @@ struct ConfigurationTextView: UIViewRepresentable {
         }
     }
 }
+
+/// A fixed gutter that keeps logical line numbers visible while the code moves
+/// horizontally, matching the spatial model used by GitHub's source viewer.
+/// The editor deliberately does not wrap long configuration directives: one
+/// source line must continue to read as one source line.
+final class ConfigurationLineNumberView: UIView {
+    weak var textView: UITextView?
+    private(set) var lineStarts: [Int] = [0]
+    private var selectedLineIndex = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .secondarySystemBackground
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
+        contentMode = .redraw
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func refresh(text: String, selectedLocation: Int) {
+        let source = text as NSString
+        var starts = [0]
+        if source.length > 0 {
+            for index in 0 ..< source.length where source.character(at: index) == 10 {
+                starts.append(index + 1)
+            }
+        }
+        lineStarts = starts
+        selectedLineIndex = lineIndex(containing: selectedLocation)
+        setNeedsDisplay()
+    }
+
+    override func tintColorDidChange() {
+        super.tintColorDidChange()
+        setNeedsDisplay()
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let textView else { return }
+        let layoutManager = textView.layoutManager
+        let textContainer = textView.textContainer
+        layoutManager.ensureLayout(for: textContainer)
+
+        let visibleRect = CGRect(origin: textView.contentOffset, size: textView.bounds.size)
+            .offsetBy(
+                dx: -textView.textContainerInset.left,
+                dy: -textView.textContainerInset.top
+            )
+        let glyphRange = layoutManager.glyphRange(
+            forBoundingRect: visibleRect,
+            in: textContainer
+        )
+        guard glyphRange.location != NSNotFound else { return }
+
+        var drewLine = false
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) {
+            [weak self] lineRect, _, _, fragmentGlyphRange, _ in
+            guard let self else { return }
+            let characterLocation = fragmentGlyphRange.location < layoutManager.numberOfGlyphs
+                ? layoutManager.characterIndexForGlyph(at: fragmentGlyphRange.location)
+                : max(0, textView.textStorage.length - 1)
+            let lineIndex = lineIndex(containing: characterLocation)
+            let y = lineRect.minY
+                + textView.textContainerInset.top
+                - textView.contentOffset.y
+            drawLineNumber(lineIndex + 1, selected: lineIndex == selectedLineIndex, y: y)
+            drewLine = true
+        }
+
+        if !drewLine, lineStarts.count == 1 {
+            drawLineNumber(1, selected: true, y: textView.textContainerInset.top)
+        }
+    }
+
+    private func drawLineNumber(_ number: Int, selected: Bool, y: CGFloat) {
+        let font = UIFont.monospacedDigitSystemFont(
+            ofSize: 11,
+            weight: selected ? .semibold : .regular
+        )
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: selected ? (tintColor ?? UIColor.systemBlue) : UIColor.tertiaryLabel,
+        ]
+        let value = String(number) as NSString
+        let size = value.size(withAttributes: attributes)
+        value.draw(
+            at: CGPoint(x: max(4, bounds.width - size.width - 9), y: y),
+            withAttributes: attributes
+        )
+    }
+
+    private func lineIndex(containing location: Int) -> Int {
+        var lower = 0
+        var upper = lineStarts.count
+        while lower < upper {
+            let middle = (lower + upper) / 2
+            if lineStarts[middle] <= location {
+                lower = middle + 1
+            } else {
+                upper = middle
+            }
+        }
+        return max(0, lower - 1)
+    }
+}
+
+final class ConfigurationCodeEditorView: UIView {
+    let gutterWidth: CGFloat = 46
+    let textView: UITextView
+    let lineNumberView = ConfigurationLineNumberView()
+    private let separator = UIView()
+
+    override init(frame: CGRect) {
+        let textStorage = NSTextStorage()
+        let layoutManager = NSLayoutManager()
+        // Keep even generated rule-heavy profiles on one logical line without
+        // capping the document after only a few thousand rows.
+        let textContainer = NSTextContainer(size: CGSize(width: 32_000, height: 1_000_000))
+        textContainer.widthTracksTextView = false
+        textContainer.lineBreakMode = .byClipping
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.addTextContainer(textContainer)
+        textView = UITextView(frame: .zero, textContainer: textContainer)
+        super.init(frame: frame)
+        backgroundColor = .systemBackground
+        lineNumberView.textView = textView
+        separator.backgroundColor = .separator
+        addSubview(lineNumberView)
+        addSubview(separator)
+        addSubview(textView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        lineNumberView.frame = CGRect(x: 0, y: 0, width: gutterWidth, height: bounds.height)
+        separator.frame = CGRect(x: gutterWidth, y: 0, width: 1 / traitCollection.displayScale, height: bounds.height)
+        textView.frame = CGRect(
+            x: gutterWidth + separator.frame.width,
+            y: 0,
+            width: max(0, bounds.width - gutterWidth - separator.frame.width),
+            height: bounds.height
+        )
+    }
+}
+
+@MainActor
+enum ConfigurationEditorTextViewFactory {
+    static func make() -> ConfigurationCodeEditorView {
+        let editor = ConfigurationCodeEditorView()
+        let textView = editor.textView
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isScrollEnabled = true
+        textView.alwaysBounceVertical = true
+        textView.alwaysBounceHorizontal = true
+        textView.keyboardDismissMode = .interactive
+        textView.backgroundColor = .systemBackground
+        textView.contentInsetAdjustmentBehavior = .never
+        textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 24, right: 18)
+        textView.textContainer.lineFragmentPadding = 0
+        // UITextView enables width tracking while adopting the container, so
+        // restore the code-editor contract after the view has been created.
+        textView.textContainer.widthTracksTextView = false
+        textView.textContainer.lineBreakMode = .byClipping
+        textView.layoutManager.allowsNonContiguousLayout = true
+        textView.adjustsFontForContentSizeCategory = true
+        textView.autocorrectionType = .no
+        textView.autocapitalizationType = .none
+        textView.smartDashesType = .no
+        textView.smartQuotesType = .no
+        textView.spellCheckingType = .no
+        textView.accessibilityLabel = String(localized: "规则配置文本")
+        textView.accessibilityIdentifier = "rule-scheme-configuration-editor"
+        return editor
+    }
+
+    static func render(
+        _ text: String,
+        spans: [ConfigurationSyntaxHighlighter.Span]? = nil,
+        in editor: ConfigurationCodeEditorView
+    ) {
+        let textView = editor.textView
+        let selectedRange = textView.selectedRange
+        let contentOffset = textView.contentOffset
+        let font = baseFont()
+        textView.attributedText = ConfigurationSyntaxHighlighter.attributedString(
+            for: text,
+            spans: spans ?? ConfigurationSyntaxHighlighter.spans(in: text),
+            baseFont: font
+        )
+        textView.typingAttributes = [
+            .font: font,
+            .foregroundColor: UIColor.label,
+        ]
+        textView.selectedRange = NSRange(
+            location: min(selectedRange.location, textView.textStorage.length),
+            length: min(
+                selectedRange.length,
+                max(0, textView.textStorage.length - min(selectedRange.location, textView.textStorage.length))
+            )
+        )
+        textView.setContentOffset(contentOffset, animated: false)
+        editor.lineNumberView.refresh(
+            text: text,
+            selectedLocation: textView.selectedRange.location
+        )
+    }
+
+    private static func baseFont() -> UIFont {
+        UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        )
+    }
+}
+
+struct ConfigurationEditorTextView: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var text: Binding<String>
+        var isFocused: Binding<Bool>
+        weak var editor: ConfigurationCodeEditorView?
+        var renderedText: String?
+        var contentSizeCategory: UIContentSizeCategory?
+        var highlightTask: Task<Void, Never>?
+        var isRendering = false
+
+        init(text: Binding<String>, isFocused: Binding<Bool>) {
+            self.text = text
+            self.isFocused = isFocused
+        }
+
+        deinit {
+            highlightTask?.cancel()
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            isFocused.wrappedValue = true
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            isFocused.wrappedValue = false
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            guard !isRendering, let editor else { return }
+            let snapshot = textView.text ?? ""
+            renderedText = snapshot
+            text.wrappedValue = snapshot
+            editor.lineNumberView.refresh(
+                text: snapshot,
+                selectedLocation: textView.selectedRange.location
+            )
+            scheduleHighlight(for: snapshot)
+        }
+
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            editor?.lineNumberView.refresh(
+                text: textView.text ?? "",
+                selectedLocation: textView.selectedRange.location
+            )
+        }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            editor?.lineNumberView.setNeedsDisplay()
+        }
+
+        private func scheduleHighlight(for snapshot: String) {
+            highlightTask?.cancel()
+            highlightTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(120))
+                guard !Task.isCancelled, let self, let editor else { return }
+                let spans = await Task.detached(priority: .userInitiated) {
+                    ConfigurationSyntaxHighlighter.spans(in: snapshot)
+                }.value
+                guard !Task.isCancelled, editor.textView.text == snapshot else { return }
+                isRendering = true
+                ConfigurationEditorTextViewFactory.render(snapshot, spans: spans, in: editor)
+                isRendering = false
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, isFocused: $isFocused)
+    }
+
+    func makeUIView(context: Context) -> ConfigurationCodeEditorView {
+        let editor = ConfigurationEditorTextViewFactory.make()
+        editor.textView.delegate = context.coordinator
+        context.coordinator.editor = editor
+        ConfigurationEditorTextViewFactory.render(text, in: editor)
+        context.coordinator.renderedText = text
+        context.coordinator.contentSizeCategory = editor.traitCollection.preferredContentSizeCategory
+        return editor
+    }
+
+    func updateUIView(_ editor: ConfigurationCodeEditorView, context: Context) {
+        let contentSizeCategory = editor.traitCollection.preferredContentSizeCategory
+        if context.coordinator.renderedText != text
+            || context.coordinator.contentSizeCategory != contentSizeCategory {
+            context.coordinator.isRendering = true
+            ConfigurationEditorTextViewFactory.render(text, in: editor)
+            context.coordinator.renderedText = text
+            context.coordinator.contentSizeCategory = contentSizeCategory
+            context.coordinator.isRendering = false
+        }
+
+        if isFocused, !editor.textView.isFirstResponder {
+            editor.textView.becomeFirstResponder()
+        } else if !isFocused, editor.textView.isFirstResponder {
+            editor.textView.resignFirstResponder()
+        }
+    }
+}

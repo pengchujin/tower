@@ -470,6 +470,19 @@ struct SubscriptionParser {
             text = decoded
         }
 
+        if containsSurgeProxySection(text) {
+            let parsed = parseSurgeProxyConfiguration(text, sourceID: sourceID)
+            let marked = restoringAmbiguousRegionalNames(parsed.nodes)
+                .map(markingSubscriptionMetadata)
+            let notices = marked.filter { $0.isSubscriptionMetadata == true }.map(\.name)
+            return .init(
+                nodes: deduplicated(marked),
+                rejectedLineCount: parsed.rejectedLineCount,
+                notices: notices,
+                status: notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
+            )
+        }
+
         if text.contains("proxies:") {
             let parsed = parseClashYAML(text, sourceID: sourceID)
             let marked = restoringAmbiguousRegionalNames(parsed.nodes)
@@ -519,6 +532,128 @@ struct SubscriptionParser {
             // Other panels write the same line in as a node remark.
             status: status ?? notices.lazy.compactMap(SubscriptionUsage.parse(statusLine:)).first
         )
+    }
+
+    private func containsSurgeProxySection(_ text: String) -> Bool {
+        text.components(separatedBy: .newlines).contains { line in
+            line.trimmingCharacters(in: .whitespacesAndNewlines)
+                .caseInsensitiveCompare("[Proxy]") == .orderedSame
+        }
+    }
+
+    /// Reads the proxy list from a complete Surge/Shadowrocket INI profile.
+    /// Other sections can contain ordinary HTTPS URLs (DNS and rewrites),
+    /// which must never be mistaken for standalone HTTP proxy links.
+    private func parseSurgeProxyConfiguration(
+        _ text: String,
+        sourceID: UUID?
+    ) -> ParsedContent {
+        var insideProxySection = false
+        var nodes: [ProxyNode] = []
+        var rejected = 0
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty,
+                  !line.hasPrefix("#"),
+                  !line.hasPrefix(";"),
+                  !line.hasPrefix("//") else { continue }
+
+            if line.hasPrefix("["), line.hasSuffix("]"), !line.contains("=") {
+                insideProxySection = line.caseInsensitiveCompare("[Proxy]") == .orderedSame
+                continue
+            }
+            guard insideProxySection else { continue }
+
+            if let node = parseSurgeShadowsocksLine(line, sourceID: sourceID) {
+                nodes.append(node)
+            } else {
+                rejected += 1
+            }
+        }
+
+        return .init(
+            nodes: nodes,
+            rejectedLineCount: nodes.isEmpty ? max(rejected, 1) : rejected
+        )
+    }
+
+    private func parseSurgeShadowsocksLine(
+        _ raw: String,
+        sourceID: UUID?
+    ) -> ProxyNode? {
+        guard let separator = raw.firstIndex(of: "=") else { return nil }
+        let name = String(raw[..<separator]).trimmingCharacters(in: .whitespaces)
+        let fields = surgeProxyFields(String(raw[raw.index(after: separator)...]))
+        guard !name.isEmpty,
+              fields.count >= 3,
+              fields[0].lowercased() == "ss",
+              !fields[1].isEmpty,
+              let port = Int(fields[2]) else { return nil }
+
+        var options: [String: String] = [:]
+        for field in fields.dropFirst(3) {
+            guard let equals = field.firstIndex(of: "=") else { continue }
+            let key = String(field[..<equals])
+                .trimmingCharacters(in: .whitespaces)
+                .lowercased()
+            let value = surgeProxyScalar(String(field[field.index(after: equals)...]))
+            options[key] = value
+        }
+
+        guard let cipher = options["encrypt-method"] ?? options["method"] ?? options["cipher"],
+              !cipher.isEmpty,
+              let password = options["password"],
+              !password.isEmpty else { return nil }
+
+        return ProxyNode(
+            sourceID: sourceID,
+            kind: .shadowsocks,
+            name: normalizedName(name, fallback: fields[1]),
+            server: normalizedHost(fields[1]),
+            port: port,
+            cipher: cipher,
+            password: password,
+            obfs: options["obfs"],
+            obfsParam: options["obfs-host"],
+            rawURI: raw
+        )
+    }
+
+    private func surgeProxyFields(_ value: String) -> [String] {
+        var fields: [String] = []
+        var current = ""
+        var quote: Character?
+
+        for character in value {
+            if character == "\"" || character == "'" {
+                if quote == character { quote = nil }
+                else if quote == nil { quote = character }
+                current.append(character)
+            } else if character == ",", quote == nil {
+                fields.append(surgeProxyScalar(current))
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        fields.append(surgeProxyScalar(current))
+        return fields
+    }
+
+    private func surgeProxyScalar(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let unquoted: String
+        if trimmed.count >= 2,
+           let first = trimmed.first,
+           let last = trimmed.last,
+           (first == "\"" || first == "'"),
+           first == last {
+            unquoted = String(trimmed.dropFirst().dropLast())
+        } else {
+            unquoted = trimmed
+        }
+        return unquoted.removingPercentEncoding ?? unquoted
     }
 
     func parseURI(_ rawValue: String, sourceID: UUID? = nil) -> ProxyNode? {
@@ -1093,8 +1228,14 @@ struct SubscriptionParser {
                 ?? proxyNameQueryValue(query),
             fallback: fallback
         )
+        let trojanPlugin = kind == .trojan
+            ? query["plugin"].flatMap(shadowrocketTrojanWebSocketOptions)
+            : nil
         let transport = normalizedTransport(
-            query["type"] ?? query["network"] ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
+            trojanPlugin?.transport
+                ?? query["type"]
+                ?? query["network"]
+                ?? (query["obfs"]?.contains("ws") == true ? "ws" : nil)
         )
         let security = (query["security"] ?? query["tls"] ?? "").lowercased()
         // Shadowrocket has two VLESS URL dialects. Its Base64-authority form
@@ -1165,10 +1306,10 @@ struct SubscriptionParser {
                 || carriesReality
                 || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
-            hostHeader: query["authority"] ?? query["host"],
+            hostHeader: trojanPlugin?.host ?? query["authority"] ?? query["host"],
             path: transport == "grpc"
                 ? query["servicename"] ?? query["service_name"] ?? query["path"]
-                : query["path"],
+                : trojanPlugin?.path ?? query["path"],
             alpn: normalizedALPN,
             // REALITY. `pbk` is the required server public key; `sid` is the
             // short id and may legitimately be empty. Preserve both exactly.
@@ -1219,6 +1360,39 @@ struct SubscriptionParser {
             downMbps: kind == .hysteria ? mbps(query["downmbps"] ?? query["down"]) : nil,
             rawURI: raw
         )
+    }
+
+    /// Shadowrocket serializes Trojan WebSocket as a SIP003-looking plugin:
+    /// `plugin=obfs-local;obfs=websocket;obfs-host=…;obfs-uri=…`.
+    /// It is transport metadata, not Shadowsocks simple-obfs.
+    private func shadowrocketTrojanWebSocketOptions(
+        from plugin: String
+    ) -> (transport: String, host: String?, path: String?)? {
+        let parts = plugin.split(separator: ";", omittingEmptySubsequences: false).map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        guard let name = parts.first?.lowercased(),
+              ["obfs", "obfs-local", "simple-obfs"].contains(name) else { return nil }
+
+        var mode: String?
+        var host: String?
+        var path: String?
+        for part in parts.dropFirst() {
+            let pair = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard pair.count == 2 else { continue }
+            let key = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+            let value = String(pair[1]).trimmingCharacters(in: .whitespaces)
+            switch key {
+            case "obfs", "mode": mode = value
+            case "obfs-host", "host": host = value
+            case "obfs-uri", "path": path = value
+            default: break
+            }
+        }
+        guard ["websocket", "ws", "wss"].contains(mode?.lowercased() ?? "") else {
+            return nil
+        }
+        return ("ws", host, path)
     }
 
     private func parseClashYAML(_ text: String, sourceID: UUID?) -> ParsedContent {
@@ -1370,7 +1544,11 @@ struct SubscriptionParser {
                 transportMode: normalizedTransport(dictionary["network"]) == "xhttp"
                     ? dictionary["mode"] : nil,
                 plugin: sip003Plugin,
-                tls: pluginTLS || boolString(dictionary["tls"]),
+                // TLS is part of the Trojan protocol itself. Mihomo therefore
+                // omits the redundant `tls: true` field in valid Trojan nodes;
+                // treating that omission as plaintext breaks every strict
+                // target format derived from this shared model.
+                tls: kind == .trojan || pluginTLS || boolString(dictionary["tls"]),
                 sni: dictionary["servername"] ?? dictionary["sni"],
                 hostHeader: dictionary["authority"] ?? dictionary["host"],
                 path: pluginPath

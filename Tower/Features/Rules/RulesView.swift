@@ -708,6 +708,8 @@ private struct RuleCustomizationSheet: View {
     @State private var catalogEditor: CatalogRuleEditorRequest?
     @State private var groupEditor: RuleGroupEditorRequest?
     @State private var identityEditor: RuleGroupIdentityEditorRequest?
+    @State private var networkSettingsEditor: RuleScheme?
+    @State private var configurationEditor: RuleScheme?
     @State private var pendingDeletion: RuleCustomizationDeletion?
     @State private var installingIDs = Set<String>()
     @State private var errorMessage: String?
@@ -778,6 +780,16 @@ private struct RuleCustomizationSheet: View {
                         }
                         .menuActionDismissBehavior(.enabled)
                         Button {
+                            networkSettingsEditor = model.customizableScheme(for: scheme)
+                        } label: {
+                            Label("DNS 与网络", systemImage: "network")
+                        }
+                        Button {
+                            openConfigurationEditor()
+                        } label: {
+                            Label("手动编辑配置", systemImage: "doc.text")
+                        }
+                        Button {
                             showsSaveScheme = true
                         } label: {
                             Label("另存为新方案", systemImage: "square.and.arrow.down")
@@ -824,6 +836,14 @@ private struct RuleCustomizationSheet: View {
             }
             .sheet(item: $identityEditor, onDismiss: reloadEditingGroupsIfNeeded) { request in
                 RuleGroupIdentityEditor(scheme: request.scheme, group: request.group)
+            }
+            .sheet(item: $networkSettingsEditor) { editableScheme in
+                RuleSchemeNetworkSettingsEditor(scheme: editableScheme)
+            }
+            .sheet(item: $configurationEditor) { editableScheme in
+                RuleSchemeConfigurationEditor(scheme: editableScheme) {
+                    dismiss()
+                }
             }
             .sheet(isPresented: $showsSaveScheme) {
                 SaveCustomizedSchemeSheet(scheme: scheme) {
@@ -1347,6 +1367,17 @@ private struct RuleCustomizationSheet: View {
         }
     }
 
+    private func openConfigurationEditor() {
+        var editable = model.customizableScheme(for: scheme)
+        // Once visual customization changed the parsed graph, a stale copy of
+        // the original import would hide those edits. Render the current graph
+        // canonically so text mode starts from exactly what the UI shows.
+        if editable.groups != scheme.groups || editable.rulesets != scheme.rulesets {
+            editable.rawConfigurationText = nil
+        }
+        configurationEditor = editable
+    }
+
     private func symbol(for category: RuleCatalogCategory) -> String {
         switch category {
         case .ai: "sparkles"
@@ -1376,6 +1407,436 @@ private struct RuleCustomizationSheet: View {
         }
     }
 
+}
+
+private struct RuleSchemeNetworkSettingsEditor: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let scheme: RuleScheme
+    @State private var draft: RuleSchemeNetworkSettingsDraft
+    @State private var latencyTestPreset: RuleSchemeLatencyTestPreset
+    @State private var errorMessage: String?
+    private let originalDraft: RuleSchemeNetworkSettingsDraft
+
+    init(scheme: RuleScheme) {
+        self.scheme = scheme
+        let initial = RuleSchemeNetworkSettingsDraft(settings: scheme.networkSettings)
+        _draft = State(initialValue: initial)
+        _latencyTestPreset = State(
+            initialValue: RuleSchemeLatencyTestPreset.selection(
+                for: initial.proxyTestURLString
+            )
+        )
+        originalDraft = initial
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("内置 DNS")
+                                .font(.headline)
+                            Text("将自动转换为每个客户端支持的写法")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "network")
+                            .foregroundStyle(.purple)
+                    }
+                }
+
+                Section {
+                    Picker("DNS 保护模式", selection: $draft.dnsProtectionMode) {
+                        ForEach(RuleSchemeDNSProtectionMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if draft.dnsProtectionMode == .strict {
+                        Label {
+                            Text("可能影响局域网、公共网络认证和使用域名的代理节点。")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("DNS 保护")
+                } footer: {
+                    Text(draft.dnsProtectionMode.summary)
+                }
+
+                Section {
+                    ForEach(draft.dnsServers.indices, id: \.self) { index in
+                        dnsRow(
+                            symbol: "globe",
+                            placeholder: "例如 223.5.5.5",
+                            text: binding(for: index, in: \RuleSchemeNetworkSettingsDraft.dnsServers)
+                        ) {
+                            draft.dnsServers.remove(at: index)
+                        }
+                    }
+                    addRow(title: "添加普通 DNS") {
+                        draft.dnsServers.append("")
+                    }
+                } header: {
+                    Text("普通 DNS")
+                } footer: {
+                    Text("用于解析加密 DNS 和代理节点的域名，建议填写 IP 地址。")
+                }
+
+                Section {
+                    ForEach(draft.encryptedDNSServers.indices, id: \.self) { index in
+                        dnsRow(
+                            symbol: "lock.shield",
+                            placeholder: "https://example.com/dns-query",
+                            text: binding(
+                                for: index,
+                                in: \RuleSchemeNetworkSettingsDraft.encryptedDNSServers
+                            )
+                        ) {
+                            draft.encryptedDNSServers.remove(at: index)
+                        }
+                    }
+                    addRow(title: "添加加密 DNS") {
+                        draft.encryptedDNSServers.append("")
+                    }
+                } header: {
+                    Text("加密 DNS")
+                } footer: {
+                    Text("支持 HTTPS、TLS 和 QUIC 地址；保存时会自动检查。")
+                }
+
+                Section("网络") {
+                    Toggle("IPv6", isOn: $draft.ipv6Enabled)
+                }
+
+                Section {
+                    Menu {
+                        ForEach(RuleSchemeLatencyTestPreset.menuChoices) { preset in
+                            Button {
+                                latencyTestPresetBinding.wrappedValue = preset
+                            } label: {
+                                HStack {
+                                    RuleSchemeLatencyTestBrandLogoView(
+                                        brand: preset.brandLogo
+                                    )
+                                    Text(preset.title)
+
+                                    if preset == latencyTestPreset {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            RuleSchemeLatencyTestBrandLogoView(
+                                brand: latencyTestPreset.brandLogo
+                            )
+
+                            Text("测试服务")
+                                .foregroundStyle(.primary)
+
+                            Spacer(minLength: 12)
+
+                            Text(latencyTestPreset.title)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("测试服务")
+                    .accessibilityValue(latencyTestPreset.title)
+
+                    if latencyTestPreset == .custom {
+                        TextField("测速地址", text: $draft.proxyTestURLString)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        if let validationError = draft.latencyTestURLValidationError {
+                            Label {
+                                Text(validationError.localizedDescription)
+                            } icon: {
+                                Image(systemName: "exclamationmark.circle.fill")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .accessibilityIdentifier("latency-test-url-validation-error")
+                        }
+                    } else {
+                        LabeledContent("测速地址") {
+                            Text(draft.proxyTestURLString)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                } header: {
+                    Text("延迟测试")
+                } footer: {
+                    Text("选择常用服务，或完全手动填写 HTTP/HTTPS 测试地址。")
+                }
+
+                Section {
+                    Button {
+                        withAnimation(.smooth(duration: 0.2)) {
+                            draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+                            latencyTestPreset = RuleSchemeLatencyTestPreset.selection(
+                                for: draft.proxyTestURLString
+                            )
+                        }
+                    } label: {
+                        Label("填入塔台默认值", systemImage: "arrow.counterclockwise")
+                    }
+                } footer: {
+                    Text("只影响“\(scheme.name)”生成的配置，不会改动订阅或上游规则文件。")
+                }
+            }
+            .navigationTitle("DNS 与网络")
+            .navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
+            .sensoryFeedback(.selection, trigger: latencyTestPreset)
+            .accessibilityIdentifier("rule-network-settings-editor")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { save() }
+                        .disabled(draft == originalDraft)
+                }
+            }
+            .alert("无法保存 DNS 设置", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("好") { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    private var latencyTestPresetBinding: Binding<RuleSchemeLatencyTestPreset> {
+        Binding(
+            get: { latencyTestPreset },
+            set: { preset in
+                latencyTestPreset = preset
+                draft.applyLatencyTestPreset(preset)
+            }
+        )
+    }
+
+    private func binding(
+        for index: Int,
+        in keyPath: WritableKeyPath<RuleSchemeNetworkSettingsDraft, [String]>
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                guard draft[keyPath: keyPath].indices.contains(index) else { return "" }
+                return draft[keyPath: keyPath][index]
+            },
+            set: { value in
+                guard draft[keyPath: keyPath].indices.contains(index) else { return }
+                draft[keyPath: keyPath][index] = value
+            }
+        )
+    }
+
+    private func dnsRow(
+        symbol: String,
+        placeholder: String,
+        text: Binding<String>,
+        onDelete: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            TextField(placeholder, text: text)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "minus.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("删除 DNS 服务器")
+        }
+    }
+
+    private func addRow(title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: "plus.circle.fill")
+        }
+    }
+
+    private func save() {
+        do {
+            let settings = try draft.validatedSettings()
+            if settings == .towerDefault {
+                model.useTowerNetworkDefaults(for: scheme)
+            } else {
+                model.updateRuleSchemeNetworkSettings(settings, for: scheme)
+            }
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct RuleSchemeLatencyTestBrandLogoView: View {
+    let brand: RuleSchemeLatencyTestBrandLogo
+
+    var body: some View {
+        Image(brand.assetName)
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 27, height: 27)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct RuleSchemeConfigurationEditor: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let scheme: RuleScheme
+    let onSaved: () -> Void
+    @State private var text: String
+    @State private var errorMessage: String?
+    @State private var isSaving = false
+    @State private var editorFocused = false
+    @State private var showsHelp = false
+    private let originalText: String
+
+    init(scheme: RuleScheme, onSaved: @escaping () -> Void) {
+        self.scheme = scheme
+        self.onSaved = onSaved
+        let source = RuleSchemeTextEditorService().editableText(for: scheme)
+        _text = State(initialValue: source)
+        originalText = source
+    }
+
+    private var lineCount: Int {
+        max(1, text.components(separatedBy: .newlines).count)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Button {
+                        withAnimation(.smooth(duration: 0.22)) {
+                            showsHelp.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Label("完整文本模式", systemImage: "curlybraces")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .rotationEffect(.degrees(showsHelp ? 180 : 0))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 48)
+
+                    if showsHelp {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("支持 subconverter INI、Clash YAML 和 Surge 配置。保存时会检查语法、策略引用、测试地址和 DNS。")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            Text("可在 [General] 中编辑 ipv6、dns-server、encrypted-dns-server 和 proxy-test-url；导出时会转换成各客户端支持的写法。")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+
+                Divider()
+
+                ConfigurationEditorTextView(text: $text, isFocused: $editorFocused)
+
+                Divider()
+                HStack {
+                    Text("\(lineCount) 行")
+                    Spacer()
+                    Label("保存前自动检查", systemImage: "checkmark.shield")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+            }
+            .background(Color(uiColor: .systemGroupedBackground))
+            .navigationTitle("手动编辑配置")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(text != originalText)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { save() }
+                        .disabled(
+                            isSaving
+                                || text == originalText
+                                || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("收起键盘") { editorFocused = false }
+                }
+            }
+            .alert("无法保存配置", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("好") { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    private func save() {
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            _ = try model.saveManualRuleSchemeConfiguration(text, for: scheme)
+            dismiss()
+            onSaved()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 
 private struct RuleGroupIdentityEditor: View {

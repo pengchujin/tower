@@ -9,6 +9,13 @@ struct RuleScheme: Identifiable, Codable, Hashable {
     var name: String
     var summary: String
     var sourceURLString: String?
+    /// The exact text last imported or saved in the manual editor. Older
+    /// snapshots legitimately have no copy; the editor renders a canonical
+    /// subconverter document from the parsed model in that case.
+    var rawConfigurationText: String?
+    /// Target-neutral network preferences extracted from the source document.
+    /// Each exporter maps only the fields its client understands.
+    var networkSettings: RuleSchemeNetworkSettings?
     var groups: [RuleSchemeGroup]
     var rulesets: [RuleSchemeRuleset]
     var updatedAt: Date?
@@ -26,6 +33,8 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         sourceURLString: String? = nil,
         groups: [RuleSchemeGroup],
         rulesets: [RuleSchemeRuleset],
+        rawConfigurationText: String? = nil,
+        networkSettings: RuleSchemeNetworkSettings? = nil,
         updatedAt: Date? = nil,
         summaryIsUserEdited: Bool? = nil,
         isBundled: Bool = false
@@ -34,6 +43,8 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         self.name = name
         self.summary = summary
         self.sourceURLString = sourceURLString
+        self.rawConfigurationText = rawConfigurationText
+        self.networkSettings = networkSettings
         self.groups = groups
         self.rulesets = rulesets
         self.updatedAt = updatedAt
@@ -267,6 +278,9 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         var result = self
         result.groups = availableGroups
         result.rulesets = mergedRulesets + finalRulesets
+        if groupCustomization?.overridesNetworkSettings == true {
+            result.networkSettings = groupCustomization?.networkSettingsOverride
+        }
 
         // Nil means the untouched default: reproduce every group exactly as
         // the source declared it. Explicit selections may safely prune groups.
@@ -503,6 +517,288 @@ struct RuleScheme: Identifiable, Codable, Hashable {
     }
 }
 
+/// Network fields that have stable equivalents across the supported clients.
+/// Client-specific keys remain the generator's responsibility so a Surge key
+/// is never copied verbatim into Clash, QuanX or sing-box output.
+struct RuleSchemeNetworkSettings: Codable, Hashable {
+    var ipv6Enabled: Bool?
+    var dnsServers: [String]
+    var encryptedDNSServers: [String]
+    var proxyTestURLString: String?
+    var dnsProtectionMode: RuleSchemeDNSProtectionMode
+
+    init(
+        ipv6Enabled: Bool? = nil,
+        dnsServers: [String] = [],
+        encryptedDNSServers: [String] = [],
+        proxyTestURLString: String? = nil,
+        dnsProtectionMode: RuleSchemeDNSProtectionMode = .standard
+    ) {
+        self.ipv6Enabled = ipv6Enabled
+        self.dnsServers = dnsServers
+        self.encryptedDNSServers = encryptedDNSServers
+        self.proxyTestURLString = proxyTestURLString
+        self.dnsProtectionMode = dnsProtectionMode
+    }
+
+    var isEmpty: Bool {
+        ipv6Enabled == nil
+            && dnsServers.isEmpty
+            && encryptedDNSServers.isEmpty
+            && proxyTestURLString == nil
+            && dnsProtectionMode == .standard
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ipv6Enabled
+        case dnsServers
+        case encryptedDNSServers
+        case proxyTestURLString
+        case dnsProtectionMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ipv6Enabled = try container.decodeIfPresent(Bool.self, forKey: .ipv6Enabled)
+        dnsServers = try container.decodeIfPresent([String].self, forKey: .dnsServers) ?? []
+        encryptedDNSServers = try container.decodeIfPresent(
+            [String].self,
+            forKey: .encryptedDNSServers
+        ) ?? []
+        proxyTestURLString = try container.decodeIfPresent(
+            String.self,
+            forKey: .proxyTestURLString
+        )
+        let modeValue = try container.decodeIfPresent(String.self, forKey: .dnsProtectionMode)
+        dnsProtectionMode = modeValue.flatMap(RuleSchemeDNSProtectionMode.init(rawValue:))
+            ?? .standard
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ipv6Enabled, forKey: .ipv6Enabled)
+        try container.encode(dnsServers, forKey: .dnsServers)
+        try container.encode(encryptedDNSServers, forKey: .encryptedDNSServers)
+        try container.encodeIfPresent(proxyTestURLString, forKey: .proxyTestURLString)
+        try container.encode(dnsProtectionMode.rawValue, forKey: .dnsProtectionMode)
+    }
+
+    static let towerDefault = RuleSchemeNetworkSettings(
+        ipv6Enabled: true,
+        dnsServers: ["223.5.5.5", "119.29.29.29"],
+        encryptedDNSServers: [
+            "https://223.5.5.5/dns-query",
+            "https://doh.pub/dns-query",
+        ],
+        proxyTestURLString: "http://www.gstatic.com/generate_204"
+    )
+}
+
+enum RuleSchemeDNSProtectionMode: String, CaseIterable, Identifiable {
+    case followScheme = "follow-scheme"
+    case standard
+    case strict
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .followScheme: String(localized: "跟随方案")
+        case .standard: String(localized: "标准保护")
+        case .strict: String(localized: "严格保护")
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .followScheme:
+            String(localized: "只使用当前方案的 DNS，不额外启用 Fake-IP 或 DNS 接管。")
+        case .standard:
+            String(localized: "使用加密 DNS、Fake-IP、节点域名专用解析和 no-resolve。")
+        case .strict:
+            String(localized: "在支持的客户端中额外接管传统 DNS，并启用严格路由。")
+        }
+    }
+}
+
+enum RuleSchemeLatencyTestPreset: String, CaseIterable, Identifiable {
+    case google
+    case cloudflare
+    case apple
+    case microsoft
+    case custom
+
+    var id: Self { self }
+
+    static let selectableCases: [Self] = [
+        .google,
+        .cloudflare,
+        .apple,
+        .microsoft,
+    ]
+
+    static let menuChoices: [Self] = selectableCases + [.custom]
+
+    var brandLogo: RuleSchemeLatencyTestBrandLogo {
+        switch self {
+        case .google: .google
+        case .cloudflare: .cloudflare
+        case .apple: .apple
+        case .microsoft: .microsoft
+        case .custom: .custom
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .google: String(localized: "Google 网络检查")
+        case .cloudflare: String(localized: "Cloudflare 网络检查")
+        case .apple: String(localized: "Apple 网络检查")
+        case .microsoft: String(localized: "Microsoft 网络检查")
+        case .custom: String(localized: "自定义网络检查")
+        }
+    }
+
+    var urlString: String? {
+        switch self {
+        case .google: "http://www.gstatic.com/generate_204"
+        case .cloudflare: "https://cp.cloudflare.com/generate_204"
+        case .apple: "http://captive.apple.com/hotspot-detect.html"
+        case .microsoft: "http://www.msftconnecttest.com/connecttest.txt"
+        case .custom: nil
+        }
+    }
+
+    static func selection(for urlString: String) -> Self {
+        selectableCases.first { $0.urlString == urlString } ?? .custom
+    }
+}
+
+enum RuleSchemeLatencyTestBrandLogo: String, Hashable {
+    case google
+    case cloudflare
+    case apple
+    case microsoft
+    case custom
+
+    var assetName: String {
+        switch self {
+        case .google: "LatencyGoogle"
+        case .cloudflare: "LatencyCloudflare"
+        case .apple: "LatencyApple"
+        case .microsoft: "LatencyMicrosoft"
+        case .custom: "LatencyCustom"
+        }
+    }
+}
+
+enum RuleSchemeNetworkSettingsDraftError: LocalizedError, Equatable {
+    case missingPlainDNS
+    case invalidPlainDNS(String)
+    case missingEncryptedDNS
+    case invalidEncryptedDNS(String)
+    case invalidTestURL(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .missingPlainDNS:
+            String(localized: "请至少保留一个普通 DNS 服务器")
+        case .invalidPlainDNS(let value):
+            String(localized: "普通 DNS 地址无效：\(value)")
+        case .missingEncryptedDNS:
+            String(localized: "请至少保留一个加密 DNS 服务器")
+        case .invalidEncryptedDNS(let value):
+            String(localized: "加密 DNS 地址无效：\(value)")
+        case .invalidTestURL(let value):
+            String(localized: "测速地址无效：\(value)")
+        }
+    }
+}
+
+/// Editable, display-ready values for the native DNS form. Missing fields in
+/// imported schemes inherit Tower's safe defaults instead of appearing blank.
+struct RuleSchemeNetworkSettingsDraft: Equatable {
+    var ipv6Enabled: Bool
+    var dnsServers: [String]
+    var encryptedDNSServers: [String]
+    var proxyTestURLString: String
+    var dnsProtectionMode: RuleSchemeDNSProtectionMode
+
+    init(settings: RuleSchemeNetworkSettings?) {
+        let defaults = RuleSchemeNetworkSettings.towerDefault
+        ipv6Enabled = settings?.ipv6Enabled ?? defaults.ipv6Enabled ?? true
+        dnsServers = settings?.dnsServers.isEmpty == false
+            ? settings?.dnsServers ?? defaults.dnsServers
+            : defaults.dnsServers
+        encryptedDNSServers = settings?.encryptedDNSServers.isEmpty == false
+            ? settings?.encryptedDNSServers ?? defaults.encryptedDNSServers
+            : defaults.encryptedDNSServers
+        proxyTestURLString = settings?.proxyTestURLString ?? defaults.proxyTestURLString ?? ""
+        dnsProtectionMode = settings?.dnsProtectionMode ?? defaults.dnsProtectionMode
+    }
+
+    func validatedSettings() throws -> RuleSchemeNetworkSettings {
+        let plainDNS = normalized(dnsServers)
+        guard !plainDNS.isEmpty else {
+            throw RuleSchemeNetworkSettingsDraftError.missingPlainDNS
+        }
+        if let invalid = plainDNS.first(where: {
+            $0.contains("://") || $0.contains(",") || $0.rangeOfCharacter(from: .whitespaces) != nil
+        }) {
+            throw RuleSchemeNetworkSettingsDraftError.invalidPlainDNS(invalid)
+        }
+
+        let encryptedDNS = normalized(encryptedDNSServers)
+        guard !encryptedDNS.isEmpty else {
+            throw RuleSchemeNetworkSettingsDraftError.missingEncryptedDNS
+        }
+        for value in encryptedDNS {
+            guard let url = URL(string: value),
+                  ["https", "tls", "quic"].contains(url.scheme?.lowercased() ?? ""),
+                  url.host != nil else {
+                throw RuleSchemeNetworkSettingsDraftError.invalidEncryptedDNS(value)
+            }
+        }
+
+        if let latencyTestURLValidationError {
+            throw latencyTestURLValidationError
+        }
+        let testURL = proxyTestURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return RuleSchemeNetworkSettings(
+            ipv6Enabled: ipv6Enabled,
+            dnsServers: plainDNS,
+            encryptedDNSServers: encryptedDNS,
+            proxyTestURLString: testURL,
+            dnsProtectionMode: dnsProtectionMode
+        )
+    }
+
+    mutating func applyLatencyTestPreset(_ preset: RuleSchemeLatencyTestPreset) {
+        guard let urlString = preset.urlString else { return }
+        proxyTestURLString = urlString
+    }
+
+    var latencyTestURLValidationError: RuleSchemeNetworkSettingsDraftError? {
+        let value = proxyTestURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: value),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              url.host != nil else {
+            return .invalidTestURL(value)
+        }
+        return nil
+    }
+
+    private func normalized(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.compactMap { rawValue in
+            let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty, seen.insert(value).inserted else { return nil }
+            return value
+        }
+    }
+}
+
 enum RuleSchemeGroupEditorMode: Equatable {
     case routingTargets
     case nodePatternsOnly
@@ -521,19 +817,27 @@ struct RuleSchemeCustomization: Codable, Hashable {
     /// Optional keeps snapshots written before group deletion support fully
     /// decodable without a custom migration.
     var removedGroupNames: Set<String>?
+    /// A separate flag preserves three states: follow the source, use an
+    /// explicit override, or deliberately use Tower defaults (`nil`).
+    var networkSettingsOverride: RuleSchemeNetworkSettings?
+    var overridesNetworkSettings: Bool?
 
     init(
         schemeID: String,
         groupOrder: [String] = [],
         groupOverrides: [String: RuleSchemeGroupOverride] = [:],
         groupRenames: [String: String]? = nil,
-        removedGroupNames: Set<String>? = nil
+        removedGroupNames: Set<String>? = nil,
+        networkSettingsOverride: RuleSchemeNetworkSettings? = nil,
+        overridesNetworkSettings: Bool? = nil
     ) {
         self.schemeID = schemeID
         self.groupOrder = groupOrder
         self.groupOverrides = groupOverrides
         self.groupRenames = groupRenames
         self.removedGroupNames = removedGroupNames
+        self.networkSettingsOverride = networkSettingsOverride
+        self.overridesNetworkSettings = overridesNetworkSettings
     }
 
     func renamedGroupName(_ name: String) -> String {

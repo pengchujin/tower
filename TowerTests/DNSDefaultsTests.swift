@@ -100,4 +100,134 @@ final class DNSDefaultsTests: XCTestCase {
             }
         }
     }
+
+    func testImportedSchemeNetworkSettingsOverrideTargetDNSDefaults() throws {
+        let scheme = RuleScheme(
+            id: "custom-dns",
+            name: "Custom DNS",
+            summary: "Custom DNS",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))],
+            networkSettings: RuleSchemeNetworkSettings(
+                ipv6Enabled: false,
+                dnsServers: ["9.9.9.9"],
+                encryptedDNSServers: ["https://dns.quad9.net/dns-query"],
+                proxyTestURLString: "https://example.com/generate_204"
+            )
+        )
+        let node = SubscriptionParser().parseURI(
+            "trojan://pw@a.example.com:443?sni=c.example.com#T"
+        )!
+        let generator = ConfigurationGenerator()
+
+        let surge = generator.generate(nodes: [node], scheme: scheme, target: .surge).content
+        XCTAssertTrue(surge.contains("ipv6 = false"), surge)
+        XCTAssertTrue(surge.contains("dns-server = 9.9.9.9"), surge)
+        XCTAssertTrue(
+            surge.contains("encrypted-dns-server = https://dns.quad9.net/dns-query"),
+            surge
+        )
+
+        let clash = generator.generate(nodes: [node], scheme: scheme, target: .clash).content
+        XCTAssertTrue(clash.contains("ipv6: false"), clash)
+        XCTAssertTrue(clash.contains("- https://dns.quad9.net/dns-query"), clash)
+
+        let quanX = generator.generate(nodes: [node], scheme: scheme, target: .quanx).content
+        XCTAssertTrue(quanX.contains("server_check_url = https://example.com/generate_204"), quanX)
+        XCTAssertTrue(quanX.contains("server = 9.9.9.9"), quanX)
+    }
+
+    func testFollowingSchemeDNSDoesNotAddTowerFakeIPProtection() {
+        let scheme = makeScheme(dnsProtectionMode: .followScheme)
+        let clash = generatedScheme(scheme, target: .clashApple)
+
+        XCTAssertTrue(clash.contains("dns:\n"), clash)
+        XCTAssertTrue(clash.contains("nameserver:\n"), clash)
+        XCTAssertFalse(clash.contains("enhanced-mode: fake-ip"), clash)
+        XCTAssertFalse(clash.contains("proxy-server-nameserver:"), clash)
+        XCTAssertFalse(clash.contains("fallback-filter:"), clash)
+        XCTAssertFalse(clash.contains("tun:\n"), clash)
+    }
+
+    func testStrictProtectionAddsSurgeDNSInterception() {
+        let scheme = makeScheme(dnsProtectionMode: .strict)
+        let surge = generatedScheme(scheme, target: .surge)
+
+        XCTAssertTrue(surge.contains("hijack-dns = *:53"), surge)
+        XCTAssertTrue(
+            surge.contains("encrypted-dns-follow-outbound-mode = true"),
+            surge
+        )
+    }
+
+    func testStrictProtectionAddsMihomoTUNInterceptionOnlyToClashTarget() {
+        let scheme = makeScheme(dnsProtectionMode: .strict)
+        let clash = generatedScheme(scheme, target: .clashApple)
+
+        XCTAssertTrue(clash.contains("tun:\n"), clash)
+        XCTAssertTrue(clash.contains("dns-hijack:\n"), clash)
+        XCTAssertTrue(clash.contains("- any:53"), clash)
+        XCTAssertTrue(clash.contains("- tcp://any:53"), clash)
+        XCTAssertTrue(clash.contains("strict-route: true"), clash)
+
+        let stash = generatedScheme(scheme, target: .clash)
+        XCTAssertFalse(stash.contains("tun:\n"), stash)
+        XCTAssertFalse(stash.contains("strict-route: true"), stash)
+    }
+
+    func testStandardProtectionKeepsCurrentClashAndSurgeBehavior() {
+        let scheme = makeScheme(dnsProtectionMode: .standard)
+        let clash = generatedScheme(scheme, target: .clashApple)
+        let surge = generatedScheme(scheme, target: .surge)
+
+        XCTAssertTrue(clash.contains("enhanced-mode: fake-ip"), clash)
+        XCTAssertTrue(clash.contains("proxy-server-nameserver:"), clash)
+        XCTAssertFalse(clash.contains("tun:\n"), clash)
+        XCTAssertFalse(surge.contains("hijack-dns = *:53"), surge)
+    }
+
+    private func makeScheme(
+        dnsProtectionMode: RuleSchemeDNSProtectionMode
+    ) -> RuleScheme {
+        RuleScheme(
+            id: "dns-protection-\(dnsProtectionMode.rawValue)",
+            name: "DNS Protection",
+            summary: "DNS Protection",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))
+            ],
+            networkSettings: RuleSchemeNetworkSettings(
+                ipv6Enabled: true,
+                dnsServers: ["1.1.1.1"],
+                encryptedDNSServers: ["https://cloudflare-dns.com/dns-query"],
+                proxyTestURLString: "https://cp.cloudflare.com/generate_204",
+                dnsProtectionMode: dnsProtectionMode
+            )
+        )
+    }
+
+    private func generatedScheme(
+        _ scheme: RuleScheme,
+        target: ClientTarget
+    ) -> String {
+        let node = SubscriptionParser().parseURI(
+            "trojan://pw@a.example.com:443?sni=c.example.com#T"
+        )!
+        return ConfigurationGenerator()
+            .generate(nodes: [node], scheme: scheme, target: target)
+            .content
+    }
 }

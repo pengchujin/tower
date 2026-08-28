@@ -33,6 +33,42 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertTrue(textView.textContainer.widthTracksTextView)
     }
 
+    @MainActor
+    func testConfigurationEditorUsesGitHubStyleLineNumbersAndUnwrappedCode() {
+        let editor = ConfigurationEditorTextViewFactory.make()
+
+        XCTAssertTrue(editor.textView.isEditable)
+        XCTAssertTrue(editor.textView.isSelectable)
+        XCTAssertTrue(editor.textView.isScrollEnabled)
+        XCTAssertTrue(editor.textView.alwaysBounceHorizontal)
+        XCTAssertFalse(editor.textView.textContainer.widthTracksTextView)
+        XCTAssertEqual(editor.textView.textContainer.lineBreakMode, .byClipping)
+        XCTAssertGreaterThanOrEqual(editor.gutterWidth, 40)
+    }
+
+    @MainActor
+    func testConfigurationEditorHighlightsWithoutLosingSelectionOrLineNumbers() throws {
+        let editor = ConfigurationEditorTextViewFactory.make()
+        let original = "# note\n[custom]\nruleset=漏网之鱼,https://example.com/rules.list"
+        ConfigurationEditorTextViewFactory.render(original, in: editor)
+        editor.textView.selectedRange = NSRange(location: 9, length: 4)
+
+        let updated = original + "\nenable_rule_generator=true"
+        ConfigurationEditorTextViewFactory.render(updated, in: editor)
+
+        XCTAssertEqual(editor.textView.text, updated)
+        XCTAssertEqual(editor.textView.selectedRange, NSRange(location: 9, length: 4))
+        XCTAssertEqual(editor.lineNumberView.lineStarts.count, 4)
+        let keyRange = try XCTUnwrap((updated as NSString).range(of: "ruleset").nonEmpty)
+        let keyColor = editor.textView.attributedText.attribute(
+            .foregroundColor,
+            at: keyRange.location,
+            effectiveRange: nil
+        ) as? UIColor
+        XCTAssertNotNil(keyColor)
+        XCTAssertNotEqual(keyColor, UIColor.label)
+    }
+
     func testQuanXPreviewUsesSectionSpecificSyntaxColors() throws {
         let content = """
         # Generated locally by 塔台

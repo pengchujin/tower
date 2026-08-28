@@ -450,6 +450,81 @@ struct ConfigurationGenerator {
         """
     }
 
+    private func schemeIPv6(_ scheme: RuleScheme) -> Bool {
+        scheme.networkSettings?.ipv6Enabled ?? true
+    }
+
+    private func schemePlainDNS(_ scheme: RuleScheme) -> [String] {
+        let values = scheme.networkSettings?.dnsServers ?? []
+        return values.isEmpty ? ["223.5.5.5", "119.29.29.29"] : values
+    }
+
+    private func schemeEncryptedDNS(_ scheme: RuleScheme) -> [String] {
+        let values = scheme.networkSettings?.encryptedDNSServers ?? []
+        return values.isEmpty
+            ? ["https://223.5.5.5/dns-query", "https://doh.pub/dns-query"]
+            : values
+    }
+
+    private func schemeTestURL(_ scheme: RuleScheme) -> String {
+        scheme.networkSettings?.proxyTestURLString
+            ?? "http://www.gstatic.com/generate_204"
+    }
+
+    private func schemeDNSProtectionMode(_ scheme: RuleScheme) -> RuleSchemeDNSProtectionMode {
+        scheme.networkSettings?.dnsProtectionMode ?? .standard
+    }
+
+    private func clashNetworkBlock(_ scheme: RuleScheme, target: ClientTarget) -> String {
+        let plain = schemePlainDNS(scheme)
+        let nameservers = schemeEncryptedDNS(scheme)
+        let protectionMode = schemeDNSProtectionMode(scheme)
+        let proxyResolvers = scheme.networkSettings == nil
+            ? ["https://223.5.5.5/dns-query"]
+            : nameservers
+        let fallbackResolvers = scheme.networkSettings == nil
+            ? ["https://1.1.1.1/dns-query", "https://dns.google/dns-query"]
+            : nameservers
+        var output = "ipv6: \(schemeIPv6(scheme))\n\n"
+        output += "dns:\n"
+        output += "  enable: true\n"
+        if protectionMode != .followScheme {
+            output += "  enhanced-mode: fake-ip\n"
+            output += "  fake-ip-range: 198.18.0.1/16\n"
+            output += "  fake-ip-filter:\n"
+            for value in ["*.lan", "+.local", "+.msftconnecttest.com", "+.msftncsi.com"] {
+                output += "    - \(yaml(value))\n"
+            }
+        }
+        output += "  default-nameserver:\n"
+        for value in plain { output += "    - \(value)\n" }
+        if protectionMode != .followScheme {
+            output += "  proxy-server-nameserver:\n"
+            for value in proxyResolvers { output += "    - \(value)\n" }
+        }
+        output += "  nameserver:\n"
+        for value in nameservers { output += "    - \(value)\n" }
+        if protectionMode != .followScheme {
+            output += "  fallback:\n"
+            for value in fallbackResolvers { output += "    - \(value)\n" }
+            output += "  fallback-filter:\n"
+            output += "    geoip: true\n"
+            output += "    geoip-code: CN\n"
+        }
+        if protectionMode == .strict, target == .clashApple {
+            output += "\ntun:\n"
+            output += "  enable: true\n"
+            output += "  stack: mixed\n"
+            output += "  auto-route: true\n"
+            output += "  auto-detect-interface: true\n"
+            output += "  dns-hijack:\n"
+            output += "    - any:53\n"
+            output += "    - tcp://any:53\n"
+            output += "  strict-route: true\n"
+        }
+        return output
+    }
+
     private func clashScheme(
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
@@ -463,34 +538,8 @@ struct ConfigurationGenerator {
         allow-lan: false
         mode: rule
         log-level: warning
-        ipv6: true
-
-        dns:
-          enable: true
-          enhanced-mode: fake-ip
-          fake-ip-range: 198.18.0.1/16
-          fake-ip-filter:
-            - "*.lan"
-            - "+.local"
-            - "+.msftconnecttest.com"
-            - "+.msftncsi.com"
-          default-nameserver:
-            - 223.5.5.5
-            - 119.29.29.29
-          proxy-server-nameserver:
-            - https://223.5.5.5/dns-query
-          nameserver:
-            - https://223.5.5.5/dns-query
-            - https://doh.pub/dns-query
-          fallback:
-            - https://1.1.1.1/dns-query
-            - https://dns.google/dns-query
-          fallback-filter:
-            geoip: true
-            geoip-code: CN
-
-        proxies:
         """
+        output += "\n" + clashNetworkBlock(scheme, target: target) + "\nproxies:\n"
         output += "\n"
         output += nodes.isEmpty ? "  []\n" : nodes.map(clashNode).joined(separator: "\n") + "\n"
         output += "\nproxy-groups:\n"
@@ -546,17 +595,17 @@ struct ConfigurationGenerator {
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: target)
-        output += """
-        [General]
-        loglevel = notify
-        ipv6 = true
-        dns-server = 223.5.5.5, 119.29.29.29
-        encrypted-dns-server = https://223.5.5.5/dns-query, https://doh.pub/dns-query
-        skip-proxy = 127.0.0.1, localhost, *.local
-        test-timeout = 5
-
-        [Proxy]
-        """
+        output += "[General]\n"
+        output += "loglevel = notify\n"
+        output += "ipv6 = \(schemeIPv6(scheme))\n"
+        output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n"
+        output += "encrypted-dns-server = \(schemeEncryptedDNS(scheme).joined(separator: ", "))\n"
+        if schemeDNSProtectionMode(scheme) == .strict, target == .surge {
+            output += "hijack-dns = *:53\n"
+            output += "encrypted-dns-follow-outbound-mode = true\n"
+        }
+        output += "skip-proxy = 127.0.0.1, localhost, *.local\n"
+        output += "test-timeout = 5\n\n[Proxy]\n"
         output += "\n"
         for node in nodes {
             output += surgeNode(node, shadowrocket: target == .shadowrocket) + "\n"
@@ -595,13 +644,10 @@ struct ConfigurationGenerator {
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .loon)
-        output += """
-        [General]
-        ipv6 = true
-        dns-server = 223.5.5.5, 119.29.29.29
-
-        [Proxy]
-        """
+        output += "[General]\n"
+        output += "ipv6 = \(schemeIPv6(scheme))\n"
+        output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n\n"
+        output += "[Proxy]\n"
         output += "\n"
         for node in nodes { output += loonNode(node) + "\n" }
         output += "\n[Proxy Group]\n"
@@ -635,16 +681,11 @@ struct ConfigurationGenerator {
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
         var output = schemeHeader(scheme, target: .quanx)
-        output += """
-        [general]
-        server_check_url = http://www.gstatic.com/generate_204
-        server_check_timeout = 5000
-
-        [dns]
-        no-system
-        server = 223.5.5.5
-        server = 1.1.1.1
-        """
+        output += "[general]\n"
+        output += "server_check_url = \(schemeTestURL(scheme))\n"
+        output += "server_check_timeout = 5000\n\n"
+        output += "[dns]\nno-system\n"
+        for value in schemePlainDNS(scheme) { output += "server = \(value)\n" }
         // Section order follows subconverter's QuanX template, which is what
         // every working converter emits: `[policy]` comes before the server and
         // filter sections, not after them. Tower used to put the whole node
@@ -1730,7 +1771,20 @@ struct ConfigurationGenerator {
         case .trojan:
             prefix = "trojan"
             values.append("password=\(confValue(node.password ?? ""))")
-            appendQuanXTransport(node, to: &values)
+            if node.transport?.lowercased() == "ws" {
+                // Trojan's TLS layer is mandatory even for snapshots parsed by
+                // older Tower versions, where an omitted Clash `tls` key left
+                // this stored flag false.
+                var secureNode = node
+                secureNode.tls = true
+                appendQuanXTransport(secureNode, to: &values)
+            } else {
+                // Quantumult X gives Trojan its own native TLS vocabulary.
+                // `obfs=over-tls` / `obfs-host` belong to VMess and VLESS.
+                values.append("over-tls=true")
+                appendValue(node.sni, key: "tls-host", to: &values)
+                appendQuanXCertificatePolicy(node, to: &values)
+            }
         case .anytls:
             prefix = "anytls"
             values += ["password=\(confValue(node.password ?? ""))", "over-tls=true"]

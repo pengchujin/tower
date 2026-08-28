@@ -108,6 +108,62 @@ final class TransportGenerationTests: XCTestCase {
         XCTAssertTrue(result.content.contains("obfs-uri=/trojan"), result.content)
     }
 
+    func testShadowrocketTrojanWebsocketPluginExportsQuanXWSS() throws {
+        let uri = "trojan://secret@1.2.3.4:443"
+            + "?peer=tls.example.com"
+            + "&plugin=obfs-local%3Bobfs%3Dwebsocket%3Bobfs-host%3Dcdn.example.com"
+            + "%3Bobfs-uri%3D%2Fgateway#Trojan%20WS"
+        let node = try XCTUnwrap(parser.parseURI(uri))
+
+        XCTAssertEqual(node.transport, "ws")
+        XCTAssertTrue(node.tls)
+        XCTAssertEqual(node.sni, "tls.example.com")
+        XCTAssertEqual(node.hostHeader, "cdn.example.com")
+        XCTAssertEqual(node.path, "/gateway")
+
+        let result = generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: .quanx)
+        let line = try XCTUnwrap(result.content.split(separator: "\n").first { $0.hasPrefix("trojan=") })
+
+        XCTAssertTrue(line.contains("obfs=wss"), String(line))
+        XCTAssertTrue(line.contains("obfs-host=cdn.example.com"), String(line))
+        XCTAssertTrue(line.contains("obfs-uri=/gateway"), String(line))
+        XCTAssertFalse(line.contains("over-tls=true"), String(line))
+        XCTAssertFalse(line.contains("tls-host="), String(line))
+    }
+
+    func testQuanXTrojanTCPUsesNativeTLSFields() throws {
+        let node = ProxyNode(
+            kind: .trojan, name: "Trojan TLS", server: "1.2.3.4", port: 443,
+            password: "secret", tls: true, sni: "edge.example.com",
+            rawURI: "trojan://transport"
+        )
+
+        let result = generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: .quanx)
+        let line = try XCTUnwrap(result.content.split(separator: "\n").first { $0.hasPrefix("trojan=") })
+
+        XCTAssertTrue(line.contains("over-tls=true"), String(line))
+        XCTAssertTrue(line.contains("tls-host=edge.example.com"), String(line))
+        XCTAssertFalse(line.contains("obfs=over-tls"), String(line))
+        XCTAssertFalse(line.contains("obfs-host=edge.example.com"), String(line))
+    }
+
+    func testQuanXTrojanWebsocketIsSecureForPreviouslyStoredNodes() throws {
+        let node = ProxyNode(
+            kind: .trojan, name: "Stored Trojan WS", server: "1.2.3.4", port: 443,
+            password: "secret", transport: "ws", tls: false,
+            sni: "edge.example.com", hostHeader: "edge.example.com", path: "/trojan",
+            rawURI: "trojan://stored"
+        )
+
+        let result = generator.generate(nodes: [node], preset: RulePreset.builtIns[0], target: .quanx)
+        let line = try XCTUnwrap(result.content.split(separator: "\n").first { $0.hasPrefix("trojan=") })
+
+        XCTAssertTrue(line.contains("obfs=wss"), String(line))
+        XCTAssertTrue(line.contains("obfs-host=edge.example.com"), String(line))
+        XCTAssertTrue(line.contains("obfs-uri=/trojan"), String(line))
+        XCTAssertFalse(line.contains("obfs=ws,"), String(line))
+    }
+
     func testShadowsocksV2RayWebsocketPluginIsParsedAndNotSilentlyFlattened() throws {
         let uri = "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@1.2.3.4:8388"
             + "?plugin=v2ray-plugin%3Bmode%3Dwebsocket%3Bhost%3Dedge.example.com%3Bpath%3D%2Fss%3Btls#SS"

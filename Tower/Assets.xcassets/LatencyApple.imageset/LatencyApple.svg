@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="rainbow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8E5DE7"/>
+      <stop offset=".2" stop-color="#2F80ED"/>
+      <stop offset=".4" stop-color="#27AE60"/>
+      <stop offset=".6" stop-color="#F2C94C"/>
+      <stop offset=".8" stop-color="#F2994A"/>
+      <stop offset="1" stop-color="#EB5757"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#rainbow)" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.22.07 2.12.67 2.86.72 1.1-.22 2.15-.85 3.32-.76 1.4.12 2.45.67 3.15 1.68-2.89 1.73-2.2 5.53.45 6.6-.53 1.4-1.23 2.8-2.28 3.81l.5.92zM12.03 7.25C11.88 5.18 13.57 3.5 15.5 3.34c.27 2.39-2.17 4.18-3.47 3.91z"/>
+</svg>
