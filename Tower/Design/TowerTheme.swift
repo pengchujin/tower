@@ -4,6 +4,8 @@ enum TowerTheme {
     static let cornerRadius: CGFloat = 22
     static let compactCornerRadius: CGFloat = 16
     static let pagePadding: CGFloat = 18
+    static let actionBarButtonHeight: CGFloat = 50
+    static let actionBarButtonCornerRadius: CGFloat = 16
 
     static let background = LinearGradient(
         colors: [
@@ -136,10 +138,16 @@ struct PrimaryActionLabel: View {
             Image(systemName: symbol)
                 .font(.subheadline.weight(.bold))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 15)
+        .frame(maxWidth: .infinity, minHeight: TowerTheme.actionBarButtonHeight)
+        .padding(.horizontal, 14)
         .foregroundStyle(.white)
-        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(
+            Color.accentColor,
+            in: RoundedRectangle(
+                cornerRadius: TowerTheme.actionBarButtonCornerRadius,
+                style: .continuous
+            )
+        )
     }
 }
 

@@ -227,11 +227,11 @@ struct SourceManagementView: View {
                     EmptyView()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
-            .background(.regularMaterial)
-            .overlay(alignment: .top) { Divider() }
+            .padding(.horizontal, TowerTheme.pagePadding)
+            .padding(.top, 11)
+            .padding(.bottom, 9)
+            .background(.bar)
+            .overlay(alignment: .top) { Divider().opacity(0.45) }
         }
     }
 
@@ -422,26 +422,14 @@ private struct SubscriptionRefreshToolbarButton: View {
     let sources: [SubscriptionSource]
 
     var body: some View {
-        Button {
+        Button("更新") {
             guard !sources.isEmpty, !isRefreshing else { return }
             isRefreshing = true
             Task {
                 await model.refreshSubscriptions(sources)
                 isRefreshing = false
             }
-        } label: {
-            Group {
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                }
-            }
-            .frame(width: 22, height: 22)
-            .contentTransition(.opacity)
         }
-        .buttonStyle(.plain)
         .disabled(sources.isEmpty || isRefreshing)
         .accessibilityLabel(isRefreshing ? String(localized: "更新中") : String(localized: "更新"))
     }
@@ -517,6 +505,8 @@ private enum SourceManagementDeletion: Hashable {
 }
 
 private struct ManagementActionButton: View {
+    @Environment(\.isEnabled) private var isEnabled
+
     let title: LocalizedStringKey
     let symbol: String
     let role: ButtonRole?
@@ -537,13 +527,30 @@ private struct ManagementActionButton: View {
     var body: some View {
         Button(role: role, action: action) {
             Label(title, systemImage: symbol)
-                .font(.subheadline.weight(.semibold))
+                .font(.headline)
                 .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity, minHeight: TowerTheme.actionBarButtonHeight)
+                .padding(.horizontal, 14)
+                .foregroundStyle(foregroundStyle)
+                .background(
+                    backgroundStyle,
+                    in: RoundedRectangle(
+                        cornerRadius: TowerTheme.actionBarButtonCornerRadius,
+                        style: .continuous
+                    )
+                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: 13))
+        .buttonStyle(ResponsivePressButtonStyle())
+        .opacity(isEnabled ? 1 : 0.34)
+    }
+
+    private var foregroundStyle: Color {
+        role == .destructive ? .red : .white
+    }
+
+    private var backgroundStyle: Color {
+        role == .destructive ? Color.primary.opacity(0.07) : .accentColor
     }
 }

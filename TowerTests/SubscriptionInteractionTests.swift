@@ -1020,11 +1020,48 @@ final class SubscriptionInteractionTests: XCTestCase {
         )
         XCTAssertTrue(management.contains("ToolbarItem(placement: .topBarTrailing)"))
         XCTAssertTrue(management.contains("SubscriptionRefreshToolbarButton(sources: subscriptionsToRefresh)"))
+        XCTAssertTrue(management.contains("Button(\"更新\") {"))
+        XCTAssertFalse(management.contains("Text(\"刷新\")"))
+        XCTAssertFalse(management.contains("Image(systemName: \"arrow.clockwise\")"))
+        XCTAssertFalse(management.contains(".labelStyle(.titleAndIcon)"))
         XCTAssertFalse(management.contains("EditMode"))
         XCTAssertFalse(management.contains(".onMove("))
         XCTAssertFalse(management.contains("\"排序\""))
         #else
         throw XCTSkip("该测试检查批量管理页面结构，只在模拟器构建环境运行")
+        #endif
+    }
+
+    func testBatchManagementActionButtonsMatchExportActionBarGeometry() throws {
+        #if targetEnvironment(simulator)
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let management = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift"),
+            encoding: .utf8
+        )
+        let export = try String(
+            contentsOf: root.appendingPathComponent("Tower/Features/Export/ExportView.swift"),
+            encoding: .utf8
+        )
+        let theme = try String(
+            contentsOf: root.appendingPathComponent("Tower/Design/TowerTheme.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(theme.contains("static let actionBarButtonHeight: CGFloat = 50"))
+        XCTAssertTrue(theme.contains("static let actionBarButtonCornerRadius: CGFloat = 16"))
+        for source in [management, export] {
+            XCTAssertTrue(source.contains("TowerTheme.actionBarButtonHeight"))
+            XCTAssertTrue(source.contains("TowerTheme.actionBarButtonCornerRadius"))
+            XCTAssertTrue(source.contains(".buttonStyle(ResponsivePressButtonStyle())"))
+        }
+        XCTAssertTrue(management.contains(".background(.bar)"))
+        XCTAssertTrue(management.contains(".font(.headline)"))
+        XCTAssertFalse(management.contains(".buttonStyle(.bordered)"))
+        #else
+        throw XCTSkip("该测试检查批量操作栏样式，只在模拟器构建环境运行")
         #endif
     }
 
@@ -1049,7 +1086,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testBatchRefreshProgressIsScopedToToolbarInsteadOfInvalidatingNodeList() throws {
+    func testBatchRefreshStateIsScopedToTextOnlyToolbarButton() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -1057,15 +1094,20 @@ final class SubscriptionInteractionTests: XCTestCase {
             .appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         let rootEnd = try XCTUnwrap(source.range(of: "private struct SubscriptionRefreshToolbarButton"))
+        let buttonEnd = try XCTUnwrap(source.range(of: "enum SourceManagementRoute", range: rootEnd.upperBound..<source.endIndex))
         let rootSource = String(source[..<rootEnd.lowerBound])
-        let buttonSource = String(source[rootEnd.lowerBound...])
+        let buttonSource = String(source[rootEnd.lowerBound..<buttonEnd.lowerBound])
 
         XCTAssertFalse(
             rootSource.contains("@State private var isRefreshing"),
             "更新进度状态放在整页会让千节点筛选列表跟着每次动画重算"
         )
         XCTAssertTrue(buttonSource.contains("@State private var isRefreshing"))
-        XCTAssertTrue(buttonSource.contains("ProgressView()"))
+        XCTAssertTrue(buttonSource.contains("Button(\"更新\") {"))
+        XCTAssertFalse(buttonSource.contains("ProgressView()"))
+        XCTAssertFalse(buttonSource.contains("arrow.clockwise"))
+        XCTAssertFalse(buttonSource.contains(".buttonStyle(.plain)"))
+        XCTAssertFalse(buttonSource.contains(".font(.subheadline"))
         XCTAssertTrue(buttonSource.contains("isRefreshing = true"))
         XCTAssertTrue(buttonSource.contains("await model.refreshSubscriptions(sources)"))
         #else

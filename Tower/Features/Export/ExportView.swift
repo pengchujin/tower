@@ -689,10 +689,16 @@ private struct ImportActionBar: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
+                .frame(maxWidth: .infinity, minHeight: TowerTheme.actionBarButtonHeight)
+                .padding(.horizontal, 14)
                 .foregroundStyle(.white)
-                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(
+                    Color.accentColor,
+                    in: RoundedRectangle(
+                        cornerRadius: TowerTheme.actionBarButtonCornerRadius,
+                        style: .continuous
+                    )
+                )
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .disabled(isDisabled || isImporting)
@@ -704,8 +710,17 @@ private struct ImportActionBar: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.headline)
-                    .frame(width: 50, height: 50)
-                    .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .frame(
+                        width: TowerTheme.actionBarButtonHeight,
+                        height: TowerTheme.actionBarButtonHeight
+                    )
+                    .background(
+                        Color.primary.opacity(0.07),
+                        in: RoundedRectangle(
+                            cornerRadius: TowerTheme.actionBarButtonCornerRadius,
+                            style: .continuous
+                        )
+                    )
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .disabled(isDisabled || isImporting)
