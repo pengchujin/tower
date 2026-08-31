@@ -87,8 +87,9 @@ final class RepositoryConsistencyTests: XCTestCase {
         }
 
         XCTAssertTrue(architecture.contains("名称优先"))
-        XCTAssertTrue(architecture.contains("七种配置生成"))
+        XCTAssertTrue(architecture.contains("完整配置与节点订阅生成"))
         XCTAssertTrue(architecture.contains("Hiddify"))
+        XCTAssertTrue(architecture.contains("sing-box MT"))
         XCTAssertTrue(architecture.contains("Egern"))
         XCTAssertTrue(readme.contains("名称优先"))
         XCTAssertFalse(readme.contains("IP 优先国家地区聚合"))

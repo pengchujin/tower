@@ -115,7 +115,7 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
-            rawConfigurationText: text,
+            rawConfigurationText: RuleSchemeSourceSanitizer.persistableText(text),
             networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
@@ -183,7 +183,7 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
-            rawConfigurationText: text,
+            rawConfigurationText: RuleSchemeSourceSanitizer.persistableText(text),
             networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
@@ -452,7 +452,7 @@ struct RuleSchemeParser {
             sourceURLString: sourceURLString,
             groups: groups,
             rulesets: rulesets,
-            rawConfigurationText: text,
+            rawConfigurationText: RuleSchemeSourceSanitizer.persistableText(text),
             networkSettings: networkSettings,
             updatedAt: .now,
             isBundled: isBundled
@@ -536,7 +536,9 @@ struct RuleSchemeParser {
 
         let settings = RuleSchemeNetworkSettings(
             ipv6Enabled: ipv6Enabled,
-            dnsServers: unique(dnsServers),
+            dnsServers: unique(dnsServers.compactMap(
+                RuleSchemeNetworkSettings.normalizedPlainDNSServer
+            )),
             encryptedDNSServers: unique(encryptedDNSServers),
             proxyTestURLString: proxyTestURLString
         )

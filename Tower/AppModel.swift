@@ -53,9 +53,13 @@ final class AppModel {
     var countryResolutionCompletedNodeIDs: Set<UUID> = []
     var toast: ToastMessage?
     var subscriptionRefreshReport: SubscriptionRefreshReport?
-    /// The running full refresh, so a second pull joins it rather than
-    /// starting a rival queue. Not observed by any view.
-    @ObservationIgnored private var refreshAllTask: Task<Void, Never>?
+    /// Batch requests are serialized and overlapping source sets join the
+    /// existing work. This keeps pull-to-refresh and batch management from
+    /// racing each other or reporting an in-flight source as a success.
+    @ObservationIgnored private var subscriptionRefreshBatch: SubscriptionRefreshBatch?
+    /// A row refresh can overlap a batch entry point. Store the actual source
+    /// operation so both callers await one fetch and receive its real result.
+    @ObservationIgnored private var sourceRefreshOperations: [UUID: SourceRefreshOperation] = [:]
     /// The persistent service credential is deliberately unrelated to every
     /// airport URL. Only this random token appears in LAN sharing links.
     var lanSharingToken = LANSubscriptionAccessTokenStore.loadOrCreate()
@@ -63,7 +67,7 @@ final class AppModel {
     var isLANSharingStarting = false
     var renewalRemindersEnabled = false
     var isUpdatingRenewalReminders = false
-    var clientOrder = ClientTarget.allCases
+    var clientOrder = ClientTargetOrder.defaultOrder
     var appendSubscriptionNameToNodes = false
     var filterSubscriptionInfoNodes = false
     /// Refresh enabled subscriptions when the app opens. Off by default like
@@ -130,6 +134,17 @@ final class AppModel {
     private static let resolutionBatchSize = 8
     private static let resolvedHostCountryCodeTTL: TimeInterval = 24 * 60 * 60
     @ObservationIgnored private var generationCache = ConfigurationCache()
+
+    private struct SubscriptionRefreshBatch {
+        let id: UUID
+        let sourceIDs: Set<UUID>
+        let task: Task<Void, Never>
+    }
+
+    private struct SourceRefreshOperation {
+        let id: UUID
+        let task: Task<Bool, Never>
+    }
     /// The rules page shows every scheme's total at once. Re-materializing all
     /// schemes and re-reading imported lists whenever only the selected id
     /// changes makes a simple mode switch block the main actor.
@@ -486,11 +501,29 @@ final class AppModel {
     /// Replaces the parsed rule graph with a manually authored source file.
     /// Bundled snapshots remain immutable: editing one creates a local copy,
     /// while an imported/custom scheme keeps its stable identifier.
+    func manualConfigurationEditingScheme(for scheme: RuleScheme) -> RuleScheme {
+        var editable = customizableScheme(for: scheme)
+        // A persisted import is useful only while it still describes the
+        // visible graph. Visual group edits, custom rules and DNS overrides
+        // must open as canonical text so text mode starts from what is shown.
+        if editable.groups != scheme.groups
+            || editable.rulesets != scheme.rulesets
+            || editable.networkSettings != scheme.networkSettings {
+            editable.rawConfigurationText = nil
+        }
+        return editable
+    }
+
     @discardableResult
     func saveManualRuleSchemeConfiguration(
         _ text: String,
         for scheme: RuleScheme
     ) throws -> RuleScheme {
+        let previousSelection = selectedRuleGroups[scheme.id]
+        let previousEmojiPreference = ruleGroupEmojisEnabled[scheme.id]
+        let disabledFlows = customRuleFlows.filter {
+            $0.schemeID == scheme.id && !$0.isEnabled
+        }
         let base: RuleScheme
         if scheme.isBundled {
             base = RuleScheme(
@@ -515,10 +548,28 @@ final class AppModel {
             importedSchemes.append(saved)
         }
 
-        selectedRuleGroups[saved.id] = nil
+        let availableGroups = Set(saved.selectableRuleGroupNames)
+        if let previousSelection {
+            let retainedSelection = previousSelection.intersection(availableGroups)
+            selectedRuleGroups[saved.id] = retainedSelection == availableGroups
+                ? nil
+                : retainedSelection
+        } else {
+            selectedRuleGroups[saved.id] = nil
+        }
         ruleSchemeCustomizations[saved.id] = nil
-        ruleGroupEmojisEnabled[saved.id] = nil
+        ruleGroupEmojisEnabled[saved.id] = previousEmojiPreference
+
+        // Enabled flows are already materialized into the editable graph and
+        // therefore into `saved`; retaining them would emit every rule twice.
+        // Disabled flows are intentionally absent from that graph, so carry
+        // them across instead of silently deleting the user's saved work.
         customRuleFlows.removeAll { $0.schemeID == saved.id }
+        customRuleFlows.append(contentsOf: disabledFlows.map { flow in
+            var migrated = flow
+            migrated.schemeID = saved.id
+            return migrated
+        })
         selectedPresetID = saved.id
         persist()
         showToast(
@@ -1512,8 +1563,36 @@ final class AppModel {
         synchronizeReminders: Bool = true,
         commitImmediately: Bool = true
     ) async -> Bool {
-        guard let source = subscriptions.first(where: { $0.id == id }),
-              !refreshingSourceIDs.contains(id) else { return true }
+        if let operation = sourceRefreshOperations[id] {
+            return await operation.task.value
+        }
+        guard let source = subscriptions.first(where: { $0.id == id }) else { return false }
+
+        let operationID = UUID()
+        let task = Task(priority: .userInitiated) { [weak self] in
+            guard let self else { return false }
+            return await self.performSubscriptionUpdate(
+                source: source,
+                showResult: showResult,
+                synchronizeReminders: synchronizeReminders,
+                commitImmediately: commitImmediately
+            )
+        }
+        sourceRefreshOperations[id] = SourceRefreshOperation(id: operationID, task: task)
+        let succeeded = await task.value
+        if sourceRefreshOperations[id]?.id == operationID {
+            sourceRefreshOperations[id] = nil
+        }
+        return succeeded
+    }
+
+    private func performSubscriptionUpdate(
+        source: SubscriptionSource,
+        showResult: Bool,
+        synchronizeReminders: Bool,
+        commitImmediately: Bool
+    ) async -> Bool {
+        let id = source.id
         refreshingSourceIDs.insert(id)
         defer { refreshingSourceIDs.remove(id) }
 
@@ -1586,28 +1665,7 @@ final class AppModel {
     /// single client. A failure is recorded on that source but never stops the
     /// queue, so every saved subscription still gets one attempt.
     func refreshAllSubscriptions() async {
-        // A second pull while the first is still running used to find every
-        // source already in `refreshingSourceIDs`, count them all as successes
-        // and announce "all updated" over a refresh still in flight. Joining
-        // the running one instead makes the pull indicator track the work that
-        // is actually happening.
-        if let inFlight = refreshAllTask {
-            await inFlight.value
-            return
-        }
-
-        // `.refreshable` owns a gesture-scoped task. Replacing the first
-        // subscription row can make SwiftUI cancel that task as the view tree
-        // changes. An unstructured task keeps the actual queue alive; awaiting
-        // its non-throwing value still lets the pull indicator follow progress
-        // when SwiftUI leaves the gesture task intact.
-        let refreshTask = Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
-            await self.performRefreshAllSubscriptions()
-        }
-        refreshAllTask = refreshTask
-        await refreshTask.value
-        refreshAllTask = nil
+        await coordinateSubscriptionRefresh(sourceIDs: subscriptions.map(\.id))
     }
 
     /// Refreshes only the sources selected in the management screen while
@@ -1615,7 +1673,7 @@ final class AppModel {
     func refreshSubscriptions(_ selectedSources: [SubscriptionSource]) async {
         let selectedIDs = Set(selectedSources.map(\.id))
         let sourceIDs = subscriptions.map(\.id).filter(selectedIDs.contains)
-        await performRefreshSubscriptions(sourceIDs: sourceIDs)
+        await coordinateSubscriptionRefresh(sourceIDs: sourceIDs)
     }
 
     /// Splits the queue into one lane per provider, preserving the order the
@@ -1648,9 +1706,43 @@ final class AppModel {
         return laneOrder.compactMap { lanes[$0] }
     }
 
-    private func performRefreshAllSubscriptions() async {
-        let sourceIDs = subscriptions.map(\.id)
-        await performRefreshSubscriptions(sourceIDs: sourceIDs)
+    private func coordinateSubscriptionRefresh(sourceIDs: [UUID]) async {
+        var pendingIDs = sourceIDs
+        while !pendingIDs.isEmpty {
+            if let active = subscriptionRefreshBatch {
+                let coveredIDs = Set(pendingIDs).intersection(active.sourceIDs)
+                await active.task.value
+                if subscriptionRefreshBatch?.id == active.id {
+                    subscriptionRefreshBatch = nil
+                }
+                if !coveredIDs.isEmpty {
+                    pendingIDs.removeAll(where: coveredIDs.contains)
+                }
+                continue
+            }
+
+            // `.refreshable` owns a gesture-scoped task that SwiftUI may
+            // cancel when refreshed rows change identity. The detached root
+            // keeps the actual operation alive; App reset still cancels it
+            // explicitly through `subscriptionRefreshBatch` below.
+            let batchID = UUID()
+            let batchSourceIDs = pendingIDs
+            let activeIDs = Set(pendingIDs)
+            let task = Task.detached(priority: .userInitiated) { [weak self] in
+                guard let self else { return }
+                await self.performRefreshSubscriptions(sourceIDs: batchSourceIDs)
+            }
+            subscriptionRefreshBatch = SubscriptionRefreshBatch(
+                id: batchID,
+                sourceIDs: activeIDs,
+                task: task
+            )
+            await task.value
+            if subscriptionRefreshBatch?.id == batchID {
+                subscriptionRefreshBatch = nil
+            }
+            pendingIDs.removeAll(where: activeIDs.contains)
+        }
     }
 
     private func performRefreshSubscriptions(sourceIDs: [UUID]) async {
@@ -1692,6 +1784,8 @@ final class AppModel {
         for (id, succeeded) in refreshResults {
             results[id] = succeeded
         }
+
+        guard !Task.isCancelled else { return }
 
         let succeeded = results.values.filter { $0 }.count
         sortNodesToMatchSubscriptionOrder()
@@ -2204,8 +2298,12 @@ final class AppModel {
                 + customRuleFlows.compactMap(\.remoteRuleURL)
         )
 
-        refreshAllTask?.cancel()
-        refreshAllTask = nil
+        subscriptionRefreshBatch?.task.cancel()
+        subscriptionRefreshBatch = nil
+        for operation in sourceRefreshOperations.values {
+            operation.task.cancel()
+        }
+        sourceRefreshOperations.removeAll()
         countryResolutionDrainTask?.cancel()
         countryResolutionDrainTask = nil
         cloudUploadTask?.cancel()
@@ -2415,7 +2513,10 @@ final class AppModel {
         customRuleFlows = localMigration.flows
         excludedKinds = Self.decodeExcludedKinds(snapshot.excludedKinds)
         renewalRemindersEnabled = snapshot.renewalRemindersEnabled ?? false
-        clientOrder = ClientTargetOrder.normalized(rawValues: snapshot.clientOrder)
+        clientOrder = ClientTargetOrder.normalized(
+            rawValues: snapshot.clientOrder,
+            savedMigrationVersion: snapshot.clientOrderMigrationVersion
+        )
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
         filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
         autoRefreshOnOpen = snapshot.autoRefreshOnOpen ?? false
@@ -2514,6 +2615,7 @@ final class AppModel {
             excludedKinds: Self.encodeExcludedKinds(excludedKinds),
             renewalRemindersEnabled: renewalRemindersEnabled,
             clientOrder: clientOrder.map(\.rawValue),
+            clientOrderMigrationVersion: ClientTargetOrder.currentMigrationVersion,
             appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
             filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
             autoRefreshOnOpen: autoRefreshOnOpen,

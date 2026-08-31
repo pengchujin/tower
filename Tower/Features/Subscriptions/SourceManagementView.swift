@@ -11,13 +11,16 @@ enum EnabledFirstOrdering {
 
 struct SourceManagementView: View {
     @Environment(AppModel.self) private var model
+    private let initialRoute: SourceManagementRoute
     @State private var tab: SourceManagementTab
+    @State private var showsEntryTitle = true
     @State private var searchText = ""
     @State private var selectedSubscriptionIDs: Set<UUID> = []
     @State private var selectedLocalNodeIDs: Set<UUID> = []
     @State private var pendingDeletion: SourceManagementDeletion?
 
     init(initialRoute: SourceManagementRoute = .subscriptions) {
+        self.initialRoute = initialRoute
         _tab = State(initialValue: initialRoute.tab)
     }
 
@@ -47,7 +50,7 @@ struct SourceManagementView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(TowerTheme.background.ignoresSafeArea())
-        .navigationTitle("批量管理")
+        .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: tab.searchPrompt)
         .toolbar {
@@ -75,6 +78,7 @@ struct SourceManagementView: View {
         }
         .onChange(of: tab) { _, _ in
             searchText = ""
+            showsEntryTitle = false
         }
         .onChange(of: model.subscriptions.map(\.id)) { _, sourceIDs in
             selectedSubscriptionIDs.formIntersection(sourceIDs)
@@ -82,7 +86,6 @@ struct SourceManagementView: View {
         .onChange(of: model.localNodes.map(\.id)) { _, nodeIDs in
             selectedLocalNodeIDs.formIntersection(nodeIDs)
         }
-        .towerToast()
         .subscriptionRefreshReport()
     }
 
@@ -298,6 +301,17 @@ struct SourceManagementView: View {
 
     private var normalizedSearchText: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var navigationTitle: String {
+        guard showsEntryTitle, tab == .exportFilter else {
+            return String(localized: "批量管理")
+        }
+        switch initialRoute {
+        case .nodes: return String(localized: "节点筛选")
+        case .regions: return String(localized: "覆盖地区")
+        case .subscriptions, .localNodes: return String(localized: "批量管理")
+        }
     }
 
     private var selectedSubscriptions: [SubscriptionSource] {

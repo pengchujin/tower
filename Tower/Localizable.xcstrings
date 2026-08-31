@@ -65689,6 +65689,100 @@
         }
       }
     },
+    "第 %lld 行的普通 DNS 地址无效：%@" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عنوان DNS العادي غير صالح في السطر %lld: %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ungültige normale DNS-Adresse in Zeile %lld: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid plain DNS address at line %lld: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección DNS normal no válida en la línea %lld: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse DNS standard invalide à la ligne %lld : %@"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alamat DNS biasa pada baris %lld tidak valid: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行 %lld の通常の DNS アドレスが無効です: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld행의 일반 DNS 주소가 잘못되었습니다: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço DNS comum inválido na linha %lld: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверный обычный DNS-адрес в строке %lld: %@"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ที่อยู่ DNS ปกติไม่ถูกต้องที่บรรทัด %lld: %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld. satırda geçersiz normal DNS adresi: %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Địa chỉ DNS thường không hợp lệ ở dòng %lld: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 行的普通 DNS 地址无效：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 行的普通 DNS 位址無效：%@"
+          }
+        }
+      }
+    },
     "第 %lld 行的加密 DNS 地址无效：%@" : {
       "localizations" : {
         "ar" : {

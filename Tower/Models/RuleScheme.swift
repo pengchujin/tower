@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// A rule scheme loaded from Clash YAML, subconverter `.ini`, or Surge config.
@@ -549,6 +550,22 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
             && dnsProtectionMode == .standard
     }
 
+    /// Plain DNS fields are emitted into every supported client without a URL
+    /// parser in between, so only numeric IP literals are safe here. Keywords
+    /// such as `system` and hostnames can silently fall back to the carrier's
+    /// resolver or require a bootstrap lookup that Tower cannot protect.
+    static func normalizedPlainDNSServer(_ value: String) -> String? {
+        let candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return nil }
+
+        var ipv4 = in_addr()
+        if inet_pton(AF_INET, candidate, &ipv4) == 1 { return candidate }
+
+        var ipv6 = in6_addr()
+        if inet_pton(AF_INET6, candidate, &ipv6) == 1 { return candidate }
+        return nil
+    }
+
     private enum CodingKeys: String, CodingKey {
         case ipv6Enabled
         case dnsServers
@@ -743,7 +760,7 @@ struct RuleSchemeNetworkSettingsDraft: Equatable {
             throw RuleSchemeNetworkSettingsDraftError.missingPlainDNS
         }
         if let invalid = plainDNS.first(where: {
-            $0.contains("://") || $0.contains(",") || $0.rangeOfCharacter(from: .whitespaces) != nil
+            RuleSchemeNetworkSettings.normalizedPlainDNSServer($0) == nil
         }) {
             throw RuleSchemeNetworkSettingsDraftError.invalidPlainDNS(invalid)
         }

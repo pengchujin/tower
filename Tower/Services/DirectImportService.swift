@@ -67,6 +67,10 @@ struct ClientImportURLBuilder {
             // in Profile-Title; a percent-encoded fragment is displayed
             // literally by current Hiddify releases.
             value = "hiddify://import/\(configurationURL.absoluteString)"
+        case .singBox:
+            // Official sing-box clients document remote-profile import using
+            // the URL as a query item and the display name as a fragment.
+            value = "sing-box://import-remote-profile?url=\(encodedURL)#\(encodedName)"
         case .v2box:
             guard contentMode == .nodesOnly else {
                 throw DirectImportError.unsupportedTarget(target)

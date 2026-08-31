@@ -1368,14 +1368,7 @@ private struct RuleCustomizationSheet: View {
     }
 
     private func openConfigurationEditor() {
-        var editable = model.customizableScheme(for: scheme)
-        // Once visual customization changed the parsed graph, a stale copy of
-        // the original import would hide those edits. Render the current graph
-        // canonically so text mode starts from exactly what the UI shows.
-        if editable.groups != scheme.groups || editable.rulesets != scheme.rulesets {
-            editable.rawConfigurationText = nil
-        }
-        configurationEditor = editable
+        configurationEditor = model.manualConfigurationEditingScheme(for: scheme)
     }
 
     private func symbol(for category: RuleCatalogCategory) -> String {

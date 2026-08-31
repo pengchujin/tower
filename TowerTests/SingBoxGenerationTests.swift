@@ -1,8 +1,7 @@
 import XCTest
 @testable import Tower
 
-/// sing-box takes JSON, and Hiddify is a Flutter shell over hiddify-core —
-/// which is sing-box — so one document serves both targets.
+/// sing-box MT and Hiddify both consume the sing-box JSON document dialect.
 final class SingBoxGenerationTests: XCTestCase {
     private static let rejectTag = "REJECT"
     private let generator = ConfigurationGenerator()
@@ -126,31 +125,37 @@ final class SingBoxGenerationTests: XCTestCase {
         }
     }
 
-    func testOfficialSingBoxCapabilityOverrideSkipsSSRAndKeepsSnell() throws {
-        let supportedKinds = Set(ProxyKind.allCases).subtracting([.unknown, .shadowsocksR])
+    func testOfficialSingBoxSkipsSSRAndLegacySnellButKeepsSnellV4() throws {
         let generated = generator.generate(
             nodes: [
                 node(.shadowsocksR, name: "Legacy SSR"),
-                node(.snell, name: "Snell", version: 3)
+                node(.snell, name: "Legacy Snell", version: 3),
+                node(.snell, name: "Snell v4", version: 4)
             ],
             preset: preset,
-            target: .hiddify,
-            supportedKindsOverride: supportedKinds
+            target: .singBox
         )
         let object = try JSONSerialization.jsonObject(with: Data(generated.content.utf8))
         let config = try XCTUnwrap(object as? [String: Any])
         let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         XCTAssertEqual(generated.supportedNodeCount, 1)
-        XCTAssertEqual(generated.skippedNodeCount, 1)
+        XCTAssertEqual(generated.skippedNodeCount, 2)
         XCTAssertTrue(outbounds.contains { $0["type"] as? String == "snell" })
         XCTAssertFalse(outbounds.contains { $0["type"] as? String == "shadowsocksr" })
     }
 
-    func testHiddifyIsTheOnlyTargetOnThisFormat() {
-        // sing-box ships no App Store client of its own, so the format is
-        // offered only under the app that actually runs it.
-        XCTAssertEqual(ClientTarget.allCases.filter(\.usesSingBoxFormat), [.hiddify])
+    func testHiddifyAndSingBoxMTAreTheTargetsOnThisFormat() {
+        XCTAssertEqual(ClientTarget.allCases.filter(\.usesSingBoxFormat), [.hiddify, .singBox])
+    }
+
+    func testHiddifyAndSingBoxMTGenerateTheSameSharedDialect() {
+        let nodes = [node(.shadowsocks), node(.vless, name: "VLESS", transport: "grpc")]
+
+        XCTAssertEqual(
+            generator.generate(nodes: nodes, preset: preset, target: .hiddify).content,
+            generator.generate(nodes: nodes, preset: preset, target: .singBox).content
+        )
     }
 
     func testRejectIsARuleActionNotABlockOutbound() throws {

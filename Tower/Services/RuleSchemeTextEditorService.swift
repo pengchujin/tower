@@ -6,6 +6,7 @@ enum RuleSchemeTextValidationError: LocalizedError, Equatable {
     case duplicatePolicy(name: String, line: Int)
     case unknownPolicy(name: String, line: Int)
     case unknownReference(name: String, line: Int)
+    case invalidPlainDNS(value: String, line: Int)
     case invalidEncryptedDNS(value: String, line: Int)
     case invalidTestURL(value: String, line: Int)
 
@@ -21,6 +22,8 @@ enum RuleSchemeTextValidationError: LocalizedError, Equatable {
             String(localized: "第 \(line) 行引用了不存在的策略组“\(name)”")
         case .unknownReference(let name, let line):
             String(localized: "第 \(line) 行引用了不存在的成员“\(name)”")
+        case .invalidPlainDNS(let value, let line):
+            String(localized: "第 \(line) 行的普通 DNS 地址无效：\(value)")
         case .invalidEncryptedDNS(let value, let line):
             String(localized: "第 \(line) 行的加密 DNS 地址无效：\(value)")
         case .invalidTestURL(let value, let line):
@@ -65,6 +68,7 @@ struct RuleSchemeTextEditorService {
         }
 
         try validateRecognizedINILines(in: text, parsed: parsed)
+        try validatePlainDNSServers(in: text)
         try validateNetworkSettings(parsed.networkSettings, in: text)
 
         var firstDefinition: [String: Int] = [:]
@@ -139,6 +143,70 @@ struct RuleSchemeTextEditorService {
                 value: value,
                 line: lineNumber(containing: value, in: text)
             )
+        }
+    }
+
+    /// The import parser drops unsafe plain resolvers so a downloaded scheme
+    /// stays usable. Manual editing is different: point to the exact bad line
+    /// instead of silently accepting a typo or the `system` keyword.
+    private func validatePlainDNSServers(in text: String) throws {
+        let lines = text.components(separatedBy: .newlines)
+        var inGeneral = false
+        var inClashDNS = false
+        var clashList: String?
+
+        for (offset, rawLine) in lines.enumerated() {
+            let indent = rawLine.prefix { $0 == " " }.count
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), !line.hasPrefix(";") else { continue }
+
+            if line.hasPrefix("[") {
+                inGeneral = line.lowercased() == "[general]"
+                inClashDNS = false
+                clashList = nil
+                continue
+            }
+            if indent == 0, line == "dns:" {
+                inClashDNS = true
+                clashList = nil
+                continue
+            }
+            if indent == 0, line.contains(":"), line != "dns:" {
+                inClashDNS = false
+                clashList = nil
+            }
+
+            if inGeneral, let separator = line.firstIndex(of: "=") {
+                let key = line[..<separator].trimmingCharacters(in: .whitespaces).lowercased()
+                if key == "dns-server" {
+                    let values = line[line.index(after: separator)...].split(separator: ",")
+                    for rawValue in values {
+                        try validatePlainDNS(String(rawValue), line: offset + 1)
+                    }
+                }
+            }
+
+            guard inClashDNS else { continue }
+            if indent == 2, line.hasSuffix(":"), !line.hasPrefix("-") {
+                clashList = String(line.dropLast()).lowercased()
+                continue
+            }
+            guard indent >= 4,
+                  line.hasPrefix("- "),
+                  ["default-nameserver", "nameserver", "fallback"].contains(clashList ?? "")
+            else { continue }
+
+            let value = String(line.dropFirst(2))
+                .trimmingCharacters(in: CharacterSet(charactersIn: " \\\"'"))
+            if URL(string: value)?.scheme != nil { continue }
+            try validatePlainDNS(value, line: offset + 1)
+        }
+    }
+
+    private func validatePlainDNS(_ rawValue: String, line: Int) throws {
+        let value = rawValue.trimmingCharacters(in: CharacterSet(charactersIn: " \\\"'"))
+        guard RuleSchemeNetworkSettings.normalizedPlainDNSServer(value) != nil else {
+            throw RuleSchemeTextValidationError.invalidPlainDNS(value: value, line: line)
         }
     }
 

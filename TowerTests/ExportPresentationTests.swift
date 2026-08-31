@@ -182,6 +182,20 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertNotNil(UIImage(named: "ClientClashOfficial"))
         XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
         XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
+        XCTAssertEqual(ClientTarget.allCases.dropLast().last, target)
+    }
+
+    func testSingBoxMTUsesOfficialIdentityAndOnlyOffersFullProfileImport() throws {
+        let target = try XCTUnwrap(ClientTarget(rawValue: "sing-box"))
+
+        XCTAssertEqual(target.name, "sing-box MT")
+        XCTAssertEqual(target.subtitle, "sing-box JSON")
+        XCTAssertEqual(target.fileExtension, "json")
+        XCTAssertEqual(target.appIconAssetName, "ClientSingBox")
+        XCTAssertNotNil(UIImage(named: "ClientSingBox"))
+        XCTAssertEqual(target.supportedContentModes, [.fullConfiguration])
+        XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
+        XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
         XCTAssertEqual(ClientTarget.allCases.last, target)
     }
 

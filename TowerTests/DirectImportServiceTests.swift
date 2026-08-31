@@ -34,6 +34,27 @@ final class DirectImportServiceTests: XCTestCase {
         XCTAssertEqual(components.queryItems, [URLQueryItem(name: "url", value: localURL.absoluteString)])
     }
 
+    func testSingBoxMTUsesOfficialRemoteProfileImportScheme() throws {
+        let configurationURL = try XCTUnwrap(
+            URL(string: "http://127.0.0.1:7788/private/%E5%A1%94%E5%8F%B0.json")
+        )
+
+        let url = try ClientImportURLBuilder.make(
+            target: .singBox,
+            configurationURL: configurationURL,
+            displayName: "塔台"
+        )
+
+        XCTAssertEqual(url.scheme, "sing-box")
+        XCTAssertEqual(url.host, "import-remote-profile")
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(
+            components.queryItems?.first(where: { $0.name == "url" })?.value,
+            configurationURL.absoluteString
+        )
+        XCTAssertEqual(components.fragment, "塔台")
+    }
+
     func testStashUsesInstallConfigSchemeWithOnlyTheSubscriptionURL() throws {
         let url = try ClientImportURLBuilder.make(
             target: .clash,
@@ -305,6 +326,7 @@ extension DirectImportServiceTests {
             .clashApple: "application/yaml",
             .egern: "application/yaml",
             .hiddify: "application/json",
+            .singBox: "application/json",
             .surge: "text/plain"
         ]
 

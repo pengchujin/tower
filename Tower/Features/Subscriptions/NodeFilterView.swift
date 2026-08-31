@@ -1,32 +1,5 @@
 import SwiftUI
 
-enum NodeFilterRoute: String, Hashable, Identifiable {
-    case all
-    case regions
-
-    var id: String { rawValue }
-}
-
-struct NodeFilterCriteria: Equatable {
-    var countryCode: String?
-    var kind: ProxyKind?
-    var sourceID: UUID?
-    var localOnly = false
-
-    func matches(_ node: ProxyNode, countryCodes: [UUID: String]) -> Bool {
-        if let countryCode {
-            // Name first, IP database only as a fallback — the same order the
-            // map, the metric pill and the policy groups use.
-            let resolved = NodeRegionResolver.countryCode(for: node) ?? countryCodes[node.id]
-            guard resolved?.uppercased() == countryCode.uppercased() else { return false }
-        }
-        if let kind, node.kind != kind { return false }
-        if let sourceID, node.sourceID != sourceID { return false }
-        if localOnly, !node.isLocal { return false }
-        return true
-    }
-}
-
 struct CountryNodeExportGroup: Identifiable {
     let code: String
     let title: String
@@ -45,13 +18,11 @@ struct ProtocolNodeExportGroup: Identifiable {
 enum NodeExportGroupBuilder {
     static func countryGroups(
         nodes: [ProxyNode],
-        countryCodes: [UUID: String]
+        countryCode: (ProxyNode) -> String?
     ) -> [CountryNodeExportGroup] {
         var groupedNodes: [String: [ProxyNode]] = [:]
         for node in nodes {
-            guard let code = (
-                NodeRegionResolver.countryCode(for: node) ?? countryCodes[node.id]
-            )?.uppercased() else { continue }
+            guard let code = countryCode(node)?.uppercased() else { continue }
             groupedNodes[code, default: []].append(node)
         }
 
@@ -105,24 +76,6 @@ enum NodeExportGroupSelectionState: Equatable {
     }
 }
 
-struct NodeFilterView: View {
-    let initialFocus: NodeFilterRoute
-    @State private var searchText = ""
-
-    var body: some View {
-        List {
-            NodeFilterSections(searchText: $searchText)
-        }
-        .navigationTitle(initialFocus == .regions
-            ? String(localized: "覆盖地区")
-            : String(localized: "节点筛选"))
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "搜索节点、服务器或来源")
-        .scrollDismissesKeyboard(.interactively)
-        .accessibilityIdentifier("node-filter-list")
-    }
-}
-
 struct NodeFilterSections: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -136,10 +89,6 @@ struct NodeFilterSections: View {
         // display name and running four case-insensitive searches, on every
         // keystroke in the search field.
         let filteredNodes = self.filteredNodes
-        let displayedNodes = EnabledFirstOrdering.apply(
-            filteredNodes,
-            isEnabled: model.isNodeIncluded
-        )
         let includedFilteredNodeCount = filteredNodes.lazy.filter(model.isNodeIncluded).count
         let allFilteredNodesIncluded = !filteredNodes.isEmpty
             && filteredNodes.allSatisfy(model.isNodeIncluded)
@@ -163,7 +112,7 @@ struct NodeFilterSections: View {
                     ContentUnavailableView.search(text: searchText)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(displayedNodes) { node in
+                    ForEach(filteredNodes) { node in
                         nodeRow(node)
                     }
                 }
@@ -229,7 +178,7 @@ struct NodeFilterSections: View {
     private var countryOptions: [CountryNodeExportGroup] {
         NodeExportGroupBuilder.countryGroups(
             nodes: model.availableNodes,
-            countryCodes: model.nodeIPCountryCodes
+            countryCode: model.countryCode(for:)
         )
     }
 

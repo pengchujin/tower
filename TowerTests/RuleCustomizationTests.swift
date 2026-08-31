@@ -94,6 +94,26 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertThrowsError(try draft.validatedSettings())
     }
 
+    func testDNSDraftAcceptsOnlyLiteralAddressesForPlainDNS() throws {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+        draft.dnsServers = ["1.1.1.1", "2606:4700:4700::1111"]
+
+        XCTAssertEqual(
+            try draft.validatedSettings().dnsServers,
+            ["1.1.1.1", "2606:4700:4700::1111"]
+        )
+
+        for invalid in ["system", "dns.example.com", "https://1.1.1.1/dns-query"] {
+            draft.dnsServers = [invalid]
+            XCTAssertThrowsError(try draft.validatedSettings()) { error in
+                XCTAssertEqual(
+                    error as? RuleSchemeNetworkSettingsDraftError,
+                    .invalidPlainDNS(invalid)
+                )
+            }
+        }
+    }
+
     func testLegacyDNSSettingsDecodeAsStandardProtection() throws {
         let legacy = """
         {
@@ -1355,6 +1375,75 @@ final class RuleCustomizationTests: XCTestCase {
         )
         XCTAssertEqual(reloaded.importedSchemes.first?.groups.map(\.name), ["Proxy"])
         XCTAssertEqual(reloaded.importedSchemes.first?.rawConfigurationText, source)
+    }
+
+    @MainActor
+    func testManualConfigurationMaterializesEnabledFlowsAndPreservesDisabledWork() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-manual-flow-migration-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        let scheme = makeScheme()
+        model.importedSchemes = [scheme]
+        model.setRuleGroup("AI 服务", enabled: false, for: scheme)
+        model.setRuleGroupEmojisEnabled(false, for: scheme)
+
+        let enabled = CustomRuleFlow(
+            schemeID: scheme.id,
+            name: "启用规则",
+            policyName: "节点选择",
+            rulesText: "DOMAIN-SUFFIX,enabled.example"
+        )
+        let disabled = CustomRuleFlow(
+            schemeID: scheme.id,
+            name: "停用规则",
+            policyName: "节点选择",
+            rulesText: "DOMAIN-SUFFIX,disabled.example",
+            isEnabled: false
+        )
+        model.upsertCustomRuleFlow(enabled)
+        model.upsertCustomRuleFlow(disabled)
+
+        let editable = model.manualConfigurationEditingScheme(for: scheme)
+        let source = RuleSchemeTextEditorService().editableText(for: editable)
+        let saved = try model.saveManualRuleSchemeConfiguration(source, for: scheme)
+
+        XCTAssertEqual(
+            saved.rulesets.filter { $0.resource == .inline("DOMAIN-SUFFIX,enabled.example") }.count,
+            1
+        )
+        XCTAssertFalse(saved.rulesets.contains { $0.resource == .inline("DOMAIN-SUFFIX,disabled.example") })
+        XCTAssertEqual(model.customRuleFlows(for: saved), [disabled])
+        XCTAssertFalse(model.ruleGroupEmojisAreEnabled(for: saved))
+        XCTAssertFalse(model.selectedRuleGroupNames(for: saved).contains("AI 服务"))
+    }
+
+    @MainActor
+    func testManualEditorStartsFromCustomizedNetworkSettings() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-manual-dns-source-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        var scheme = makeScheme()
+        scheme.rawConfigurationText = """
+        [custom]
+        ruleset=漏网之鱼,[]FINAL
+        custom_proxy_group=漏网之鱼`select`[]DIRECT
+        """
+        let settings = RuleSchemeNetworkSettings(
+            ipv6Enabled: false,
+            dnsServers: ["1.1.1.1"],
+            encryptedDNSServers: ["https://cloudflare-dns.com/dns-query"],
+            proxyTestURLString: "https://cp.cloudflare.com/generate_204"
+        )
+        model.updateRuleSchemeNetworkSettings(settings, for: scheme)
+
+        let editable = model.manualConfigurationEditingScheme(for: scheme)
+        let source = RuleSchemeTextEditorService().editableText(for: editable)
+
+        XCTAssertNil(editable.rawConfigurationText)
+        XCTAssertTrue(source.contains("dns-server = 1.1.1.1"), source)
+        XCTAssertTrue(source.contains("ipv6 = false"), source)
     }
 
     @MainActor

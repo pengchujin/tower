@@ -2,9 +2,21 @@
 
 ## 1. 当前结论
 
-塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、七种客户端配置生成、配置预览及导入/分享。
+塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、多客户端配置生成、配置预览及导入/分享。
 
-当前代码版本为 `1.0 (3)`，Bundle ID 为 `com.jzb.tower`，已归档并上传到 TestFlight。归档在开发者本机完成；分发签名和上传走 Xcode Organizer，因为 SSH 会话拿不到钥匙串私钥（见 §4）。
+### 2026-08-31：新增 sing-box MT 导出
+
+- `ClientTarget.singBox` 作为独立 App Store 客户端加入导出目标，显示名为 `sing-box MT`，使用当前 App Store 图标资源 `ClientSingBox`；默认位于第 5 位。升级后的旧快照会只迁移一次 sing-box 的位置并保留其他客户端相对顺序，写入迁移版本后，用户后续主动拖动的位置继续保留。
+- 完整配置复用经过测试的 sing-box JSON 生成器；它与 Hiddify 共用文档方言，但协议矩阵独立：不写 ShadowsocksR，Snell 只接受 v4 及以上。
+- 一键导入遵循上游客户端的 `sing-box://import-remote-profile?url=…#名称` 远程配置入口。塔台仍只提供 45 秒的 `127.0.0.1` 临时地址，不上传配置。
+- LAN 显式 `target=sing-box` 现在直接映射到 `.singBox`，不再借用 `.hiddify` 身份。
+
+### 2026-08-31：Clash / Stash 保留导入方案的 GEOSITE
+
+- subconverter ini 中的 `ruleset=组名,[]GEOSITE,CN` 原本能被 `RuleSchemeParser` 正确解析，但生成阶段复用了不含 `GEOSITE` 的通用规则白名单，导致 Clash YAML 静默漏掉该规则。
+- Mihomo 与 Stash 都有原生 `GEOSITE` 规则类型；现在两个 Clash 目标会原样保留，远程 classical rule-set 的兼容检查也同步放行。Surge、QuanX 等没有对应语法的目标仍会跳过，避免整份配置被拒绝。
+
+当前准备发布的代码版本为 `1.0.4 (37)`，Bundle ID 为 `com.jzb.tower`。本次在开发者的 M2 笔记本上完成测试、真机安装与归档；上传结果以 App Store Connect 的处理状态为准。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -201,7 +213,7 @@ git 历史检查过，**不需要重写**：证书、密钥、描述文件、IPA
 
 ### 新增 Hiddify 导出
 
-Hiddify 是 Flutter 外壳 + `hiddify-core`（sing-box 内核），吃 sing-box JSON。sing-box 自身在 App Store 没有独立客户端，所以格式以实际运行它的 App 命名。
+Hiddify 是 Flutter 外壳 + `hiddify-core`（sing-box 内核），吃 sing-box JSON。2026-08-31 起，App Store 上的 sing-box MT 也作为独立目标使用同一文档方言；两者仍保留不同的客户端身份、导入 Scheme 和协议能力矩阵。
 
 JSON 用 `JSONSerialization` 构建而非拼字符串——节点名是机场可控的不可信输入，交给编码器转义。几个格式决定：拒绝从 1.11 起是路由动作（`action: reject`），选择器没有可指的出站，所以拦截类策略不生成组、规则直接带动作；Clash 的四个隐藏别名组在 sing-box 里没有 hidden 概念但仍需存在，否则悬空引用导致起不来。Snell 在 Hiddify 上不可用——sing-box 这个项目实现了它，但 Hiddify 打包的内核没有，所以那些节点跳过并计数（真机验证得出，不是从 sing-box 文档推断的）。
 
@@ -601,7 +613,7 @@ Xcode 提取器（`xcodebuild -exportLocalizations`）比对发现 **42 条**源
 ### 规则页
 
 - 默认使用内置 ACL4SSR；Self-Configuration 位于页面底部并由用户手动下载。
-- 当前方案提供可搜索的服务分组勾选页；取消勾选后规则数量和七种导出立即更新。
+- 当前方案提供可搜索的服务分组勾选页；取消勾选后规则数量和全部完整配置导出立即更新。
 - 自定义规则流可新增、编辑、启停和删除，带 Tailscale 示例；规则与方案分开保存，重启 App 或刷新方案后仍保留。
 - 生成配置不引用远程策略组图标，只保留名称内有语义的 Emoji。
 - “手动切换”“自动选择”“全球直连”等使用中文可见名称。
@@ -611,9 +623,9 @@ Xcode 提取器（`xcodebuild -exportLocalizations`）比对发现 **42 条**源
 
 ### 导出页
 
-- 七个目标客户端使用塔台自绘的品牌色矢量标识，不打包或仿制第三方 App Store 图标；横向滚动选择并支持长按拖动排序。
+- 十个目标客户端使用各自的官方 App Store 图标；横向滚动选择并支持长按拖动排序。
 - 主按钮固定在标签栏上方，一次点击就通过客户端 Scheme 导入。
-- Surge、Stash/Clash、Shadowrocket、Loon 使用本地临时 URL；Quantumult X 使用文件分享。
+- Surge、Stash、Clash、Shadowrocket、Loon、Hiddify、sing-box MT 和 Egern 使用本地临时 URL；Quantumult X 使用文件分享。
 - 支持配置摘要和完整预览，但不要在客户端切换动画中同步重复生成大文本。
 - 摘要和完整预览按配置语义着色：注释使用次要文字，INI 分区及键、YAML 顶层分类、URL、字符串、数字分色显示，并随深浅色模式调整对比度。着色层不得改写源文或破坏选择复制。
 
@@ -946,7 +958,7 @@ TestFlight build 31 的反馈截图来自 Surge iOS 策略组测速。部分节�
 
 ### 导出
 
-- [ ] 七个自绘矢量客户端标识立即出现，不含第三方 App 图；横向滚动、拖动排序与切换流畅。
+- [ ] 十个客户端的官方 App Store 图标立即出现；横向滚动、拖动排序与切换流畅。
 - [ ] 摘要中的节点数、跳过数、规则数正确。
 - [ ] 完整预览多次展开不闪退。
 - [ ] 固定主按钮不被底部标签栏遮挡。
@@ -990,7 +1002,7 @@ xcodebuild -project Tower.xcodeproj \
   test
 ```
 
-配置生成器修改需要额外人工打开七种输出，检查：
+配置生成器修改需要额外人工打开全部完整配置目标，检查：
 
 - 所有组引用存在且无环。
 - 地区组只含对应节点，空地区不产生死组。

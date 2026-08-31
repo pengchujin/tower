@@ -248,15 +248,36 @@ final class ConfigurationCredentialTests: XCTestCase {
 
     // MARK: - Rule types
 
-    func testUnsupportedRuleTypesAreDroppedForEveryTarget() {
+    func testGeoSiteRulesAreKeptOnlyForClashTargets() {
+        let scheme = RuleScheme(
+            id: "geosite-target-matrix",
+            name: "GEOSITE",
+            summary: "Target rule compatibility",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(groupName: "DIRECT", resource: .inline("GEOSITE,CN")),
+                RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))
+            ]
+        )
+
         for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = ConfigurationGenerator().generate(
                 nodes: [],
-                preset: preset,
+                scheme: scheme,
                 target: target
             ).content
 
-            XCTAssertFalse(content.contains("GEOSITE"), "\(target.name) 写出了无法解析的规则类型")
+            XCTAssertEqual(
+                content.contains("GEOSITE,CN,DIRECT"),
+                [.clash, .clashApple].contains(target),
+                "\(target.name) 的 GEOSITE 支持矩阵不正确：\(content)"
+            )
         }
     }
 

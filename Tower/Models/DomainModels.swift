@@ -1011,6 +1011,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case egern
     case v2box
     case clashApple = "clash-apple"
+    case singBox = "sing-box"
 
     var id: String { rawValue }
 
@@ -1025,6 +1026,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: "Hiddify"
         case .egern: "Egern"
         case .v2box: "V2Box"
+        case .singBox: "sing-box MT"
         }
     }
 
@@ -1039,6 +1041,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: String(localized: "sing-box 内核")
         case .egern: "Egern YAML"
         case .v2box: "V2Ray / Xray"
+        case .singBox: "sing-box JSON"
         }
     }
 
@@ -1053,6 +1056,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: "eye.slash.circle.fill"
         case .egern: "e.circle.fill"
         case .v2box: "shippingbox.circle.fill"
+        case .singBox: "shippingbox.fill"
         }
     }
 
@@ -1069,6 +1073,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: "ClientHiddify"
         case .egern: "ClientEgern"
         case .v2box: "ClientV2Box"
+        case .singBox: "ClientSingBox"
         }
     }
 
@@ -1083,6 +1088,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: "shield.lefthalf.filled"
         case .egern: "e.circle.fill"
         case .v2box: "shippingbox.fill"
+        case .singBox: "shippingbox.fill"
         }
     }
 
@@ -1097,6 +1103,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .hiddify: "6047D9"
         case .egern: "F08A2B"
         case .v2box: "246BFD"
+        case .singBox: "334854"
         }
     }
 
@@ -1110,17 +1117,15 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         self != .surge
     }
 
-    /// Hiddify is a Flutter shell over hiddify-core, which is sing-box, so it
-    /// reads a sing-box document. sing-box ships no App Store client of its
-    /// own, so the format is offered only under the app that actually runs it.
+    /// Hiddify and sing-box MT both read complete sing-box JSON documents.
     var usesSingBoxFormat: Bool {
-        self == .hiddify
+        self == .hiddify || self == .singBox
     }
 
     var fileExtension: String {
         switch self {
         case .clash, .clashApple, .egern: "yaml"
-        case .hiddify: "json"
+        case .hiddify, .singBox: "json"
         case .v2box: "txt"
         default: "conf"
         }
@@ -1188,6 +1193,10 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // No Snell: sing-box the project implements it, but the core
             // Hiddify ships does not, so those nodes are skipped and counted.
             kind != .unknown && kind != .snell
+        case .singBox:
+            // Official sing-box supports Snell but has no ShadowsocksR
+            // outbound. Snell version validation is applied by the generator.
+            kind != .unknown && kind != .shadowsocksR
         case .egern:
             // Egern's own producer lists tuic but no hysteria 1.
             [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http].contains(kind)
@@ -1217,9 +1226,38 @@ enum ExportContentMode: String, CaseIterable, Codable, Identifiable {
 }
 
 enum ClientTargetOrder {
-    static func normalized(rawValues: [String]?) -> [ClientTarget] {
+    static let currentMigrationVersion = 1
+
+    static let defaultOrder: [ClientTarget] = [
+        .surge,
+        .clash,
+        .shadowrocket,
+        .loon,
+        .singBox,
+        .quanx,
+        .hiddify,
+        .egern,
+        .v2box,
+        .clashApple
+    ]
+
+    private static let previousDefaultOrders: [[ClientTarget]] = [
+        // Default immediately before sing-box MT was introduced.
+        [.surge, .clash, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box, .clashApple],
+        // The first standalone Clash build temporarily placed Clash after Stash.
+        [.surge, .clash, .clashApple, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box],
+        // Older snapshots predate both standalone Clash and sing-box MT.
+        [.surge, .clash, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box],
+        // The first sing-box MT build appended it after standalone Clash.
+        [.surge, .clash, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box, .clashApple, .singBox]
+    ]
+
+    static func normalized(
+        rawValues: [String]?,
+        savedMigrationVersion: Int? = currentMigrationVersion
+    ) -> [ClientTarget] {
         guard let rawValues, !rawValues.isEmpty else {
-            return ClientTarget.allCases
+            return defaultOrder
         }
         var seen = Set<ClientTarget>()
         var result: [ClientTarget] = []
@@ -1227,6 +1265,14 @@ enum ClientTargetOrder {
         for rawValue in rawValues {
             guard let target = ClientTarget(rawValue: rawValue), seen.insert(target).inserted else { continue }
             result.append(target)
+        }
+
+        guard !result.isEmpty else { return defaultOrder }
+
+        // Only migrate shapes Tower itself previously produced. An order the
+        // user explicitly dragged remains authoritative.
+        if previousDefaultOrders.contains(result) {
+            return defaultOrder
         }
 
         // The first standalone Clash build placed it directly after Stash.
@@ -1238,8 +1284,23 @@ enum ClientTargetOrder {
             result.remove(at: clashIndex)
             result.append(.clashApple)
         }
-        for target in ClientTarget.allCases where seen.insert(target).inserted {
+
+        let needsSingBoxInsertion = seen.insert(.singBox).inserted
+        for target in defaultOrder where target != .singBox && seen.insert(target).inserted {
             result.append(target)
+        }
+        if needsSingBoxInsertion {
+            result.insert(.singBox, at: min(4, result.count))
+        }
+
+        // Builds that first introduced sing-box preserved an explicit stored
+        // position. Move it to the requested fifth slot once, then persist the
+        // migration version so later user drags remain authoritative.
+        if (savedMigrationVersion ?? 0) < currentMigrationVersion,
+           let singBoxIndex = result.firstIndex(of: .singBox),
+           singBoxIndex != 4 {
+            result.remove(at: singBoxIndex)
+            result.insert(.singBox, at: min(4, result.count))
         }
         return result
     }
@@ -1280,6 +1341,10 @@ struct AppSnapshot: Codable {
     var renewalRemindersEnabled: Bool?
     /// Raw values allow future versions to append new clients safely.
     var clientOrder: [String]?
+    /// One-time ordering migrations must not override later user drag choices.
+    /// Missing identifies snapshots written before the sing-box fifth-slot
+    /// migration.
+    var clientOrderMigrationVersion: Int?
     /// Optional settings keep every previously written snapshot decodable.
     var appendSubscriptionNameToNodes: Bool?
     var filterSubscriptionInfoNodes: Bool?
@@ -1327,6 +1392,7 @@ struct AppSnapshot: Codable {
         excludedKinds: [String: [String]]? = nil,
         renewalRemindersEnabled: Bool? = nil,
         clientOrder: [String]? = nil,
+        clientOrderMigrationVersion: Int? = nil,
         appendSubscriptionNameToNodes: Bool? = nil,
         filterSubscriptionInfoNodes: Bool? = nil,
         autoRefreshOnOpen: Bool? = nil,
@@ -1352,6 +1418,7 @@ struct AppSnapshot: Codable {
         self.excludedKinds = excludedKinds
         self.renewalRemindersEnabled = renewalRemindersEnabled
         self.clientOrder = clientOrder
+        self.clientOrderMigrationVersion = clientOrderMigrationVersion
         self.appendSubscriptionNameToNodes = appendSubscriptionNameToNodes
         self.filterSubscriptionInfoNodes = filterSubscriptionInfoNodes
         self.autoRefreshOnOpen = autoRefreshOnOpen

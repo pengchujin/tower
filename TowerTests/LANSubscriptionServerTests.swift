@@ -48,7 +48,7 @@ final class LANSubscriptionServerTests: XCTestCase {
             "loon": .loon,
             "quanx": .quanx,
             "quantumult-x": .quanx,
-            "sing-box": .hiddify,
+            "sing-box": .singBox,
             "hiddify": .hiddify,
             "egern": .egern
         ]
@@ -90,7 +90,7 @@ final class LANSubscriptionServerTests: XCTestCase {
             ),
             .hiddify
         )
-        XCTAssertEqual(LANSubscriptionFormat.singBox.generationTarget, .hiddify)
+        XCTAssertEqual(LANSubscriptionFormat.singBox.generationTarget, .singBox)
         XCTAssertTrue(LANSubscriptionFormat.allCases.contains(.singBox))
     }
 

@@ -22,6 +22,33 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), content)
     }
 
+    func testClashKeepsGeoSiteClassicalRuleProviderWhenEnabled() throws {
+        let fixture = try makeFixture(content: "GEOSITE,CN")
+
+        for target in [ClientTarget.clash, .clashApple] {
+            let content = fixture.generator.generate(
+                nodes: [],
+                scheme: fixture.scheme,
+                target: target,
+                schemes: fixture.repository,
+                preferRuleSets: true
+            ).content
+
+            XCTAssertTrue(content.contains("rule-providers:"), content)
+            XCTAssertTrue(content.contains("RULE-SET,tower-streaming-1,Proxy"), content)
+        }
+
+        let shadowrocket = fixture.generator.generate(
+            nodes: [],
+            scheme: fixture.scheme,
+            target: .shadowrocket,
+            schemes: fixture.repository,
+            preferRuleSets: true
+        ).content
+        XCTAssertFalse(shadowrocket.contains("rule-providers:"), shadowrocket)
+        XCTAssertFalse(shadowrocket.contains("GEOSITE"), shadowrocket)
+    }
+
     func testSurgeAndShadowrocketUseNativeRemoteRuleSetsWhenEnabled() throws {
         let fixture = try makeFixture(content: "DOMAIN-SUFFIX,example.com")
 
@@ -254,7 +281,7 @@ final class RuleSetGenerationTests: XCTestCase {
                 XCTAssertTrue(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), "\(target.name): \(content)")
             case .quanx:
                 XCTAssertTrue(content.contains("host-suffix, example.com, Proxy"), content)
-            case .hiddify:
+            case .hiddify, .singBox:
                 XCTAssertFalse(content.contains(#""rule_set""#), content)
             case .egern:
                 XCTAssertTrue(content.contains("  - domain_suffix:"), content)

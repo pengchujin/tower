@@ -121,31 +121,6 @@ final class NodeSelectionTests: XCTestCase {
         XCTAssertTrue(reloaded.enabledNodes.isEmpty)
     }
 
-    func testNodeFiltersCoverCountryProtocolSourceAndLocalNode() {
-        let sourceID = UUID()
-        let airport = ProxyNode(
-            sourceID: sourceID,
-            kind: .vmess,
-            name: "日本 01",
-            server: "jp.example.com",
-            port: 443,
-            rawURI: "vmess://example"
-        )
-        let local = ProxyNode(
-            kind: .trojan,
-            name: "自建 香港",
-            server: "hk.example.com",
-            port: 443,
-            rawURI: "trojan://example"
-        )
-
-        XCTAssertTrue(NodeFilterCriteria(countryCode: "JP").matches(airport, countryCodes: [:]))
-        XCTAssertTrue(NodeFilterCriteria(kind: .vmess).matches(airport, countryCodes: [:]))
-        XCTAssertTrue(NodeFilterCriteria(sourceID: sourceID).matches(airport, countryCodes: [:]))
-        XCTAssertTrue(NodeFilterCriteria(localOnly: true).matches(local, countryCodes: [:]))
-        XCTAssertFalse(NodeFilterCriteria(localOnly: true).matches(airport, countryCodes: [:]))
-    }
-
     @MainActor
     func testBulkNodeSelectionChangesAllVisibleNodesAndPersistsOnce() throws {
         let fileURL = FileManager.default.temporaryDirectory

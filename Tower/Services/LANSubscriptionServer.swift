@@ -35,10 +35,8 @@ enum LANSubscriptionServerError: LocalizedError {
 
 /// Formats exposed by Tower's LAN endpoint.
 ///
-/// This is intentionally separate from ``ClientTarget``. Hiddify and the
-/// official sing-box clients both consume sing-box JSON, but they are distinct
-/// clients and must keep distinct URLs/User-Agent routing. Adding sing-box to
-/// `ClientTarget` would incorrectly place it in the App Store export carousel.
+/// This is intentionally separate from ``ClientTarget`` because LAN URLs also
+/// expose format aliases such as Surfboard and automatic User-Agent routing.
 enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
     case clash
     case surge
@@ -64,7 +62,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .shadowrocket: .shadowrocket
         case .loon: .loon
         case .quanx: .quanx
-        case .singBox, .hiddify: .hiddify
+        case .singBox: .singBox
+        case .hiddify: .hiddify
         case .egern: .egern
         }
     }
@@ -121,6 +120,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .loon: self = .loon
         case .quanx: self = .quanx
         case .hiddify: self = .hiddify
+        case .singBox: self = .singBox
         case .egern: self = .egern
         case .v2box: return nil
         }

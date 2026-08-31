@@ -31,7 +31,7 @@ final class ImportedSchemeGeoIPTests: XCTestCase {
                 preferRuleSets: false
             ).content
 
-            if target == .hiddify {
+            if target.usesSingBoxFormat {
                 // sing-box has no GEOIP matcher — it replaced the built-in
                 // database with rule-sets — so `singBoxRuleFields` drops the
                 // rule instead of writing one that cannot resolve.

@@ -44,7 +44,7 @@ final class TransportGenerationTests: XCTestCase {
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
 
-        for target in [ClientTarget.clash, .shadowrocket, .hiddify, .egern] {
+        for target in [ClientTarget.clash, .shadowrocket, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "grpc", path: "tower.Telemetry")
             XCTAssertEqual(result.supportedNodeCount, 1, "\(target.name) 应保留 gRPC")
         }
@@ -54,7 +54,7 @@ final class TransportGenerationTests: XCTestCase {
         for target in [ClientTarget.clash, .shadowrocket] {
             XCTAssertEqual(generate(target, transport: "xhttp", path: "/split").supportedNodeCount, 1)
         }
-        for target in [ClientTarget.surge, .loon, .quanx, .hiddify, .egern] {
+        for target in [ClientTarget.surge, .loon, .quanx, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "xhttp", path: "/split")
             XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不应吞掉 XHTTP 参数")
             XCTAssertEqual(result.skippedNodeCount, 1)

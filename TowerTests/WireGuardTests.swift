@@ -96,14 +96,14 @@ final class WireGuardTests: XCTestCase {
 
     func testWireGuardSupportMatrixMatchesFormatsThatCanCarryIt() {
         let supported: Set<ClientTarget> = [
-            .surge, .shadowrocket, .clash, .clashApple, .loon, .hiddify, .egern, .v2box
+            .surge, .shadowrocket, .clash, .clashApple, .loon, .hiddify, .egern, .v2box, .singBox
         ]
         XCTAssertEqual(Set(ClientTarget.allCases.filter { $0.supports(.wireguard) }), supported)
     }
 
     func testEveryAdvertisedTargetWritesCompleteWireGuardConfiguration() throws {
         let node = try node()
-        for target in [ClientTarget.surge, .shadowrocket, .clash, .loon, .hiddify, .egern] {
+        for target in [ClientTarget.surge, .shadowrocket, .clash, .loon, .hiddify, .egern, .singBox] {
             let result = generator.generate(nodes: [node], preset: preset, target: target)
             XCTAssertEqual(result.supportedNodeCount, 1, target.name)
             XCTAssertEqual(result.skippedNodeCount, 0, target.name)

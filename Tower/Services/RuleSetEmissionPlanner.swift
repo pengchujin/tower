@@ -109,17 +109,23 @@ struct RuleSetEmissionPlanner {
         case .clash, .clashApple:
             guard linesAreClassical(lines, allowedTypes: Self.clashRuleTypes) else { return nil }
             return isClashProviderYAML ? .clashProviderYAML : .classicalText
-        case .surge, .shadowrocket:
+        case .surge:
             return !isClashProviderYAML && linesAreClassical(lines, allowedTypes: Self.surgeRuleTypes)
                 ? .classicalText
                 : nil
+        case .shadowrocket:
+            // Shadowrocket receives a Clash-compatible YAML profile, so its
+            // remote resources use Clash provider syntax. The lines inside
+            // still have to stay within Shadowrocket's own rule vocabulary.
+            guard linesAreClassical(lines, allowedTypes: Self.surgeRuleTypes) else { return nil }
+            return isClashProviderYAML ? .clashProviderYAML : .classicalText
         case .loon:
             return !isClashProviderYAML && linesAreClassical(lines, allowedTypes: Self.loonRuleTypes)
                 ? .classicalText
                 : nil
         case .quanx:
             return !isClashProviderYAML && linesAreQuanXFilters(lines) ? .quanXFilter : nil
-        case .hiddify:
+        case .hiddify, .singBox:
             return isSingBoxSource(url: url, lines: lines) ? .singBoxSource : nil
         case .egern:
             return isEgernRuleSet(lines) ? .egernYAML : nil
@@ -198,7 +204,7 @@ struct RuleSetEmissionPlanner {
 
     private static let clashRuleTypes: Set<String> = [
         "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "IP-CIDR6",
-        "IP6-CIDR", "GEOIP", "SRC-IP-CIDR", "SRC-PORT", "DST-PORT",
+        "IP6-CIDR", "GEOIP", "GEOSITE", "SRC-IP-CIDR", "SRC-PORT", "DST-PORT",
         "PROCESS-NAME", "PROCESS-PATH", "PROCESS-PATH-REGEX", "NETWORK"
     ]
 

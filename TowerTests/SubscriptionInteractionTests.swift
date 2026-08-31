@@ -919,6 +919,8 @@ final class SubscriptionInteractionTests: XCTestCase {
         XCTAssertTrue(managementSource.contains("case .exportFilter:"))
         XCTAssertTrue(managementSource.contains("NodeFilterSections(searchText: $searchText)"))
         XCTAssertTrue(managementSource.contains("Picker(\"管理内容\", selection: $tab)"))
+        XCTAssertTrue(managementSource.contains("case .nodes: return String(localized: \"节点筛选\")"))
+        XCTAssertTrue(managementSource.contains("case .regions: return String(localized: \"覆盖地区\")"))
         #else
         throw XCTSkip("该测试检查统一管理页面，只在模拟器构建环境运行")
         #endif
@@ -940,7 +942,7 @@ final class SubscriptionInteractionTests: XCTestCase {
 
         let countries = NodeExportGroupBuilder.countryGroups(
             nodes: [japan, hongKongOne, hongKongTwo],
-            countryCodes: [:]
+            countryCode: NodeRegionResolver.countryCode(for:)
         )
         XCTAssertEqual(countries.map(\.code), ["HK", "JP"])
         XCTAssertEqual(countries.map { $0.nodes.count }, [2, 1])
@@ -950,6 +952,23 @@ final class SubscriptionInteractionTests: XCTestCase {
         )
         XCTAssertEqual(protocols.map(\.kind), [.shadowsocks, .trojan])
         XCTAssertEqual(protocols.map { $0.nodes.count }, [2, 1])
+    }
+
+    func testCountryExportGroupsUseTheRuntimeCountryResolver() {
+        let node = ProxyNode(
+            kind: .shadowsocks,
+            name: "未标注节点",
+            server: "203.0.113.8",
+            port: 443,
+            rawURI: "ss://anonymous"
+        )
+
+        let countries = NodeExportGroupBuilder.countryGroups(nodes: [node]) { candidate in
+            candidate.id == node.id ? "SG" : nil
+        }
+
+        XCTAssertEqual(countries.map(\.code), ["SG"])
+        XCTAssertEqual(countries.first?.nodes.map(\.id), [node.id])
     }
 
     func testExportGroupSelectionStateDistinguishesNonePartialAndAll() {
@@ -1073,10 +1092,7 @@ final class SubscriptionInteractionTests: XCTestCase {
             .appendingPathComponent("Tower/Features/Subscriptions/SourceManagementView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        XCTAssertTrue(
-            source.contains(".towerToast()"),
-            "批量管理页必须在当前导航层承载通知，否则通知会被页面盖住，直到返回首页才显示"
-        )
+        XCTAssertFalse(source.contains(".towerToast()"), "普通提示由根层统一承载，避免同一条提示显示两次")
         XCTAssertTrue(
             source.contains(".subscriptionRefreshReport()"),
             "部分更新失败的报告也必须显示在当前批量管理页面"
@@ -1153,7 +1169,8 @@ final class SubscriptionInteractionTests: XCTestCase {
 
         XCTAssertGreaterThanOrEqual(home.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
         XCTAssertGreaterThanOrEqual(management.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
-        XCTAssertTrue(nodeFilter.contains("EnabledFirstOrdering.apply"))
+        XCTAssertFalse(nodeFilter.contains("EnabledFirstOrdering.apply"))
+        XCTAssertTrue(nodeFilter.contains("ForEach(filteredNodes)"))
         XCTAssertTrue(management.contains("values.filter(isEnabled) + values.filter { !isEnabled($0) }"))
         XCTAssertFalse(home.contains("onMoveUp"))
         XCTAssertFalse(home.contains("onMoveDown"))

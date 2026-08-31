@@ -143,6 +143,31 @@ final class DNSDefaultsTests: XCTestCase {
         XCTAssertTrue(quanX.contains("server = 9.9.9.9"), quanX)
     }
 
+    func testGeneratorsDefensivelyReplaceLegacyUnsafePlainDNS() {
+        let scheme = makeScheme(dnsProtectionMode: .standard).withNetworkSettings(
+            RuleSchemeNetworkSettings(
+                dnsServers: ["system", "dns.example.com"],
+                encryptedDNSServers: ["https://cloudflare-dns.com/dns-query"]
+            )
+        )
+
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
+            let content = generatedScheme(scheme, target: target)
+            let lines = content.components(separatedBy: .newlines).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            for unsafe in ["system", "dns.example.com"] {
+                XCTAssertFalse(
+                    lines.contains("dns-server = \(unsafe)")
+                        || lines.contains("dns-server=\(unsafe)")
+                        || lines.contains("server = \(unsafe)")
+                        || lines.contains("- \(unsafe)"),
+                    "\(target.name):\n\(content)"
+                )
+            }
+        }
+    }
+
     func testFollowingSchemeDNSDoesNotAddTowerFakeIPProtection() {
         let scheme = makeScheme(dnsProtectionMode: .followScheme)
         let clash = generatedScheme(scheme, target: .clashApple)
@@ -229,5 +254,13 @@ final class DNSDefaultsTests: XCTestCase {
         return ConfigurationGenerator()
             .generate(nodes: [node], scheme: scheme, target: target)
             .content
+    }
+}
+
+private extension RuleScheme {
+    func withNetworkSettings(_ settings: RuleSchemeNetworkSettings) -> Self {
+        var copy = self
+        copy.networkSettings = settings
+        return copy
     }
 }

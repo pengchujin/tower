@@ -215,7 +215,7 @@ final class SubscriptionReminderTests: XCTestCase {
         XCTAssertTrue(model.customRuleFlows.isEmpty)
         XCTAssertTrue(model.excludedKinds.isEmpty)
         XCTAssertFalse(model.renewalRemindersEnabled)
-        XCTAssertEqual(model.clientOrder, ClientTarget.allCases)
+        XCTAssertEqual(model.clientOrder, ClientTargetOrder.defaultOrder)
         XCTAssertFalse(model.appendSubscriptionNameToNodes)
         XCTAssertFalse(model.filterSubscriptionInfoNodes)
         XCTAssertFalse(model.autoRefreshOnOpen)

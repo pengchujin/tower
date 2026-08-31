@@ -2,8 +2,8 @@ import XCTest
 @testable import Tower
 
 /// Snell has no URI scheme at all — it is shared as the Surge proxy line it is
-/// written as, so that line is what Tower accepts. Only Surge, Shadowrocket and
-/// the Clash family implement it, and Clash stops at version 3.
+/// written as, so that line is what Tower accepts. Surge, Shadowrocket, the
+/// Clash family and sing-box implement it with different version ceilings.
 final class SnellTests: XCTestCase {
     private let parser = SubscriptionParser()
 
@@ -61,10 +61,11 @@ final class SnellTests: XCTestCase {
 
     // MARK: - Client support
 
-    func testOnlySurgeShadowrocketAndClashAcceptSnell() {
+    func testSnellCapabilityMatrixIncludesOfficialSingBox() {
         XCTAssertTrue(ClientTarget.surge.supports(.snell))
         XCTAssertTrue(ClientTarget.shadowrocket.supports(.snell))
         XCTAssertTrue(ClientTarget.clash.supports(.snell))
+        XCTAssertTrue(ClientTarget.singBox.supports(.snell))
         XCTAssertFalse(ClientTarget.loon.supports(.snell))
         XCTAssertFalse(ClientTarget.quanx.supports(.snell))
     }

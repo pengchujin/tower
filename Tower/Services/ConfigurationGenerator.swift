@@ -73,7 +73,7 @@ struct ConfigurationGenerator {
             content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .quanx:
             content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
-        case .hiddify:
+        case .hiddify, .singBox:
             content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .egern:
             content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
@@ -116,14 +116,9 @@ struct ConfigurationGenerator {
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
         let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
-        // Shadowrocket full profiles are emitted as Clash-compatible YAML, so
-        // their remote rule resources must use Clash provider semantics too.
-        // Planning them as legacy Shadowrocket/Surge resources would inline a
-        // valid YAML provider or emit the wrong remote dialect.
-        let rulePlanTarget: ClientTarget = target == .shadowrocket ? .clash : target
         let rulePlan = RuleSetEmissionPlanner(repository: schemes).plan(
             for: scheme,
-            target: rulePlanTarget,
+            target: target,
             preferRuleSets: preferRuleSets
         )
         let content: String
@@ -138,7 +133,7 @@ struct ConfigurationGenerator {
             content = loonScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .quanx:
             content = quanXScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
-        case .hiddify:
+        case .hiddify, .singBox:
             content = singBoxScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .egern:
             content = egernScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
@@ -264,6 +259,8 @@ struct ConfigurationGenerator {
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, [.clash, .clashApple].contains(target), (node.version ?? 4) >= 4 { return false }
+        // Current sing-box supports Snell v4 and later, not legacy v1-v3.
+        if node.kind == .snell, target == .singBox, (node.version ?? 4) < 4 { return false }
         // Surge and Shadowrocket carry Hysteria 2's obfuscator in the key name
         // — `salamander-password` and a bare `obfsParam` — so neither has any
         // way to say "some other obfuscator". (Surge also documents its own
@@ -278,7 +275,7 @@ struct ConfigurationGenerator {
             // SIP003 directly or have a documented equivalent; the others must
             // skip instead of silently exporting plain Shadowsocks.
             guard node.transport == "ws",
-                  [.clash, .clashApple, .shadowrocket, .quanx, .hiddify].contains(target) else { return false }
+                  [.clash, .clashApple, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
         }
         if !canExpressTransport(of: node, on: target) { return false }
         return true
@@ -302,7 +299,7 @@ struct ConfigurationGenerator {
             return ["ws", "http"].contains(transport)
         case .quanx:
             return transport == "ws"
-        case .hiddify:
+        case .hiddify, .singBox:
             return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
         case .egern:
             if node.kind == .trojan { return ["ws", "http"].contains(transport) }
@@ -455,7 +452,9 @@ struct ConfigurationGenerator {
     }
 
     private func schemePlainDNS(_ scheme: RuleScheme) -> [String] {
-        let values = scheme.networkSettings?.dnsServers ?? []
+        let values = (scheme.networkSettings?.dnsServers ?? []).compactMap(
+            RuleSchemeNetworkSettings.normalizedPlainDNSServer
+        )
         return values.isEmpty ? ["223.5.5.5", "119.29.29.29"] : values
     }
 
@@ -578,7 +577,9 @@ struct ConfigurationGenerator {
             case .remote(let resource):
                 output += "  - RULE-SET,\(resource.identifier),\(resource.policyName)\n"
             case .inline(let rule):
-                if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: .clash) {
+                // The document dialect is Clash YAML for all three callers,
+                // but rule support still belongs to the selected client.
+                if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: target) {
                     output += "  - \(mapped)\n"
                 }
             }
@@ -832,7 +833,7 @@ struct ConfigurationGenerator {
         output += "\nrules:\n"
         for assignment in preset.assignments {
             for rule in rules.lines(for: assignment) {
-                if let mapped = mappedRule(rule, policy: assignment.policy, target: .clash) {
+                if let mapped = mappedRule(rule, policy: assignment.policy, target: target) {
                     output += "  - \(mapped)\n"
                 }
             }
@@ -1916,6 +1917,12 @@ struct ConfigurationGenerator {
             default: return nil
             }
             parts[0] = mappedType
+        } else if ruleType == "GEOSITE" {
+            // Mihomo and Stash both implement GEOSITE directly. The imported
+            // subconverter dialect can therefore be preserved for the two
+            // Clash targets, while clients without a documented equivalent
+            // must continue dropping it instead of rejecting the profile.
+            guard [.clash, .clashApple].contains(target) else { return nil }
         } else if !Self.surgeFamilyRuleTypes.contains(ruleType) {
             // A future rule snapshot may introduce a type these clients cannot
             // parse. Dropping it keeps the rest of the configuration loadable

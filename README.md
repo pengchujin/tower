@@ -1,6 +1,6 @@
 # 塔台
 
-塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，选择本机规则或手动下载 Self-Configuration，并生成 Surge、Stash/Clash、Shadowrocket、Loon、Quantumult X、Hiddify 和 Egern 完整配置，以及 V2Box 节点订阅。
+塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，选择本机规则或手动下载 Self-Configuration，并生成 Surge、Stash、Clash、Shadowrocket、Loon、Quantumult X、Hiddify、sing-box MT 和 Egern 完整配置，以及 V2Box 节点订阅。
 
 ## 开发交接
 
@@ -19,17 +19,18 @@
 - 首页使用自绘的平面点阵世界地图，保留完整日期变更线范围；节点按名称优先、服务器主机名其次、离线 IP 回退的统一结果聚合，密集地区标签会按权重多方向避让
 - 展开地图或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
 - 读取常见 Base64 节点订阅和 Clash YAML，包括仅含 HTTP(S)/SOCKS 的 Base64 列表与 Clash 嵌套 WebSocket 选项
+- Surge 配置形式的订阅目前只从 `[Proxy]` 读取 `ss=` 节点；其他 Surge 代理行会计入“跳过”，不会被误识别成 HTTP 链接
 - 规则页底部提供 Self-Configuration 手动下载，只有用户点击后才从项目上游获取
 - 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
 - 当前方案可搜索并勾选服务分组；最终兜底与被引用的基础策略自动保留
 - 可新增、编辑和停用本地自定义规则流，内置 Tailscale 示例，刷新上游方案不会覆盖
 - 输入链接导入 Clash YAML、subconverter（`.ini`）或 Surge 远程配置，下载到本机后离线使用，可刷新或删除
-- 生成 Surge / Stash/Clash / Shadowrocket / Loon / QuanX / Hiddify / Egern 完整配置
+- 生成 Surge / Stash / Clash / Shadowrocket / Loon / QuanX / Hiddify / sing-box MT / Egern 完整配置
 - 生成 V2Box Base64 节点订阅并通过其公开 URL Scheme 一键导入；V2Box 默认排在目标客户端列表最后
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
-- Surge、Clash、Shadowrocket、Loon、Egern、Hiddify 和 V2Box 支持点击主按钮后通过 URL Scheme 一键打开并导入
+- Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
-- 八个目标客户端均可长按拖动排序；V2Box 作为新增目标保持在默认顺序末尾
+- 十个目标客户端均可长按拖动排序；sing-box MT 默认位于第 5 位，旧快照会一次性迁移且保持其他客户端相对顺序，后续拖动仍会保存
 - Quantumult X 通过系统分享接收本地配置文件
 - 设置页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
 - 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知
@@ -49,7 +50,7 @@ iCloud 同步是塔台里唯一会让数据离开这台设备的功能，因此�
 
 延迟测试优先向节点地址发送 ICMP Echo。部分机场或网络会屏蔽 ICMP，此时塔台会退回节点端口握手，并在界面明确标成“端口”，不会把它伪装成 ICMP 延迟。测试结果只保存在本次运行内。
 
-Surge、Clash、Shadowrocket、Loon、Egern、Hiddify 和 V2Box 的导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。V2Box 接收的是 Base64 节点订阅，不包含塔台规则和策略组。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
+Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 的导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。sing-box MT 使用官方 `sing-box://import-remote-profile` 入口接收完整 JSON 配置；V2Box 接收的是 Base64 节点订阅，不包含塔台规则和策略组。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
 
 设置页的局域网订阅与上述临时服务完全分开：它默认关闭，只在用户主动开启时监听 Wi-Fi，并用随机访问密钥保护路径。`target=auto` 会按 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern 的 User-Agent 生成对应格式，也可以在界面里复制指定格式的链接。客户端拿到的是塔台当前本地快照的转换结果，链接和 HTTP 响应都不包含机场原始订阅地址；因此需要自定义 UA 或 DNS 的机场仍由塔台请求，电脑和路由器不会接触机场密钥。受 iOS 后台限制，客户端刷新时需要让塔台保持在前台并与客户端位于同一 Wi-Fi。
 
@@ -73,7 +74,7 @@ ACL4SSR 的全部资源保留 `ACL4SSR_` 前缀，便于在 Xcode 拍平后的 b
 
 选择方案后，「当前规则定制」可以搜索并勾选其中拥有实际规则的服务分组，例如国外媒体或 AI。取消分组不会破坏配置：末尾兜底和被引用的节点选择、自动选择等基础策略会按依赖自动保留。
 
-「添加自定义规则流」把用户规则单独保存在 App 状态中，而不是写回下载的方案。每行接受 `TYPE,VALUE`，也可以粘贴带旧策略的客户端规则；塔台会统一改用界面里选择的流向并保留 `no-resolve`。因此刷新 Self-Configuration 或其他上游方案后，Tailscale 等自定义规则仍然存在，并会进入七种导出格式。
+「添加自定义规则流」把用户规则单独保存在 App 状态中，而不是写回下载的方案。每行接受 `TYPE,VALUE`，也可以粘贴带旧策略的客户端规则；塔台会统一改用界面里选择的流向并保留 `no-resolve`。因此刷新 Self-Configuration 或其他上游方案后，Tailscale 等自定义规则仍然存在，并会进入所有完整配置目标。
 
 ## 多语言
 
@@ -91,14 +92,14 @@ App 内置简体中文、繁体中文、英语、日语、韩语、西班牙语�
 2. 选择 iOS 17 或更新版本的模拟器/设备。
 3. 运行 `Tower` Scheme。
 
-测试覆盖订阅解析、Clash YAML 嵌套字段、名称优先的国家地区聚合与离线 IP 回退、网络延迟链路、本地规则资源、一键导入 Scheme、七种完整配置生成器，以及 V2Box 节点订阅。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
+测试覆盖订阅解析、Clash YAML 嵌套字段、名称优先的国家地区聚合与离线 IP 回退、网络延迟链路、本地规则资源、各客户端一键导入 Scheme、九个完整配置目标，以及 V2Box 节点订阅。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
 
 ## 已知边界
 
 - Shadowsocks 的 SIP003 插件只支持 simple-obfs（`obfs`/`obfs-local`）。`v2ray-plugin` 等其余插件会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
-- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，Hiddify（sing-box）反过来只支持 v4 以上，Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
+- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，sing-box MT 只接受 v4 以上，Hiddify、Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
 - WireGuard 只接受能够完整保留密钥、本机地址、对端和路由的单 Peer 配置；多 Peer 配置会明确计入“跳过”，不会静默压成错误节点。QuanX 不支持 WireGuard，Shadowrocket 的仅节点订阅也会跳过它，完整配置仍可写入。
-- Hiddify 运行的是 sing-box 内核，因此导出的是 sing-box JSON；sing-box 自身在 App Store 没有独立客户端，所以这个格式以实际运行它的 App 命名。
+- Hiddify 与 sing-box MT 都接收 sing-box JSON，但保留各自的客户端身份、导入 Scheme 和协议能力矩阵。
 - V2Box 当前接收 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S) 节点订阅，不生成或替换规则与策略组；其余协议会明确计入“跳过”。
 - 机场厂商自定义的非标准节点字段可能需要增加兼容适配。
 - 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。

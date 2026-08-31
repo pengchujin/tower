@@ -70,6 +70,28 @@ private actor CancellationSensitiveFetcher: SubscriptionFetching {
     }
 }
 
+private actor OverlappingRefreshFetcher: SubscriptionFetching {
+    private let failingIDs: Set<UUID>
+    private(set) var requestedIDs: [UUID] = []
+    private(set) var cancellationCount = 0
+
+    init(failingIDs: Set<UUID> = []) {
+        self.failingIDs = failingIDs
+    }
+
+    func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
+        requestedIDs.append(source.id)
+        do {
+            try await Task.sleep(for: .milliseconds(120))
+        } catch {
+            cancellationCount += 1
+            throw error
+        }
+        if failingIDs.contains(source.id) { throw RefreshTestError.rejected }
+        return ImportResult(nodes: [], rejectedLineCount: 0, usage: nil)
+    }
+}
+
 private struct NamedSubscriptionFetcher: SubscriptionFetching {
     func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
         ImportResult(
@@ -161,6 +183,84 @@ final class SubscriptionRefreshTests: XCTestCase {
         let requestedIDs = await fetcher.requestedIDs
         XCTAssertEqual(Set(requestedIDs), Set(sources.map(\.id)))
         XCTAssertTrue(model.subscriptions.allSatisfy { $0.lastUpdatedAt != nil })
+    }
+
+    func testSelectedRefreshJoinsOverlappingFullRefreshWithoutDuplicateFetch() async throws {
+        let first = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let second = SubscriptionSource(name: "二", urlString: "https://two.example/sub")
+        let fetcher = OverlappingRefreshFetcher()
+        let storeURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-overlapping-refresh-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: storeURL),
+            subscriptionService: fetcher,
+            arguments: []
+        )
+        model.subscriptions = [first, second]
+
+        let fullRefresh = Task { await model.refreshAllSubscriptions() }
+        try await Task.sleep(for: .milliseconds(20))
+        let selectedRefresh = Task { await model.refreshSubscriptions([first]) }
+        await fullRefresh.value
+        await selectedRefresh.value
+
+        let requestedIDs = await fetcher.requestedIDs
+        XCTAssertEqual(requestedIDs.filter { $0 == first.id }.count, 1)
+        XCTAssertEqual(requestedIDs.filter { $0 == second.id }.count, 1)
+        XCTAssertTrue(model.toast?.text.contains("2 个订阅已全部更新") == true)
+    }
+
+    func testJoiningFailedRefreshDoesNotReportFalseSuccess() async throws {
+        let source = SubscriptionSource(name: "失败源", urlString: "https://fail.example/sub")
+        let fetcher = OverlappingRefreshFetcher(failingIDs: [source.id])
+        let storeURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-overlapping-failure-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: storeURL),
+            subscriptionService: fetcher,
+            arguments: []
+        )
+        model.subscriptions = [source]
+
+        let fullRefresh = Task { await model.refreshAllSubscriptions() }
+        try await Task.sleep(for: .milliseconds(20))
+        let selectedRefresh = Task { await model.refreshSubscriptions([source]) }
+        await fullRefresh.value
+        await selectedRefresh.value
+
+        let requestedIDs = await fetcher.requestedIDs
+        XCTAssertEqual(requestedIDs, [source.id])
+        XCTAssertNil(model.toast)
+        XCTAssertEqual(model.subscriptionRefreshReport?.succeededCount, 0)
+        XCTAssertEqual(model.subscriptionRefreshReport?.failures.map(\.sourceName), ["失败源"])
+    }
+
+    func testResetCancelsEveryInFlightSubscriptionRefresh() async throws {
+        let source = SubscriptionSource(name: "一", urlString: "https://one.example/sub")
+        let fetcher = OverlappingRefreshFetcher()
+        let storeURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-reset-refresh-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: storeURL),
+            subscriptionService: fetcher,
+            arguments: []
+        )
+        model.subscriptions = [source]
+
+        let refresh = Task { await model.refreshAllSubscriptions() }
+        while await fetcher.requestedIDs.isEmpty {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        await model.resetAllConfiguration()
+        await refresh.value
+
+        let cancellationCount = await fetcher.cancellationCount
+        XCTAssertEqual(cancellationCount, 1)
+        XCTAssertTrue(model.subscriptions.isEmpty)
+        XCTAssertTrue(model.refreshingSourceIDs.isEmpty)
     }
 
     func testPullToRefreshStartsEverySubscriptionRequestConcurrently() async throws {

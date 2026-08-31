@@ -305,7 +305,9 @@ final class TUICHysteriaTests: XCTestCase {
     // MARK: - Client support
 
     func testTUICSupportMatchesWhatEachClientImplements() {
-        let supported: Set<ClientTarget> = [.surge, .shadowrocket, .clash, .clashApple, .hiddify, .egern]
+        let supported: Set<ClientTarget> = [
+            .surge, .shadowrocket, .clash, .clashApple, .hiddify, .egern, .singBox
+        ]
         for target in ClientTarget.allCases {
             XCTAssertEqual(
                 target.supports(.tuic),
@@ -318,7 +320,7 @@ final class TUICHysteriaTests: XCTestCase {
     func testHysteria1SupportMatchesWhatEachClientImplements() {
         // Surge, Loon, Quantumult X and Egern all ship Hysteria 2 but never
         // shipped Hysteria 1.
-        let supported: Set<ClientTarget> = [.shadowrocket, .clash, .clashApple, .hiddify]
+        let supported: Set<ClientTarget> = [.shadowrocket, .clash, .clashApple, .hiddify, .singBox]
         for target in ClientTarget.allCases {
             XCTAssertEqual(
                 target.supports(.hysteria),

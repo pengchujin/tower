@@ -11,6 +11,7 @@ final class RuleSchemeTests: XCTestCase {
     ;注释行应当被忽略
     ruleset=🎯 全球直连,https://example.com/Clash/LocalAreaNetwork.list
     ruleset=🛑 全球拦截,https://example.com/Clash/BanAD.list
+    ruleset=🎯 全球直连,[]GEOSITE,CN
     ruleset=🎯 全球直连,[]GEOIP,CN
     ruleset=🐟 漏网之鱼,[]FINAL
     custom_proxy_group=🚀 节点选择`select`[]♻️ 自动选择`[]🇭🇰 香港节点`[]DIRECT
@@ -69,7 +70,7 @@ final class RuleSchemeTests: XCTestCase {
         let scheme = try parse()
 
         XCTAssertEqual(scheme.groups.count, 6)
-        XCTAssertEqual(scheme.rulesets.count, 4)
+        XCTAssertEqual(scheme.rulesets.count, 5)
         XCTAssertEqual(scheme.remoteRulesetURLs.count, 2)
         XCTAssertEqual(scheme.finalGroupName, "🐟 漏网之鱼")
     }
@@ -104,8 +105,11 @@ final class RuleSchemeTests: XCTestCase {
             return false
         }
 
-        XCTAssertEqual(inline.count, 2)
-        XCTAssertEqual(inline.first?.resource, .inline("GEOIP,CN"))
+        XCTAssertEqual(inline.count, 3)
+        XCTAssertEqual(
+            inline.map(\.resource),
+            [.inline("GEOSITE,CN"), .inline("GEOIP,CN"), .inline("FINAL")]
+        )
         XCTAssertEqual(inline.first?.groupName, "🎯 全球直连")
     }
 
@@ -150,6 +154,113 @@ final class RuleSchemeTests: XCTestCase {
             scheme.networkSettings?.proxyTestURLString,
             "https://www.gstatic.com/generate_204"
         )
+    }
+
+    func testParserDropsUnsafePlainDNSButKeepsIPv4AndIPv6Literals() throws {
+        let source = """
+        [General]
+        dns-server = system, dns.example.com, 1.1.1.1, 2606:4700:4700::1111
+        [Proxy Group]
+        Proxy = select, DIRECT
+        [Rule]
+        FINAL,Proxy
+        """
+
+        let scheme = try parser.parse(
+            text: source,
+            id: "safe-dns-import",
+            name: "Safe DNS",
+            summary: "Safe DNS"
+        )
+
+        XCTAssertEqual(
+            scheme.networkSettings?.dnsServers,
+            ["1.1.1.1", "2606:4700:4700::1111"]
+        )
+    }
+
+    func testParserDoesNotPersistSurgeProxyCredentials() throws {
+        let source = """
+        [Proxy]
+        Secret = trojan, example.com, 443, password=very-secret
+
+        [Proxy Group]
+        Proxy = select, DIRECT
+
+        [Rule]
+        FINAL,Proxy
+        """
+
+        let scheme = try parser.parse(
+            text: source,
+            id: "sanitized-surge",
+            name: "Sanitized",
+            summary: "Sanitized"
+        )
+
+        let stored = try XCTUnwrap(scheme.rawConfigurationText)
+        XCTAssertFalse(stored.contains("very-secret"), stored)
+        XCTAssertFalse(stored.contains("[Proxy]"), stored)
+        XCTAssertTrue(stored.contains("[Proxy Group]"), stored)
+        XCTAssertTrue(stored.contains("FINAL,Proxy"), stored)
+    }
+
+    func testParserDoesNotPersistClashProxyOrProviderCredentials() throws {
+        let source = """
+        proxies:
+          - name: Secret
+            type: trojan
+            server: example.com
+            password: very-secret
+        proxy-providers:
+          provider:
+            type: http
+            url: https://user:password@example.com/nodes.yaml
+        proxy-groups:
+          - name: Proxy
+            type: select
+            proxies:
+              - DIRECT
+        rules:
+          - MATCH,Proxy
+        """
+
+        let scheme = try parser.parse(
+            text: source,
+            id: "sanitized-clash",
+            name: "Sanitized",
+            summary: "Sanitized"
+        )
+
+        let stored = try XCTUnwrap(scheme.rawConfigurationText)
+        XCTAssertFalse(stored.contains("very-secret"), stored)
+        XCTAssertFalse(stored.contains("user:password"), stored)
+        XCTAssertFalse(stored.contains("proxy-providers:"), stored)
+        XCTAssertTrue(stored.contains("proxy-groups:"), stored)
+        XCTAssertTrue(stored.contains("MATCH,Proxy"), stored)
+    }
+
+    func testSanitizerDoesNotPersistIndentlessClashProxyEntries() throws {
+        let source = """
+        proxies:
+        - name: Secret
+          type: trojan
+          server: example.com
+          password: very-secret
+        proxy-groups:
+        - name: Proxy
+          type: select
+          proxies:
+          - DIRECT
+        rules:
+        - MATCH,Proxy
+        """
+
+        let stored = try XCTUnwrap(RuleSchemeSourceSanitizer.persistableText(source))
+        XCTAssertFalse(stored.contains("very-secret"), stored)
+        XCTAssertFalse(stored.contains("type: trojan"), stored)
+        XCTAssertTrue(stored.contains("proxy-groups:"), stored)
+        XCTAssertTrue(stored.contains("MATCH,Proxy"), stored)
     }
 
     func testManualConfigurationValidationReportsTheLineForAnUnknownPolicy() throws {
@@ -202,6 +313,34 @@ final class RuleSchemeTests: XCTestCase {
             XCTAssertEqual(
                 error as? RuleSchemeTextValidationError,
                 .invalidEncryptedDNS(value: "8.8.8.8", line: 2)
+            )
+        }
+    }
+
+    func testManualConfigurationValidationRejectsUnsafePlainDNSAtItsLine() throws {
+        let source = """
+        [General]
+        dns-server = system
+        [custom]
+        ruleset=Proxy,[]FINAL
+        custom_proxy_group=Proxy`select`[]DIRECT
+        """
+
+        XCTAssertThrowsError(
+            try RuleSchemeTextEditorService().validatedScheme(
+                from: source,
+                replacing: RuleScheme(
+                    id: "manual-plain-dns-validation",
+                    name: "Manual",
+                    summary: "Manual",
+                    groups: [],
+                    rulesets: []
+                )
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? RuleSchemeTextValidationError,
+                .invalidPlainDNS(value: "system", line: 2)
             )
         }
     }
@@ -361,6 +500,32 @@ final class RuleSchemeTests: XCTestCase {
     }
 
     // MARK: - Generation
+
+    func testClashTargetsPreserveImportedGeoSiteRule() throws {
+        let scheme = try parse()
+
+        for target in [ClientTarget.clash, .clashApple] {
+            let content = ConfigurationGenerator().generate(
+                nodes: nodes,
+                scheme: scheme,
+                target: target
+            ).content
+
+            XCTAssertTrue(
+                content.contains("GEOSITE,CN,🎯 全球直连"),
+                "\(target.name) 漏掉了导入 ini 中的 GEOSITE：\(content)"
+            )
+        }
+
+        for target in [ClientTarget.surge, .shadowrocket, .loon, .quanx, .hiddify, .singBox, .egern] {
+            let content = ConfigurationGenerator().generate(
+                nodes: nodes,
+                scheme: scheme,
+                target: target
+            ).content
+            XCTAssertFalse(content.contains("GEOSITE"), "\(target.name) 不应写出未支持的 GEOSITE")
+        }
+    }
 
     func testEveryTargetReproducesImportedGroups() throws {
         let scheme = try parse()

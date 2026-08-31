@@ -1,10 +1,10 @@
 # 塔台技术架构
 
-本文描述 2026-08-03 仓库快照的结构，供后续开发定位职责和回归风险。
+本文描述 2026-08-31 仓库快照的结构，供后续开发定位职责和回归风险。
 
 ## 1. 总览
 
-塔台是一个本地优先的 SwiftUI iOS App。用户导入机场订阅或自有节点，App 在本机解析、识别地区、测速、套用本地规则，最后生成七类完整客户端配置，并为 V2Box 生成独立的节点订阅。
+塔台是一个本地优先的 SwiftUI iOS App。用户导入机场订阅或自有节点，App 在本机解析、识别地区、测速、套用本地规则，最后为九个客户端目标生成完整配置，并为 V2Box 生成独立的节点订阅。
 
 ```mermaid
 flowchart LR
@@ -19,12 +19,16 @@ flowchart LR
     G --> J["Shadowrocket"]
     G --> K["Loon"]
     G --> L["Quantumult X"]
+    G --> O["Hiddify / sing-box MT"]
+    G --> P["Egern"]
     H --> M["127.0.0.1 临时导入服务"]
     H --> N["带密钥的 Wi-Fi 订阅服务"]
     I --> M
     J --> M
     K --> M
     L --> N["系统文件分享"]
+    O --> M
+    P --> M
 ```
 
 ## 2. App 生命周期与状态
@@ -55,7 +59,7 @@ flowchart LR
 - `SubscriptionSource`：订阅元数据、启用状态和更新时间。
 - `ProxyNode` / `ProxyKind`：节点、协议和传输参数。
 - `RulePreset` / `RulePolicy` / `RuleAssignment`：本地分流方案。
-- `ClientTarget`：Surge、Stash/Clash、Shadowrocket、Loon、Quantumult X。
+- `ClientTarget`：Surge、Stash、Clash、Shadowrocket、Loon、Quantumult X、Hiddify、sing-box MT、Egern 和 V2Box。
 - `AppSnapshot`：持久化快照。
 - `GeneratedConfiguration` / `ImportResult`：导出产物和导入结果。
 
@@ -132,7 +136,7 @@ flowchart LR
 
 新增策略组时先画出引用方向，并用 `ConfigurationGeneratorTests` 验证没有自引用和环路。
 
-## 7. 七种配置生成
+## 7. 完整配置与节点订阅生成
 
 ### `Tower/Services/ConfigurationGenerator.swift`
 
@@ -143,7 +147,7 @@ flowchart LR
 - Shadowrocket：节点、策略组和规则段。
 - Loon：Proxy、Proxy Group 和 Rule。
 - Quantumult X：server_local、policy 和 filter_local。
-- Hiddify：sing-box JSON 出站、选择器和路由规则。
+- Hiddify / sing-box MT：共用 sing-box JSON 出站、选择器和路由规则生成器，但按客户端分别过滤协议能力。
 - Egern：YAML 节点、策略组和路由规则。
 
 V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S) 节点写成换行分隔的标准 URI，再整体 Base64 编码成节点订阅；不生成规则或策略组。
@@ -165,13 +169,13 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 - Hiddify/sing-box 仅引用含顶层 `rules` 的 sing-box source JSON；Egern 仅引用原生 rule-set YAML。
 - 关闭开关，或任何一个资源的语法不兼容时，该资源自动回落为本地内联规则，不会生成客户端无法读取的远程引用。
 
-这是风险最高的文件。任何修改都要运行完整测试，并抽查七种配置的语法、组引用和末尾兜底规则。
+这是风险最高的文件。任何修改都要运行完整测试，并抽查全部完整配置目标的语法、组引用和末尾兜底规则。
 
 ## 8. 导入与分享
 
 ### `DirectImportService.swift`
 
-除 Quantumult X 外的目标客户端都可通过 Scheme 接收本地 URL，因此 App 临时启动 `NWListener`。其中 V2Box 使用节点订阅 Scheme，其余客户端接收自身支持的完整配置或节点资源：
+除 Quantumult X 外的目标客户端都可通过 Scheme 接收本地 URL，因此 App 临时启动 `NWListener`。其中 sing-box MT 使用官方 `sing-box://import-remote-profile`，V2Box 使用节点订阅 Scheme，其余客户端接收自身支持的完整配置或节点资源：
 
 - 只绑定 `127.0.0.1`。
 - URL 带随机 token。
@@ -179,7 +183,7 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 - 进入短暂后台时申请 background task，给目标客户端留出读取时间。
 - 配置不上传互联网，也不作为远程订阅长期存活。
 
-如果目标客户端未安装或 Scheme 打开失败，回退系统分享。Quantumult X 始终使用本地文件分享，因为公开 Scheme 不能完整导入本地配置。V2Box 公开的是节点订阅入口，因此不能把七种完整配置中的规则与策略组交给它。
+如果目标客户端未安装或 Scheme 打开失败，回退系统分享。Quantumult X 始终使用本地文件分享，因为公开 Scheme 不能完整导入本地配置。V2Box 公开的是节点订阅入口，因此不能把完整配置中的规则与策略组交给它。
 
 ### `LANSubscriptionServer.swift`
 
@@ -218,7 +222,7 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 - `Features/Export/`：目标客户端、局域网订阅目的地、配置预览和导入。局域网订阅在界面上和客户端并列，但不加入 `ClientTarget`，因为它会按请求方自动选择实际输出格式。
 - `Features/Settings/`：续费提醒、节点与配置偏好、云同步，以及通往局域网订阅目的地的精简入口。
 - `Design/`：主题与 UIKit/系统桥接组件。
-- `Assets.xcassets`：只保存塔台自身 App 图标；目标客户端用品牌色与通用 SF Symbol 组合成塔台自绘矢量标识，不打包第三方 App Store 图标。
+- `Assets.xcassets`：保存塔台自身 App 图标和目标客户端的官方 App Store 标识；`ClientTarget.appIconAssetName` 必须能解析到已打包资源，并由测试逐个验证。
 
 ## 11. 测试
 
@@ -238,12 +242,12 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 - 节点分享链接与展示字段。
 - IP 国家库、地区回退和延迟服务。
 - 规则预设迁移与首页交互模型。
-- 七种完整配置生成、V2Box 节点订阅、地区策略、图标及兼容跳过。
-- HTTP/HTTPS 代理节点从链接或手动输入进入本地节点，并在七种客户端格式中均不被跳过。
+- 九个完整配置目标、V2Box 节点订阅、地区策略、图标及兼容跳过。
+- HTTP/HTTPS 代理节点从链接或手动输入进入本地节点，并在所有完整配置目标中均不被跳过。
 - 一键导入 URL/Scheme 与导出呈现。
 - 局域网订阅 token、target/User-Agent 路由、GET/HEAD、响应格式，以及通过真实回环 `NWListener`/`URLSession` 完成的端到端请求。
 - 续费提醒授权、调度、关闭清理和敏感信息边界。
-- 客户端顺序持久化、拖动升级兼容与矢量标识唯一性。
+- 客户端顺序持久化、拖动升级兼容与官方图标资源完整性。
 - 完整国家表坐标覆盖、地图投影和密集标签避让。
 - 刷新后排除状态的继承规则、批量添加的部分成功、快照编辑时间的恢复、地区解析结果落盘与剪枝、节点订阅与完整配置的独立缓存、合并写入与退后台 flush（`ReviewFixTests`）。
 
