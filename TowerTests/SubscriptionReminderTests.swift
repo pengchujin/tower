@@ -189,6 +189,7 @@ final class SubscriptionReminderTests: XCTestCase {
         model.excludedKinds[.quanx] = [.vless]
         model.renewalRemindersEnabled = true
         model.clientOrder = Array(ClientTarget.allCases.reversed())
+        model.lanSharingOrderIndex = 0
         model.appendSubscriptionNameToNodes = true
         model.filterSubscriptionInfoNodes = true
         model.autoRefreshOnOpen = true
@@ -216,6 +217,8 @@ final class SubscriptionReminderTests: XCTestCase {
         XCTAssertTrue(model.excludedKinds.isEmpty)
         XCTAssertFalse(model.renewalRemindersEnabled)
         XCTAssertEqual(model.clientOrder, ClientTargetOrder.defaultOrder)
+        XCTAssertEqual(model.lanSharingOrderIndex, ExportDestinationOrder.defaultLANSharingIndex)
+        XCTAssertEqual(model.exportDestinationOrder[3], .lanSharing)
         XCTAssertFalse(model.appendSubscriptionNameToNodes)
         XCTAssertFalse(model.filterSubscriptionInfoNodes)
         XCTAssertFalse(model.autoRefreshOnOpen)
@@ -240,6 +243,15 @@ final class SubscriptionReminderTests: XCTestCase {
         XCTAssertEqual(saved.configurationName, TowerBrand.localizedName)
         XCTAssertEqual(saved.preferRuleSets, false)
         XCTAssertEqual(saved.renewalRemindersEnabled, false)
+        XCTAssertEqual(saved.lanSharingOrderIndex, ExportDestinationOrder.defaultLANSharingIndex)
+
+        let reloaded = AppModel(
+            persistence: persistence,
+            downloadStore: downloadStore,
+            reminderScheduler: scheduler,
+            arguments: []
+        )
+        XCTAssertEqual(reloaded.exportDestinationOrder[3], .lanSharing)
     }
 }
 

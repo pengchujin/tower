@@ -660,38 +660,48 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(source.contains("AutoRefreshCard()"), source)
     }
 
-    /// Settings keeps a compact wayfinder for LAN sharing after the node card;
-    /// the full controls live with the export destinations where users look
-    /// for ways to move a generated profile elsewhere.
-    func testNodeCardComesBeforeLANSharingWayfinder() throws {
+    /// LAN sharing is an export destination, so Settings must not duplicate a
+    /// second wayfinder for it.
+    func testSettingsDoesNotContainLANSharingWayfinder() throws {
         let source = try sourceText("Tower/Features/Settings/SettingsView.swift")
-        let listStart = try XCTUnwrap(source.range(of: "LazyVStack(spacing: 22) {"))
-        let list = String(source[listStart.upperBound...])
+        let settingsStart = try XCTUnwrap(source.range(of: "struct SettingsView: View"))
+        let settingsEnd = try XCTUnwrap(
+            source.range(
+                of: "private struct ConfigurationManagementCard",
+                range: settingsStart.upperBound..<source.endIndex
+            )
+        )
+        let settingsView = String(source[settingsStart.lowerBound..<settingsEnd.lowerBound])
 
-        let nodeCard = try XCTUnwrap(list.range(of: "NodeAndExportSettingsCard("))
-        let sharing = try XCTUnwrap(list.range(of: "LANSharingSettingsRow"))
-
-        XCTAssertLessThan(nodeCard.lowerBound, sharing.lowerBound)
+        XCTAssertFalse(source.contains("LANSharingSettingsRow"))
+        XCTAssertFalse(source.contains("openLANSharing"))
+        XCTAssertFalse(settingsView.contains("LANSharing"))
+        XCTAssertFalse(settingsView.contains("局域网共享"))
+        XCTAssertTrue(source.contains("struct LANSharingDestinationCard"))
     }
 
-    func testLANSharingDefaultsToFourthExportDestinationWithoutBecomingAClientFormat() throws {
+    func testLANSharingUsesTheSameSortableDestinationPathWithoutBecomingAClientFormat() throws {
         let export = try sourceText("Tower/Features/Export/ExportView.swift")
         let models = try sourceText("Tower/Models/DomainModels.swift")
 
         XCTAssertTrue(export.contains("LANExportTargetCard"))
         XCTAssertTrue(export.contains("LANSharingDestinationCard()"))
-        XCTAssertTrue(export.contains("accessibilityIdentifier(\"client-lan-sharing\")"))
+        XCTAssertTrue(export.contains("case .lanSharing: \"client-lan-sharing\""))
         let picker = try XCTUnwrap(export.range(of: "private struct ClientPicker"))
         let pickerSource = String(export[picker.lowerBound...])
-        XCTAssertTrue(
-            pickerSource.contains("ForEach(Array(model.clientOrder.enumerated()), id: \\.element)")
+        XCTAssertTrue(pickerSource.contains("ForEach(model.exportDestinationOrder)"))
+        XCTAssertTrue(pickerSource.contains(".draggable(destination.id)"))
+        XCTAssertTrue(pickerSource.contains("moveExportDestination(source, across: destination)"))
+        XCTAssertTrue(pickerSource.contains("moveExportDestination(destination, by: -1)"))
+        XCTAssertFalse(pickerSource.contains("if index == 3"))
+
+        let clientStart = try XCTUnwrap(models.range(of: "enum ClientTarget:"))
+        let clientEnd = try XCTUnwrap(
+            models.range(of: "enum ExportContentMode:", range: clientStart.upperBound..<models.endIndex)
         )
-        XCTAssertTrue(
-            pickerSource.contains("if index == 3 {\n                            lanSharingButton"),
-            "局域网共享默认应位于前三个客户端之后"
-        )
+        let clientTarget = String(models[clientStart.lowerBound..<clientEnd.lowerBound])
         XCTAssertFalse(
-            models.contains("case lan"),
+            clientTarget.contains("case lan"),
             "局域网是传输目的地，不是生成器可以直接输出的一种客户端格式"
         )
     }
@@ -700,7 +710,6 @@ final class RepositoryConsistencyTests: XCTestCase {
         let export = try sourceText("Tower/Features/Export/ExportView.swift")
 
         XCTAssertTrue(export.contains("activateLANSharing: activateLANSharing"))
-        XCTAssertTrue(export.contains("openLANSharing: activateLANSharing"))
         XCTAssertTrue(export.contains("private func activateLANSharing()"))
         XCTAssertTrue(export.contains("Task { await model.startLANSharing() }"))
     }
@@ -711,7 +720,6 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertTrue(export.contains(".accessibilityLabel(\"局域网共享\")"))
         XCTAssertTrue(export.contains("Text(\"局域网共享\")"))
-        XCTAssertTrue(settings.contains("Text(\"局域网共享\")"))
         XCTAssertTrue(settings.contains("title: \"局域网共享\""))
     }
 
@@ -732,7 +740,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         let settings = try sourceText("Tower/Features/Settings/SettingsView.swift")
         let rowStart = try XCTUnwrap(settings.range(of: "private struct RenewalReminderDetailRow"))
         let rowEnd = try XCTUnwrap(
-            settings.range(of: "private struct LANSharingSettingsRow", range: rowStart.upperBound..<settings.endIndex)
+            settings.range(of: "struct LANSharingDestinationCard", range: rowStart.upperBound..<settings.endIndex)
         )
         let row = String(settings[rowStart.lowerBound..<rowEnd.lowerBound])
 

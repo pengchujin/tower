@@ -47,7 +47,7 @@ enum SharePayloadFactory {
 struct ProxyNodeShareLinkGenerator {
     func link(for node: ProxyNode) -> String {
         let original = node.rawURI.trimmingCharacters(in: .whitespacesAndNewlines)
-        if isReusable(original) {
+        if isReusable(original), !needsInferredWebSocketHost(node) {
             return original
         }
 
@@ -82,6 +82,14 @@ struct ProxyNodeShareLinkGenerator {
             "hysteria2://", "hy2://", "hysteria://", "tuic://", "wireguard://", "wg://",
             "anytls://", "socks5://", "socks://", "http://", "https://"
         ].contains(where: lowercased.hasPrefix)
+    }
+
+    /// A reusable provider URI can still be incomplete. When Tower had to
+    /// infer the narrow VLESS WebSocket Host fallback, rebuild the URI so a
+    /// manually shared node receives the same repair as exported subscriptions.
+    private func needsInferredWebSocketHost(_ node: ProxyNode) -> Bool {
+        let explicit = node.hostHeader?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return explicit?.isEmpty != false && node.exportableTransportHost != nil
     }
 
     private func shadowsocksLink(for node: ProxyNode) -> String? {
@@ -144,7 +152,7 @@ struct ProxyNodeShareLinkGenerator {
             "tls": node.tls ? "tls" : ""
         ]
         if let sni = node.sni { object["sni"] = sni }
-        if let host = node.hostHeader { object["host"] = host }
+        if let host = node.exportableTransportHost { object["host"] = host }
         if let path = node.path { object["path"] = path }
         if let alpn = ALPNList.normalized(node.alpn) { object["alpn"] = alpn }
         if node.skipCertificateVerification { object["allowInsecure"] = true }
@@ -226,7 +234,7 @@ struct ProxyNodeShareLinkGenerator {
         if let sni = node.sni, !sni.isEmpty {
             queryItems.append(URLQueryItem(name: "sni", value: sni))
         }
-        if let host = node.hostHeader, !host.isEmpty {
+        if let host = node.exportableTransportHost {
             queryItems.append(URLQueryItem(name: "host", value: host))
         }
         if let path = node.path, !path.isEmpty {

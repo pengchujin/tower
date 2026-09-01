@@ -16,7 +16,21 @@
 - subconverter ini 中的 `ruleset=组名,[]GEOSITE,CN` 原本能被 `RuleSchemeParser` 正确解析，但生成阶段复用了不含 `GEOSITE` 的通用规则白名单，导致 Clash YAML 静默漏掉该规则。
 - Mihomo 与 Stash 都有原生 `GEOSITE` 规则类型；现在两个 Clash 目标会原样保留，远程 classical rule-set 的兼容检查也同步放行。Surge、QuanX 等没有对应语法的目标仍会跳过，避免整份配置被拒绝。
 
-当前准备发布的代码版本为 `1.0.4 (37)`，Bundle ID 为 `com.jzb.tower`。本次在开发者的 M2 笔记本上完成测试、真机安装与归档；上传结果以 App Store Connect 的处理状态为准。
+### 2026-09-01：修复 sing-box MT 解析成功但无法联网
+
+- 真机服务日志没有 Shadowsocks 认证、握手或超时错误；TUN 正常启动且 DNS 持续返回结果。实际问题是导出的 `dns.final` 固定为 `local`，`remote` DoH 从未使用，运营商解析可返回污染地址，随后代理会正常连接到错误目标。
+- `remote` typed DoH 现在通过配置中真实存在的默认代理 selector `detour`，并成为有代理节点时的默认解析器；`local` 仅保留给 `route.default_domain_resolver` 解析代理服务器域名，避免远程 DNS 依赖一个尚未解析的代理形成递归。没有代理节点的空配置仍回退本地解析。
+- DNS 开启 `reverse_mapping` 保存回答中的 IP→域名关系；两条 sing-box 生成路径还会在业务规则前加入非终止 `sniff`，并用协议或 53 端口匹配 DNS 后执行 `hijack-dns`。因此 TUN 中只有 IP 的连接可优先还原 DNS 域名，未命中映射时再从 HTTP Host、TLS SNI 或 QUIC SNI 恢复域名，最后按方案里的域名规则分流。
+- App Store iOS 版不支持 `process_name`。旧配置把 `PROCESS-NAME` 与同一策略的域名/IP 聚合到一条规则，既产生大量 `Not implemented`，又因跨字段 AND 语义使整条规则无法命中；Hiddify / sing-box MT 的本地规则映射现在忽略该类型，其他域名规则继续保留。
+- `SingBoxGenerationTests` 覆盖内置与导入方案的 DNS detour、resolver 分工、路由前置动作、进程规则过滤和同组域名规则保留。远程 sing-box source JSON 规则集由客户端原样下载，若上游自身含 `process_name`，塔台无法在不改写远程资源的前提下过滤，这是当前边界。
+
+### 2026-09-01：修复部分 VLESS WebSocket TLS 节点缺少 CDN Host
+
+- 部分订阅不会把 WebSocket Host 放在标准 `host` 字段，而是使用 Shadowrocket 风格的 `obfsParam`，或只提供可用于 TLS 的 SNI。旧实现因此会把空 Host 写进 Loon、Shadowrocket 等目标，节点导入成功但无法完成 CDN 握手。
+- 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
+- `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
+
+当前准备发布的代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`。出门时在 MacBook Air M2 上用正式版 Xcode 开发、测试和真机安装；在家时由 Mac mini M4 的 Xcode Beta 负责开发调试；TestFlight 归档与上传固定交给另一台 Mac mini M2 的正式版 Xcode，上传结果以 App Store Connect 的处理状态为准。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -114,15 +128,15 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 
 ### 真机安装
 
-本机开发、签名、安装和启动统一使用 Xcode Beta。不要依赖 `xcode-select` 的当前值；它可能指向正式版 Xcode，而开发账号和团队登录在 Xcode Beta。先固定工具链，再运行后续命令：
+当前出门使用的 MacBook Air M2，其开发、签名、安装和启动统一使用正式版 Xcode。不要依赖或切换 `xcode-select`；先显式固定工具链，再运行后续命令：
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
 
-如果命令行提示没有账号或团队，先确认 `xcodebuild -version` 来自 Xcode Beta，不要直接判断用户未登录。下面的 `xcodebuild` 和 `xcrun devicectl` 必须在同一个 `DEVELOPER_DIR` 环境中执行。
+如果命令行提示没有账号或团队，先确认 `xcodebuild -version` 来自 MacBook Air 的正式版 Xcode，再检查这份 Xcode 的账号状态。下面的 `xcodebuild` 和 `xcrun devicectl` 必须在同一个 `DEVELOPER_DIR` 环境中执行。
 
-Xcode Beta 已登录开发账号，无需重复登录；优先使用自动签名。新版 Xcode 管理的开发描述文件位于
+MacBook Air 的正式版 Xcode 已登录开发账号，无需重复登录；优先使用自动签名。新版 Xcode 管理的开发描述文件位于
 `~/Library/Developer/Xcode/UserData/Provisioning Profiles/`；旧版才可能使用 `~/Library/MobileDevice/Provisioning Profiles/`。本机已有一份仍然有效的开发描述文件：
 
 - `iOS Team Provisioning Profile: *`，团队 `<TEAM_ID>`，通配 App ID，有效期到 2027-07-29
@@ -655,7 +669,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 
 ### 局域网订阅与“透传”
 
-`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。导出页把“局域网订阅”作为客户端式目的地展示；用户选择该目的地时立即启动服务，并集中提供启停、自动/显式目标格式、带 32 位随机访问密钥的地址、二维码和使用说明，设置页只保留跳转入口。密钥可手动轮换，旧链接立即失效。局域网目的地不能加入 `ClientTarget`，因为它不是一种配置格式，而是按请求方 User-Agent 或 `target=` 参数选择实际格式的传输入口。
+`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。导出页把“局域网订阅”作为客户端式目的地展示；用户选择该目的地时立即启动服务，并集中提供启停、自动/显式目标格式、带 32 位随机访问密钥的地址、二维码和使用说明，设置页不再重复提供入口。局域网目的地与所有客户端使用同一套长按拖动排序并单独持久化位置；旧快照缺少该位置字段时仍默认放在第 4 位。它不能加入 `ClientTarget`，因为它不是一种配置格式，而是按请求方 User-Agent 或 `target=` 参数选择实际格式的传输入口。密钥可手动轮换，旧链接立即失效。
 
 - 路由：`/sub/<token>?target=auto`，另兼容 `/download/<token>`；支持 GET/HEAD。
 - 自动识别：OpenClash 的 `clash.meta`、Clash Verge/Mihomo/Stash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify/sing-box、Egern。
@@ -722,13 +736,15 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-re
 
 ## 5. 远程 Mac 归档说明
 
-远程构建机位于同一局域网，主机为 `<用户名>@<构建机地址>`，已经登录 Apple 开发者账号。凭据和登录密码不写入仓库，也不应发给接手模型保存。
+家中另一台 Mac mini M2 是远程 TestFlight 发布机，位于同一局域网，主机为 `<用户名>@<构建机地址>`，其正式版 Xcode 已登录 Apple 开发者账号。家中的 Mac mini M4 使用 Xcode Beta 做开发调试，不承担归档上传。凭据和登录密码不写入仓库，也不应发给接手模型保存。
 
 该机器的默认 `xcode-select` 曾指向 Command Line Tools，构建命令需要显式指定：
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
+
+运行归档前先执行 `xcodebuild -version`，确认命令来自 Mac mini M2 的正式版 Xcode。不要在 Mac mini M4 的 Xcode Beta 上执行正式归档上传。
 
 ### 非交互 SSH 归档为什么一定失败
 
@@ -774,7 +790,7 @@ xcodebuild -project Tower.xcodeproj \
 
 导出使用 `app-store-connect`、`destination=upload`、Automatic signing、Team ID `<TEAM_ID>`。本地 `.artifacts/` 中可能有归档和 IPA 备份，但已被 `.gitignore` 排除；它们不是源码交接的一部分。
 
-每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`。当前工程里是 **23**，营销版本是 **1.0.2**。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
+每次重新上传前必须增加 `CURRENT_PROJECT_VERSION`，并以 `Tower.xcodeproj/project.pbxproj` 中的当前值为准。**设备支持编译在构建里**，改了工程不重新上传，App Store Connect 仍然会按旧构建处理；build 号复用会被 App Store Connect 直接拒收。
 
 ## 6. 优先任务
 
@@ -824,6 +840,34 @@ xcodebuild -project Tower.xcodeproj \
 **要解决的是「用户不知道」**：走到 `clash.meta` 那一跳时节点可能悄悄变少，界面上看不出来，用户只会觉得机场删了节点。至少要在订阅那一行标出「本次用兼容模式获取，节点可能不完整」。
 
 顺带：`shadowrocketCompatibilityUserAgent` 里硬编码了 `CFNetwork/3892.100.1 Darwin/27.0.0`，会随系统版本过期，需要有人定期核对。
+
+### 待样本确认、暂不修：VMess 节点名称退化为服务器域名（2026-09-01 记录）
+
+**现象**：用户反馈某机场在旧版塔台中能显示 VMess 的节点备注，更新后同一批 VMess 只显示
+`mcm-a-test.mcn-app.org`、`t.cnmjcn.cyou`、`p4.cna.linuxlh.xin` 这类服务器域名；同一订阅中的
+AnyTLS、Hysteria 2 节点仍保留正常名称。这里丢失的是**节点名称**，不是国家/地区识别结果。
+
+**已确认的代码路径**：标准 `vmess://base64(JSON)` 只从 JSON 的 `ps` 取名，空缺时以
+`server` 兜底；Shadowrocket endpoint-only VMess 只读取 `remarks` 或 URI fragment，空缺时以
+`address.host` 兜底。截图显示的恰好是纯 host，因此名称在进入 UI 前就已经走了订阅解析器的
+兜底，不是列表 UI 或 `NodeRegionResolver` 把正常名称替换掉。后者已有统一的
+`proxyNameQueryValue`，可识别 `remarks`、`remark`、`name`、`ps`、`tag` 及 URL-safe Base64，
+但 legacy VMess 尚未复用它。
+
+**高概率回归触发点**：build 23 把默认订阅 User-Agent 从 `Tower/1.0 (iOS; local subscription converter)`
+改成了 Shadowrocket UA。机场可能据 UA 将原来带 JSON `ps` 的响应切换成 endpoint-only 方言；只要
+连接字段仍可解析，`SubscriptionService` 就会接受该响应，不会因为名称已退化成域名而继续尝试其他 UA。
+目前只有截图，尚不能判定机场是完全没发送名称，还是把名称放进了塔台未识别的 `remark/name/ps/tag`
+或外层 fragment，所以不要在拿到样本前改实现。
+
+**用户决定**：先不修，待确认反馈所用订阅。拿到来源后只在本地做脱敏验证，订阅 URL、UUID、密码、
+token 不得进入文档、日志或测试夹具：
+
+1. 对同一订阅分别使用旧 Tower UA 和当前 Shadowrocket UA，比较节点数、VMess 方言及名称字段；
+2. 临时把该订阅的自定义 UA 设为旧 Tower UA 后刷新，若备注恢复即可坐实 UA 分流；
+3. 从一条脱敏 VMess URI 确认名称实际位于 `ps`、`remarks/remark/name/tag` 还是外层 fragment；
+4. 确认后再决定是否恢复 Tower UA 为首选、保留 Shadowrocket / `clash.meta` 兜底，并让两条 VMess
+   解析路径统一复用名称解码逻辑。不要把 `clash.meta` 提到首选，以免机场转换时丢掉 AnyTLS。
 
 ### 待修：并发刷新缺上限，且索引跨 await 失效（2026-08-12 记录）
 

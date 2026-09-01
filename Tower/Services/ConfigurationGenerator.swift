@@ -1061,7 +1061,7 @@ struct ConfigurationGenerator {
             case "ws", "httpupgrade":
                 values.append("    ws-opts:")
                 values.append("      path: \(yaml(node.exportablePath ?? "/"))")
-                if let host = node.hostHeader, !host.isEmpty {
+                if let host = node.exportableTransportHost {
                     values.append("      headers:")
                     values.append("        Host: \(yaml(host))")
                 }
@@ -1424,7 +1424,9 @@ struct ConfigurationGenerator {
         if node.transport == "ws" {
             values.append("ws=true")
             appendValue(node.exportablePath ?? "/", key: "ws-path", to: &values)
-            if let host = node.hostHeader, !host.isEmpty { values.append("ws-headers=Host:\(confValue(host))") }
+            if let host = node.exportableTransportHost {
+                values.append("ws-headers=Host:\(confValue(host))")
+            }
         } else if shadowrocket, let transport = node.transport, transport != "tcp" {
             values.append("obfs=\(transport)")
             if transport == "grpc" {
@@ -1655,7 +1657,7 @@ struct ConfigurationGenerator {
         }
         if let flow = node.flow, !flow.isEmpty { values.append("flow=\(confValue(flow))") }
         appendValue(node.exportablePath, key: "path", to: &values)
-        appendValue(node.hostHeader, key: "host", to: &values)
+        appendValue(node.exportableTransportHost, key: "host", to: &values)
         values.append("over-tls=\(node.tls)")
         appendValue(node.sni, key: "tls-name", to: &values)
         if node.skipCertificateVerification { values.append("skip-cert-verify=true") }
@@ -1813,7 +1815,10 @@ struct ConfigurationGenerator {
     private func appendQuanXTransport(_ node: ProxyNode, to values: inout [String]) {
         if node.transport == "ws" {
             values.append("obfs=\(node.tls ? "wss" : "ws")")
-            appendValue(node.hostHeader ?? node.sni, key: "obfs-host", to: &values)
+            let transportHost = node.kind == .vless
+                ? node.exportableTransportHost
+                : (node.hostHeader ?? node.sni)
+            appendValue(transportHost, key: "obfs-host", to: &values)
             appendValue(node.exportablePath ?? "/", key: "obfs-uri", to: &values)
         } else if node.tls {
             values.append("obfs=over-tls")
@@ -2266,7 +2271,9 @@ extension ConfigurationGenerator {
 
         let configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": singBoxDNS(),
+            "dns": singBoxDNS(
+                remoteDetour: nodes.isEmpty ? nil : RulePolicy.select.configurationName
+            ),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
@@ -2277,7 +2284,7 @@ extension ConfigurationGenerator {
             ]],
             "outbounds": outbounds,
             "route": [
-                "rules": singBoxRules(preset: preset),
+                "rules": singBoxRoutePrelude() + singBoxRules(preset: preset),
                 "final": preset.finalPolicy.configurationName,
                 "default_domain_resolver": "local",
                 "auto_detect_interface": true
@@ -2303,21 +2310,26 @@ extension ConfigurationGenerator {
     /// imported rule schemes from falling back to the removed legacy
     /// `address: https://...` server representation.
     ///
-    /// These servers use literal IP addresses, so the current typed DoH
-    /// dialer can connect directly without a `detour`. Omitting it is also
-    /// important for imported schemes: their selector tags are user-defined
-    /// and must not be coupled to the built-in "node select" display name.
-    private func singBoxDNS() -> [String: Any] {
-        [
+    /// The local resolver only bootstraps proxy server hostnames through
+    /// `route.default_domain_resolver`. User DNS goes to the remote resolver
+    /// through a real proxy outbound, otherwise a successful but polluted
+    /// carrier answer can still send every connection to the wrong address.
+    private func singBoxDNS(remoteDetour: String?) -> [String: Any] {
+        var remote: [String: Any] = [
+            "type": "https",
+            "tag": "remote",
+            "server": "1.1.1.1",
+            "server_port": 443,
+            "path": "/dns-query",
+            "tls": ["enabled": true, "server_name": "cloudflare-dns.com"]
+        ]
+        if let remoteDetour, !remoteDetour.isEmpty {
+            remote["detour"] = remoteDetour
+        }
+
+        return [
             "servers": [
-                [
-                    "type": "https",
-                    "tag": "remote",
-                    "server": "1.1.1.1",
-                    "server_port": 443,
-                    "path": "/dns-query",
-                    "tls": ["enabled": true, "server_name": "cloudflare-dns.com"]
-                ],
+                remote,
                 [
                     "type": "https",
                     "tag": "local",
@@ -2327,8 +2339,31 @@ extension ConfigurationGenerator {
                     "tls": ["enabled": true, "server_name": "dns.alidns.com"]
                 ]
             ],
-            "final": "local",
-            "strategy": "prefer_ipv4"
+            // A direct-only document has no proxy path for remote DoH. Keep
+            // that edge case usable instead of creating a dangling detour.
+            "final": remoteDetour == nil ? "local" : "remote",
+            "strategy": "prefer_ipv4",
+            // Preserve DNS answer metadata so later TUN connections addressed
+            // only by IP can still match the original domain rules.
+            "reverse_mapping": true
+        ]
+    }
+
+    /// Non-final route actions must run before destination rules. Sniffing
+    /// recovers HTTP Host/TLS SNI from TUN connections so domain rules can
+    /// match; DNS traffic is then handed to the configured DNS module.
+    private func singBoxRoutePrelude() -> [[String: Any]] {
+        [
+            ["action": "sniff"],
+            [
+                "type": "logical",
+                "mode": "or",
+                "rules": [
+                    ["protocol": "dns"],
+                    ["port": 53]
+                ],
+                "action": "hijack-dns"
+            ]
         ]
     }
 
@@ -2392,14 +2427,17 @@ extension ConfigurationGenerator {
         return result
     }
 
+    /// `process_name` is deliberately absent. The App Store Apple client can
+    /// only search processes in the standalone macOS and jailbroken iOS
+    /// variants; emitting it makes every iPhone connection log Not implemented
+    /// and, when grouped with destinations, prevents the whole rule matching.
     private static let singBoxRuleFields: [String: String] = [
         "DOMAIN": "domain",
         "DOMAIN-SUFFIX": "domain_suffix",
         "DOMAIN-KEYWORD": "domain_keyword",
         "IP-CIDR": "ip_cidr",
         "IP-CIDR6": "ip_cidr",
-        "IP6-CIDR": "ip_cidr",
-        "PROCESS-NAME": "process_name"
+        "IP6-CIDR": "ip_cidr"
     ]
 }
 
@@ -2551,7 +2589,7 @@ extension ConfigurationGenerator {
         case "ws":
             var websocket: [String: Any] = ["type": "ws"]
             if let path = node.exportablePath { websocket["path"] = path }
-            if let host = node.hostHeader, !host.isEmpty { websocket["headers"] = ["Host": host] }
+            if let host = node.exportableTransportHost { websocket["headers"] = ["Host": host] }
             return websocket
         case "grpc":
             var grpc: [String: Any] = ["type": "grpc"]
@@ -2676,6 +2714,8 @@ extension ConfigurationGenerator {
         }
         flushPending()
 
+        rules = singBoxRoutePrelude() + rules
+
         let remoteRuleSets: [[String: Any]] = rulePlan.remoteResources.map {
             [
                 "type": "remote",
@@ -2696,7 +2736,13 @@ extension ConfigurationGenerator {
 
         let configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": singBoxDNS(),
+            "dns": singBoxDNS(
+                remoteDetour: singBoxRemoteDNSDetour(
+                    finalGroup: finalGroup,
+                    groups: groups,
+                    nodes: nodes
+                )
+            ),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
@@ -2717,6 +2763,25 @@ extension ConfigurationGenerator {
             return "{}"
         }
         return text + "\n"
+    }
+
+    /// Imported schemes name their selectors themselves. Prefer the final
+    /// selector because it represents the source scheme's default route, then
+    /// fall back to a node-containing group or the first concrete node.
+    private func singBoxRemoteDNSDetour(
+        finalGroup: String,
+        groups: [ResolvedSchemeGroup],
+        nodes: [ProxyNode]
+    ) -> String? {
+        let reserved = [Self.singBoxDirectTag, Self.singBoxRejectTag]
+        if !reserved.contains(where: { $0.caseInsensitiveCompare(finalGroup) == .orderedSame }),
+           groups.contains(where: { $0.name == finalGroup }) {
+            return finalGroup
+        }
+        if let group = groups.first(where: { !$0.nodeNames.isEmpty }) {
+            return group.name
+        }
+        return nodes.first.map { NodeRegionResolver.displayName(for: $0) }
     }
 }
 
@@ -3005,7 +3070,7 @@ extension ConfigurationGenerator {
         case "ws":
             lines.append("        \(node.tls ? "wss" : "ws"):")
             if let path = node.exportablePath { lines.append("          path: \(yaml(path))") }
-            if let host = node.hostHeader, !host.isEmpty {
+            if let host = node.exportableTransportHost {
                 lines.append("          headers:")
                 lines.append("            Host: \(yaml(host))")
             }

@@ -51,16 +51,32 @@ final class SingBoxGenerationTests: XCTestCase {
             XCTAssertEqual(server["type"] as? String, "https")
             XCTAssertNotNil(server["server"] as? String)
             XCTAssertNil(server["address"], "legacy DNS server format is rejected by current sing-box")
-            XCTAssertNil(
-                server["detour"],
-                "literal-IP DNS servers should use sing-box's direct dialer default"
-            )
             let tls = try XCTUnwrap(server["tls"] as? [String: Any])
             XCTAssertEqual(tls["enabled"] as? Bool, true)
             XCTAssertNotNil(tls["server_name"] as? String)
         }
+        let remote = try XCTUnwrap(servers.first { $0["tag"] as? String == "remote" })
+        let local = try XCTUnwrap(servers.first { $0["tag"] as? String == "local" })
+        XCTAssertEqual(remote["detour"] as? String, RulePolicy.select.configurationName)
+        XCTAssertNil(local["detour"], "bootstrap DNS must not depend on the proxy it resolves")
+        XCTAssertEqual(dns["final"] as? String, "remote")
+        XCTAssertEqual(dns["reverse_mapping"] as? Bool, true)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let outboundTags = Set(outbounds.compactMap { $0["tag"] as? String })
+        XCTAssertTrue(outboundTags.contains(try XCTUnwrap(remote["detour"] as? String)))
         let route = try XCTUnwrap(config["route"] as? [String: Any])
         XCTAssertEqual(route["default_domain_resolver"] as? String, "local")
+    }
+
+    func testDirectOnlyDocumentKeepsBootstrapDNSWithoutDanglingDetour() throws {
+        let config = try json(.singBox, nodes: [])
+        let dns = try XCTUnwrap(config["dns"] as? [String: Any])
+        let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
+        let remote = try XCTUnwrap(servers.first { $0["tag"] as? String == "remote" })
+
+        XCTAssertNil(remote["detour"])
+        XCTAssertEqual(dns["final"] as? String, "local")
+        XCTAssertEqual(dns["reverse_mapping"] as? Bool, true)
     }
 
     func testImportedSchemeAlsoIncludesCurrentDNSResolver() throws {
@@ -87,8 +103,81 @@ final class SingBoxGenerationTests: XCTestCase {
         let dns = try XCTUnwrap(config["dns"] as? [String: Any])
         let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
         XCTAssertTrue(servers.allSatisfy { $0["type"] as? String == "https" })
+        let remote = try XCTUnwrap(servers.first { $0["tag"] as? String == "remote" })
+        XCTAssertEqual(remote["detour"] as? String, "Proxy")
+        XCTAssertEqual(dns["final"] as? String, "remote")
+        XCTAssertEqual(dns["reverse_mapping"] as? Bool, true)
         let route = try XCTUnwrap(config["route"] as? [String: Any])
         XCTAssertEqual(route["default_domain_resolver"] as? String, "local")
+        let routeRules = try XCTUnwrap(route["rules"] as? [[String: Any]])
+        XCTAssertGreaterThanOrEqual(routeRules.count, 2)
+        XCTAssertEqual(routeRules[0]["action"] as? String, "sniff")
+        XCTAssertEqual(routeRules[1]["type"] as? String, "logical")
+        XCTAssertEqual(routeRules[1]["mode"] as? String, "or")
+        XCTAssertEqual(routeRules[1]["action"] as? String, "hijack-dns")
+    }
+
+    func testRouteSniffsDomainsAndHijacksDNSBeforeBusinessRules() throws {
+        for target in [ClientTarget.hiddify, .singBox] {
+            let config = try json(target, nodes: [node(.shadowsocks)])
+            let route = try XCTUnwrap(config["route"] as? [String: Any])
+            let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
+
+            XCTAssertGreaterThanOrEqual(rules.count, 2)
+            XCTAssertEqual(rules[0]["action"] as? String, "sniff", target.rawValue)
+            XCTAssertEqual(rules[1]["type"] as? String, "logical", target.rawValue)
+            XCTAssertEqual(rules[1]["mode"] as? String, "or", target.rawValue)
+            XCTAssertEqual(rules[1]["action"] as? String, "hijack-dns", target.rawValue)
+            let dnsRules = try XCTUnwrap(rules[1]["rules"] as? [[String: Any]])
+            XCTAssertTrue(dnsRules.contains { $0["protocol"] as? String == "dns" })
+            XCTAssertTrue(dnsRules.contains { $0["port"] as? Int == 53 })
+        }
+    }
+
+    func testAppleProfilesDropUnsupportedProcessRulesWithoutDroppingDomainRules() throws {
+        let scheme = RuleScheme(
+            id: "sing-box-process-rule",
+            name: "Process rule",
+            summary: "Apple process lookup is unavailable",
+            groups: [
+                RuleSchemeGroup(
+                    name: "Proxy",
+                    kind: .select,
+                    members: [.nodePattern(".*"), .reference("DIRECT")]
+                )
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "Proxy",
+                    resource: .inline("PROCESS-NAME,example-app")
+                ),
+                RuleSchemeRuleset(
+                    groupName: "Proxy",
+                    resource: .inline("DOMAIN-SUFFIX,example.com")
+                ),
+                RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))
+            ]
+        )
+
+        for target in [ClientTarget.hiddify, .singBox] {
+            let content = generator.generate(
+                nodes: [node(.shadowsocks)],
+                scheme: scheme,
+                target: target
+            ).content
+            let object = try JSONSerialization.jsonObject(with: Data(content.utf8))
+            let config = try XCTUnwrap(object as? [String: Any])
+            let route = try XCTUnwrap(config["route"] as? [String: Any])
+            let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
+
+            XCTAssertFalse(rules.contains { $0["process_name"] != nil }, target.rawValue)
+            XCTAssertTrue(
+                rules.contains {
+                    ($0["domain_suffix"] as? [String])?.contains("example.com") == true
+                },
+                "dropping PROCESS-NAME must not drop sibling domain rules for \(target.rawValue)"
+            )
+        }
     }
 
     func testImportedSchemeDNSDetoursResolveToExistingOutbounds() throws {
@@ -116,13 +205,12 @@ final class SingBoxGenerationTests: XCTestCase {
         let outboundTags = Set(outbounds.compactMap { $0["tag"] as? String })
         let dns = try XCTUnwrap(config["dns"] as? [String: Any])
         let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
-
-        for detour in servers.compactMap({ $0["detour"] as? String }) {
-            XCTAssertTrue(
-                outboundTags.contains(detour),
-                "DNS detour \(detour) 没有对应的 outbound"
-            )
-        }
+        let remote = try XCTUnwrap(servers.first { $0["tag"] as? String == "remote" })
+        let detour = try XCTUnwrap(remote["detour"] as? String)
+        XCTAssertTrue(
+            outboundTags.contains(detour),
+            "DNS detour \(detour) 没有对应的 outbound"
+        )
     }
 
     func testOfficialSingBoxSkipsSSRAndLegacySnellButKeepsSnellV4() throws {

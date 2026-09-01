@@ -184,6 +184,12 @@ export_path="$release_dir/export"
 mkdir -p "$export_path"
 
 export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+[[ -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]] || {
+    printf 'Required stable Xcode is missing at %s on the Mac mini M2 release machine.\n' "$DEVELOPER_DIR" >&2
+    exit 1
+}
+printf '\nRelease toolchain\n'
+xcodebuild -version
 
 # The checked-in plist carries no teamID, so the complete one is rendered here,
 # into the release directory rather than the working tree. That keeps the team

@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 /// Normalizes the list spellings used by subscription producers into the one
@@ -731,6 +732,50 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         return path.hasPrefix("/") ? path : "/" + path
     }
 
+    /// The HTTP Host value a generated transport should use.
+    ///
+    /// `hostHeader` and TLS SNI are independent and an explicit Host always
+    /// wins. A few subscription producers omit the WebSocket Host entirely,
+    /// though, while publishing a VLESS IP endpoint and the CDN domain only as
+    /// SNI. In that narrow shape the IP cannot be the intended HTTP Host, so
+    /// using the DNS SNI keeps the node usable without conflating the two
+    /// fields for ordinary domain endpoints, REALITY, or other protocols.
+    var exportableTransportHost: String? {
+        if let explicit = hostHeader?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !explicit.isEmpty {
+            return explicit
+        }
+        guard kind == .vless,
+              !usesReality,
+              transport?.lowercased() == "ws",
+              tls,
+              Self.isIPAddress(server),
+              let serverName = sni?.trimmingCharacters(in: .whitespacesAndNewlines),
+              Self.isDNSHost(serverName) else {
+            return nil
+        }
+        return serverName
+    }
+
+    private static func isIPAddress(_ value: String) -> Bool {
+        let candidate = value.trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n"))
+        var ipv4 = in_addr()
+        if inet_pton(AF_INET, candidate, &ipv4) == 1 { return true }
+        var ipv6 = in6_addr()
+        return inet_pton(AF_INET6, candidate, &ipv6) == 1
+    }
+
+    private static func isDNSHost(_ value: String) -> Bool {
+        !value.isEmpty
+            && value.contains(".")
+            && !value.hasPrefix("*.")
+            && !value.contains(where: { $0.isWhitespace })
+            && !value.contains("/")
+            && !value.contains(":")
+            && !isIPAddress(value)
+    }
+
     static func normalizedProxyID(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -1225,6 +1270,67 @@ enum ExportContentMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// A card shown in the export destination picker.
+///
+/// LAN sharing deliberately stays outside `ClientTarget`: it negotiates a
+/// real client format when the shared URL is requested, rather than being a
+/// configuration format of its own. This wrapper only gives every card one
+/// common identity so they can participate in the same persisted ordering.
+enum ExportDestination: Hashable, Identifiable {
+    case client(ClientTarget)
+    case lanSharing
+
+    static let lanSharingIdentifier = "lan-sharing"
+
+    var id: String {
+        switch self {
+        case .client(let target): "client:\(target.rawValue)"
+        case .lanSharing: Self.lanSharingIdentifier
+        }
+    }
+
+    init?(identifier: String) {
+        if identifier == Self.lanSharingIdentifier {
+            self = .lanSharing
+            return
+        }
+
+        let prefix = "client:"
+        guard identifier.hasPrefix(prefix),
+              let target = ClientTarget(rawValue: String(identifier.dropFirst(prefix.count))) else {
+            return nil
+        }
+        self = .client(target)
+    }
+
+    var clientTarget: ClientTarget? {
+        guard case .client(let target) = self else { return nil }
+        return target
+    }
+}
+
+enum ExportDestinationOrder {
+    /// Places LAN sharing after the first three clients for a fresh install
+    /// and for snapshots written before its position became sortable.
+    static let defaultLANSharingIndex = 3
+
+    static func normalizedLANSharingIndex(_ savedIndex: Int?, clientCount: Int) -> Int {
+        min(max(savedIndex ?? defaultLANSharingIndex, 0), clientCount)
+    }
+
+    static func combined(
+        clientOrder: [ClientTarget],
+        lanSharingIndex: Int
+    ) -> [ExportDestination] {
+        var destinations = clientOrder.map(ExportDestination.client)
+        destinations.insert(
+            .lanSharing,
+            at: normalizedLANSharingIndex(lanSharingIndex, clientCount: clientOrder.count)
+        )
+        return destinations
+    }
+}
+
 enum ClientTargetOrder {
     static let currentMigrationVersion = 1
 
@@ -1345,6 +1451,10 @@ struct AppSnapshot: Codable {
     /// Missing identifies snapshots written before the sing-box fifth-slot
     /// migration.
     var clientOrderMigrationVersion: Int?
+    /// Position of the LAN-sharing card inside the combined export destination
+    /// list. Missing snapshots predate sortable LAN sharing and use the fourth
+    /// slot; values are clamped when loading so damaged state stays usable.
+    var lanSharingOrderIndex: Int?
     /// Optional settings keep every previously written snapshot decodable.
     var appendSubscriptionNameToNodes: Bool?
     var filterSubscriptionInfoNodes: Bool?
@@ -1393,6 +1503,7 @@ struct AppSnapshot: Codable {
         renewalRemindersEnabled: Bool? = nil,
         clientOrder: [String]? = nil,
         clientOrderMigrationVersion: Int? = nil,
+        lanSharingOrderIndex: Int? = nil,
         appendSubscriptionNameToNodes: Bool? = nil,
         filterSubscriptionInfoNodes: Bool? = nil,
         autoRefreshOnOpen: Bool? = nil,
@@ -1419,6 +1530,7 @@ struct AppSnapshot: Codable {
         self.renewalRemindersEnabled = renewalRemindersEnabled
         self.clientOrder = clientOrder
         self.clientOrderMigrationVersion = clientOrderMigrationVersion
+        self.lanSharingOrderIndex = lanSharingOrderIndex
         self.appendSubscriptionNameToNodes = appendSubscriptionNameToNodes
         self.filterSubscriptionInfoNodes = filterSubscriptionInfoNodes
         self.autoRefreshOnOpen = autoRefreshOnOpen

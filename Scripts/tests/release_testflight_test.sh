@@ -144,6 +144,8 @@ assert_contains "$local_release_source" '-e "$ghostty_launcher"' \
     "Ghostty receives only the ASCII launcher path"
 assert_contains "$remote_release_source" 'tower_check_bundled_rules_current "$REPO_ROOT"' \
     "remote archive checks bundled rules before signing"
+assert_contains "$remote_release_source" 'DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"' \
+    "Mac mini M2 release uses stable Xcode"
 
 releasing_document="$(<"$REPO_ROOT/docs/RELEASING.md")"
 assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py --latest' \

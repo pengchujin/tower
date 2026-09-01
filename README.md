@@ -30,9 +30,9 @@
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
 - Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
-- 十个目标客户端均可长按拖动排序；sing-box MT 默认位于第 5 位，旧快照会一次性迁移且保持其他客户端相对顺序，后续拖动仍会保存
+- 十个目标客户端和“局域网共享”均可长按拖动排序；sing-box MT 默认位于客户端顺序第 5 位，旧快照会一次性迁移且保持其他客户端相对顺序，后续拖动仍会保存
 - Quantumult X 通过系统分享接收本地配置文件
-- 设置页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
+- 导出页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
 - 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知
 - 设置页可开关“优先使用规则集”；兼容的客户端引用远程规则集以减小配置，不兼容的资源自动保留本地转换
 
@@ -52,7 +52,7 @@ iCloud 同步是塔台里唯一会让数据离开这台设备的功能，因此�
 
 Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 的导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。sing-box MT 使用官方 `sing-box://import-remote-profile` 入口接收完整 JSON 配置；V2Box 接收的是 Base64 节点订阅，不包含塔台规则和策略组。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
 
-设置页的局域网订阅与上述临时服务完全分开：它默认关闭，只在用户主动开启时监听 Wi-Fi，并用随机访问密钥保护路径。`target=auto` 会按 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern 的 User-Agent 生成对应格式，也可以在界面里复制指定格式的链接。客户端拿到的是塔台当前本地快照的转换结果，链接和 HTTP 响应都不包含机场原始订阅地址；因此需要自定义 UA 或 DNS 的机场仍由塔台请求，电脑和路由器不会接触机场密钥。受 iOS 后台限制，客户端刷新时需要让塔台保持在前台并与客户端位于同一 Wi-Fi。
+导出页的局域网订阅与上述临时服务完全分开：它默认关闭，只在用户主动开启时监听 Wi-Fi，并用随机访问密钥保护路径。`target=auto` 会按 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern 的 User-Agent 生成对应格式，也可以在界面里复制指定格式的链接。客户端拿到的是塔台当前本地快照的转换结果，链接和 HTTP 响应都不包含机场原始订阅地址；因此需要自定义 UA 或 DNS 的机场仍由塔台请求，电脑和路由器不会接触机场密钥。受 iOS 后台限制，客户端刷新时需要让塔台保持在前台并与客户端位于同一 Wi-Fi。
 
 Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md) 只能添加或替换远程资源（`server_remote` / `filter_remote` / `rewrite_remote`），策略组不在其中，因此没有完整本地配置导入接口。塔台对 QuanX 保留系统文件分享，避免导入一份引用了不存在策略组的配置。
 

@@ -1,6 +1,6 @@
 # TestFlight 发布流程
 
-塔台使用本机 Ghostty 打开一个独立交互终端，再通过 SSH 连接 Mac mini M2。Ghostty 中只负责校验代码和交互解锁钥匙串；真正的归档与上传会自动切换到 Mac mini 的 Aqua 图形会话执行，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
+塔台从开发机上的 Ghostty 打开一个独立交互终端，再通过 SSH 连接家中专门负责发布的 Mac mini M2。Ghostty 中只负责校验代码和交互解锁钥匙串；真正的归档与上传会自动切换到 Mac mini M2 的 Aqua 图形会话，固定使用正式版 `/Applications/Xcode.app/Contents/Developer`，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
 ## 前置条件
 
@@ -8,6 +8,8 @@
 - 随 App 打包的 ACL4SSR 快照必须对应上游最新提交；发布脚本会联网检查并在过期时中止。
 - 工程中的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION` 必须已经更新并推送。
 - 两台机器都需要各自的 `Config/release.local.sh`（见下一节）。
+- MacBook Air M2 使用正式版 Xcode 做出门时的开发调试和真机安装；Mac mini M4 使用 Xcode Beta 做家中的开发调试；Mac mini M2 使用正式版 Xcode 做归档、打包和上传。不要依赖或切换任一机器的全局 `xcode-select`。
+- Mac mini M2 发布机必须安装 `/Applications/Xcode.app`；归档前用显式 `DEVELOPER_DIR` 运行 `xcodebuild -version`，确认当前工具链来自正式版 Xcode。
 - Mac mini 的登录钥匙串中需要存在可用的 Apple Development 或 Apple Distribution 签名身份。
 - 本机安装 Ghostty；SSH 优先使用现有公钥，没有公钥时由 SSH 自己交互询问密码。
 
@@ -98,7 +100,7 @@ Scripts/release_testflight.sh --no-ghostty
 4. 打开 Ghostty，以交互 SSH 连接 Mac mini。
 5. Mac mini 快进到同一个提交，再次核对版本、构建号、工作区和内置规则版本。
 6. 需要时交互解锁登录钥匙串，确认签名身份可见。
-7. 自动在 Mac mini 的 Terminal/Aqua 会话中使用 Release 配置归档，并将日志实时回传到 Ghostty。
+7. 自动在 Mac mini M2 的 Terminal/Aqua 会话中使用正式版 Xcode 和 Release 配置归档，并将日志实时回传到 Ghostty。
 8. 把 `Config/ExportOptions-TestFlight.plist` 复制到发布目录、补上 `TOWER_DEVELOPMENT_TEAM`，再用它上传 App Store Connect。
 9. 将归档与日志保存在 Mac mini 的 `~/Builds/Tower-TestFlight-版本-构建号-时间/`。
 

@@ -2,18 +2,12 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Binding var configurationNameDraft: ConfigurationNameDraft
-    let openLANSharing: () -> Void
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 22) {
                 NodeAndExportSettingsCard(configurationNameDraft: $configurationNameDraft)
-                LANSharingSettingsRow {
-                    openLANSharing()
-                    dismiss()
-                }
                 ConfigurationManagementCard(configurationNameDraft: $configurationNameDraft)
                 SettingsFooter()
             }
@@ -632,55 +626,6 @@ private struct RenewalReminderDetailRow: View {
         case .expired(let days):
             String(localized: "\(reminder.sourceName) 已过期 \(days) 天")
         }
-    }
-}
-
-private struct LANSharingSettingsRow: View {
-    @Environment(AppModel.self) private var model
-    let open: () -> Void
-
-    var body: some View {
-        Button(action: open) {
-            HStack(spacing: 13) {
-                Image(systemName: model.isLANSharingActive ? "wifi.circle.fill" : "wifi.slash")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(model.isLANSharingActive ? .green : Color.accentColor)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        (model.isLANSharingActive ? Color.green : Color.accentColor).opacity(0.11),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("局域网共享")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(model.isLANSharingActive
-                        ? String(localized: "支持安卓、Windows、Mac、路由器等。")
-                        : String(localized: "没有对外提供服务"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 8)
-
-                HStack(spacing: 6) {
-                    Text(model.isLANSharingActive
-                        ? String(localized: "正在共享")
-                        : String(localized: "默认关闭"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(model.isLANSharingActive ? .green : .secondary)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(16)
-            .contentShape(Rectangle())
-            .towerCard()
-        }
-        .buttonStyle(ResponsivePressButtonStyle())
-        .accessibilityIdentifier("open-lan-export-destination")
     }
 }
 

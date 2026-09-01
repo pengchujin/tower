@@ -1122,7 +1122,8 @@ struct SubscriptionParser {
                 || ["1", "true", "tls", "reality"].contains(tlsValue),
             sni: (query["peer"] ?? query["sni"] ?? query["servername"])?
                 .removingPercentEncoding,
-            hostHeader: (query["authority"] ?? query["host"])?.removingPercentEncoding,
+            hostHeader: (query["authority"] ?? query["host"])?.removingPercentEncoding
+                ?? (transport == "ws" ? webSocketHost(from: query["obfsparam"]) : nil),
             path: (transport == "grpc" ? query["servicename"] ?? query["service_name"] : query["path"])?.removingPercentEncoding,
             alpn: query["alpn"]?.removingPercentEncoding,
             realityPublicKey: realityPublicKey,
@@ -1306,7 +1307,12 @@ struct SubscriptionParser {
                 || carriesReality
                 || normalized.lowercased().hasPrefix("https://"),
             sni: query["sni"] ?? query["servername"] ?? query["peer"],
-            hostHeader: trojanPlugin?.host ?? query["authority"] ?? query["host"],
+            hostHeader: trojanPlugin?.host
+                ?? query["authority"]
+                ?? query["host"]
+                ?? (kind == .vless && transport == "ws"
+                    ? webSocketHost(from: query["obfsparam"])
+                    : nil),
             path: transport == "grpc"
                 ? query["servicename"] ?? query["service_name"] ?? query["path"]
                 : trojanPlugin?.path ?? query["path"],
@@ -1882,6 +1888,48 @@ struct SubscriptionParser {
             },
             uniquingKeysWith: { _, new in new }
         )
+    }
+
+    /// Shadowrocket's endpoint-only VLESS dialect calls the WebSocket header
+    /// `obfsParam`. Most producers store a bare hostname there, while others
+    /// percent-encode a JSON header map such as `{\"Host\":\"cdn.example\"}`.
+    /// Decode both shapes without ever serialising the JSON object itself as a
+    /// Host value.
+    private func webSocketHost(from rawValue: String?) -> String? {
+        guard let rawValue else { return nil }
+        let decoded = rawValue.removingPercentEncoding ?? rawValue
+        let candidate = decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return nil }
+        guard candidate.hasPrefix("{") else { return candidate }
+        guard let data = candidate.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let dictionary = object as? [String: Any] else {
+            return nil
+        }
+
+        func hostValue(in headers: [String: Any]) -> String? {
+            for (key, value) in headers where key.caseInsensitiveCompare("host") == .orderedSame {
+                if let string = value as? String {
+                    let host = string.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return host.isEmpty ? nil : host
+                }
+                if let values = value as? [String],
+                   let first = values.first(where: {
+                       !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                   }) {
+                    return first.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+            return nil
+        }
+
+        if let host = hostValue(in: dictionary) { return host }
+        for (key, value) in dictionary where key.caseInsensitiveCompare("headers") == .orderedSame {
+            if let headers = value as? [String: Any] {
+                return hostValue(in: headers)
+            }
+        }
+        return nil
     }
 
     /// HTTP(S) share links exist in two naming dialects. Standard URLs keep a

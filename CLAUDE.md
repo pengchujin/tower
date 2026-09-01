@@ -9,7 +9,7 @@
 ## 工程基线
 
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
-- **本机开发固定使用 Xcode Beta**：`/Applications/Xcode-beta.app/Contents/Developer`。本机 `xcode-select` 可能仍指向正式版 Xcode，而开发账号和团队登录在 Xcode Beta；运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须先执行 `export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`。不要因为正式版 Xcode 读不到账号就判断本机未登录。远程 TestFlight 归档不套用这条，继续按 `docs/RELEASING.md` 的构建机配置执行。
+- **按三台机器固定 Xcode**：出门使用的 MacBook Air M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 开发调试和真机安装；家中的 Mac mini M4 用 `/Applications/Xcode-beta.app/Contents/Developer` 开发调试；家中另一台 Mac mini M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 归档、打包和上传。运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须按所在机器显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核；不要依赖或切换全局 `xcode-select`，也不要因为另一份 Xcode 读不到账号就判断用户未登录。TestFlight 按 `docs/RELEASING.md` 在 Mac mini M2 发布机执行。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
 - Bundle ID：`com.jzb.tower`。
 - App Store Connect App ID：`<App Store Connect App ID>`。
@@ -45,8 +45,14 @@
 ## 常用命令
 
 ```sh
-# 本机所有 Xcode 命令先固定到已登录开发账号的 Xcode Beta
-export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+# 当前出门使用的 MacBook Air M2 使用正式版 Xcode
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+
+# 家中 Mac mini M4 开发调试时改用 Xcode Beta
+# export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
+
+# 家中 Mac mini M2 打包发布时仍使用正式版 Xcode
+# export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 # 查看可用模拟器
 xcrun simctl list devices available

@@ -79,8 +79,7 @@ struct ExportView: View {
         }
         .sheet(isPresented: $isSettingsPresented) {
             ExportSettingsSheet(
-                configurationNameDraft: $configurationNameDraft,
-                openLANSharing: activateLANSharing
+                configurationNameDraft: $configurationNameDraft
             )
         }
         // "完成" is not the only way out of that sheet — it can also be dragged
@@ -205,14 +204,10 @@ private struct ExportSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var model
     @Binding var configurationNameDraft: ConfigurationNameDraft
-    let openLANSharing: () -> Void
 
     var body: some View {
         NavigationStack {
-            SettingsView(
-                configurationNameDraft: $configurationNameDraft,
-                openLANSharing: openLANSharing
-            )
+            SettingsView(configurationNameDraft: $configurationNameDraft)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("完成") {
@@ -246,44 +241,25 @@ private struct ClientPicker: View {
             SectionHeading(title: "目标客户端", detail: String(localized: "长按拖动排序"))
             ScrollView(.horizontal) {
                 HStack(spacing: 12) {
-                    ForEach(Array(model.clientOrder.enumerated()), id: \.element) { index, target in
-                        // Keep LAN sharing discoverable without making it the
-                        // dominant first choice. It is a transport that
-                        // negotiates a client format, so it does not belong in
-                        // the persisted ClientTarget order.
-                        if index == 3 {
-                            lanSharingButton
-                        }
-
-                        Button {
-                            guard isLANSharingSelected || model.selectedTarget != target else { return }
-                            isLANSharingSelected = false
-                            model.selectTarget(target)
-                        } label: {
-                            ClientTargetCard(
-                                target: target,
-                                isSelected: !isLANSharingSelected && model.selectedTarget == target
-                            )
-                        }
-                        .buttonStyle(ResponsivePressButtonStyle())
-                        .accessibilityIdentifier("client-\(target.rawValue)")
-                        .draggable(target.rawValue)
-                        .dropDestination(for: String.self) { values, _ in
-                            guard let rawValue = values.first,
-                                  let source = ClientTarget(rawValue: rawValue) else { return false }
-                            model.moveClient(source, before: target)
-                            return true
-                        }
-                        .accessibilityAction(named: "向前移动") {
-                            model.moveClient(target, by: -1)
-                        }
-                        .accessibilityAction(named: "向后移动") {
-                            model.moveClient(target, by: 1)
-                        }
-                    }
-
-                    if model.clientOrder.count <= 3 {
-                        lanSharingButton
+                    ForEach(model.exportDestinationOrder) { destination in
+                        destinationButton(destination)
+                            .buttonStyle(ResponsivePressButtonStyle())
+                            .accessibilityIdentifier(accessibilityIdentifier(for: destination))
+                            .draggable(destination.id)
+                            .dropDestination(for: String.self) { values, _ in
+                                guard let identifier = values.first,
+                                      let source = ExportDestination(identifier: identifier) else {
+                                    return false
+                                }
+                                model.moveExportDestination(source, across: destination)
+                                return true
+                            }
+                            .accessibilityAction(named: "向前移动") {
+                                model.moveExportDestination(destination, by: -1)
+                            }
+                            .accessibilityAction(named: "向后移动") {
+                                model.moveExportDestination(destination, by: 1)
+                            }
                     }
                 }
                 .scrollTargetLayout()
@@ -294,16 +270,36 @@ private struct ClientPicker: View {
         }
     }
 
-    private var lanSharingButton: some View {
-        Button {
-            activateLANSharing()
-        } label: {
-            LANExportTargetCard(isSelected: isLANSharingSelected)
+    @ViewBuilder
+    private func destinationButton(_ destination: ExportDestination) -> some View {
+        switch destination {
+        case .client(let target):
+            Button {
+                guard isLANSharingSelected || model.selectedTarget != target else { return }
+                isLANSharingSelected = false
+                model.selectTarget(target)
+            } label: {
+                ClientTargetCard(
+                    target: target,
+                    isSelected: !isLANSharingSelected && model.selectedTarget == target
+                )
+            }
+        case .lanSharing:
+            Button {
+                activateLANSharing()
+            } label: {
+                LANExportTargetCard(isSelected: isLANSharingSelected)
+            }
+            .accessibilityLabel("局域网共享")
+            .accessibilityHint("自动识别客户端")
         }
-        .buttonStyle(ResponsivePressButtonStyle())
-        .accessibilityLabel("局域网共享")
-        .accessibilityHint("自动识别客户端")
-        .accessibilityIdentifier("client-lan-sharing")
+    }
+
+    private func accessibilityIdentifier(for destination: ExportDestination) -> String {
+        switch destination {
+        case .client(let target): "client-\(target.rawValue)"
+        case .lanSharing: "client-lan-sharing"
+        }
     }
 }
 

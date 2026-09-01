@@ -187,7 +187,7 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 
 ### `LANSubscriptionServer.swift`
 
-设置页的长期共享服务与 `DirectImportService` 的 45 秒 loopback 服务互相独立。它只在用户明确开启时绑定 Wi-Fi，路径必须携带本机生成并持久化的随机访问密钥。`/sub/<token>?target=auto` 与 `/download/<token>` 兼容 subconverter/Sub-Store 常见用法：显式 target 优先，否则从 User-Agent 识别 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern。未知 User-Agent 返回 400，不猜测格式。
+导出页的长期共享服务与 `DirectImportService` 的 45 秒 loopback 服务互相独立。它只在用户明确开启时绑定 Wi-Fi，路径必须携带本机生成并持久化的随机访问密钥。`/sub/<token>?target=auto` 与 `/download/<token>` 兼容 subconverter/Sub-Store 常见用法：显式 target 优先，否则从 User-Agent 识别 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern。未知 User-Agent 返回 400，不猜测格式。
 
 服务每次请求都从 `AppModel.configuration(target:)` 读取当前本地快照，不转发机场请求，也不会把 `SubscriptionSource.urlString` 写进共享 URL、响应头或日志。这就是本项目的“订阅透传”边界：需要特定 UA/DoH 的上游仍由手机获取，LAN 客户端只看到脱离原始订阅凭据的生成结果。iOS 不能保证后台常驻，界面必须提示刷新期间保持 App 在前台。
 
@@ -219,8 +219,8 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 
 - `Features/Subscriptions/`：首页、添加来源、地球、分享。
 - `Features/Rules/`：规则方案、策略说明和规则数量。
-- `Features/Export/`：目标客户端、局域网订阅目的地、配置预览和导入。局域网订阅在界面上和客户端并列，但不加入 `ClientTarget`，因为它会按请求方自动选择实际输出格式。
-- `Features/Settings/`：续费提醒、节点与配置偏好、云同步，以及通往局域网订阅目的地的精简入口。
+- `Features/Export/`：目标客户端、局域网订阅目的地、配置预览和导入。局域网订阅在界面上和客户端并列并参与同一套持久化拖动排序，但不加入 `ClientTarget`，因为它会按请求方自动选择实际输出格式。
+- `Features/Settings/`：续费提醒、节点与配置偏好、云同步；局域网共享只在导出页管理，不在设置页重复提供入口。
 - `Design/`：主题与 UIKit/系统桥接组件。
 - `Assets.xcassets`：保存塔台自身 App 图标和目标客户端的官方 App Store 标识；`ClientTarget.appIconAssetName` 必须能解析到已打包资源，并由测试逐个验证。
 

@@ -68,6 +68,13 @@ final class AppModel {
     var renewalRemindersEnabled = false
     var isUpdatingRenewalReminders = false
     var clientOrder = ClientTargetOrder.defaultOrder
+    var lanSharingOrderIndex = ExportDestinationOrder.defaultLANSharingIndex
+    var exportDestinationOrder: [ExportDestination] {
+        ExportDestinationOrder.combined(
+            clientOrder: clientOrder,
+            lanSharingIndex: lanSharingOrderIndex
+        )
+    }
     var appendSubscriptionNameToNodes = false
     var filterSubscriptionInfoNodes = false
     /// Refresh enabled subscriptions when the app opens. Off by default like
@@ -2034,6 +2041,65 @@ final class AppModel {
         persist()
     }
 
+    func moveExportDestination(
+        _ source: ExportDestination,
+        before destination: ExportDestination
+    ) {
+        guard source != destination else { return }
+        var reordered = exportDestinationOrder
+        guard reordered.contains(source), reordered.contains(destination) else { return }
+        reordered.removeAll { $0 == source }
+        guard let destinationIndex = reordered.firstIndex(of: destination) else { return }
+        reordered.insert(source, at: destinationIndex)
+        applyExportDestinationOrder(reordered)
+    }
+
+    /// Reorders a drag source across the destination card. Moving right places
+    /// it after that card; moving left places it before. This makes adjacent
+    /// rightward moves visible and lets the last card be a real drop target.
+    func moveExportDestination(
+        _ source: ExportDestination,
+        across destination: ExportDestination
+    ) {
+        guard source != destination else { return }
+        var reordered = exportDestinationOrder
+        guard let sourceIndex = reordered.firstIndex(of: source),
+              let destinationIndex = reordered.firstIndex(of: destination) else { return }
+        let movesRight = sourceIndex < destinationIndex
+        reordered.remove(at: sourceIndex)
+        guard let adjustedDestinationIndex = reordered.firstIndex(of: destination) else { return }
+        reordered.insert(
+            source,
+            at: movesRight ? adjustedDestinationIndex + 1 : adjustedDestinationIndex
+        )
+        applyExportDestinationOrder(reordered)
+    }
+
+    func moveExportDestination(_ destination: ExportDestination, by offset: Int) {
+        var reordered = exportDestinationOrder
+        guard let sourceIndex = reordered.firstIndex(of: destination) else { return }
+        let destinationIndex = min(max(sourceIndex + offset, 0), reordered.count - 1)
+        guard destinationIndex != sourceIndex else { return }
+        let value = reordered.remove(at: sourceIndex)
+        reordered.insert(value, at: destinationIndex)
+        applyExportDestinationOrder(reordered)
+    }
+
+    private func applyExportDestinationOrder(_ destinations: [ExportDestination]) {
+        let reorderedClients = destinations.compactMap(\.clientTarget)
+        guard reorderedClients.count == clientOrder.count,
+              Set(reorderedClients) == Set(clientOrder),
+              destinations.filter({ $0 == .lanSharing }).count == 1,
+              let reorderedLANIndex = destinations.firstIndex(of: .lanSharing),
+              reorderedClients != clientOrder || reorderedLANIndex != lanSharingOrderIndex else {
+            return
+        }
+
+        clientOrder = reorderedClients
+        lanSharingOrderIndex = reorderedLANIndex
+        persist()
+    }
+
     func configuration(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
@@ -2127,8 +2193,8 @@ final class AppModel {
     var isLANSharingActive: Bool { lanSharingURL != nil }
 
     /// Starts a foreground LAN endpoint. iOS may suspend all networking after
-    /// Tower leaves the foreground, so the Settings screen communicates that
-    /// Tower must remain open while a desktop client refreshes.
+    /// Tower leaves the foreground, so the export destination card communicates
+    /// that Tower must remain open while a desktop client refreshes.
     func startLANSharing() async {
         guard !isLANSharingStarting, !isLANSharingActive else { return }
         guard !enabledNodes.isEmpty else {
@@ -2517,6 +2583,10 @@ final class AppModel {
             rawValues: snapshot.clientOrder,
             savedMigrationVersion: snapshot.clientOrderMigrationVersion
         )
+        lanSharingOrderIndex = ExportDestinationOrder.normalizedLANSharingIndex(
+            snapshot.lanSharingOrderIndex,
+            clientCount: clientOrder.count
+        )
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
         filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
         autoRefreshOnOpen = snapshot.autoRefreshOnOpen ?? false
@@ -2616,6 +2686,7 @@ final class AppModel {
             renewalRemindersEnabled: renewalRemindersEnabled,
             clientOrder: clientOrder.map(\.rawValue),
             clientOrderMigrationVersion: ClientTargetOrder.currentMigrationVersion,
+            lanSharingOrderIndex: lanSharingOrderIndex,
             appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
             filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
             autoRefreshOnOpen: autoRefreshOnOpen,
