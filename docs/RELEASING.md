@@ -1,17 +1,21 @@
 # TestFlight 发布流程
 
-塔台从开发机上的 Ghostty 打开一个独立交互终端，再通过 SSH 连接家中专门负责发布的 Mac mini M2。Ghostty 中只负责校验代码和交互解锁钥匙串；真正的归档与上传会自动切换到 Mac mini M2 的 Aqua 图形会话，固定使用正式版 `/Applications/Xcode.app/Contents/Developer`，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
+塔台有两条正式版 Xcode 发布路径：出门使用的 MacBook Air M2 可以在当前 Aqua 会话中直接完成自动签名和归档；家中 Mac mini M2 负责当前的 App Store Connect / TestFlight 上传，也可从头完成归档。家中 Mac mini M4 的 Xcode Beta 只用于开发调试，不参与正式发布。
+
+2026-09-01 已在 Air 上实测 `1.0.5 (38)`：Release 自动签名、Store 校验和 `.xcarchive` 全部成功；上传阶段两种导出参数都立即停在 `Failed to Use Accounts`，恢复建议明确要求该签名团队的 App Store Connect 访问权限。这不是“没登录 Xcode”，也不是证书或描述文件失败。Air 的 Xcode 账号权限或登录状态没有变化时，不要反复归档和重试同一上传命令，直接使用 Mac mini M2 发布机。
+
+备用远程流程会从开发机上的 Ghostty 通过 SSH 连接 Mac mini M2，再自动切换到该机的 Aqua 图形会话归档和上传，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
 ## 前置条件
 
 - 本地仓库工作区必须干净，并且 `HEAD` 与 `origin/main` 完全一致。
 - 随 App 打包的 ACL4SSR 快照必须对应上游最新提交；发布脚本会联网检查并在过期时中止。
 - 工程中的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION` 必须已经更新并推送。
-- 两台机器都需要各自的 `Config/release.local.sh`（见下一节）。
-- MacBook Air M2 使用正式版 Xcode 做出门时的开发调试和真机安装；Mac mini M4 使用 Xcode Beta 做家中的开发调试；Mac mini M2 使用正式版 Xcode 做归档、打包和上传。不要依赖或切换任一机器的全局 `xcode-select`。
-- Mac mini M2 发布机必须安装 `/Applications/Xcode.app`；归档前用显式 `DEVELOPER_DIR` 运行 `xcodebuild -version`，确认当前工具链来自正式版 Xcode。
-- Mac mini 的登录钥匙串中需要存在可用的 Apple Development 或 Apple Distribution 签名身份。
-- 本机安装 Ghostty；SSH 优先使用现有公钥，没有公钥时由 SSH 自己交互询问密码。
+- Air 本机归档不需要 `TOWER_RELEASE_HOST`、远端仓库或 Ghostty；它必须处于 Aqua 会话，并使用 `/Applications/Xcode.app/Contents/Developer`。本机已登录开发账号，存在可用证书和匹配 `com.jzb.tower` 的描述文件。
+- Air 本机上传还必须让 Xcode 账号对签名团队具有 App Store Connect 访问权限，或提供单独的 App Store Connect API Key。只有开发证书和描述文件不能证明这一点。
+- Mac mini M2 发布机必须安装 `/Applications/Xcode.app`，其登录钥匙串中需要存在可用的 Apple Development 或 Apple Distribution 签名身份，并由具有 App Store Connect 权限的账号完成上传。
+- 远程备用流程的开发机和 Mac mini M2 各自需要 `Config/release.local.sh` 中与自身职责对应的私有值（见下一节）；开发机还需安装 Ghostty。SSH 优先使用现有公钥，没有公钥时由 SSH 自己交互询问密码。
+- 三台 Mac 都不要依赖或切换全局 `xcode-select`。运行命令前显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核。
 
 ## 打包前更新内置规则
 
@@ -43,16 +47,18 @@ python3 Scripts/update_acl4ssr_rules.py --revision <完整提交号>
 
 ## 本地配置
 
-本仓库是公开的，所以构建机地址、它的仓库路径和 Apple 团队 ID 都不写进 Git。它们放在 `Config/release.local.sh`，该文件已被 `.gitignore` 忽略，每台参与发布的机器各有一份，只负责赋值：
+本仓库是公开的，所以构建机地址、它的仓库路径和 Apple 团队 ID 都不写进 Git。远程发布需要的私有值放在 `Config/release.local.sh`；该文件已被 `.gitignore` 忽略，每台机器只填写自己需要的项目：
 
 ```sh
 # 开发机（运行 Scripts/release_testflight.sh 的那台）
 TOWER_RELEASE_HOST="${TOWER_RELEASE_HOST:-用户名@构建机地址}"
 TOWER_RELEASE_REPO="${TOWER_RELEASE_REPO:-/构建机上的仓库路径}"
 
-# 构建机（做签名和归档的那台）
+# 做签名和归档的机器
 TOWER_DEVELOPMENT_TEAM="${TOWER_DEVELOPMENT_TEAM:-你的团队 ID}"
 ```
+
+Air 本机归档不需要 `TOWER_RELEASE_HOST`、`TOWER_RELEASE_REPO` 或 Ghostty。工程故意没有把 `DEVELOPMENT_TEAM` 写进项目文件，所以命令行归档仍必须在进程环境或构建参数中提供团队。若 Air 没有本地配置，可从与 `com.jzb.tower` 匹配且未过期的描述文件中确认唯一的 `TeamIdentifier`，只保存在当前 Shell 变量中；找不到或出现多个不同团队时停止，不要猜，也不要把结果打印到日志或写进仓库。看到 `Signing for Tower requires a development team` 只说明命令没有传这个参数，不代表 Xcode 没登录。
 
 用 `${VAR:-…}` 写法是为了让环境变量优先，这样临时换一台机器发布不需要改文件：
 
@@ -64,7 +70,28 @@ TOWER_RELEASE_HOST=用户名@另一台 Scripts/release_testflight.sh
 
 `Config/ExportOptions-TestFlight.plist` 因此**不含 `teamID`**；`Scripts/release_testflight_remote.sh` 会把它复制到发布目录再补上团队 ID，渲染结果始终落在仓库之外。
 
-## 一条命令发布
+## MacBook Air 本机归档的已验证边界
+
+2026-09-01 在当前 Air 的 Aqua 会话中，用正式版 Xcode 26.6 对 `1.0.5 (38)` 完成了以下验证：
+
+1. 自动签名的 Release 真机构建成功。
+2. `.xcarchive` 成功生成到 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。
+3. 归档内版本、构建号、Bundle ID 和签名均正确，Store 校验通过。
+4. 分别使用带运行时 team ID 和不带 team ID 的标准 ExportOptions 上传，均在 `IDEDistributionUploadAccountStep` 失败，错误为 `Failed to Use Accounts`，恢复建议要求该团队的 App Store Connect 访问权限。
+
+这组结果已经把开发签名、证书、描述文件和归档本身排除为故障点。只要 Air 的 Xcode 账号权限/登录状态没有变化，就不要重新构建或反复执行上传；改用家中 Mac mini M2。若之后给 Air 的账号补齐 App Store Connect 权限、重新登录出问题的账号，或配置 App Store Connect API Key，可直接在 Organizer 中对现有归档执行 **Distribute App**；只要 build 38 尚未被上传，就无需重新归档。
+
+本机检查基线：
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcodebuild -version
+launchctl managername  # 本机终端应为 Aqua
+```
+
+不要因为能看到 Xcode 账号、开发证书和描述文件，就推断该账号一定有 App Store Connect 上传权限；这是两套不同的能力。
+
+## Mac mini M2 备用发布：一条命令
 
 在塔台仓库根目录执行：
 
@@ -92,7 +119,7 @@ Scripts/release_testflight.sh --dry-run
 Scripts/release_testflight.sh --no-ghostty
 ```
 
-## 脚本会做什么
+## 远程发布脚本会做什么
 
 1. 拒绝带未提交文件的本地工作区。
 2. 联网上游检查随包 ACL4SSR 快照；不是最新版本就停止并给出更新命令。

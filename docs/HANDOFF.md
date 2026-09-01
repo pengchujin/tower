@@ -30,7 +30,7 @@
 - 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
 - `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
 
-当前准备发布的代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`。出门时在 MacBook Air M2 上用正式版 Xcode 开发、测试和真机安装；在家时由 Mac mini M4 的 Xcode Beta 负责开发调试；TestFlight 归档与上传固定交给另一台 Mac mini M2 的正式版 Xcode，上传结果以 App Store Connect 的处理状态为准。
+当前代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`，已推送到 `origin/main`。2026-09-01 已在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验和本机归档；同一归档上传时停在 `Failed to Use Accounts`，说明当前 Air 的 Xcode 账号会话没有暴露该团队的 App Store Connect 上传权限，而不是证书或描述文件失败。账号状态未变化时不要重复尝试，TestFlight 上传仍交给家中另一台使用正式版 Xcode 的 Mac mini M2；家中 Mac mini M4 的 Xcode Beta 只负责开发调试。最终上传结果以 App Store Connect 的处理状态为准。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -703,29 +703,29 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- TestFlight 已上传的最新构建号是 `1.0 (16)`；仓库当前构建号为 `1.0 (17)`，用于下次上传。
+- 仓库与 `origin/main` 当前版本为 `1.0.5 (38)`；Air 上已有对应的有效签名归档。
+- build 38 在 Air 上尚未上传成功。接手时不要根据旧文档猜测线上最新构建号，必须到 App Store Connect 核对。
 
-### 归档只能在图形会话里做
+### Air 本机归档与 App Store Connect 上传是两项能力
+
+Air 当前处于 Aqua 会话，正式版 Xcode 已登录开发账号，匹配的证书与描述文件可用。工程故意不保存 `DEVELOPMENT_TEAM`；命令行归档必须从本机忽略配置或匹配描述文件得到唯一团队，并只在进程内传入。没有显式传参时报 `Signing for Tower requires a development team`，不能据此判断账号未登录。
+
+`1.0.5 (38)` 的自动签名、Store 校验与 `.xcarchive` 已成功，归档保存在 Air 的 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。随后两种标准上传参数都在 `IDEDistributionUploadAccountStep` 返回 `Failed to Use Accounts`，恢复建议明确要求该团队的 App Store Connect 访问权限。因此：
+
+- 证书、描述文件、Bundle ID 与归档不是当前阻塞点。
+- Xcode 已登录且能做开发签名，不等于账号有 App Store Connect 权限。
+- Air 账号权限或登录状态没有变化时，不要重新归档或重复上传；使用家中 Mac mini M2。
+- 若之后补齐权限、重新登录对应账号或提供 API Key，只要 build 38 尚未上传，可从 Organizer 直接分发现有归档。
+
+### 远程 Mac 归档必须进入图形会话
 
 SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私钥，必然报 `errSecInternalComponent`。解锁钥匙串要密码、切到 Aqua 会话要 sudo，都不能由自动化代劳。
 
-所以归档必须在那台机器**自己的终端窗口**里跑，且三条命令要在同一个会话里连续执行：
-
-```sh
-security unlock-keychain ~/Library/Keychains/login.keychain-db
-
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Release -destination 'generic/platform=iOS' -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM="$TOWER_DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Automatic archive
-
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-release && cp Config/ExportOptions-TestFlight.plist /tmp/TowerExportOptions.plist && /usr/libexec/PlistBuddy -c "Add :teamID string $TOWER_DEVELOPMENT_TEAM" /tmp/TowerExportOptions.plist && xcodebuild -exportArchive -archivePath ~/tower-release/build/Tower-1.0-18.xcarchive -exportOptionsPlist /tmp/TowerExportOptions.plist -allowProvisioningUpdates
-```
-
-`TOWER_DEVELOPMENT_TEAM` 来自那台机器上未入库的 `Config/release.local.sh`。团队 ID 不写进仓库，`Config/ExportOptions-TestFlight.plist` 因此不含 `teamID`，需要在导出前补上——`Scripts/release_testflight_remote.sh` 会自动做这件事，上面是手动兜底的等价写法。
-
-`DEVELOPER_DIR` 不能省：那台机器的 `xcode-select` 指向 CommandLineTools，改它要 sudo，用环境变量绕过。`Config/ExportOptions-TestFlight.plist` 是仓库内受版本控制的上传配置，使用 `destination: upload`，第三条直接传到 App Store Connect，不用开 Organizer。归档前务必 `git pull` 并确认 `CURRENT_PROJECT_VERSION` 是新值。
+这个限制只针对远程 SSH / Background 会话，不适用于当前 Air 自己的 Aqua 终端。备用 Mac mini M2 发布时，使用 `Scripts/release_testflight.sh` 让脚本切换到那台机器的 Aqua 会话；手工操作则必须在那台机器自己的终端或 Xcode Organizer 中完成。`DEVELOPER_DIR`、团队 ID 和钥匙串密码都按 `docs/RELEASING.md` 处理，不把私密值写进命令示例或仓库。
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0 (17)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。TestFlight 最新已上传的是 build 16，本次归档上传 build 17。
+工程当前为 **`1.0.5 (38)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已生成签名归档但上传未完成；App Store Connect 上实际最新构建必须登录后核对，不能沿用历史 build 16/17 记录。
 
 ### 外部测试还需要补的材料
 
@@ -734,7 +734,7 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && cd ~/tower-re
 - 外部测试需要经过 **Beta App Review**，内部测试不需要。
 - 审核时容易被问用途。建议在「需要测试的内容」里写明：本 App 只在本机把订阅转换成各客户端配置文件，不含 VPN 或代理功能，不接管流量，不上传用户数据。
 
-## 5. 远程 Mac 归档说明
+## 5. 备用远程 Mac mini M2 发布说明
 
 家中另一台 Mac mini M2 是远程 TestFlight 发布机，位于同一局域网，主机为 `<用户名>@<构建机地址>`，其正式版 Xcode 已登录 Apple 开发者账号。家中的 Mac mini M4 使用 Xcode Beta 做开发调试，不承担归档上传。凭据和登录密码不写入仓库，也不应发给接手模型保存。
 
@@ -926,7 +926,7 @@ TestFlight build 31 的反馈截图来自 Surge iOS 策略组测速。部分节�
 ### P0：发布闭环
 
 1. 在至少一台 iOS 17+ 真机完成启动、订阅导入、平面点阵地图、测速、规则和导出主流程。
-2. 下次上传前把构建号从 build 3 继续递增，并重新核对 App 隐私、Beta 测试信息和外部测试审核状态。
+2. 每次上传前递增 `CURRENT_PROJECT_VERSION`，并重新核对 App 隐私、Beta 测试信息和外部测试审核状态。
 
 ### P1：性能和崩溃回归
 
