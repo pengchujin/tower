@@ -30,7 +30,7 @@
 - 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
 - `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
 
-当前代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`，已推送到 `origin/main`。2026-09-01 已在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验和本机归档；同一归档上传时停在 `Failed to Use Accounts`，说明当前 Air 的 Xcode 账号会话没有暴露该团队的 App Store Connect 上传权限，而不是证书或描述文件失败。账号状态未变化时不要重复尝试，TestFlight 上传仍交给家中另一台使用正式版 Xcode 的 Mac mini M2；家中 Mac mini M4 的 Xcode Beta 只负责开发调试。最终上传结果以 App Store Connect 的处理状态为准。
+当前代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`，已推送到 `origin/main`。2026-09-01 已在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验、本机归档和上传，App Store Connect 已开始处理。首次上传的 `Failed to Use Accounts` 是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -704,18 +704,18 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
 - 仓库与 `origin/main` 当前版本为 `1.0.5 (38)`；Air 上已有对应的有效签名归档。
-- build 38 在 Air 上尚未上传成功。接手时不要根据旧文档猜测线上最新构建号，必须到 App Store Connect 核对。
+- build 38 已由 Air 上传成功，Xcode 返回 `Uploaded package is processing`；后续处理完成和测试群组状态仍需在 App Store Connect 核对。
 
 ### Air 本机归档与 App Store Connect 上传是两项能力
 
 Air 当前处于 Aqua 会话，正式版 Xcode 已登录开发账号，匹配的证书与描述文件可用。工程故意不保存 `DEVELOPMENT_TEAM`；命令行归档必须从本机忽略配置或匹配描述文件得到唯一团队，并只在进程内传入。没有显式传参时报 `Signing for Tower requires a development team`，不能据此判断账号未登录。
 
-`1.0.5 (38)` 的自动签名、Store 校验与 `.xcarchive` 已成功，归档保存在 Air 的 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。随后两种标准上传参数都在 `IDEDistributionUploadAccountStep` 返回 `Failed to Use Accounts`，恢复建议明确要求该团队的 App Store Connect 访问权限。因此：
+`1.0.5 (38)` 的自动签名、Store 校验与 `.xcarchive` 已成功，归档保存在 Air 的 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。第一次上传在 `IDEDistributionUploadAccountStep` 返回 `Failed to Use Accounts`；用户随后确认正式版 Xcode 当时没有登录 Apple Account。在 **Settings ▸ Accounts** 登录后，复用原归档上传成功。因此：
 
-- 证书、描述文件、Bundle ID 与归档不是当前阻塞点。
-- Xcode 已登录且能做开发签名，不等于账号有 App Store Connect 权限。
-- Air 账号权限或登录状态没有变化时，不要重新归档或重复上传；使用家中 Mac mini M2。
-- 若之后补齐权限、重新登录对应账号或提供 API Key，只要 build 38 尚未上传，可从 Organizer 直接分发现有归档。
+- 证书、描述文件、Bundle ID 与归档从始至终都正常。
+- 账号退出后本地签名材料仍可能继续构建和归档，所以“归档成功”不能证明 Xcode 已登录。
+- 相同错误先检查当前正式版 Xcode 的 **Settings ▸ Accounts**；登录后直接重试现有归档，不要重新构建。
+- 账号已登录仍失败时，再检查 App Store Connect 角色、协议状态或使用家中 Mac mini M2。
 
 ### 远程 Mac 归档必须进入图形会话
 
@@ -725,7 +725,7 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0.5 (38)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已生成签名归档但上传未完成；App Store Connect 上实际最新构建必须登录后核对，不能沿用历史 build 16/17 记录。
+工程当前为 **`1.0.5 (38)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已成功上传 build 38，Xcode 返回包正在处理；处理完成和测试分组仍以 App Store Connect 为准。
 
 ### 外部测试还需要补的材料
 

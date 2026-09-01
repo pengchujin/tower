@@ -9,7 +9,7 @@
 ## 工程基线
 
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
-- **按三台机器固定 Xcode**：出门使用的 MacBook Air M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 开发调试、真机安装和本机归档；家中的 Mac mini M4 用 `/Applications/Xcode-beta.app/Contents/Developer` 开发调试；家中另一台 Mac mini M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 完成 App Store Connect / TestFlight 上传。运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须按所在机器显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核；不要依赖或切换全局 `xcode-select`，也不要因为另一份 Xcode 读不到账号就判断用户未登录。2026-09-01 已验证 Air 的 Xcode 账号、开发证书和描述文件足以自动签名并归档 `1.0.5 (38)`，但这份账号会话尚无该团队的 App Store Connect 上传权限；账号状态未变化时不要重复尝试上传，按 `docs/RELEASING.md` 使用 Mac mini M2 发布机。
+- **按三台机器固定 Xcode**：出门使用的 MacBook Air M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 开发调试、真机安装、归档，并可在出门时完成 App Store Connect / TestFlight 上传；家中的 Mac mini M4 用 `/Applications/Xcode-beta.app/Contents/Developer` 开发调试；家中另一台 Mac mini M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 作为固定发布机。运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须按所在机器显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核；不要依赖或切换全局 `xcode-select`。2026-09-01 已在 Air 上完成 `1.0.5 (38)` 的自动签名、归档和上传；此前的 `Failed to Use Accounts` 是正式版 Xcode 未登录 Apple Account，不是证书、描述文件或 App Store Connect 角色问题。相同错误先检查 Xcode **Settings ▸ Accounts**，登录后复用已有归档，不要无谓重打包。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
 - Bundle ID：`com.jzb.tower`。
 - App Store Connect App ID：`<App Store Connect App ID>`。
@@ -45,13 +45,13 @@
 ## 常用命令
 
 ```sh
-# 当前出门使用的 MacBook Air M2 使用正式版 Xcode；可开发、真机安装和归档
+# 当前出门使用的 MacBook Air M2 使用正式版 Xcode；可开发、真机安装、归档和上传
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 # 家中 Mac mini M4 开发调试时改用 Xcode Beta
 # export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 
-# 家中 Mac mini M2 完成 App Store Connect / TestFlight 上传时仍使用正式版 Xcode
+# 家中 Mac mini M2 作为固定 App Store Connect / TestFlight 发布机时仍使用正式版 Xcode
 # export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 # 查看可用模拟器

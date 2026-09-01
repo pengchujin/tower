@@ -1,8 +1,8 @@
 # TestFlight 发布流程
 
-塔台有两条正式版 Xcode 发布路径：出门使用的 MacBook Air M2 可以在当前 Aqua 会话中直接完成自动签名和归档；家中 Mac mini M2 负责当前的 App Store Connect / TestFlight 上传，也可从头完成归档。家中 Mac mini M4 的 Xcode Beta 只用于开发调试，不参与正式发布。
+塔台有两条正式版 Xcode 发布路径：出门使用的 MacBook Air M2 可以在当前 Aqua 会话中直接完成自动签名、归档和 App Store Connect / TestFlight 上传；家中 Mac mini M2 是固定发布机，也可从头完成归档和上传。家中 Mac mini M4 的 Xcode Beta 只用于开发调试，不参与正式发布。
 
-2026-09-01 已在 Air 上实测 `1.0.5 (38)`：Release 自动签名、Store 校验和 `.xcarchive` 全部成功；上传阶段两种导出参数都立即停在 `Failed to Use Accounts`，恢复建议明确要求该签名团队的 App Store Connect 访问权限。这不是“没登录 Xcode”，也不是证书或描述文件失败。Air 的 Xcode 账号权限或登录状态没有变化时，不要反复归档和重试同一上传命令，直接使用 Mac mini M2 发布机。
+2026-09-01 已在 Air 上实测 `1.0.5 (38)`：Release 自动签名、Store 校验、`.xcarchive` 和上传全部成功。第一次上传立即停在 `Failed to Use Accounts`，实际原因是正式版 Xcode 没有登录 Apple Account；本地证书和描述文件仍足以完成归档，所以不能根据“归档成功”推断账号已登录。登录 Xcode 后复用同一份归档即可上传，不需要重新构建。
 
 备用远程流程会从开发机上的 Ghostty 通过 SSH 连接 Mac mini M2，再自动切换到该机的 Aqua 图形会话归档和上传，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
@@ -12,7 +12,7 @@
 - 随 App 打包的 ACL4SSR 快照必须对应上游最新提交；发布脚本会联网检查并在过期时中止。
 - 工程中的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION` 必须已经更新并推送。
 - Air 本机归档不需要 `TOWER_RELEASE_HOST`、远端仓库或 Ghostty；它必须处于 Aqua 会话，并使用 `/Applications/Xcode.app/Contents/Developer`。本机已登录开发账号，存在可用证书和匹配 `com.jzb.tower` 的描述文件。
-- Air 本机上传还必须让 Xcode 账号对签名团队具有 App Store Connect 访问权限，或提供单独的 App Store Connect API Key。只有开发证书和描述文件不能证明这一点。
+- Air 本机上传前必须在 Xcode **Settings ▸ Accounts** 确认 Apple Account 已登录且能看到对应团队；账号还需具有 App Store Connect 访问权限，或提供单独的 App Store Connect API Key。只有开发证书和描述文件不能证明账号已登录或具备上传能力。
 - Mac mini M2 发布机必须安装 `/Applications/Xcode.app`，其登录钥匙串中需要存在可用的 Apple Development 或 Apple Distribution 签名身份，并由具有 App Store Connect 权限的账号完成上传。
 - 远程备用流程的开发机和 Mac mini M2 各自需要 `Config/release.local.sh` 中与自身职责对应的私有值（见下一节）；开发机还需安装 Ghostty。SSH 优先使用现有公钥，没有公钥时由 SSH 自己交互询问密码。
 - 三台 Mac 都不要依赖或切换全局 `xcode-select`。运行命令前显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核。
@@ -70,16 +70,22 @@ TOWER_RELEASE_HOST=用户名@另一台 Scripts/release_testflight.sh
 
 `Config/ExportOptions-TestFlight.plist` 因此**不含 `teamID`**；`Scripts/release_testflight_remote.sh` 会把它复制到发布目录再补上团队 ID，渲染结果始终落在仓库之外。
 
-## MacBook Air 本机归档的已验证边界
+## MacBook Air 本机归档与上传的已验证结果
 
 2026-09-01 在当前 Air 的 Aqua 会话中，用正式版 Xcode 26.6 对 `1.0.5 (38)` 完成了以下验证：
 
 1. 自动签名的 Release 真机构建成功。
 2. `.xcarchive` 成功生成到 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。
 3. 归档内版本、构建号、Bundle ID 和签名均正确，Store 校验通过。
-4. 分别使用带运行时 team ID 和不带 team ID 的标准 ExportOptions 上传，均在 `IDEDistributionUploadAccountStep` 失败，错误为 `Failed to Use Accounts`，恢复建议要求该团队的 App Store Connect 访问权限。
+4. Xcode 未登录 Apple Account 时，上传在 `IDEDistributionUploadAccountStep` 以 `Failed to Use Accounts` 停止。
+5. 在 Xcode **Settings ▸ Accounts** 登录原账号后，不重新归档，直接复用同一 `.xcarchive` 上传成功，App Store Connect 开始处理 build 38。
 
-这组结果已经把开发签名、证书、描述文件和归档本身排除为故障点。只要 Air 的 Xcode 账号权限/登录状态没有变化，就不要重新构建或反复执行上传；改用家中 Mac mini M2。若之后给 Air 的账号补齐 App Store Connect 权限、重新登录出问题的账号，或配置 App Store Connect API Key，可直接在 Organizer 中对现有归档执行 **Distribute App**；只要 build 38 尚未被上传，就无需重新归档。
+这次故障的根因是“正式版 Xcode 未登录账号”，不是 App Store Connect 角色、证书、描述文件、Bundle ID 或归档错误。以后遇到相同错误按以下顺序处理：
+
+1. 打开当前实际使用的那一份 Xcode，进入 **Settings ▸ Accounts**，确认 Apple Account 和目标团队存在。
+2. 若账号不存在或要求重新认证，先完成登录；不要退出另一份 Xcode、撤销证书或切换全局 `xcode-select`。
+3. 登录后直接重新分发已有归档。只要构建号尚未成功上传，无需重新归档。
+4. 账号已经正常登录仍报相同错误时，才检查 App Store Connect 用户角色、待接受协议或改用 API Key／家中 Mac mini M2。
 
 本机检查基线：
 
@@ -89,7 +95,7 @@ xcodebuild -version
 launchctl managername  # 本机终端应为 Aqua
 ```
 
-不要因为能看到 Xcode 账号、开发证书和描述文件，就推断该账号一定有 App Store Connect 上传权限；这是两套不同的能力。
+不要因为本机能签名、能装真机或能归档，就推断当前正式版 Xcode 已经登录；签名材料可以在账号退出后继续存在。
 
 ## Mac mini M2 备用发布：一条命令
 
