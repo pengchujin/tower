@@ -746,7 +746,7 @@ final class RuleSetGenerationTests: XCTestCase {
         }
     }
 
-    func testBundledACL4SSRStagingManifestFallsBackOnCompatibleClients() throws {
+    func testBundledACL4SSRPublishedManifestUsesBinaryRuleSetsOnSupportedClients() throws {
         let repository = RuleSchemeRepository(bundle: .main)
         let scheme = try XCTUnwrap(
             repository.bundledSchemes().first { $0.id == "acl4ssr-default" }
@@ -776,10 +776,10 @@ final class RuleSetGenerationTests: XCTestCase {
         ).content
 
         XCTAssertTrue(clash.contains("rule-providers:"), clash)
-        XCTAssertTrue(clash.contains("format: text"), clash)
-        XCTAssertFalse(clash.contains("format: mrs"), clash)
-        XCTAssertFalse(clash.contains("https://raw.githubusercontent.com/pengchujin/tower/"), clash)
-        XCTAssertFalse(clash.contains("/Clash/mrs/"), clash)
+        XCTAssertTrue(clash.contains("format: mrs"), clash)
+        XCTAssertTrue(clash.contains("https://raw.githubusercontent.com/pengchujin/tower/"), clash)
+        XCTAssertTrue(clash.contains("/Rulesets/ACL4SSR/"), clash)
+        XCTAssertFalse(clash.contains("/main/Rulesets/ACL4SSR/"), clash)
         XCTAssertTrue(surge.contains("RULE-SET,https://raw.githubusercontent.com/"), surge)
         XCTAssertTrue(loon.contains("[Remote Rule]"), loon)
 
@@ -789,9 +789,11 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertTrue(quanX.contains("ChinaCompanyIp.list, tag="), quanX)
         XCTAssertTrue(quanX.contains("host-suffix, acl4.ssr, "), quanX)
 
-        XCTAssertFalse(singBox.contains(#""format" : "binary""#), singBox)
-        XCTAssertFalse(singBox.contains("_singbox.srs"), singBox)
-        XCTAssertFalse(singBox.contains(#""rule_set""#), singBox)
+        XCTAssertTrue(singBox.contains(#""format" : "binary""#), singBox)
+        XCTAssertTrue(singBox.contains("_singbox.srs"), singBox)
+        XCTAssertTrue(singBox.contains(#""rule_set""#), singBox)
+        XCTAssertTrue(singBox.contains("https://raw.githubusercontent.com/pengchujin/tower/"), singBox)
+        XCTAssertFalse(singBox.contains("/main/Rulesets/ACL4SSR/"), singBox)
 
         // Hiddify and Egern require their own verified remote formats. SRS is
         // intentionally enabled only for the standalone sing-box MT target.
