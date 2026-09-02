@@ -4,6 +4,8 @@
 
 2026-09-01 已在 Air 上实测 `1.0.5 (38)`：Release 自动签名、Store 校验、`.xcarchive` 和上传全部成功。第一次上传立即停在 `Failed to Use Accounts`，实际原因是正式版 Xcode 没有登录 Apple Account；本地证书和描述文件仍足以完成归档，所以不能根据“归档成功”推断账号已登录。登录 Xcode 后复用同一份归档即可上传，不需要重新构建。
 
+2026-09-03 已在 Air 上完成 `1.0.6 (39)` 的 Release 自动签名、归档和上传，App Store Connect 返回 `Uploaded package is processing`。同一 build 最初使用 1.0.5 上传时，服务端以 1.0.5 已获批、预发布通道关闭为由拒绝；已获批版本后续必须递增 `MARKETING_VERSION`，不能只递增 build 号。
+
 备用远程流程会从开发机上的 Ghostty 通过 SSH 连接 Mac mini M2，再自动切换到该机的 Aqua 图形会话归档和上传，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
 ## 前置条件
