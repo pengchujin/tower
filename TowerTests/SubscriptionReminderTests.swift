@@ -218,7 +218,7 @@ final class SubscriptionReminderTests: XCTestCase {
         XCTAssertFalse(model.renewalRemindersEnabled)
         XCTAssertEqual(model.clientOrder, ClientTargetOrder.defaultOrder)
         XCTAssertEqual(model.lanSharingOrderIndex, ExportDestinationOrder.defaultLANSharingIndex)
-        XCTAssertEqual(model.exportDestinationOrder[3], .lanSharing)
+        XCTAssertEqual(model.exportDestinationOrder[2], .lanSharing)
         XCTAssertFalse(model.appendSubscriptionNameToNodes)
         XCTAssertFalse(model.filterSubscriptionInfoNodes)
         XCTAssertFalse(model.autoRefreshOnOpen)
@@ -251,7 +251,7 @@ final class SubscriptionReminderTests: XCTestCase {
             reminderScheduler: scheduler,
             arguments: []
         )
-        XCTAssertEqual(reloaded.exportDestinationOrder[3], .lanSharing)
+        XCTAssertEqual(reloaded.exportDestinationOrder[2], .lanSharing)
     }
 }
 

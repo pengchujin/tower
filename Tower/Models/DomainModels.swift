@@ -1310,9 +1310,10 @@ enum ExportDestination: Hashable, Identifiable {
 }
 
 enum ExportDestinationOrder {
-    /// Places LAN sharing after the first three clients for a fresh install
-    /// and for snapshots written before its position became sortable.
-    static let defaultLANSharingIndex = 3
+    /// Places LAN sharing after the first two clients for a fresh install.
+    static let defaultLANSharingIndex = 2
+    /// The official default before the September 2026 destination reorder.
+    static let previousDefaultLANSharingIndex = 3
 
     static func normalizedLANSharingIndex(_ savedIndex: Int?, clientCount: Int) -> Int {
         min(max(savedIndex ?? defaultLANSharingIndex, 0), clientCount)
@@ -1335,19 +1336,21 @@ enum ClientTargetOrder {
     static let currentMigrationVersion = 1
 
     static let defaultOrder: [ClientTarget] = [
-        .surge,
-        .clash,
         .shadowrocket,
+        .clash,
+        .surge,
         .loon,
-        .singBox,
         .quanx,
-        .hiddify,
-        .egern,
+        .clashApple,
         .v2box,
-        .clashApple
+        .singBox,
+        .hiddify,
+        .egern
     ]
 
     private static let previousDefaultOrders: [[ClientTarget]] = [
+        // Official default immediately before the September 2026 reorder.
+        [.surge, .clash, .shadowrocket, .loon, .singBox, .quanx, .hiddify, .egern, .v2box, .clashApple],
         // Default immediately before sing-box MT was introduced.
         [.surge, .clash, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box, .clashApple],
         // The first standalone Clash build temporarily placed Clash after Stash.
@@ -1357,6 +1360,13 @@ enum ClientTargetOrder {
         // The first sing-box MT build appended it after standalone Clash.
         [.surge, .clash, .shadowrocket, .loon, .quanx, .hiddify, .egern, .v2box, .clashApple, .singBox]
     ]
+
+    static func matchesPreviousDefault(rawValues: [String]?) -> Bool {
+        guard let rawValues, !rawValues.isEmpty else { return false }
+        let order = rawValues.compactMap(ClientTarget.init(rawValue:))
+        guard order.count == rawValues.count else { return false }
+        return previousDefaultOrders.contains(order)
+    }
 
     static func normalized(
         rawValues: [String]?,
@@ -1382,13 +1392,15 @@ enum ClientTargetOrder {
         }
 
         // The first standalone Clash build placed it directly after Stash.
-        // Migrate that former default to the new trailing position, while
+        // Migrate that former default to the current default slot, while
         // leaving an explicitly customised position untouched.
-        if let clashIndex = result.firstIndex(of: .clashApple),
+        if (savedMigrationVersion ?? 0) < currentMigrationVersion,
+           let clashIndex = result.firstIndex(of: .clashApple),
            let stashIndex = result.firstIndex(of: .clash),
            clashIndex == result.index(after: stashIndex) {
             result.remove(at: clashIndex)
-            result.append(.clashApple)
+            let defaultClashIndex = defaultOrder.firstIndex(of: .clashApple) ?? result.endIndex
+            result.insert(.clashApple, at: min(defaultClashIndex, result.endIndex))
         }
 
         let needsSingBoxInsertion = seen.insert(.singBox).inserted
@@ -1396,7 +1408,8 @@ enum ClientTargetOrder {
             result.append(target)
         }
         if needsSingBoxInsertion {
-            result.insert(.singBox, at: min(4, result.count))
+            let defaultSingBoxIndex = defaultOrder.firstIndex(of: .singBox) ?? result.endIndex
+            result.insert(.singBox, at: min(defaultSingBoxIndex, result.endIndex))
         }
 
         // Builds that first introduced sing-box preserved an explicit stored
@@ -1452,8 +1465,8 @@ struct AppSnapshot: Codable {
     /// migration.
     var clientOrderMigrationVersion: Int?
     /// Position of the LAN-sharing card inside the combined export destination
-    /// list. Missing snapshots predate sortable LAN sharing and use the fourth
-    /// slot; values are clamped when loading so damaged state stays usable.
+    /// list. Missing snapshots use the current default slot; values are clamped
+    /// when loading so damaged state stays usable.
     var lanSharingOrderIndex: Int?
     /// Optional settings keep every previously written snapshot decodable.
     var appendSubscriptionNameToNodes: Bool?

@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class ClientOrderTests: XCTestCase {
-    func testFreshExportOrderContainsEveryClientAndLANSharingInFourthPlace() {
+    func testFreshExportOrderMatchesProductDefault() {
         let model = AppModel(
             persistence: PersistenceStore(
                 fileURL: FileManager.default.temporaryDirectory
@@ -12,12 +12,19 @@ final class ClientOrderTests: XCTestCase {
             arguments: []
         )
 
-        XCTAssertEqual(model.exportDestinationOrder[3], .lanSharing)
-        XCTAssertEqual(
-            model.exportDestinationOrder.compactMap(\.clientTarget),
-            ClientTargetOrder.defaultOrder
-        )
-        XCTAssertEqual(model.exportDestinationOrder.count, ClientTarget.allCases.count + 1)
+        XCTAssertEqual(model.exportDestinationOrder, [
+            .client(.shadowrocket),
+            .client(.clash),
+            .lanSharing,
+            .client(.surge),
+            .client(.loon),
+            .client(.quanx),
+            .client(.clashApple),
+            .client(.v2box),
+            .client(.singBox),
+            .client(.hiddify),
+            .client(.egern),
+        ])
     }
 
     func testEveryExportDestinationIdentifierRoundTrips() {
@@ -40,7 +47,7 @@ final class ClientOrderTests: XCTestCase {
         XCTAssertEqual(order.count, ClientTarget.allCases.count)
     }
 
-    func testPreviousDefaultOrderMigratesSingBoxToFifthPlace() {
+    func testPreviousDefaultOrderMigratesToCurrentDefault() {
         let existingOrder = [
             "surge", "clash", "clash-apple", "shadowrocket", "loon", "quanx", "hiddify", "egern", "v2box"
         ]
@@ -48,27 +55,27 @@ final class ClientOrderTests: XCTestCase {
         let order = ClientTargetOrder.normalized(rawValues: existingOrder)
 
         XCTAssertEqual(order, ClientTargetOrder.defaultOrder)
-        XCTAssertEqual(order[4], .singBox)
+        XCTAssertEqual(order[7], .singBox)
     }
 
-    func testSingBoxIsFifthForFreshAndPreClashOrders() {
+    func testFreshAndPreClashOrdersUseCurrentDefault() {
         let preClashOrder = [
             "surge", "clash", "shadowrocket", "loon", "quanx", "hiddify", "egern", "v2box"
         ]
 
         XCTAssertEqual(ClientTargetOrder.normalized(rawValues: nil), ClientTargetOrder.defaultOrder)
         XCTAssertEqual(ClientTargetOrder.normalized(rawValues: preClashOrder), ClientTargetOrder.defaultOrder)
-        XCTAssertEqual(ClientTargetOrder.defaultOrder[4], .singBox)
+        XCTAssertEqual(ClientTargetOrder.defaultOrder[7], .singBox)
     }
 
-    func testMissingSingBoxIsInsertedFifthWithoutReorderingExistingClients() {
+    func testMissingSingBoxIsInsertedAtCurrentDefaultSlotWithoutReorderingExistingClients() {
         let customOrder = [
             "egern", "surge", "quanx", "loon", "shadowrocket", "clash", "hiddify", "v2box", "clash-apple"
         ]
 
         let order = ClientTargetOrder.normalized(rawValues: customOrder)
 
-        XCTAssertEqual(order[4], .singBox)
+        XCTAssertEqual(order[7], .singBox)
         XCTAssertEqual(order.filter { $0 != .singBox }.map(\.rawValue), customOrder)
     }
 
@@ -78,6 +85,18 @@ final class ClientOrderTests: XCTestCase {
         ]
 
         XCTAssertEqual(ClientTargetOrder.normalized(rawValues: customOrder).first, .singBox)
+    }
+
+    func testCurrentExplicitClashPositionAfterStashIsPreserved() {
+        let customOrder = [
+            "shadowrocket", "clash", "clash-apple", "surge", "loon",
+            "quanx", "v2box", "sing-box", "hiddify", "egern",
+        ]
+
+        XCTAssertEqual(
+            ClientTargetOrder.normalized(rawValues: customOrder).map(\.rawValue),
+            customOrder
+        )
     }
 
     func testLegacyExplicitSingBoxPositionMigratesToFifthOnce() {
@@ -130,8 +149,12 @@ final class ClientOrderTests: XCTestCase {
 
         model.moveClient(.egern, before: .surge)
 
-        XCTAssertEqual(model.clientOrder.first, .egern)
-        XCTAssertEqual(model.clientOrder.dropFirst().first, .surge)
+        XCTAssertEqual(Array(model.clientOrder.prefix(4)), [
+            .shadowrocket,
+            .clash,
+            .egern,
+            .surge,
+        ])
 
         let reloaded = AppModel(persistence: store, arguments: [])
         XCTAssertEqual(reloaded.clientOrder, model.clientOrder)
@@ -152,7 +175,7 @@ final class ClientOrderTests: XCTestCase {
         XCTAssertEqual(model.clientOrder, original)
     }
 
-    func testLegacySnapshotAddsLANSharingFourthWithoutChangingClientOrder() throws {
+    func testLegacySnapshotAddsLANSharingThirdWithoutChangingCustomClientOrder() throws {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-export-order-legacy-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -172,8 +195,43 @@ final class ClientOrderTests: XCTestCase {
 
         let model = AppModel(persistence: store, arguments: [])
 
-        XCTAssertEqual(model.exportDestinationOrder[3], .lanSharing)
+        XCTAssertEqual(model.exportDestinationOrder[2], .lanSharing)
         XCTAssertEqual(model.clientOrder.map(\.rawValue), customOrder)
+    }
+
+    func testPreviousOfficialExportOrderMigratesAsOneSequence() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-export-order-official-migration-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        try store.save(AppSnapshot(
+            subscriptions: [],
+            nodes: [],
+            selectedPresetID: "acl4ssr-online-full",
+            selectedTarget: .surge,
+            clientOrder: [
+                "surge", "clash", "shadowrocket", "loon", "sing-box",
+                "quanx", "hiddify", "egern", "v2box", "clash-apple",
+            ],
+            clientOrderMigrationVersion: ClientTargetOrder.currentMigrationVersion,
+            lanSharingOrderIndex: ExportDestinationOrder.previousDefaultLANSharingIndex
+        ))
+
+        let model = AppModel(persistence: store, arguments: [])
+
+        XCTAssertEqual(model.exportDestinationOrder, [
+            .client(.shadowrocket),
+            .client(.clash),
+            .lanSharing,
+            .client(.surge),
+            .client(.loon),
+            .client(.quanx),
+            .client(.clashApple),
+            .client(.v2box),
+            .client(.singBox),
+            .client(.hiddify),
+            .client(.egern),
+        ])
     }
 
     func testMovingLANSharingToFrontPersistsAcrossReload() throws {
@@ -183,7 +241,7 @@ final class ClientOrderTests: XCTestCase {
         let store = PersistenceStore(fileURL: fileURL)
         let model = AppModel(persistence: store, arguments: [])
 
-        model.moveExportDestination(.lanSharing, before: .client(.surge))
+        model.moveExportDestination(.lanSharing, before: .client(.shadowrocket))
 
         XCTAssertEqual(model.exportDestinationOrder.first, .lanSharing)
         XCTAssertEqual(try XCTUnwrap(store.load()).lanSharingOrderIndex, 0)
@@ -200,13 +258,13 @@ final class ClientOrderTests: XCTestCase {
 
         model.moveExportDestination(.client(.loon), before: .lanSharing)
         XCTAssertEqual(Array(model.exportDestinationOrder[2...4]), [
-            .client(.shadowrocket),
             .client(.loon),
             .lanSharing,
+            .client(.surge),
         ])
 
         model.moveExportDestination(.lanSharing, by: -2)
-        XCTAssertEqual(model.exportDestinationOrder[2], .lanSharing)
+        XCTAssertEqual(model.exportDestinationOrder[1], .lanSharing)
 
         let reloaded = AppModel(persistence: store, arguments: [])
         XCTAssertEqual(reloaded.exportDestinationOrder, model.exportDestinationOrder)
@@ -219,13 +277,13 @@ final class ClientOrderTests: XCTestCase {
         let store = PersistenceStore(fileURL: fileURL)
         let model = AppModel(persistence: store, arguments: [])
 
-        model.moveExportDestination(.client(.surge), across: .client(.clash))
+        model.moveExportDestination(.client(.shadowrocket), across: .client(.clash))
         XCTAssertEqual(Array(model.exportDestinationOrder.prefix(2)), [
             .client(.clash),
-            .client(.surge),
+            .client(.shadowrocket),
         ])
 
-        model.moveExportDestination(.lanSharing, across: .client(.clashApple))
+        model.moveExportDestination(.lanSharing, across: .client(.egern))
         XCTAssertEqual(model.exportDestinationOrder.last, .lanSharing)
         XCTAssertEqual(
             AppModel(persistence: store, arguments: []).exportDestinationOrder.last,

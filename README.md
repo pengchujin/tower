@@ -26,11 +26,11 @@
 - 可新增、编辑和停用本地自定义规则流，内置 Tailscale 示例，刷新上游方案不会覆盖
 - 输入链接导入 Clash YAML、subconverter（`.ini`）或 Surge 远程配置，下载到本机后离线使用，可刷新或删除
 - 生成 Surge / Stash / Clash / Shadowrocket / Loon / QuanX / Hiddify / sing-box MT / Egern 完整配置
-- 生成 V2Box Base64 节点订阅并通过其公开 URL Scheme 一键导入；V2Box 默认排在目标客户端列表最后
+- 生成 V2Box Base64 节点订阅并通过其公开 URL Scheme 一键导入
 - 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
 - Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 支持点击主按钮后通过 URL Scheme 一键打开并导入
 - 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
-- 十个目标客户端和“局域网共享”均可长按拖动排序；sing-box MT 默认位于客户端顺序第 5 位，旧快照会一次性迁移且保持其他客户端相对顺序，后续拖动仍会保存
+- 十个目标客户端和“局域网共享”均可长按拖动排序；默认顺序为 Shadowrocket、Stash、局域网共享、Surge、Loon、QuanX、Clash、V2Box、sing-box MT、Hiddify、Egern；旧的官方默认顺序会迁移，用户手动调整的顺序继续保留
 - Quantumult X 通过系统分享接收本地配置文件
 - 导出页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
 - 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知

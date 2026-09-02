@@ -4,6 +4,11 @@
 
 塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、多客户端配置生成、配置预览及导入/分享。
 
+### 2026-09-02：调整导出目的地默认顺序
+
+- 新的默认顺序为 Shadowrocket、Stash、局域网共享、Surge、Loon、QuanX、Clash、V2Box、sing-box MT、Hiddify、Egern。
+- 塔台生成的旧默认顺序会整体迁移到新顺序；用户已经手动拖动过的自定义顺序继续保留。局域网共享仍与客户端分开持久化位置，但迁移时会与旧官方客户端顺序一并识别。
+
 ### 2026-09-02：Stash / Clash 优先使用经验证的 MRS
 
 - ACL4SSR 的 classical `.list` 是混合语法，MRS 只接受 `domain` 或 `ipcidr` behavior。快照更新器现在把 `DOMAIN` 保留为精确域名、把 `DOMAIN-SUFFIX` 转为 Mihomo `+.` 后缀键，并把 CIDR 规范化后使用固定版本 Mihomo 编译。每个二进制都会反向解包，核对条数和内容后才写入 manifest。
@@ -14,12 +19,12 @@
 - MRS 的首要范围仍是手机 Stash 和 Clash/Mihomo，Stash 需要 3.1.0 或更新版本。独立的 sing-box MT 现已接入同一套可验证发布链：32 个 source-format v2 SRS 覆盖 10,820 条域名、关键词和 CIDR 规则，27 条无法无损转换的 `PROCESS-NAME` / `URL-REGEX` 等继续走原有兼容过滤或内联生成。
 - SRS 使用可长期访问的 HTTPS 地址，并在配置中声明 `type: remote` / `format: binary`；不能使用用户示例里的 `type: local` / `path`，因为 Tower 与 sing-box MT 位于不同 App 沙盒。正式清单必须指向产物提交的不可变 Raw commit URL；客户端直接下载二进制，App 本身无法在下载后强制核对 artifact SHA，所以全量远程 SHA 回读是发布硬门禁。
 - 当前只对独立的 sing-box MT 开启 SRS。远程规则集配置明确声明 sing-box 1.14+ 的 Go HTTP client 及 `route.default_http_client`，不使用 iOS 上内存开销更高的 Apple engine，也不依赖 1.16 将移除的隐式下载器。Hiddify 虽然使用相近的 sing-box JSON 方言，但其内置核心版本与远程二进制规则集兼容性尚未单独验收，因此保持原有 source JSON 或内联路径。
-- 当前快照生成 45 个 MRS 与 32 个 SRS，manifest、源文件和 77 个二进制产物已逐项核对 SHA-256、条数及孤儿文件；正式版 Xcode 26.6 的 iPhone 17 Pro 模拟器全量测试为 880 通过、0 失败、2 个平台条件跳过，Python 生成器测试为 20/20。MRS/SRS 不进入 App bundle：产物已先推送到不可变提交 `a908d7052ce932b449a7f6d8058d25e9814e605b`，正式 manifest 的 77 个 Raw commit URL 已全部远程回读并通过 SHA-256 核验。以后更新快照仍必须保持“先发布产物、再绑定 manifest、最后全量回读”的顺序；无 `artifactCommit` 的预备清单会在 App 内安全回退到文本规则。
+- 当前快照生成 45 个 MRS 与 32 个 SRS，manifest、源文件和 77 个二进制产物已逐项核对 SHA-256、条数及孤儿文件；正式版 Xcode 26.6 的 iPhone 17 Pro 模拟器全量测试为 882 通过、0 失败、2 个平台条件跳过，Python 生成器测试为 20/20。MRS/SRS 不进入 App bundle：产物已先推送到不可变提交 `a908d7052ce932b449a7f6d8058d25e9814e605b`，正式 manifest 的 77 个 Raw commit URL 已全部远程回读并通过 SHA-256 核验。以后更新快照仍必须保持“先发布产物、再绑定 manifest、最后全量回读”的顺序；无 `artifactCommit` 的预备清单会在 App 内安全回退到文本规则。
 - 同一源码已在 MacBook Air M2 上用正式版 Xcode 26.6 完成 Debug 自动签名，并覆盖安装、启动到连接的 iPhone 17 Pro；安装包版本仍为 `1.0.5 (38)`，未为这次本地验证递增发布 build。
 
 ### 2026-08-31：新增 sing-box MT 导出
 
-- `ClientTarget.singBox` 作为独立 App Store 客户端加入导出目标，显示名为 `sing-box MT`，使用当前 App Store 图标资源 `ClientSingBox`；默认位于第 5 位。升级后的旧快照会只迁移一次 sing-box 的位置并保留其他客户端相对顺序，写入迁移版本后，用户后续主动拖动的位置继续保留。
+- `ClientTarget.singBox` 作为独立 App Store 客户端加入导出目标，显示名为 `sing-box MT`，使用当前 App Store 图标资源 `ClientSingBox`。引入时的旧快照会只迁移一次 sing-box 的位置并保留其他客户端相对顺序，写入迁移版本后，用户后续主动拖动的位置继续保留；当前新安装默认位置以上方 2026-09-02 的顺序为准。
 - 完整配置复用经过测试的 sing-box JSON 生成器；它与 Hiddify 共用文档方言，但协议矩阵独立：不写 ShadowsocksR，Snell 只接受 v4 及以上。
 - 一键导入遵循上游客户端的 `sing-box://import-remote-profile?url=…#名称` 远程配置入口。塔台仍只提供 45 秒的 `127.0.0.1` 临时地址，不上传配置。
 - LAN 显式 `target=sing-box` 现在直接映射到 `.singBox`，不再借用 `.hiddify` 身份。
@@ -43,7 +48,7 @@
 - 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
 - `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
 
-当前代码版本为 `1.0.5 (38)`，Bundle ID 为 `com.jzb.tower`，已推送到 `origin/main`。2026-09-01 已在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验、本机归档和上传，App Store Connect 已开始处理。首次上传的 `Failed to Use Accounts` 是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
+当前代码版本为 `1.0.5 (39)`，Bundle ID 为 `com.jzb.tower`；build 38 已于 2026-09-01 在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验、本机归档和上传，App Store Connect 已开始处理。首次上传的 `Failed to Use Accounts` 是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -683,7 +688,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 
 ### 局域网订阅与“透传”
 
-`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。导出页把“局域网订阅”作为客户端式目的地展示；用户选择该目的地时立即启动服务，并集中提供启停、自动/显式目标格式、带 32 位随机访问密钥的地址、二维码和使用说明，设置页不再重复提供入口。局域网目的地与所有客户端使用同一套长按拖动排序并单独持久化位置；旧快照缺少该位置字段时仍默认放在第 4 位。它不能加入 `ClientTarget`，因为它不是一种配置格式，而是按请求方 User-Agent 或 `target=` 参数选择实际格式的传输入口。密钥可手动轮换，旧链接立即失效。
+`LANSubscriptionServer` 是单独的用户可控服务，不要和 `DirectImportService` 合并：前者绑定 Wi-Fi、持续到用户关闭或 App 被系统挂起，后者只绑定 `127.0.0.1` 且 45 秒自动关闭。导出页把“局域网订阅”作为客户端式目的地展示；用户选择该目的地时立即启动服务，并集中提供启停、自动/显式目标格式、带 32 位随机访问密钥的地址、二维码和使用说明，设置页不再重复提供入口。局域网目的地与所有客户端使用同一套长按拖动排序并单独持久化位置；旧快照缺少该位置字段时使用当前默认的第 3 位。它不能加入 `ClientTarget`，因为它不是一种配置格式，而是按请求方 User-Agent 或 `target=` 参数选择实际格式的传输入口。密钥可手动轮换，旧链接立即失效。
 
 - 路由：`/sub/<token>?target=auto`，另兼容 `/download/<token>`；支持 GET/HEAD。
 - 自动识别：OpenClash 的 `clash.meta`、Clash Verge/Mihomo/Stash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify/sing-box、Egern。
@@ -717,7 +722,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 仓库与 `origin/main` 当前版本为 `1.0.5 (38)`；Air 上已有对应的有效签名归档。
+- 仓库与 `origin/main` 当前版本为 `1.0.5 (39)`；Air 上已有 build 38 的有效签名归档。
 - build 38 已由 Air 上传成功，Xcode 返回 `Uploaded package is processing`；后续处理完成和测试群组状态仍需在 App Store Connect 核对。
 
 ### Air 本机归档与 App Store Connect 上传是两项能力
@@ -739,7 +744,7 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0.5 (38)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已成功上传 build 38，Xcode 返回包正在处理；处理完成和测试分组仍以 App Store Connect 为准。
+工程当前为 **`1.0.5 (39)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已成功上传 build 38，Xcode 返回包正在处理；处理完成和测试分组仍以 App Store Connect 为准。
 
 ### 外部测试还需要补的材料
 

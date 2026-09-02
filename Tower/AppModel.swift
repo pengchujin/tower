@@ -2583,10 +2583,17 @@ final class AppModel {
             rawValues: snapshot.clientOrder,
             savedMigrationVersion: snapshot.clientOrderMigrationVersion
         )
-        lanSharingOrderIndex = ExportDestinationOrder.normalizedLANSharingIndex(
-            snapshot.lanSharingOrderIndex,
-            clientCount: clientOrder.count
-        )
+        let usedPreviousOfficialOrder = snapshot.clientOrder == nil
+            || ClientTargetOrder.matchesPreviousDefault(rawValues: snapshot.clientOrder)
+        if usedPreviousOfficialOrder,
+           snapshot.lanSharingOrderIndex == ExportDestinationOrder.previousDefaultLANSharingIndex {
+            lanSharingOrderIndex = ExportDestinationOrder.defaultLANSharingIndex
+        } else {
+            lanSharingOrderIndex = ExportDestinationOrder.normalizedLANSharingIndex(
+                snapshot.lanSharingOrderIndex,
+                clientCount: clientOrder.count
+            )
+        }
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
         filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
         autoRefreshOnOpen = snapshot.autoRefreshOnOpen ?? false
