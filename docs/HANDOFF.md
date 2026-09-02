@@ -48,7 +48,7 @@
 - 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
 - `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
 
-当前代码版本为 `1.0.5 (39)`，Bundle ID 为 `com.jzb.tower`；build 38 已于 2026-09-01 在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验、本机归档和上传，App Store Connect 已开始处理。首次上传的 `Failed to Use Accounts` 是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
+当前代码版本为 `1.0.6 (39)`，Bundle ID 为 `com.jzb.tower`；build 38 已于 2026-09-01 在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、Store 校验、本机归档和上传。`1.0.5 (39)` 因 1.0.5 已获批、对应预发布通道关闭而被 App Store Connect 拒绝，因此 build 39 改用 1.0.6。首次上传 build 38 时的 `Failed to Use Accounts` 则是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -722,7 +722,7 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 仓库与 `origin/main` 当前版本为 `1.0.5 (39)`；Air 上已有 build 38 的有效签名归档。
+- 仓库与 `origin/main` 当前版本为 `1.0.6 (39)`；Air 上已有 build 38 的有效签名归档。
 - build 38 已由 Air 上传成功，Xcode 返回 `Uploaded package is processing`；后续处理完成和测试群组状态仍需在 App Store Connect 核对。
 
 ### Air 本机归档与 App Store Connect 上传是两项能力
@@ -744,7 +744,7 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0.5 (39)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已成功上传 build 38，Xcode 返回包正在处理；处理完成和测试分组仍以 App Store Connect 为准。
+工程当前为 **`1.0.6 (39)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。Air 已成功上传 build 38；`1.0.5 (39)` 因 1.0.5 预发布通道已关闭而未被接收，build 39 已改用 1.0.6。
 
 ### 外部测试还需要补的材料
 
