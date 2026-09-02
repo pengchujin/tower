@@ -10,13 +10,21 @@ License:     CC BY-SA 4.0
 Bundled here: the ACL4SSR_Online, ACL4SSR_Online_Mini and ACL4SSR_Online_Full
 remote configs, plus every .list rule file they reference.
 
+ACL4SSR_manifest.json also records Tower-generated MRS and SRS derivatives for
+the losslessly convertible rules. The binaries live under the repository's
+Rulesets/ directory for compatible Clash/Stash and sing-box clients and are not
+bundled inside the Tower app. Rules without a binary representation stay inline.
+
 Modifications: none to the rule contents. Every file carries an "ACL4SSR_"
 prefix because Xcode flattens resources into the bundle root; this keeps their
 origin explicit and avoids future filename collisions. The configs' "master"
 URLs were rewritten to the pinned revision above so the snapshot is reproducible.
 
-Sources, rule counts and SHA-256 digests: ACL4SSR_manifest.json
-Regenerate with: python3 Scripts/update_acl4ssr_rules.py --latest
+Sources, generated MRS/SRS URLs, rule counts and SHA-256 digests:
+ACL4SSR_manifest.json
+Regenerate with: python3 Scripts/update_acl4ssr_rules.py --latest \
+  --mihomo <pinned Mihomo executable> --mihomo-version v1.19.30 \
+  --sing-box <pinned sing-box executable> --sing-box-version 1.14.0
 
 These rule files remain under CC BY-SA 4.0 and are not covered by the MIT
 license that applies to this project's source code. See THIRD-PARTY-NOTICES.md

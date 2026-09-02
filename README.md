@@ -34,7 +34,8 @@
 - Quantumult X 通过系统分享接收本地配置文件
 - 导出页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
 - 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知
-- 设置页可开关“优先使用规则集”；兼容的客户端引用远程规则集以减小配置，不兼容的资源自动保留本地转换
+- 设置页可开关“优先使用规则集”（默认关闭）；开启后 Stash/Clash 对内置 ACL4SSR 优先引用经源哈希和覆盖条数校验的 domain/ipcidr MRS，sing-box MT 优先引用 source-format v2 SRS；Hiddify 暂时保持原有 source JSON 或内联路径，无法无损转换的规则仍本地生成
+- 用户新增的自定义规则始终由塔台本地生成；远程规则刷新后只有当前解析内容仍与二进制编译源完全一致时才复用 MRS/SRS，内容有增删或修改会自动回退文本/内联规则，不会拿旧二进制吞掉新规则
 
 ## 隐私设计
 
@@ -62,7 +63,7 @@ Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantu
 
 ### ACL4SSR
 
-[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，资源位于 `Tower/Resources/ACL4SSR/`，固定提交号、来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。打包前用 `python3 Scripts/update_acl4ssr_rules.py --latest` 拉取上游最新提交；完整发布步骤见 [发布流程](docs/RELEASING.md)。
+[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，资源位于 `Tower/Resources/ACL4SSR/`，固定提交号、来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。对 Stash / Clash 可无损转换的域名与 IP CIDR 规则会用固定版本 Mihomo 生成 MRS；对 sing-box MT 可无损转换的域名、关键词与 CIDR 规则会用固定版本 sing-box 生成 source-format v2 SRS。二进制放在 `Rulesets/ACL4SSR/` 供客户端按需下载，不随 App 打包；正式清单必须指向已推送产物的不可变 Git commit URL，App 也会要求 `artifactCommit` 与每个二进制 URL 精确一致；未绑定提交或仍指向 `main` 的预备清单只会回退到文本规则。临时 JSON 源文件与反编译结果不会发布。Hiddify 尚未启用这条 SRS 路径，仍使用原生 source JSON 或内联规则。sing-box MT 的远程规则集使用 1.14+ 的显式 Go HTTP client，避免依赖已废弃的隐式下载器。打包前更新命令及编译器要求见 [发布流程](docs/RELEASING.md)。
 
 这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。
 
@@ -75,6 +76,8 @@ ACL4SSR 的全部资源保留 `ACL4SSR_` 前缀，便于在 Xcode 拍平后的 b
 选择方案后，「当前规则定制」可以搜索并勾选其中拥有实际规则的服务分组，例如国外媒体或 AI。取消分组不会破坏配置：末尾兜底和被引用的节点选择、自动选择等基础策略会按依赖自动保留。
 
 「添加自定义规则流」把用户规则单独保存在 App 状态中，而不是写回下载的方案。每行接受 `TYPE,VALUE`，也可以粘贴带旧策略的客户端规则；塔台会统一改用界面里选择的流向并保留 `no-resolve`。因此刷新 Self-Configuration 或其他上游方案后，Tailscale 等自定义规则仍然存在，并会进入所有完整配置目标。
+
+这些用户规则不需要也不会在 iPhone 上即时编译成 MRS/SRS：它们以本地规则与已验证的二进制规则集并存。若某个已下载规则 URL 的实际内容发生变化，塔台会比较规范化后的完整规则内容并拒绝复用旧二进制；Clash/Stash 回到兼容的远程文本或本地映射，sing-box MT 对 classical 列表回到本地 JSON 规则。内置规则升级则由仓库脚本重新编译、反向校验并发布新的不可变 MRS/SRS。
 
 ## 多语言
 

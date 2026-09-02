@@ -7,8 +7,11 @@ struct RuleSetEmissionPlanner {
     enum NativeFormat: Equatable {
         case classicalText
         case clashProviderYAML
+        case clashDomainMRS
+        case clashIPCIDRMRS
         case quanXFilter
         case singBoxSource
+        case singBoxBinarySRS
         case egernYAML
     }
 
@@ -75,6 +78,28 @@ struct RuleSetEmissionPlanner {
             case .remote(let url):
                 let lines = repository.lines(for: ruleset.resource)
                 if preferRuleSets,
+                   target == .clash || target == .clashApple,
+                   let optimized = optimizedClashEntries(
+                    resource: ruleset.resource,
+                    sourceURL: url,
+                    lines: lines,
+                    policyName: ruleset.groupName,
+                    startingRemoteIndex: remoteIndex
+                   ) {
+                    entries.append(contentsOf: optimized.entries)
+                    remoteIndex = optimized.finalRemoteIndex
+                } else if preferRuleSets,
+                          target == .singBox,
+                          let optimized = optimizedSingBoxEntries(
+                            resource: ruleset.resource,
+                            sourceURL: url,
+                            lines: lines,
+                            policyName: ruleset.groupName,
+                            startingRemoteIndex: remoteIndex
+                          ) {
+                    entries.append(contentsOf: optimized.entries)
+                    remoteIndex = optimized.finalRemoteIndex
+                } else if preferRuleSets,
                    let format = nativeFormat(
                     for: target,
                     url: url,
@@ -97,6 +122,104 @@ struct RuleSetEmissionPlanner {
         }
 
         return Plan(entries: entries, finalGroupName: finalGroupName)
+    }
+
+    /// MRS supports compact domain and CIDR tries, not the mixed `classical`
+    /// grammar used by ACL4SSR. Tower therefore emits verified binary slices
+    /// and keeps every rule that cannot be represented by that slice inline.
+    /// Returning `nil` means no binary alternative exists and preserves the
+    /// pre-existing classical provider/inline fallback unchanged.
+    private func optimizedClashEntries(
+        resource: RuleSchemeRuleset.Resource,
+        sourceURL: URL,
+        lines: [String],
+        policyName: String,
+        startingRemoteIndex: Int
+    ) -> (entries: [Entry], finalRemoteIndex: Int)? {
+        let alternatives = repository.clashMRSResources(
+            for: resource,
+            matching: lines
+        )
+        guard !alternatives.isEmpty, !lines.isEmpty else { return nil }
+
+        let domainTypes: Set<String> = ["DOMAIN", "DOMAIN-SUFFIX"]
+        let ipTypes: Set<String> = ["IP-CIDR", "IP-CIDR6", "IP6-CIDR"]
+        let hasDomainRules = lines.contains { domainTypes.contains(ruleType(in: $0)) }
+        let hasIPRules = lines.contains { ipTypes.contains(ruleType(in: $0)) }
+
+        var coveredTypes: Set<String> = []
+        var entries: [Entry] = []
+        var remoteIndex = startingRemoteIndex
+
+        for alternative in alternatives {
+            let shouldEmit: Bool
+            let format: NativeFormat
+            let suffix: String
+            switch alternative.behavior {
+            case .domain:
+                shouldEmit = hasDomainRules
+                format = .clashDomainMRS
+                suffix = "domain"
+                if shouldEmit { coveredTypes.formUnion(domainTypes) }
+            case .ipcidr:
+                shouldEmit = hasIPRules
+                format = .clashIPCIDRMRS
+                suffix = "ip"
+                if shouldEmit { coveredTypes.formUnion(ipTypes) }
+            }
+            guard shouldEmit else { continue }
+
+            remoteIndex += 1
+            entries.append(.remote(RemoteResource(
+                identifier: identifier(for: sourceURL, index: remoteIndex, suffix: suffix),
+                url: alternative.url,
+                policyName: policyName,
+                format: format
+            )))
+        }
+
+        guard !entries.isEmpty else { return nil }
+        entries.append(contentsOf: lines.compactMap { line in
+            guard !coveredTypes.contains(ruleType(in: line)) else { return nil }
+            return .inline(InlineRule(policyName: policyName, line: line))
+        })
+        return (entries, remoteIndex)
+    }
+
+    /// sing-box source-format v2 can compile the destination matchers used by
+    /// ACL4SSR into one binary SRS. The manifest records exactly which source
+    /// types were converted; all other lines remain in their original place.
+    private func optimizedSingBoxEntries(
+        resource: RuleSchemeRuleset.Resource,
+        sourceURL: URL,
+        lines: [String],
+        policyName: String,
+        startingRemoteIndex: Int
+    ) -> (entries: [Entry], finalRemoteIndex: Int)? {
+        guard let alternative = repository.singBoxSRSResource(
+            for: resource,
+            matching: lines
+        ),
+              !lines.isEmpty else { return nil }
+
+        let sourceTypes = Set(lines.map(ruleType(in:)))
+        let coveredTypes = alternative.coveredRuleTypes.intersection(sourceTypes)
+        guard !coveredTypes.isEmpty else { return nil }
+
+        let remoteIndex = startingRemoteIndex + 1
+        var entries: [Entry] = [
+            .remote(RemoteResource(
+                identifier: identifier(for: sourceURL, index: remoteIndex, suffix: "srs"),
+                url: alternative.url,
+                policyName: policyName,
+                format: .singBoxBinarySRS
+            ))
+        ]
+        entries.append(contentsOf: lines.compactMap { line in
+            guard !coveredTypes.contains(ruleType(in: line)) else { return nil }
+            return .inline(InlineRule(policyName: policyName, line: line))
+        })
+        return (entries, remoteIndex)
     }
 
     private func nativeFormat(
@@ -184,7 +307,11 @@ struct RuleSetEmissionPlanner {
         }
     }
 
-    private func identifier(for url: URL, index: Int) -> String {
+    private func ruleType(in line: String) -> String {
+        fields(in: line).first?.uppercased() ?? ""
+    }
+
+    private func identifier(for url: URL, index: Int, suffix: String? = nil) -> String {
         let base = url.deletingPathExtension().lastPathComponent.lowercased()
         var slug = ""
         var lastWasDash = false
@@ -199,6 +326,7 @@ struct RuleSetEmissionPlanner {
         }
         slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         if slug.isEmpty { slug = "ruleset" }
+        if let suffix { slug += "-\(suffix)" }
         return "tower-\(slug)-\(index)"
     }
 

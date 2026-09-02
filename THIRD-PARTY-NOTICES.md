@@ -9,13 +9,18 @@
 ## ACL4SSR 规则
 
 - **来源**：https://github.com/ACL4SSR/ACL4SSR
-- **固定版本**：`06ff293e02565adceef9aa92321efa2603f68f32`
+- **固定版本**：`a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a`
 - **本地路径**：`Tower/Resources/ACL4SSR/`（3 份 `.ini` 配置 + 32 个 `.list` 规则）
+- **托管派生资源**：`Rulesets/ACL4SSR/<固定版本>/`（不随 App 打包）
 - **许可证**：**CC BY-SA 4.0**（https://creativecommons.org/licenses/by-sa/4.0/）
 - **更新脚本**：`Scripts/update_acl4ssr_rules.py`
 - **清单**：`Tower/Resources/ACL4SSR/ACL4SSR_manifest.json`
 
 按 CC BY-SA 4.0 的要求：署名归 ACL4SSR 项目及其贡献者所有；这些规则文件本身以原样再分发，未作内容修改（仅为避免 bundle 内文件名冲突而统一加了 `ACL4SSR_` 前缀，并把 `master` 链接改写为上述固定版本）；对这些规则数据的任何再分发或改编，仍须以 CC BY-SA 4.0 或兼容许可发布。
+
+为避免将 classical 规则行误当成 domain MRS 的字面域名，托管的 MRS 不直接复用上游 `Clash/mrs`。更新脚本从上述固定 `.list` 快照中只提取可无损表达的 `DOMAIN` / `DOMAIN-SUFFIX`；IP CIDR 还要求每行恰好只带一个 `no-resolve` 修饰符。脚本用固定版本 Mihomo 生成 MRS，并回读校验条数和内容，其他类型仍由塔台内联输出。ipcidr 清单项会明确记录 `noResolve: true`，供客户端生成器在使用前再次校验。这些二进制是 ACL4SSR 规则的派生作品，同样以 CC BY-SA 4.0 分发；它们仅供用户主动开启远程规则集时由兼容客户端下载，不随 App 打包。
+
+同一脚本还用固定版本 sing-box 把可无损表达的 `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`、`IP-CIDR`、`IP-CIDR6` 和 `IP6-CIDR` 编译为 source-format v2 SRS。每个原始列表对应一个组合 SRS；CIDR 只接受无附加参数或唯一的 `no-resolve`，其他参数会按类型族关闭转换并保留内联。脚本编译后立即反编译并验证语义，临时 source JSON 与反编译结果不发布。清单记录源/产物 SHA-256、转换与残余条数、覆盖的原始规则类型、source format 版本和编译器版本。SRS 与 MRS 一样是 ACL4SSR 的 CC BY-SA 4.0 派生作品，仅供兼容客户端按需下载，不随 App 打包。
 
 ## Self-Configuration（用户手动下载）
 

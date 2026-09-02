@@ -112,6 +112,7 @@ tower_check_bundled_rules_current() {
         return 1
     }
     python3 "$updater" --check-latest
+    python3 "$updater" --verify-published
 }
 
 # Ghostty 1.3.1 on macOS can round-trip a `-e` executable path through the

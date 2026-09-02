@@ -134,7 +134,13 @@ struct ConfigurationGenerator {
         case .quanx:
             content = quanXScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .hiddify, .singBox:
-            content = singBoxScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
+            content = singBoxScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                rulePlan: rulePlan,
+                target: target
+            )
         case .egern:
             content = egernScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
         case .v2box:
@@ -561,13 +567,23 @@ struct ConfigurationGenerator {
         if !remoteResources.isEmpty {
             output += "\nrule-providers:\n"
             for resource in remoteResources {
-                let isYAML = resource.format == .clashProviderYAML
+                let provider: (behavior: String, format: String, fileExtension: String)
+                switch resource.format {
+                case .clashDomainMRS:
+                    provider = ("domain", "mrs", "mrs")
+                case .clashIPCIDRMRS:
+                    provider = ("ipcidr", "mrs", "mrs")
+                case .clashProviderYAML:
+                    provider = ("classical", "yaml", "yaml")
+                default:
+                    provider = ("classical", "text", "list")
+                }
                 output += "  \(resource.identifier):\n"
                 output += "    type: http\n"
-                output += "    behavior: classical\n"
-                output += "    format: \(isYAML ? "yaml" : "text")\n"
+                output += "    behavior: \(provider.behavior)\n"
+                output += "    format: \(provider.format)\n"
                 output += "    url: \(yaml(resource.url.absoluteString))\n"
-                output += "    path: ./ruleset/\(resource.identifier).\(isYAML ? "yaml" : "list")\n"
+                output += "    path: ./ruleset/\(resource.identifier).\(provider.fileExtension)\n"
                 output += "    interval: 86400\n"
             }
         }
@@ -575,7 +591,8 @@ struct ConfigurationGenerator {
         for entry in rulePlan.entries {
             switch entry {
             case .remote(let resource):
-                output += "  - RULE-SET,\(resource.identifier),\(resource.policyName)\n"
+                let noResolve = resource.format == .clashIPCIDRMRS ? ",no-resolve" : ""
+                output += "  - RULE-SET,\(resource.identifier),\(resource.policyName)\(noResolve)\n"
             case .inline(let rule):
                 // The document dialect is Clash YAML for all three callers,
                 // but rule support still belongs to the selected client.
@@ -2631,7 +2648,8 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
-        rulePlan: RuleSetEmissionPlanner.Plan
+        rulePlan: RuleSetEmissionPlanner.Plan,
+        target: ClientTarget
     ) -> String {
         let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.singBoxDirectTag
         var outbounds: [[String: Any]] = groups.map { group in
@@ -2716,16 +2734,22 @@ extension ConfigurationGenerator {
 
         rules = singBoxRoutePrelude() + rules
 
-        let remoteRuleSets: [[String: Any]] = rulePlan.remoteResources.map {
-            [
+        let remoteRuleSets: [[String: Any]] = rulePlan.remoteResources.map { resource in
+            let format = resource.format == .singBoxBinarySRS ? "binary" : "source"
+            return [
                 "type": "remote",
-                "tag": $0.identifier,
-                "format": "source",
-                "url": $0.url.absoluteString,
+                "tag": resource.identifier,
+                "format": format,
+                "url": resource.url.absoluteString,
                 "update_interval": "1d"
             ]
         }
 
+        let remoteDetour = singBoxRemoteDNSDetour(
+            finalGroup: finalGroup,
+            groups: groups,
+            nodes: nodes
+        )
         var route: [String: Any] = [
             "rules": rules,
             "final": finalGroup,
@@ -2734,15 +2758,9 @@ extension ConfigurationGenerator {
         ]
         if !remoteRuleSets.isEmpty { route["rule_set"] = remoteRuleSets }
 
-        let configuration: [String: Any] = [
+        var configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": singBoxDNS(
-                remoteDetour: singBoxRemoteDNSDetour(
-                    finalGroup: finalGroup,
-                    groups: groups,
-                    nodes: nodes
-                )
-            ),
+            "dns": singBoxDNS(remoteDetour: remoteDetour),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
@@ -2755,6 +2773,22 @@ extension ConfigurationGenerator {
             "route": route,
             "experimental": ["cache_file": ["enabled": true, "store_fakeip": false]]
         ]
+
+        // sing-box 1.14 deprecated the implicit downloader used by remote
+        // rule sets. The standalone sing-box MT target is versioned with that
+        // core, so give it an explicit Go HTTP client. Hiddify intentionally
+        // keeps its older dialect until its embedded core is tested separately.
+        if target == .singBox, !remoteRuleSets.isEmpty {
+            let httpClientTag = "tower-rule-set"
+            var httpClient: [String: Any] = [
+                "tag": httpClientTag,
+                "engine": "go"
+            ]
+            if let remoteDetour { httpClient["detour"] = remoteDetour }
+            configuration["http_clients"] = [httpClient]
+            route["default_http_client"] = httpClientTag
+            configuration["route"] = route
+        }
 
         guard let data = try? JSONSerialization.data(
             withJSONObject: configuration,

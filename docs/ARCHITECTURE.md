@@ -164,9 +164,11 @@ V2Box 不进入上述完整配置分支。它只把可忠实转换的 SS、VMess
 
 在生成前逐个远程资源检查已缓存内容的真实语法，而不是只看扩展名。设置页的“优先使用规则集”开启时：
 
-- Clash/Stash 输出 `rule-providers` + `RULE-SET`；`payload:` 包装的 Clash Provider YAML 使用 `behavior: classical` + `format: yaml`。Surge/Shadowrocket 输出 URL `RULE-SET`，Loon 输出 `[Remote Rule]`，但三者遇到 Clash Provider YAML 时必须使用下载后的本地规则，不能直接引用其 URL。
+- Clash/Stash 输出 `rule-providers` + `RULE-SET`。对随包 ACL4SSR 快照，生成脚本会用固定版本 Mihomo 把 `DOMAIN` / `DOMAIN-SUFFIX` 和带 `no-resolve` 的 CIDR 分别编译为 `behavior: domain|ipcidr` + `format: mrs` 的二进制切片；无法无损表达的 `DOMAIN-KEYWORD` / `PROCESS-NAME` / `URL-REGEX` 等仍就地内联。运行时会从随包文本重算 `sourceSha256`、总条数、去重后输入条数和 CIDR `no-resolve` 完整性，并要求清单中的 `revision` / `artifactCommit` 是严格的 40 位小写 Git SHA、每个 URL 精确归属该不可变提交。清单缺失、仍指向 `main` 或任一元数据不一致时就回落原文本。`payload:` 包装的其他 Clash Provider YAML 仍使用 `behavior: classical` + `format: yaml`。Surge/Shadowrocket 输出 URL `RULE-SET`，Loon 输出 `[Remote Rule]`，但三者遇到 Clash Provider YAML 时必须使用下载后的本地规则，不能直接引用其 URL。
+- sing-box MT 对随包 ACL4SSR 快照优先输出 `type: remote` + `format: binary` 的 source-format v2 SRS。生成器只把可无损表达的 `DOMAIN` / `DOMAIN-SUFFIX` / `DOMAIN-KEYWORD` / CIDR 编进二进制，并在官方 sing-box CLI 编译后反编译核对语义；残余类型继续走本地规则路径。App 会重新计算随包源文本的哈希、规则条数、实际覆盖类型与 CIDR `no-resolve` 完整性，而不只信任 manifest 声明；任一不符就回退内联。二进制由客户端直接下载，因此产物 SHA-256 是发布门禁，不是 App 的下载后校验；正式清单必须使用含 Tower 完整 commit SHA 的不可变 Raw URL。sing-box MT 1.14+ 还会为远程规则集显式声明 Go `http_clients` / `default_http_client`。
+- MRS/SRS 的运行时选择不只按 URL。Planner 会把这次生成实际使用的规范化规则行交给 Repository，后者再与编译时随包源的完整内容指纹比较；下载缓存即使覆盖了同一个内置 URL，只要规则有新增、删除、改值或调序，就拒绝旧二进制并走原有文本/内联路径。注释与空行不参与规则语义，因此不影响匹配。用户通过 `CustomRuleFlow` 新增的规则是独立 `.inline` 项，会与仍有效的二进制规则集并存，不会被二进制覆盖类型过滤。
 - Quantumult X 仅在资源本身就是可用的 `filter_remote` 语法时远程引用；ACL4SSR 中不兼容的经典 Clash 规则仍本地转换。
-- Hiddify/sing-box 仅引用含顶层 `rules` 的 sing-box source JSON；Egern 仅引用原生 rule-set YAML。
+- Hiddify 目前仅引用含顶层 `rules` 的原生 sing-box source JSON，尚未启用 Tower 的 SRS 路径；sing-box MT 对这类原生 source JSON 同样保留 `format: source`。Egern 仅引用原生 rule-set YAML。由于配置会跨 App 沙盒导入，SRS 不能使用 Tower 私有目录中的 `type: local` / `path`，只能引用可验证、可长期访问的 HTTPS 远程产物。
 - 关闭开关，或任何一个资源的语法不兼容时，该资源自动回落为本地内联规则，不会生成客户端无法读取的远程引用。
 
 这是风险最高的文件。任何修改都要运行完整测试，并抽查全部完整配置目标的语法、组引用和末尾兜底规则。

@@ -4,6 +4,19 @@
 
 塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、多客户端配置生成、配置预览及导入/分享。
 
+### 2026-09-02：Stash / Clash 优先使用经验证的 MRS
+
+- ACL4SSR 的 classical `.list` 是混合语法，MRS 只接受 `domain` 或 `ipcidr` behavior。快照更新器现在把 `DOMAIN` 保留为精确域名、把 `DOMAIN-SUFFIX` 转为 Mihomo `+.` 后缀键，并把 CIDR 规范化后使用固定版本 Mihomo 编译。每个二进制都会反向解包，核对条数和内容后才写入 manifest。
+- 没有无损 MRS 表达的 `DOMAIN-KEYWORD` / `DOMAIN-WILDCARD` / `PROCESS-NAME` / `URL-REGEX` 等仍保留为内联规则，不会为了压缩配置而丢掉。IP MRS 只在该资源中的全部 IP 规则都原本声明 `no-resolve` 时生成，避免改写 DNS 匹配语义。
+- App 只接受 Tower 生成的结构化 metadata，并会从随包 `.list` 独立重算源 SHA-256、总条数、MRS 类型/输入条数、CIDR `no-resolve` 完整性以及 SRS 覆盖/残余条数。还必须同时满足 `revision` / `artifactCommit` 是严格的 40 位小写 Git SHA，且每个二进制 URL 精确指向该提交下的预期文件。无 `artifactCommit`、仍指向 `main` 或任一元数据不一致时就回落原有文本/内联生成，不会删除原规则。
+- 运行时还会把本次生成实际读取到的规范化规则内容与编译源做完整指纹绑定，不能只因 URL 相同就复用二进制。若下载缓存中的同 URL 规则新增、删除、改值或调序，旧 MRS/SRS 会被拒绝：Clash/Stash 回到兼容文本/本地映射，sing-box MT 的 classical 列表回到本地 JSON 规则。用户在塔台新增的 `CustomRuleFlow` 始终作为独立本地规则与二进制并存；iPhone 不内置 Mihomo/sing-box 编译器，内置快照更新仍由发布脚本重新编译、验证和发布。
+- 上游 `ACL4SSR/Clash/mrs` 的当前 domain 文件不能直接复用：用 Mihomo 解包可见它保留了 `domain-suffix,example.com` 这类 classical 前缀，但 `behavior: domain` 会把整串当成域名键，已知后缀的实际请求会落到 `MATCH`。因此使用带固定 ACL 提交路径、源/产物哈希的 Tower 衍生二进制，不盲目改上游 URL 后缀。
+- MRS 的首要范围仍是手机 Stash 和 Clash/Mihomo，Stash 需要 3.1.0 或更新版本。独立的 sing-box MT 现已接入同一套可验证发布链：32 个 source-format v2 SRS 覆盖 10,820 条域名、关键词和 CIDR 规则，27 条无法无损转换的 `PROCESS-NAME` / `URL-REGEX` 等继续走原有兼容过滤或内联生成。
+- SRS 使用可长期访问的 HTTPS 地址，并在配置中声明 `type: remote` / `format: binary`；不能使用用户示例里的 `type: local` / `path`，因为 Tower 与 sing-box MT 位于不同 App 沙盒。正式清单必须指向产物提交的不可变 Raw commit URL；客户端直接下载二进制，App 本身无法在下载后强制核对 artifact SHA，所以全量远程 SHA 回读是发布硬门禁。
+- 当前只对独立的 sing-box MT 开启 SRS。远程规则集配置明确声明 sing-box 1.14+ 的 Go HTTP client 及 `route.default_http_client`，不使用 iOS 上内存开销更高的 Apple engine，也不依赖 1.16 将移除的隐式下载器。Hiddify 虽然使用相近的 sing-box JSON 方言，但其内置核心版本与远程二进制规则集兼容性尚未单独验收，因此保持原有 source JSON 或内联路径。
+- 当前快照生成 45 个 MRS 与 32 个 SRS，manifest、源文件和 77 个二进制产物已逐项核对 SHA-256、条数及孤儿文件；正式版 Xcode 26.6 的 iPhone 17 Pro 模拟器全量测试为 880 通过、0 失败、2 个平台条件跳过，Python 生成器测试为 20/20。MRS/SRS 不进入 App bundle：产物已先推送到不可变提交 `a908d7052ce932b449a7f6d8058d25e9814e605b`，正式 manifest 的 77 个 Raw commit URL 已全部远程回读并通过 SHA-256 核验。以后更新快照仍必须保持“先发布产物、再绑定 manifest、最后全量回读”的顺序；无 `artifactCommit` 的预备清单会在 App 内安全回退到文本规则。
+- 同一源码已在 MacBook Air M2 上用正式版 Xcode 26.6 完成 Debug 自动签名，并覆盖安装、启动到连接的 iPhone 17 Pro；安装包版本仍为 `1.0.5 (38)`，未为这次本地验证递增发布 build。
+
 ### 2026-08-31：新增 sing-box MT 导出
 
 - `ClientTarget.singBox` 作为独立 App Store 客户端加入导出目标，显示名为 `sing-box MT`，使用当前 App Store 图标资源 `ClientSingBox`；默认位于第 5 位。升级后的旧快照会只迁移一次 sing-box 的位置并保留其他客户端相对顺序，写入迁移版本后，用户后续主动拖动的位置继续保留。
@@ -108,11 +121,12 @@ ACL4SSR 的 `.ini` 自带策略组定义，和塔台固定的 `RulePolicy` 枚�
 
 | 客户端 | 兼容时的生成方式 | 不兼容时 |
 | --- | --- | --- |
-| Clash / Stash | `rule-providers` + `RULE-SET`；Clash Provider YAML 使用 `format: yaml` | 本地映射 |
+| Clash / Stash | ACL4SSR 精确域名/后缀和 CIDR 使用 Tower 生成的 `format: mrs`；残余类型内联；其他 Clash Provider YAML 使用 `format: yaml` | 清单校验失败或无兼容二进制时回落本地映射 |
 | Surge / Shadowrocket | URL `RULE-SET` | 本地映射 |
 | Loon | `[Remote Rule]` | 本地映射 |
 | Quantumult X | 原生 `[filter_remote]` 资源 | 本地转换为 QX filter |
-| Hiddify / sing-box | sing-box source JSON `route.rule_set` | 本地 JSON 路由规则 |
+| Hiddify | 原生 sing-box source JSON `route.rule_set` | 本地 JSON 路由规则 |
+| sing-box MT | 内置 ACL4SSR 优先引用经校验的 source-format v2 SRS；原生 sing-box source JSON 仍按 source 引用 | 本地 JSON 路由规则 |
 | Egern | 原生 rule-set YAML | 本地 YAML 规则 |
 
 不要改成“只看 URL 后缀”：`.list` 可能是 Clash、Surge 或 QuanX 的不同方言；`.yaml` 也可能是带 `payload:` 包装的 Clash Provider。后者只允许 Clash/Stash 远程引用，Surge、Shadowrocket、Loon 和 QuanX 必须内联解析后的规则。盲目引用会使整份配置被客户端拒绝。`RuleSetGenerationTests` 用七种合成资源、Clash Provider YAML 和随 App 打包的 ACL4SSR 快照同时回归这个边界。
@@ -879,7 +893,7 @@ token 不得进入文档、日志或测试夹具：
 
 状态修改本身是安全的：`@MainActor` 把它们串行化了，并行的只有网络请求。
 
-### 待决策：规则集为什么在 Stash 上没生效（2026-08-11 搁置）
+### 已解决：规则集为什么在 Stash 上没生效（2026-09-02）
 
 **现象**：开了「优先使用规则集」，Surge 输出 `RULE-SET`，Stash 仍然逐条内联。
 
@@ -895,9 +909,7 @@ token 不得进入文档、日志或测试夹具：
 
 **subconverter 怎么做的**（`src/generator/config/ruleconvert.cpp`，同一套白名单，`ClashRuleTypes` 同样不含 `URL-REGEX`）：逐行循环里 `continue` 跳过那一行，**不是** `return` 掉整份。所以它的 Clash 输出是 371 条 + 丢 1 条。
 
-**但塔台不能照抄。** subconverter 输出的是内联规则，逐行筛完直接写进配置；塔台想输出的是 `rule-providers`，只写一个 URL，内容由客户端自己去拉——**塔台没有机会筛掉那一行**。客户端拿到的仍是原文。
-
-所以可选项只有两条：
+**最终方案**：不引用混合原文，也不让客户端静默丢行。更新脚本将同一份固定 ACL4SSR 文本分成可无损表达的 domain MRS、ipcidr MRS 与内联残余规则。App 通过源文本 SHA-256 锁定二进制对应关系，并在任何不确定时 fail closed 回落旧生成路径。这样避免了「一条不支持就整份内联」，也不会为了内存优化牺牲规则。下方 A/B 是当时的备选分析，现已全部不采用。
 
 - **A. 接受客户端静默忽略。** 照常引用原 URL，那条 `URL-REGEX` 由 Clash 自己跳过。依据：ACL4SSR 官方放在 `Clash/config/` 下的 `ACL4SSR_Mini_Fallback.ini` 就引用了含 `URL-REGEX` 的 ProxyMedia——上游根本没为 Clash 清洗过，说明「Clash 忽略一条不认识的规则」在这个生态里是常态，不会导致配置被拒。改动只是把这类「已知会被静默忽略」的类型放进容忍列表，并在导出摘要里提示「N 条规则会被 X 忽略」。
 - **B. 维持内联但按行筛。** 放弃规则集，逐条写入并丢掉不认的类型。完全自洽，但文件仍然几千行——用户开这个开关就是为了避免这个。

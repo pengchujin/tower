@@ -19,30 +19,62 @@
 
 ## 打包前更新内置规则
 
-内置 ACL4SSR 规则属于 App 资源，不会在用户设备上自动更新。每次 TestFlight 或 App Store 打包前，发布脚本会执行只读检查：
+内置 ACL4SSR 规则属于 App 资源，不会在用户设备上自动更新。每次 TestFlight 或 App Store 打包前，发布脚本会同时检查上游快照新鲜度和全部远程二进制：
 
 ```sh
 python3 Scripts/update_acl4ssr_rules.py --check-latest
+python3 Scripts/update_acl4ssr_rules.py --verify-published
 ```
 
 如果上游已有新提交，脚本会在签名和归档之前停止。回到开发仓库执行：
 
 ```sh
-python3 Scripts/update_acl4ssr_rules.py --latest
+python3 Scripts/update_acl4ssr_rules.py --latest \
+  --mihomo <Mihomo 可执行文件路径> \
+  --mihomo-version v1.19.30 \
+  --sing-box <sing-box 可执行文件路径> \
+  --sing-box-version 1.14.0
 ```
 
-更新器会先解析上游最新提交号，再下载三份 ACL4SSR 配置及其引用的全部规则集，把 URL 固定到该提交，并重新生成 `Tower/Resources/ACL4SSR/ACL4SSR_manifest.json` 中的来源、规则数量和 SHA-256。下载全部成功后才会原子替换现有快照。
+更新器会先解析上游最新提交号，再下载三份 ACL4SSR 配置及其引用的全部规则集，把 URL 固定到该提交，并重新生成 `Tower/Resources/ACL4SSR/ACL4SSR_manifest.json` 中的来源、规则数量和 SHA-256。同时它只把没有额外参数的 `DOMAIN` / `DOMAIN-SUFFIX` 转成 domain 行为的 MRS；`IP-CIDR` / `IP-CIDR6` / `IP6-CIDR` 只有在该列表的每一行都恰好带一个 `no-resolve` 时才转成 ipcidr MRS，并在清单中写入 `noResolve: true`。任一同类行无法无损转换时，整类规则都保留给生成器内联。
 
-更新完成后必须：
+同一更新会为每个可转换列表生成一个 sing-box source-format v2 SRS：`DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD` 以及三种 CIDR 别名合并进一个二进制；CIDR 可不带参数或只带一个 `no-resolve`，其他附加参数会让完整 IP 类型族留在内联规则里。清单的 `coveredRuleTypes` 明确记录真正移入 SRS 的源类型，且 `inputRuleCount + residualRuleCount` 必须等于原规则总数。临时 source JSON 只用于编译，SRS 随后立即反编译并做语义等价检查；JSON 源文件和反编译文件都不会托管。
 
-1. 检查 `git diff -- Tower/Resources/ACL4SSR`，确认只有预期的上游规则变化。
-2. 运行 `python3 Scripts/tests/update_acl4ssr_rules_test.py`、`bash Scripts/tests/release_testflight_test.sh` 和完整 iOS 测试。
-3. 提交并推送规则资源，再重新运行发布脚本。不要在归档过程中保留未提交的资源变化，否则归档产物无法对应 Git 提交。
+MRS 与 SRS 最后都放到 `Rulesets/ACL4SSR/<提交号>/`，不随 App 打包。必须显式传入自己核验过的 Mihomo 与 sing-box 可执行文件；脚本分别检查 `-v` 和 `version` 输出，不会自动下载，也不会信任 PATH 里的同名命令。
+
+二进制产物与引用它的 App manifest 必须分两个提交发布，避免 commit SHA 自引用：
+
+1. 先执行上述命令生成预备产物。此时 manifest 临时指向 `main`，只能用于准备，不得打包。检查 `git diff -- Tower/Resources/ACL4SSR Rulesets/ACL4SSR`，确认只有预期的上游规则与可复现 MRS/SRS 变化，且没有临时 `.json` 文件。
+2. 运行 `python3 Scripts/tests/update_acl4ssr_rules_test.py`，然后只提交并推送 `Rulesets/ACL4SSR/<ACL4SSR 提交号>/`。记下这个 Tower 产物提交的完整 40 位 SHA（下文记为 `<ARTIFACT_COMMIT>`）；不得 force-push 或改写包含它的历史。
+3. 用同一 ACL4SSR 提交和同一对编译器再生成一次，把清单绑定到不可变的 Tower commit URL：
+
+   ```sh
+   python3 Scripts/update_acl4ssr_rules.py --revision <ACL4SSR 完整提交号> \
+     --artifact-commit <ARTIFACT_COMMIT> \
+     --mihomo <Mihomo 可执行文件路径> \
+     --mihomo-version v1.19.30 \
+     --sing-box <sing-box 可执行文件路径> \
+     --sing-box-version 1.14.0
+   ```
+
+   生成后 `ACL4SSR_manifest.json` 必须包含 `artifactCommit`】【，】【所有 MRS/SRS URL 都必须含该完整 SHA，不能再含 `/main/`。
+4. 推送引用清单和 App 代码的第二个提交后，全量回读所有远程 MRS/SRS（当前为 77 个）并校验 SHA-256：
+
+   ```sh
+   python3 Scripts/update_acl4ssr_rules.py --verify-published
+   ```
+
+   任何 URL 返回 404、仍指向可变 `main`、或摘要不一致时都会失败，不得打包。
+5. 运行 `bash Scripts/tests/release_testflight_test.sh` 和完整 iOS 测试，确认工作区干净后再运行发布脚本。不要在归档过程中保留未提交的资源变化，否则归档产物无法对应 Git 提交。
 
 需要复现旧快照时可以明确指定完整提交号：
 
 ```sh
-python3 Scripts/update_acl4ssr_rules.py --revision <完整提交号>
+python3 Scripts/update_acl4ssr_rules.py --revision <完整提交号> \
+  --mihomo <Mihomo 可执行文件路径> \
+  --mihomo-version v1.19.30 \
+  --sing-box <sing-box 可执行文件路径> \
+  --sing-box-version 1.14.0
 ```
 
 ## 本地配置

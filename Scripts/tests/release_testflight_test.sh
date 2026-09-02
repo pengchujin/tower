@@ -125,14 +125,17 @@ mkdir -p "$fake_repo/Scripts"
 cat > "$fake_repo/Scripts/update_acl4ssr_rules.py" <<'PY'
 import sys
 
-if sys.argv[1:] != ["--check-latest"]:
+if sys.argv[1:] == ["--check-latest"]:
+    print("bundled rules current")
+elif sys.argv[1:] == ["--verify-published"]:
+    print("published artifacts verified")
+else:
     raise SystemExit(2)
-print("bundled rules current")
 PY
 assert_equal \
-    "bundled rules current" \
+    $'bundled rules current\npublished artifacts verified' \
     "$(tower_check_bundled_rules_current "$fake_repo")" \
-    "release preflight checks the bundled ACL4SSR snapshot"
+    "release preflight checks the bundled snapshot and every published artifact"
 
 local_release_source="$(<"$REPO_ROOT/Scripts/release_testflight.sh")"
 remote_release_source="$(<"$REPO_ROOT/Scripts/release_testflight_remote.sh")"
@@ -152,6 +155,8 @@ assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py -
     "release documentation explains how to fetch the latest bundled rules"
 assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py --check-latest' \
     "release documentation includes the non-mutating freshness check"
+assert_contains "$releasing_document" 'python3 Scripts/update_acl4ssr_rules.py --verify-published' \
+    "release documentation includes immutable artifact verification"
 
 if tower_validate_ssh_destination "user@host; touch /tmp/nope" >/dev/null 2>&1; then
     fail "rejects unsafe SSH destinations"
