@@ -443,6 +443,46 @@ struct ConfigurationGenerator {
         return output
     }
 
+    /// Quantumult X has no `no-resolve` rule option. Its documented way to
+    /// avoid resolving a hostname only to test later IP rules is one catch-all
+    /// host rule immediately before `final`. Hostname requests take the same
+    /// policy as `final`; pure-IP requests do not match `host-keyword` and
+    /// continue to the final rule.
+    private func quanXLocalSchemeRules(
+        _ plan: RuleSetEmissionPlanner.Plan,
+        dnsProtectionMode: RuleSchemeDNSProtectionMode
+    ) -> String {
+        var output = ""
+        for entry in plan.entries {
+            guard case .inline(let rule) = entry else { continue }
+            if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: .quanx) {
+                output += mapped + "\n"
+            }
+        }
+
+        guard let finalGroup = plan.finalGroupName else { return output }
+        let policy = confName(finalGroup)
+        let sourceRequestsNoResolve = plan.inlineRules.contains {
+            quanXSourceRuleRequestsNoResolve($0.line)
+        }
+        if dnsProtectionMode != .followScheme || sourceRequestsNoResolve {
+            output += "host-keyword, ., \(policy)\n"
+        }
+        output += "final, \(policy)\n"
+        return output
+    }
+
+    private func quanXSourceRuleRequestsNoResolve(_ rule: String) -> Bool {
+        let fields = rule.split(separator: ",", omittingEmptySubsequences: false).map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard let type = fields.first?.uppercased(),
+              ["IP-CIDR", "IP-CIDR6", "IP6-CIDR", "IP-ASN", "GEOIP"].contains(type) else {
+            return false
+        }
+        return fields.dropFirst(2).contains { $0.lowercased() == "no-resolve" }
+    }
+
     private func schemeHeader(_ scheme: RuleScheme, target: ClientTarget) -> String {
         let origin = scheme.sourceURLString ?? (scheme.isBundled ? "随 App 打包的快照" : "导出")
         return """
@@ -740,7 +780,10 @@ struct ConfigurationGenerator {
         output += "\n[server_local]\n"
         for node in nodes { output += quanXNode(node) + "\n" }
         output += "\n[filter_local]\n"
-        output += localSchemeRules(rulePlan, target: .quanx)
+        output += quanXLocalSchemeRules(
+            rulePlan,
+            dnsProtectionMode: schemeDNSProtectionMode(scheme)
+        )
         for section in ["rewrite_local", "task_local", "http_backend", "mitm"] {
             output += "\n[\(section)]\n"
         }
@@ -1752,8 +1795,10 @@ struct ConfigurationGenerator {
                 if let mapped = mappedRule(rule, policy: assignment.policy, target: .quanx) { output += mapped + "\n" }
             }
         }
-        if preset.includeGeoIPCN { output += "geoip, cn, direct, no-resolve\n" }
-        output += "final, \(quanXPolicyName(preset.finalPolicy))\n"
+        if preset.includeGeoIPCN { output += "geoip, cn, direct\n" }
+        let finalPolicy = quanXPolicyName(preset.finalPolicy)
+        output += "host-keyword, ., \(finalPolicy)\n"
+        output += "final, \(finalPolicy)\n"
         for section in ["rewrite_local", "task_local", "http_backend", "mitm"] {
             output += "\n[\(section)]\n"
         }
@@ -1919,6 +1964,7 @@ struct ConfigurationGenerator {
         guard parts.count >= 2 else { return nil }
 
         let ruleType = parts[0].uppercased()
+        let hasTrailingNoResolve = parts.last?.lowercased() == "no-resolve"
         // Clash/Mihomo does not implement Surge's URL-REGEX dialect. These
         // expressions may inspect the URL path, so converting them to a domain
         // rule would silently change their meaning; omit them for Clash only.
@@ -1929,16 +1975,23 @@ struct ConfigurationGenerator {
         if target == .quanx {
             let mappedType: String
             switch ruleType {
-            case "DOMAIN": mappedType = "host"
-            case "DOMAIN-SUFFIX": mappedType = "host-suffix"
-            case "DOMAIN-KEYWORD": mappedType = "host-keyword"
+            case "DOMAIN", "HOST": mappedType = "host"
+            case "DOMAIN-SUFFIX", "HOST-SUFFIX": mappedType = "host-suffix"
+            case "DOMAIN-KEYWORD", "HOST-KEYWORD": mappedType = "host-keyword"
+            case "DOMAIN-WILDCARD", "HOST-WILDCARD": mappedType = "host-wildcard"
             case "IP-CIDR": mappedType = "ip-cidr"
-            case "IP-CIDR6": mappedType = "ip6-cidr"
+            case "IP-CIDR6", "IP6-CIDR": mappedType = "ip6-cidr"
             case "GEOIP": mappedType = "geoip"
+            case "IP-ASN": mappedType = "ip-asn"
             case "USER-AGENT": mappedType = "user-agent"
             default: return nil
             }
-            parts[0] = mappedType
+            // A QuanX filter resource may already carry its own policy as the
+            // third field. The RuleScheme assignment (or filter_remote's
+            // force-policy) owns the policy in Tower, so normalize to the
+            // matcher and value before adding that policy. This also removes
+            // the unsupported Surge-style `no-resolve` field.
+            parts = [mappedType, parts[1], confName(policyName)]
         } else if ruleType == "GEOSITE" {
             // Mihomo and Stash both implement GEOSITE directly. The imported
             // subconverter dialect can therefore be preserved for the two
@@ -1952,7 +2005,13 @@ struct ConfigurationGenerator {
             return nil
         }
 
-        if parts.last?.lowercased() == "no-resolve" {
+        if target == .quanx {
+            // QuanX's DNS short-circuit is emitted once before `final`, not as
+            // a per-rule option. `parts` is already complete here.
+            return parts.joined(separator: ", ")
+        }
+
+        if hasTrailingNoResolve {
             parts.insert(policyName, at: parts.count - 1)
         } else {
             parts.append(policyName)
@@ -1966,8 +2025,7 @@ struct ConfigurationGenerator {
                 parts.append("no-resolve")
             }
         }
-        let separator = target == .quanx ? ", " : ","
-        return parts.joined(separator: separator)
+        return parts.joined(separator: ",")
     }
 
     private func configurablePolicies(_ preset: RulePreset) -> [RulePolicy] {

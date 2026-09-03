@@ -69,10 +69,9 @@ final class DNSDefaultsTests: XCTestCase {
         XCTAssertTrue(content.contains("default-nameserver:"), content)
     }
 
-    /// An IP-based rule without `no-resolve` makes the engine resolve a domain
-    /// locally just to evaluate the rule — before any domain rule has had a
-    /// chance to match. The domains it happens to are the ones no rule list
-    /// covered, which are the ones worth protecting.
+    /// An IP-based rule without a DNS short-circuit makes the engine resolve a
+    /// domain locally just to evaluate the rule. QuanX has no `no-resolve`
+    /// option; its documented equivalent is a catch-all host rule before final.
     func testEveryGeoIPRuleSkipsResolution() {
         for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
             let content = configuration(for: target)
@@ -83,6 +82,16 @@ final class DNSDefaultsTests: XCTestCase {
                 if content.contains("- geoip:") {
                     XCTAssertTrue(content.contains("no_resolve: true"), content)
                 }
+                continue
+            }
+
+            if target == .quanx {
+                XCTAssertFalse(content.lowercased().contains("no-resolve"), content)
+                XCTAssertTrue(
+                    content.contains("host-keyword, ., \(RulePolicy.international.configurationName)\n")
+                        && content.contains("final, \(RulePolicy.international.configurationName)\n"),
+                    content
+                )
                 continue
             }
 
@@ -99,6 +108,17 @@ final class DNSDefaultsTests: XCTestCase {
                 )
             }
         }
+    }
+
+    func testQuanXUsesTheSamePolicyForHostCatchAllAndFinal() throws {
+        let content = configuration(for: .quanx)
+        let lines = content.split(separator: "\n").map(String.init)
+        let finalIndex = try XCTUnwrap(lines.firstIndex { $0.hasPrefix("final, ") })
+
+        XCTAssertGreaterThan(finalIndex, 0)
+        XCTAssertEqual(lines[finalIndex - 1], "host-keyword, ., \(RulePolicy.international.configurationName)")
+        XCTAssertEqual(lines[finalIndex], "final, \(RulePolicy.international.configurationName)")
+        XCTAssertFalse(content.lowercased().contains("no-resolve"), content)
     }
 
     func testImportedSchemeNetworkSettingsOverrideTargetDNSDefaults() throws {
@@ -178,6 +198,10 @@ final class DNSDefaultsTests: XCTestCase {
         XCTAssertFalse(clash.contains("proxy-server-nameserver:"), clash)
         XCTAssertFalse(clash.contains("fallback-filter:"), clash)
         XCTAssertFalse(clash.contains("tun:\n"), clash)
+
+        let quanX = generatedScheme(scheme, target: .quanx)
+        XCTAssertFalse(quanX.contains("host-keyword, ., Proxy"), quanX)
+        XCTAssertTrue(quanX.contains("final, Proxy"), quanX)
     }
 
     func testStrictProtectionAddsSurgeDNSInterception() {
@@ -215,6 +239,10 @@ final class DNSDefaultsTests: XCTestCase {
         XCTAssertTrue(clash.contains("proxy-server-nameserver:"), clash)
         XCTAssertFalse(clash.contains("tun:\n"), clash)
         XCTAssertFalse(surge.contains("hijack-dns = *:53"), surge)
+
+        let quanX = generatedScheme(scheme, target: .quanx)
+        XCTAssertTrue(quanX.contains("host-keyword, ., Proxy\nfinal, Proxy"), quanX)
+        XCTAssertFalse(quanX.lowercased().contains("no-resolve"), quanX)
     }
 
     private func makeScheme(

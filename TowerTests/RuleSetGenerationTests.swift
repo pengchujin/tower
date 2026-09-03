@@ -486,7 +486,9 @@ final class RuleSetGenerationTests: XCTestCase {
     }
 
     func testQuanXUsesFilterRemoteOnlyForNativeFilterSyntax() throws {
-        let native = try makeFixture(content: "host-suffix, example.com")
+        // QuanX's official filter resources include their policy as field
+        // three; filter_remote's force-policy deliberately overrides it.
+        let native = try makeFixture(content: "host-suffix, example.com, proxy")
         let nativeContent = native.generator.generate(
             nodes: [],
             scheme: native.scheme,
@@ -501,6 +503,16 @@ final class RuleSetGenerationTests: XCTestCase {
         )
         XCTAssertFalse(nativeContent.contains("host-suffix, example.com, Proxy"), nativeContent)
 
+        let localNativeContent = native.generator.generate(
+            nodes: [],
+            scheme: native.scheme,
+            target: .quanx,
+            schemes: native.repository,
+            preferRuleSets: false
+        ).content
+        XCTAssertTrue(localNativeContent.contains("host-suffix, example.com, Proxy"), localNativeContent)
+        XCTAssertFalse(localNativeContent.lowercased().contains("no-resolve"), localNativeContent)
+
         let clash = try makeFixture(content: "DOMAIN-SUFFIX,example.com")
         let fallback = clash.generator.generate(
             nodes: [],
@@ -512,6 +524,19 @@ final class RuleSetGenerationTests: XCTestCase {
 
         XCTAssertTrue(fallback.contains("host-suffix, example.com, Proxy"), fallback)
         XCTAssertFalse(fallback.contains("https://rules.example.com/Streaming.list, tag="), fallback)
+
+        let invalidOption = try makeFixture(content: "ip-cidr, 203.0.113.0/24, no-resolve")
+        let normalized = invalidOption.generator.generate(
+            nodes: [],
+            scheme: invalidOption.scheme,
+            target: .quanx,
+            schemes: invalidOption.repository,
+            preferRuleSets: true
+        ).content
+        XCTAssertFalse(normalized.contains("https://rules.example.com/Streaming.list, tag="), normalized)
+        XCTAssertTrue(normalized.contains("ip-cidr, 203.0.113.0/24, Proxy"), normalized)
+        XCTAssertTrue(normalized.contains("host-keyword, ., Proxy\nfinal, Proxy"), normalized)
+        XCTAssertFalse(normalized.lowercased().contains("no-resolve"), normalized)
     }
 
     func testSingBoxUsesNativeRemoteRuleSetAndFallsBackForClashLists() throws {
@@ -783,11 +808,17 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertTrue(surge.contains("RULE-SET,https://raw.githubusercontent.com/"), surge)
         XCTAssertTrue(loon.contains("[Remote Rule]"), loon)
 
-        // Most ACL4SSR lists use classical Clash syntax. A pure IP-CIDR list is
-        // also valid Quantumult X filter syntax, so that individual source can
-        // stay remote while unsupported sources remain mapped locally.
-        XCTAssertTrue(quanX.contains("ChinaCompanyIp.list, tag="), quanX)
+        // ACL4SSR's IP-only resource uses Clash's trailing `no-resolve`, which
+        // is not valid QuanX filter syntax. It must be normalized locally
+        // instead of being referenced as a broken filter_remote resource.
+        XCTAssertFalse(quanX.contains("ChinaCompanyIp.list, tag="), quanX)
+        XCTAssertTrue(quanX.contains("ip-cidr, 8.128.0.0/10, 🎯 全球直连"), quanX)
         XCTAssertTrue(quanX.contains("host-suffix, acl4.ssr, "), quanX)
+        XCTAssertTrue(
+            quanX.contains("host-keyword, ., 🐟 漏网之鱼\nfinal, 🐟 漏网之鱼"),
+            quanX
+        )
+        XCTAssertFalse(quanX.lowercased().contains("no-resolve"), quanX)
 
         XCTAssertTrue(singBox.contains(#""format" : "binary""#), singBox)
         XCTAssertTrue(singBox.contains("_singbox.srs"), singBox)

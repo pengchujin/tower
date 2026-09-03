@@ -4,6 +4,19 @@
 
 塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、多客户端配置生成、配置预览及导入/分享。
 
+### 2026-09-03：修正 Quantumult X 规则中的 `no-resolve`
+
+- Quantumult X 不支持 Surge / Clash 风格的尾随 `no-resolve`。内置方案与导入方案的 QX 输出都会删除该参数；标准/严格保护在 `final` 前生成与其相同策略的 `host-keyword, .`，按官方示例避免为未命中的主机名继续做 DNS 查询，而纯 IP 请求仍落到 `final`。
+- “跟随方案”不会凭空增加这条保护规则；但上游 IP/GEOIP 规则明确带了 `no-resolve` 时，会转换成上述 QX 等价写法，保留来源方案的意图。
+- QX 原生远程 filter 的第三列是策略名，并由 `[filter_remote]` 的 `force-policy` 覆盖。Planner 现在接受合法策略列并拒绝含 `no-resolve` 的 Clash/Surge 规则集；后者自动回落本地转换，不再把无效语法直接交给 QX。
+- 根因是 2026-08-11 的 DNS 防护改动把多个客户端共用的 `no-resolve` 机制错误推广到了 QX，且生成器、远程规则校验、测试和本文件旧结论一起固化了这个假设。现在以 QX 官方 `sample.conf` / `filter.snippet` 为准，并为内置、导入、远程回落和“跟随方案”分别加了回归测试。
+- 正式版 Xcode 26.6 的 iPhone 17（iOS 26.5）模拟器完整测试为 884 通过、0 失败、2 个平台条件跳过。
+
+### 2026-09-03：首页来源保持固定顺序
+
+- 首页的订阅和自有节点现在始终按模型中的持久化顺序展示；启用或取消勾选只改变是否参与导出，不再把停用项移动到列表末尾。
+- 批量管理页保持相同行为，搜索结果只做过滤并保留原始相对顺序。勾选状态本身仍有轻量反馈，但不会再触发卡片重排动画。
+
 ### 2026-09-02：调整导出目的地默认顺序
 
 - 新的默认顺序为 Shadowrocket、Stash、局域网共享、Surge、Loon、QuanX、Clash、V2Box、sing-box MT、Hiddify、Egern。
@@ -506,7 +519,7 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 
 1. **`nameserver` 列表内不能混明文。** mihomo 对列表里所有解析器**并发查询**取最快，所以一条明文会把整列表的加密配置作废——查询照样以明文发出去了。`fallback` 同理：`fallback-filter` 只决定采用哪个结果，不阻止发出。因此通用列表全部用 DoH，明文只允许出现在 `default-nameserver`（它只解析 DoH 服务商自己的域名，泄漏的信息仅是「在用 DoH」）。
 2. **`proxy-server-nameserver` 必须写。** 解析节点域名不能走节点本身。开了 fake-ip 又漏了这条，节点域名会被答成假地址，结果是全盘连不上——这是唯一一个把 DNS 改进变成彻底断网的错误。
-3. **IP 类规则要带 `no-resolve`。** 没有它，引擎为了判断 `GEOIP,CN` 必须先在本地把域名解析成 IP，而且发生在域名规则匹配之前。中招的正是「所有域名规则都没覆盖到」的那批域名——也就是最值得保护的那批。Clash 和 Surge 原本带了，**Loon、Quantumult X、Egern 三家漏了**，已补。
+3. **IP 类规则要避免触发额外解析。** 支持 `no-resolve` 的客户端应在 IP/GEOIP 规则上带该参数，否则引擎可能为了判断规则而先在本地解析域名。Quantumult X 不支持这个参数；其官方方案是在 `final` 前放置同策略的 `host-keyword, .`，让未被前面域名规则命中的主机名直接进入兜底策略，纯 IP 请求则继续匹配 `final`。Clash、Surge、Loon 使用 `no-resolve`，Egern 使用 `no_resolve: true`，QX 使用上述 host 兜底。
 
 ### 这次改了什么
 
@@ -515,7 +528,7 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 | Clash / Stash | 新增完整 `dns:` 块：fake-ip + 全加密 `nameserver`/`fallback` + `proxy-server-nameserver` + `fallback-filter` 按 GeoIP 分流 |
 | Surge | 去掉 `system`，补 `encrypted-dns-server`（字段名有官方文档佐证） |
 | Shadowrocket / Loon | **只**去掉 `system`。两家的加密 DNS 字段名没有可靠出处，不猜——这个项目在客户端字段名上猜错过不止一次 |
-| Quantumult X | 原本就有 `no-system`，只补 `no-resolve` |
+| Quantumult X | 保留 `no-system`；删除无效的 `no-resolve`，在 `final` 前增加同策略的 `host-keyword, .` |
 | Egern | 补 `no_resolve: true` |
 | Hiddify | 不动，原本就对 |
 
@@ -534,7 +547,7 @@ TestFlight 反馈提到「配置没有防 DNS 泄漏功能」。核对下来比�
 | 档位 | 生成行为 |
 | --- | --- |
 | 跟随方案 | 保留用户填写的普通／加密 DNS，不额外启用 Clash Fake-IP、fallback 或 DNS 接管 |
-| 标准保护 | 保持此前的默认输出：加密 DNS、Fake-IP、节点域名专用解析与 `no-resolve` |
+| 标准保护 | 保持此前的默认输出：加密 DNS、Fake-IP、节点域名专用解析，以及各客户端支持的 DNS 短路写法；QX 使用 `host-keyword, .` 而不是 `no-resolve` |
 | 严格保护 | 在标准保护上，仅为已确认支持的 Clash 增加 TUN `dns-hijack` / `strict-route`，并为 Surge 增加 `hijack-dns = *:53` / `encrypted-dns-follow-outbound-mode = true` |
 
 严格保护没有推广到 Stash、Shadowrocket 或其他客户端，因为这些客户端的等价字段和副作用尚未逐项验证。它可能影响局域网、公共网络认证，以及服务器地址本身是域名的代理节点；界面会在选择时显示风险提示。
@@ -996,6 +1009,25 @@ TestFlight build 31 的反馈截图来自 Surge iOS 策略组测速。部分节�
 - Tailscale 配置里的 `auth-key`、机器身份和自定义控制服务器属于敏感数据：全程仅本地处理；日志、预览、二维码与普通分享默认脱敏，不得进入测试夹具或 Git。
 - 设计 Tailscale 数据模型前先明确访问 Tailnet 服务、接受子网路由、使用 Exit Node 三种用途，避免把“加入 Tailnet”和“公网出口节点”混成一个开关。
 - 为每个开放的目标添加最小生成器测试、缺字段/无效 Auth Key 测试和实际客户端验收记录；测试样本只使用可撤销、短期、受限的测试 Key。
+
+#### TODO：Tailscale 一次配置、持续更新
+
+> 2026-09-03 复核 Tailscale、Surge、Stash、Mihomo 与 sing-box 官方文档后的实现草案。目标是用户在塔台配置一次、在目标客户端认证一次，后续更新塔台配置时复用原有 Tailscale 机器/节点身份，不重复产生 Tailnet 设备。
+
+- [ ] 将 Tailscale 建模为独立的“自有连接”，不能继续用 `DOMAIN-SUFFIX,tailscale.com` 等自定义规则冒充 Tailscale 接入；自定义规则只负责流量匹配，不能在 iOS 的单 VPN 限制下建立 Tailnet 隧道。
+- [ ] 每条连接生成并永久保存内部 UUID。显示名称允许修改，但导出使用的身份键不得随名称变化：Surge 固定 `section-name`，Mihomo 固定 `state-dir`，sing-box 固定 `state_directory`；删除后重新添加才生成新 UUID。
+- [ ] 数据模型至少区分：访问 Tailnet Peer/MagicDNS、接受子网路由、使用指定 Exit Node；另保存稳定 hostname、可选 control URL、是否允许 Exit Node 时访问 LAN，以及目标客户端启用状态。
+- [ ] 默认使用交互认证。`auth-key` 只作为首次部署方式，存入 Keychain，默认选择一次性、短期、预授权且非 ephemeral 的 Key；不得进入日志、普通预览、二维码、测试夹具或长期更新地址。完成首次认证后提供“移除部署密钥”。不要在塔台保存 OAuth Client Secret。
+- [ ] Stash 第一阶段：输出固定名称的 `type: tailscale` 节点，默认不写 `auth-key`，引导用户从节点菜单的 Tailscale 页面登录；保持自动 Tailnet 路由开启。重点真机核对远程 Proxy Provider 更新后是否继续复用已认证身份，不能只依据“通常不需要重新认证”的文档表述。
+- [ ] Surge 第一阶段：同时生成 `[Proxy]` 策略和 `[Tailscale <固定 section-name>]`，默认使用 `interactive-login = true`；显示名称变化不得重命名 section。核对自动 MagicDNS/Peer 地址路由、显式子网路由和 Exit Node。
+- [ ] Clash/Mihomo 第二阶段：输出固定 `state-dir: ./tailscale/tower-ts-<UUID>`、`ephemeral: false`，根据用途生成 `accept-routes`、`exit-node` 与 LAN 访问字段；无交互界面的部署只在首次文件中使用 Auth Key。
+- [ ] sing-box MT 第二阶段：按 sing-box 1.12+ Endpoint 语法输出固定 `state_directory: tailscale/tower-ts-<UUID>`，优先在客户端 `Tools > Endpoints` 完成交互认证；结合 Tailscale DNS/`preferred_by` 路由，而不是把整个 `100.64.0.0/10` 粗暴导向普通策略。正式开放前核对 sing-box MT 实际内核版本和导入保留行为。
+- [ ] Shadowrocket、Hiddify、Loon、Quantumult X、Egern 在没有官方可导入语法和真机证据前继续标为不支持，不生成猜测配置。
+- [ ] 把导入流程拆成“首次安装”和“后续更新”。首次安装完整配置并完成一次认证；后续配置必须保持所有内部身份键不变。Stash 等把 URL Scheme 重复安装视为新配置的客户端，优先使用固定远程配置/Proxy Provider 更新，不反复执行安装 Scheme。
+- [ ] 评估固定更新地址：当前塔台 `/sub/<token>?target=...` 的路径和端口可复用，但 iOS 后台会挂起服务且局域网 IP 可能变化；不能宣称同一 iPhone 可全天候自动刷新。需要常驻更新时，只考虑用户自行控制的 Mac/NAS/路由器端点，不把配置或 Tailscale 密钥上传到塔台服务器。
+- [ ] 真机验收至少覆盖：首次交互登录、更新配置后设备数量不增加、客户端重启、配置重载、MagicDNS、IPv4/IPv6 Peer、UDP、子网路由、Exit Node 出口 IP、移除 Auth Key 后再次启动、修改显示名称后身份仍复用，以及删除重建后确实得到新身份。
+
+官方依据：[Surge Tailscale](https://manual.nssurge.com/policies/tailscale.html)、[Stash Tailscale](https://stash.wiki/en/proxy-protocols/proxy-types#tailscale)、[Stash Proxy Provider](https://stash.wiki/en/proxy-protocols/proxy-providers)、[Mihomo Tailscale](https://wiki.metacubex.one/en/config/proxies/tailscale/)、[sing-box Tailscale Endpoint](https://sing-box.sagernet.org/configuration/endpoint/tailscale/)、[Tailscale 身份](https://tailscale.com/docs/concepts/tailscale-identity)、[Auth Key 安全](https://tailscale.com/docs/features/access-control/auth-keys/how-to/secure-auth-keys)、[与其他 VPN 共存限制](https://tailscale.com/docs/reference/faq/other-vpns)。
 
 ## 7. 真机回归清单
 

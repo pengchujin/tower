@@ -52,6 +52,20 @@ final class ImportedSchemeGeoIPTests: XCTestCase {
                 continue
             }
 
+            if target == .quanx {
+                let finalGroup = try XCTUnwrap(scheme.finalGroupName)
+                XCTAssertFalse(content.lowercased().contains("no-resolve"), content)
+                XCTAssertTrue(
+                    content.localizedCaseInsensitiveContains("geoip, cn, 🎯 全球直连"),
+                    content
+                )
+                XCTAssertTrue(
+                    content.contains("host-keyword, ., \(finalGroup)\nfinal, \(finalGroup)"),
+                    content
+                )
+                continue
+            }
+
             let geoIPRules = content
                 .split(separator: "\n")
                 .map(String.init)
@@ -64,6 +78,41 @@ final class ImportedSchemeGeoIPTests: XCTestCase {
                 )
             }
         }
+    }
+
+    func testQuanXConvertsAnExplicitNoResolveRuleToItsDocumentedFallback() {
+        let scheme = RuleScheme(
+            id: "quanx-no-resolve-source",
+            name: "QuanX 来源规则",
+            summary: "测试",
+            groups: [
+                RuleSchemeGroup(name: "Proxy", kind: .select, members: [.reference("DIRECT")]),
+            ],
+            rulesets: [
+                RuleSchemeRuleset(
+                    groupName: "Proxy",
+                    resource: .inline("IP-CIDR,10.0.0.0/8,no-resolve")
+                ),
+                RuleSchemeRuleset(
+                    groupName: "Proxy",
+                    resource: .inline("IP-ASN,6185,no-resolve")
+                ),
+                RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL")),
+            ],
+            networkSettings: RuleSchemeNetworkSettings(dnsProtectionMode: .followScheme)
+        )
+
+        let content = ConfigurationGenerator().generate(
+            nodes: [],
+            scheme: scheme,
+            target: .quanx,
+            preferRuleSets: false
+        ).content
+
+        XCTAssertTrue(content.contains("ip-cidr, 10.0.0.0/8, Proxy"), content)
+        XCTAssertTrue(content.contains("ip-asn, 6185, Proxy"), content)
+        XCTAssertTrue(content.contains("host-keyword, ., Proxy\nfinal, Proxy"), content)
+        XCTAssertFalse(content.lowercased().contains("no-resolve"), content)
     }
 
     /// Egern spells the flag as a neighbouring key, which is why a source rule

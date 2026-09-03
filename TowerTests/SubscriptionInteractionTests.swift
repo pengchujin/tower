@@ -1149,7 +1149,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testHomeAndManagementListsUseStableEnabledFirstOrdering() throws {
+    func testHomeAndManagementListsKeepSourceOrderAcrossEnablementChanges() throws {
         #if targetEnvironment(simulator)
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -1167,15 +1167,17 @@ final class SubscriptionInteractionTests: XCTestCase {
             encoding: .utf8
         )
 
-        XCTAssertGreaterThanOrEqual(home.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
-        XCTAssertGreaterThanOrEqual(management.components(separatedBy: "EnabledFirstOrdering.apply").count - 1, 2)
-        XCTAssertFalse(nodeFilter.contains("EnabledFirstOrdering.apply"))
+        XCTAssertFalse(home.contains("EnabledFirstOrdering"))
+        XCTAssertFalse(management.contains("EnabledFirstOrdering"))
+        XCTAssertTrue(home.contains("private var displayedSubscriptions: [SubscriptionSource] {\n        model.subscriptions"))
+        XCTAssertTrue(home.contains("private var displayedLocalNodes: [ProxyNode] {\n        model.localNodes"))
+        XCTAssertTrue(management.contains("private var displayedSubscriptions: [SubscriptionSource] {\n        filteredSubscriptions"))
+        XCTAssertTrue(management.contains("private var displayedLocalNodes: [ProxyNode] {\n        filteredLocalNodes"))
         XCTAssertTrue(nodeFilter.contains("ForEach(filteredNodes)"))
-        XCTAssertTrue(management.contains("values.filter(isEnabled) + values.filter { !isEnabled($0) }"))
         XCTAssertFalse(home.contains("onMoveUp"))
         XCTAssertFalse(home.contains("onMoveDown"))
         #else
-        throw XCTSkip("该测试检查启用优先排序，只在模拟器构建环境运行")
+        throw XCTSkip("该测试检查首页和批量管理页的固定顺序，只在模拟器构建环境运行")
         #endif
     }
 
@@ -1195,11 +1197,41 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testEnabledFirstOrderingKeepsRelativeOrderWithinEachState() {
-        let values = [1, 2, 3, 4, 5]
+    @MainActor
+    func testEnablementChangesKeepSubscriptionAndLocalNodeStorageOrder() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-fixed-source-order-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let subscriptions = [
+            SubscriptionSource(name: "一", urlString: "https://one.example/sub"),
+            SubscriptionSource(name: "二", urlString: "https://two.example/sub"),
+            SubscriptionSource(name: "三", urlString: "https://three.example/sub"),
+        ]
+        let localNodes = (1...3).map { index in
+            ProxyNode(
+                kind: .shadowsocks,
+                name: "自有节点 \(index)",
+                server: "local-\(index).example.com",
+                port: 443,
+                rawURI: "ss://local-\(index)"
+            )
+        }
+        try store.save(AppSnapshot(
+            subscriptions: subscriptions,
+            nodes: localNodes,
+            selectedPresetID: AppModel.defaultRuleSchemeID,
+            selectedTarget: .surge
+        ))
+        let model = AppModel(persistence: store, arguments: [])
 
-        let displayed = EnabledFirstOrdering.apply(values) { $0.isMultiple(of: 2) }
+        model.setSubscription(subscriptions[0], enabled: false)
+        model.setNode(localNodes[0], included: false)
 
-        XCTAssertEqual(displayed, [2, 4, 1, 3, 5])
+        XCTAssertEqual(model.subscriptions.map(\.id), subscriptions.map(\.id))
+        XCTAssertEqual(model.localNodes.map(\.id), localNodes.map(\.id))
+        let reloaded = AppModel(persistence: store, arguments: [])
+        XCTAssertEqual(reloaded.subscriptions.map(\.id), subscriptions.map(\.id))
+        XCTAssertEqual(reloaded.localNodes.map(\.id), localNodes.map(\.id))
     }
 }

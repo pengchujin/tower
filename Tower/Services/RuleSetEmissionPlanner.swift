@@ -278,7 +278,12 @@ struct RuleSetEmissionPlanner {
             guard parts.count >= 2,
                   parts.count <= 3,
                   Self.quanXRuleTypes.contains(parts[0].lowercased()) else { return false }
-            return parts.count == 2 || parts[2].lowercased() == "no-resolve"
+            // Native QuanX filter resources commonly carry their own policy
+            // as field three. Tower's `force-policy` overrides it. In contrast,
+            // `no-resolve` is a Surge/Clash option that QuanX does not accept;
+            // reject that resource so it is normalized through the local path.
+            return parts.count == 2
+                || (!parts[2].isEmpty && parts[2].lowercased() != "no-resolve")
         }
     }
 
@@ -346,7 +351,8 @@ struct RuleSetEmissionPlanner {
     private static let loonRuleTypes = surgeRuleTypes
 
     private static let quanXRuleTypes: Set<String> = [
-        "host", "host-suffix", "host-keyword", "ip-cidr", "ip6-cidr", "geoip", "user-agent"
+        "host", "host-suffix", "host-keyword", "host-wildcard",
+        "ip-cidr", "ip6-cidr", "geoip", "ip-asn", "user-agent"
     ]
 
     private static let egernRuleSetKeys: Set<String> = [

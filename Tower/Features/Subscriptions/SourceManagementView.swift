@@ -1,14 +1,5 @@
 import SwiftUI
 
-enum EnabledFirstOrdering {
-    static func apply<Element>(
-        _ values: [Element],
-        isEnabled: (Element) -> Bool
-    ) -> [Element] {
-        values.filter(isEnabled) + values.filter { !isEnabled($0) }
-    }
-}
-
 struct SourceManagementView: View {
     @Environment(AppModel.self) private var model
     private let initialRoute: SourceManagementRoute
@@ -292,11 +283,11 @@ struct SourceManagementView: View {
     }
 
     private var displayedSubscriptions: [SubscriptionSource] {
-        EnabledFirstOrdering.apply(filteredSubscriptions, isEnabled: \.isEnabled)
+        filteredSubscriptions
     }
 
     private var displayedLocalNodes: [ProxyNode] {
-        EnabledFirstOrdering.apply(filteredLocalNodes, isEnabled: model.isNodeIncluded)
+        filteredLocalNodes
     }
 
     private var normalizedSearchText: String {

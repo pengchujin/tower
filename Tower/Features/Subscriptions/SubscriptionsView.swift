@@ -149,11 +149,11 @@ struct SubscriptionsView: View {
     }
 
     private var displayedSubscriptions: [SubscriptionSource] {
-        EnabledFirstOrdering.apply(model.subscriptions, isEnabled: \.isEnabled)
+        model.subscriptions
     }
 
     private var displayedLocalNodes: [ProxyNode] {
-        EnabledFirstOrdering.apply(model.localNodes, isEnabled: model.isNodeIncluded)
+        model.localNodes
     }
 }
 
