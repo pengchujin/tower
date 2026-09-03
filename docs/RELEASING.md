@@ -6,6 +6,8 @@
 
 2026-09-03 已在 Air 上完成 `1.0.6 (39)` 的 Release 自动签名、归档和上传，App Store Connect 返回 `Uploaded package is processing`。同一 build 最初使用 1.0.5 上传时，服务端以 1.0.5 已获批、预发布通道关闭为由拒绝；已获批版本后续必须递增 `MARKETING_VERSION`，不能只递增 build 号。
 
+2026-09-04 已在 Air 上完成 `1.0.6 (40)` 的 Release 自动签名、归档和上传，归档版本与签名核验通过，App Store Connect 返回 `Uploaded package is processing` 与 `Upload succeeded`。该构建包含来源固定排序和 Quantumult X `no-resolve` 兼容修复。
+
 备用远程流程会从开发机上的 Ghostty 通过 SSH 连接 Mac mini M2，再自动切换到该机的 Aqua 图形会话归档和上传，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
 ## 前置条件

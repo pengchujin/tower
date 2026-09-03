@@ -4,6 +4,12 @@
 
 塔台已完成可运行的原生 SwiftUI 主流程：导入订阅/自有节点、节点解析和地区识别、自绘点阵世界地图、ICMP/端口测速、内置与手动下载规则、多客户端配置生成、配置预览及导入/分享。
 
+### 2026-09-04：`1.0.6 (40)` 已上传 TestFlight
+
+- 本次构建包含首页及批量管理页来源固定排序，以及 Quantumult X `no-resolve` 兼容修复；订阅和自有节点启用状态变化不再触发重排。
+- 正式版 Xcode 26.6 的 iPhone 17（iOS 26.5）模拟器完整测试为 884 通过、0 失败、2 个平台条件跳过；发布前已远程回读并核验 77 个 ACL4SSR 二进制产物。
+- 已在 MacBook Air M2 上完成 Release 自动签名、归档和上传，归档内版本核对为 `1.0.6 (40)`，App Store Connect 返回 `Uploaded package is processing` 与 `Upload succeeded`。后续处理完成和测试群组状态仍需在 App Store Connect 核对。
+
 ### 2026-09-03：修正 Quantumult X 规则中的 `no-resolve`
 
 - Quantumult X 不支持 Surge / Clash 风格的尾随 `no-resolve`。内置方案与导入方案的 QX 输出都会删除该参数；标准/严格保护在 `final` 前生成与其相同策略的 `host-keyword, .`，按官方示例避免为未命中的主机名继续做 DNS 查询，而纯 IP 请求仍落到 `final`。
@@ -61,7 +67,7 @@
 - 订阅解析器先把可解析的 `obfsParam` 还原到标准 Host；`ProxyNode.exportableTransportHost` 再按显式 Host → 符合窄条件的非 IP SNI 回退，并拒绝把普通参数或 IP 字面量误当成 HTTP Host。完整配置生成和节点分享共用这一结果。
 - `VLESSWebSocketHostTests` 覆盖 URI、Clash YAML、Loon、Shadowrocket、Surge、QuanX、Clash、sing-box、Egern 与分享链接，避免不同导出路径再次产生不一致。
 
-当前代码版本为 `1.0.6 (39)`，Bundle ID 为 `com.jzb.tower`；已于 2026-09-03 在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、本机归档和上传，App Store Connect 返回 `Uploaded package is processing`。`1.0.5 (39)` 因 1.0.5 已获批、对应预发布通道关闭而被拒绝，因此 build 39 改用 1.0.6。首次上传 build 38 时的 `Failed to Use Accounts` 则是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
+当前代码版本为 `1.0.6 (40)`，Bundle ID 为 `com.jzb.tower`；已于 2026-09-04 在出门使用的 MacBook Air M2 上用正式版 Xcode 完成 Release 自动签名、本机归档和上传，App Store Connect 返回 `Uploaded package is processing` 与 `Upload succeeded`。`1.0.5 (39)` 因 1.0.5 已获批、对应预发布通道关闭而被拒绝，因此 build 39 改用 1.0.6。首次上传 build 38 时的 `Failed to Use Accounts` 则是这份正式版 Xcode 当时没有登录 Apple Account；登录后复用同一归档即成功，不是证书、描述文件或用户角色问题。家中 Mac mini M4 的 Xcode Beta 只负责开发调试，家中另一台使用正式版 Xcode 的 Mac mini M2 仍是固定发布机；Air 出门时也可以发布。
 
 这个仓库快照的重点不是继续堆功能，而是做一次真机回归、补齐 TestFlight 元数据和修正仍可复现的性能/兼容问题。
 
@@ -735,8 +741,8 @@ Quantumult X 的公开 Scheme 只覆盖远程资源操作，无法可靠导入�
 - Bundle ID：`com.jzb.tower`。
 - SKU：`com.jzb.tower`。
 - 签名 Team ID：`<TEAM_ID>`。
-- 仓库与 `origin/main` 当前版本为 `1.0.6 (39)`；Air 上已有对应的有效签名归档。
-- build 39 已由 Air 上传成功，Xcode 返回 `Uploaded package is processing`；后续处理完成和测试群组状态仍需在 App Store Connect 核对。
+- 仓库与 `origin/main` 当前版本为 `1.0.6 (40)`；Air 上已有对应的有效签名归档。
+- build 40 已由 Air 上传成功，Xcode 返回 `Uploaded package is processing` 与 `Upload succeeded`；后续处理完成和测试群组状态仍需在 App Store Connect 核对。
 
 ### Air 本机归档与 App Store Connect 上传是两项能力
 
@@ -757,7 +763,7 @@ SSH 登录落在 launchd 的 `Background` 域，`codesign` 取不到钥匙串私
 
 ### 代码与已上传版本
 
-工程当前为 **`1.0.6 (39)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。`1.0.5 (39)` 因 1.0.5 预发布通道已关闭而未被接收；改为 1.0.6 后，build 39 已由 Air 上传成功并进入 App Store Connect 处理。
+工程当前为 **`1.0.6 (40)`**，`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` 已加入。`1.0.5 (39)` 因 1.0.5 预发布通道已关闭而未被接收；改为 1.0.6 后，build 39 已成功发布到预发布通道，build 40 也已由 Air 上传成功并进入 App Store Connect 处理。
 
 ### 外部测试还需要补的材料
 
