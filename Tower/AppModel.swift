@@ -447,6 +447,7 @@ final class AppModel {
         }
         customization.groupRenames = renames.isEmpty ? nil : renames
         customization.groupOrder = customization.groupOrder.map { $0 == oldName ? newName : $0 }
+        customization.rulePriorityOrder = customization.rulePriorityOrder?.map { $0 == oldName ? newName : $0 }
 
         if let existingOverride = customization.groupOverrides.removeValue(forKey: oldName) {
             customization.groupOverrides[newName] = existingOverride
@@ -498,8 +499,10 @@ final class AppModel {
         guard !uniqueNames.isEmpty else { return }
         var customization = ruleSchemeCustomizations[scheme.id]
             ?? RuleSchemeCustomization(schemeID: scheme.id)
-        guard customization.groupOrder != uniqueNames else { return }
+        guard customization.groupOrder != uniqueNames
+            || customization.rulePriorityOrder != uniqueNames else { return }
         customization.groupOrder = uniqueNames
+        customization.rulePriorityOrder = uniqueNames
         ruleSchemeCustomizations[scheme.id] = customization
         persist()
     }
@@ -867,6 +870,7 @@ final class AppModel {
             customization.groupOrder = customizableRuleGroups(for: scheme).map(\.name)
         }
         customization.groupOrder.removeAll { $0 == groupName }
+        customization.rulePriorityOrder?.removeAll { $0 == groupName }
         customization.groupOverrides[groupName] = nil
         ruleSchemeCustomizations[scheme.id] = customization
 

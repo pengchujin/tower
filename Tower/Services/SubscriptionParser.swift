@@ -1730,7 +1730,10 @@ struct SubscriptionParser {
         guard let separator = value.firstIndex(of: ":") else { return nil }
         let key = value[..<separator].trimmingCharacters(in: .whitespacesAndNewlines)
         let raw = value[value.index(after: separator)...].trimmingCharacters(in: .whitespacesAndNewlines)
-        return key.isEmpty ? nil : (key.lowercased(), yamlScalar(raw))
+        // Unquoted YAML nulls are absent values, not the string "null".
+        // Check before unquoting so literal credentials such as 'null' survive.
+        guard !key.isEmpty, !["null", "Null", "NULL", "~"].contains(raw) else { return nil }
+        return (key.lowercased(), yamlScalar(raw))
     }
 
     /// Unwraps a YAML scalar, decoding escapes when the quoting style has them.

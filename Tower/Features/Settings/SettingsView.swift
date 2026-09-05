@@ -20,26 +20,17 @@ struct SettingsView: View {
     }
 }
 
-/// iCloud and reset both decide where Tower's configuration lives.
-///
-/// Keeping them inside one card makes that relationship visible without
-/// weakening the destructive confirmation around a local reset.
+/// Sync and destructive reset have separate surfaces and visual weight.
 private struct ConfigurationManagementCard: View {
     @Binding var configurationNameDraft: ConfigurationNameDraft
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "配置管理")
+        VStack(alignment: .leading, spacing: 22) {
+            CloudSyncControls()
 
-            VStack(alignment: .leading, spacing: 13) {
-                CloudSyncControls()
-
-                Divider()
-
-                ResetAllConfigurationRow(configurationNameDraft: $configurationNameDraft)
-            }
-            .padding(17)
-            .towerCard()
+            ResetAllConfigurationRow(configurationNameDraft: $configurationNameDraft)
+                .padding(17)
+                .towerCard()
         }
     }
 }
@@ -74,10 +65,6 @@ private struct ResetAllConfigurationRow: View {
 
                 if isResetting {
                     ProgressView()
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
                 }
             }
             .frame(minHeight: 48)
@@ -157,51 +144,57 @@ private struct CloudSyncControls: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            Toggle(isOn: binding) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("同步到我的 iCloud")
-                        .font(.subheadline.weight(.semibold))
-                    Text(statusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .disabled(model.isCloudSyncing)
-
-            if model.iCloudSyncEnabled {
-                Divider()
-                Button {
-                    Task { await model.synchronizeWithCloud(showResult: true) }
-                } label: {
-                    Label(
-                        model.isCloudSyncing ? "正在同步…" : "立即同步",
-                        systemImage: "arrow.triangle.2.circlepath"
-                    )
-                    .font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 13) {
+                Toggle(isOn: binding) {
+                    HStack(spacing: 13) {
+                        SettingsIconTile(symbol: "icloud.fill", color: .blue)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("同步到我的 iCloud")
+                                .font(.headline)
+                            Text(statusText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 .disabled(model.isCloudSyncing)
-            }
 
-            if !model.iCloudSyncEnabled {
                 Divider()
-                Button(role: .destructive) {
-                    Task { await model.removeCloudSnapshot() }
-                } label: {
-                    Label("删除 iCloud 上的副本", systemImage: "trash")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .accessibilityIdentifier("remove-cloud-snapshot")
-            }
 
-            Divider()
-            Label(
-                "开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。",
-                systemImage: "info.circle"
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+                if model.iCloudSyncEnabled {
+                    Button {
+                        Task { await model.synchronizeWithCloud(showResult: true) }
+                    } label: {
+                        Label(
+                            model.isCloudSyncing ? "正在同步…" : "立即同步",
+                            systemImage: "arrow.triangle.2.circlepath"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 32)
+                        .contentShape(Rectangle())
+                    }
+                    .disabled(model.isCloudSyncing)
+                } else {
+                    Button(role: .destructive) {
+                        Task { await model.removeCloudSnapshot() }
+                    } label: {
+                        Label("删除 iCloud 上的副本", systemImage: "trash")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityIdentifier("remove-cloud-snapshot")
+                }
+            }
+            .padding(17)
+            .towerCard()
+
+            Text("开启后，订阅地址和节点密码会存进您的 iCloud 账户。两台设备都改过时，以最后保存的那份为准。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
         }
         .alert("开启 iCloud 同步？", isPresented: $isConfirming) {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }

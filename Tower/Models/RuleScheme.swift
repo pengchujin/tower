@@ -278,6 +278,24 @@ struct RuleScheme: Identifiable, Codable, Hashable {
 
         var result = self
         result.groups = availableGroups
+        // Only a new explicit user reorder changes matching priority. Legacy
+        // groupOrder snapshots described display order and must not silently
+        // change routing on upgrade. Keep unlisted rules in their original slots.
+        if let priority = groupCustomization?.rulePriorityOrder {
+            var rank: [String: Int] = [:]
+            for name in priority where rank[name] == nil { rank[name] = rank.count }
+            let ordered = mergedRulesets.enumerated().filter { rank[$0.element.groupName] != nil }
+                .sorted {
+                    let lhs = rank[$0.element.groupName]!
+                    let rhs = rank[$1.element.groupName]!
+                    return lhs == rhs ? $0.offset < $1.offset : lhs < rhs
+                }.map(\.element)
+            var next = 0
+            for index in mergedRulesets.indices where rank[mergedRulesets[index].groupName] != nil {
+                mergedRulesets[index] = ordered[next]
+                next += 1
+            }
+        }
         result.rulesets = mergedRulesets + finalRulesets
         if groupCustomization?.overridesNetworkSettings == true {
             result.networkSettings = groupCustomization?.networkSettingsOverride
@@ -827,6 +845,8 @@ enum RuleSchemeGroupEditorMode: Equatable {
 struct RuleSchemeCustomization: Codable, Hashable {
     let schemeID: String
     var groupOrder: [String]
+    /// Explicit rule priority, absent in older display-only customizations.
+    var rulePriorityOrder: [String]?
     var groupOverrides: [String: RuleSchemeGroupOverride]
     /// Source policy names mapped to user-facing names. Optional keeps every
     /// snapshot written before identity editing decodable without migration.
@@ -842,6 +862,7 @@ struct RuleSchemeCustomization: Codable, Hashable {
     init(
         schemeID: String,
         groupOrder: [String] = [],
+        rulePriorityOrder: [String]? = nil,
         groupOverrides: [String: RuleSchemeGroupOverride] = [:],
         groupRenames: [String: String]? = nil,
         removedGroupNames: Set<String>? = nil,
@@ -850,6 +871,7 @@ struct RuleSchemeCustomization: Codable, Hashable {
     ) {
         self.schemeID = schemeID
         self.groupOrder = groupOrder
+        self.rulePriorityOrder = rulePriorityOrder
         self.groupOverrides = groupOverrides
         self.groupRenames = groupRenames
         self.removedGroupNames = removedGroupNames

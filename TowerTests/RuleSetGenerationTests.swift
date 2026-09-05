@@ -588,6 +588,7 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertEqual(httpClients.count, 1)
         XCTAssertEqual(httpClients[0]["tag"] as? String, "tower-rule-set")
         XCTAssertEqual(httpClients[0]["engine"] as? String, "go")
+        XCTAssertEqual(httpClients[0]["domain_resolver"] as? String, "local")
         XCTAssertEqual(httpClients[0]["detour"] as? String, "Proxy")
         XCTAssertEqual(singBoxRoute["default_http_client"] as? String, "tower-rule-set")
 

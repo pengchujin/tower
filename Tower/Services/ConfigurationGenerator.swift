@@ -115,7 +115,7 @@ struct ConfigurationGenerator {
                 regionGroups: regionGroups
             )
         case .hiddify, .singBox:
-            content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups, target: target)
         case .egern:
             content = egern(
                 nodes: supported,
@@ -372,8 +372,15 @@ struct ConfigurationGenerator {
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
         if node.kind == .snell, [.clash, .clashApple, .clashMi].contains(target), (node.version ?? 4) >= 4 { return false }
-        // Current sing-box supports Snell v4 and later, not legacy v1-v3.
-        if node.kind == .snell, target == .singBox, (node.version ?? 4) < 4 { return false }
+        // sing-box 1.14 represents non-QUIC Snell v5 with version 4.
+        // Other versions require capabilities Tower does not model yet.
+        if node.kind == .snell, target == .singBox {
+            guard [4, 5].contains(node.version ?? 4) else { return false }
+            if let obfs = node.obfs, !obfs.isEmpty, !["none", "http"].contains(obfs.lowercased()) { return false }
+        }
+        // The official SOCKS outbound cannot express TLS. Dropping TLS would
+        // change the protocol; exclude the node and keep it in skipped counts.
+        if target == .singBox, node.kind == .socks5, node.tls { return false }
         // Surge and Shadowrocket carry Hysteria 2's obfuscator in the key name
         // — `salamander-password` and a bare `obfsParam` — so neither has any
         // way to say "some other obfuscator". (Surge also documents its own
@@ -2820,7 +2827,8 @@ extension ConfigurationGenerator {
     func singBox(
         nodes: [ProxyNode],
         preset: RulePreset,
-        regionGroups: [RegionStrategyGroup]
+        regionGroups: [RegionStrategyGroup],
+        target: ClientTarget
     ) -> String {
         let nodeTags = nodes.map { NodeRegionResolver.displayName(for: $0) }
         let regionGroupNames = regionGroups.map(\.name)
@@ -2889,10 +2897,11 @@ extension ConfigurationGenerator {
             }
             return outbound
         }
-        outbounds += nodes.compactMap(singBoxOutbound)
+        outbounds += nodes.filter { target != .singBox || $0.kind != .wireguard }
+            .compactMap(singBoxOutbound)
         outbounds.append(["tag": Self.singBoxDirectTag, "type": "direct"])
 
-        let configuration: [String: Any] = [
+        var configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
             "dns": singBoxDNS(
                 remoteDetour: nodes.isEmpty ? nil : RulePolicy.select.configurationName
@@ -2916,6 +2925,11 @@ extension ConfigurationGenerator {
                 "cache_file": ["enabled": true, "store_fakeip": false]
             ]
         ]
+
+        if target == .singBox {
+            let endpoints = nodes.compactMap(singBoxWireGuardEndpoint)
+            if !endpoints.isEmpty { configuration["endpoints"] = endpoints }
+        }
 
         guard let data = try? JSONSerialization.data(
             withJSONObject: configuration,
@@ -2968,6 +2982,59 @@ extension ConfigurationGenerator {
             "strategy": "prefer_ipv4",
             // Preserve DNS answer metadata so later TUN connections addressed
             // only by IP can still match the original domain rules.
+            "reverse_mapping": true
+        ]
+    }
+
+    /// Preserve imported DNS without making proxy hostname resolution depend
+    /// on the proxy itself. Literal bootstrap addresses resolve the encrypted
+    /// resolver host; the direct encrypted resolver then bootstraps the proxy.
+    private func singBoxDNS(for scheme: RuleScheme, remoteDetour: String?) -> [String: Any] {
+        guard scheme.networkSettings != nil else { return singBoxDNS(remoteDetour: remoteDetour) }
+        var servers: [[String: Any]] = schemePlainDNS(scheme).enumerated().map { index, address in
+            ["type": "udp", "tag": index == 0 ? "bootstrap" : "bootstrap-\(index + 1)", "server": address]
+        }
+        var localServers: [[String: Any]] = []
+        for value in schemeEncryptedDNS(scheme) {
+            guard let url = URLComponents(string: value),
+                  let type = url.scheme?.lowercased(), ["https", "tls", "quic"].contains(type),
+                  let rawHost = url.host, !rawHost.isEmpty else { continue }
+            let host = rawHost.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+            let index = localServers.count
+            var server: [String: Any] = [
+                "type": type,
+                "tag": index == 0 ? "local" : "local-\(index + 1)",
+                "server": host,
+                "server_port": url.port ?? (type == "https" ? 443 : 853),
+                "tls": ["enabled": true, "server_name": host]
+            ]
+            if RuleSchemeNetworkSettings.normalizedPlainDNSServer(host) == nil {
+                server["domain_resolver"] = "bootstrap"
+            }
+            if type == "https" {
+                let path = url.percentEncodedPath.isEmpty ? "/dns-query" : url.percentEncodedPath
+                server["path"] = path + (url.percentEncodedQuery.map { "?" + $0 } ?? "")
+            }
+            localServers.append(server)
+        }
+        // Defend legacy snapshots containing invalid resolver URLs as well as
+        // freshly validated settings. The bootstrap is still a literal address.
+        if localServers.isEmpty {
+            localServers = [["type": "https", "tag": "local", "server": "223.5.5.5", "path": "/dns-query"]]
+        }
+        servers += localServers
+        if let remoteDetour {
+            servers += localServers.enumerated().map { index, local in
+                var remote = local
+                remote["tag"] = index == 0 ? "remote" : "remote-\(index + 1)"
+                remote["detour"] = remoteDetour
+                return remote
+            }
+        }
+        return [
+            "servers": servers,
+            "final": remoteDetour == nil ? "local" : "remote",
+            "strategy": schemeIPv6(scheme) ? "prefer_ipv4" : "ipv4_only",
             "reverse_mapping": true
         ]
     }
@@ -3065,8 +3132,35 @@ extension ConfigurationGenerator {
 }
 
 extension ConfigurationGenerator {
-    /// One outbound object, shaped the way sing-box's own schema documents and
-    /// Sub-Store's producer emits.
+    /// WireGuard is an endpoint in current sing-box, but its tag remains a
+    /// valid selector/route member. Hiddify retains its separate dialect.
+    private func singBoxWireGuardEndpoint(_ node: ProxyNode) -> [String: Any]? {
+        guard node.kind == .wireguard else { return nil }
+        func prefix(_ value: String?, bits: Int) -> String? {
+            guard let value, !value.isEmpty else { return nil }
+            return value.contains("/") ? value : "\(value)/\(bits)"
+        }
+        var peer: [String: Any] = [
+            "address": node.server,
+            "port": node.port,
+            "public_key": node.wireGuardPublicKey ?? "",
+            "allowed_ips": csv(node.wireGuardAllowedIPs)
+        ]
+        if let value = node.wireGuardPreSharedKey, !value.isEmpty { peer["pre_shared_key"] = value }
+        if let value = wireGuardReservedBytes(node), !value.isEmpty { peer["reserved"] = value }
+        if let value = node.wireGuardPersistentKeepalive { peer["persistent_keepalive_interval"] = value }
+        var endpoint: [String: Any] = [
+            "type": "wireguard",
+            "tag": NodeRegionResolver.displayName(for: node),
+            "address": [prefix(node.wireGuardIPv4, bits: 32), prefix(node.wireGuardIPv6, bits: 128)].compactMap { $0 },
+            "private_key": node.wireGuardPrivateKey ?? "",
+            "peers": [peer]
+        ]
+        if let value = node.wireGuardMTU { endpoint["mtu"] = value }
+        return endpoint
+    }
+
+    /// A protocol outbound; current WireGuard endpoints are emitted separately.
     func singBoxOutbound(_ node: ProxyNode) -> [String: Any]? {
         var outbound: [String: Any] = [
             "tag": NodeRegionResolver.displayName(for: node),
@@ -3156,9 +3250,13 @@ extension ConfigurationGenerator {
         case .snell:
             outbound["type"] = "snell"
             outbound["psk"] = node.password ?? ""
-            // writes(_:to:excluding:) already dropped anything below v4, which
-            // is where sing-box's Snell support starts.
-            outbound["version"] = node.version ?? 4
+            // The v5 wire protocol is v4-compatible except for QUIC, which
+            // sing-box does not implement. Its schema therefore requires 4.
+            outbound["version"] = 4
+            if node.obfs?.lowercased() == "http" {
+                outbound["obfs_mode"] = "http"
+                if let host = node.obfsParam, !host.isEmpty { outbound["obfs_host"] = host }
+            }
         case .socks5:
             outbound["type"] = "socks"
             outbound["version"] = "5"
@@ -3183,7 +3281,7 @@ extension ConfigurationGenerator {
         // SIP003 plugin TLS belongs to the plugin itself. Emitting a second
         // outbound TLS block would turn a valid Shadowsocks + v2ray-plugin
         // node into a different (and invalid) protocol stack.
-        guard node.kind != .shadowsocks else { return nil }
+        guard ![ProxyKind.shadowsocks, .snell, .wireguard].contains(node.kind) else { return nil }
         let alwaysSecure: Set<ProxyKind> = [.trojan, .hysteria, .hysteria2, .tuic, .anytls]
         guard node.tls || alwaysSecure.contains(node.kind) else { return nil }
 
@@ -3271,7 +3369,8 @@ extension ConfigurationGenerator {
             }
             return outbound
         }
-        outbounds += nodes.compactMap(singBoxOutbound)
+        outbounds += nodes.filter { target != .singBox || $0.kind != .wireguard }
+            .compactMap(singBoxOutbound)
 
         // A route-level `action: reject` is sufficient for direct blocking
         // rules, but selectors cannot reference an action. Imported schemes
@@ -3366,11 +3465,12 @@ extension ConfigurationGenerator {
 
         var configuration: [String: Any] = [
             "log": ["level": "warn", "timestamp": true],
-            "dns": singBoxDNS(remoteDetour: remoteDetour),
+            "dns": singBoxDNS(for: scheme, remoteDetour: remoteDetour),
             "inbounds": [[
                 "type": "tun",
                 "tag": "tun-in",
-                "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+                "address": schemeIPv6(scheme)
+                    ? ["172.19.0.1/30", "fdfe:dcba:9876::1/126"] : ["172.19.0.1/30"],
                 "auto_route": true,
                 "strict_route": true,
                 "stack": "mixed"
@@ -3388,12 +3488,21 @@ extension ConfigurationGenerator {
             let httpClientTag = "tower-rule-set"
             var httpClient: [String: Any] = [
                 "tag": httpClientTag,
-                "engine": "go"
+                "engine": "go",
+                // Resolve before the detour: a SOCKS/HTTP peer may have no
+                // working DNS during cold startup. Do not delegate rule host
+                // resolution to that peer or the tunnel's system resolver.
+                "domain_resolver": "local"
             ]
             if let remoteDetour { httpClient["detour"] = remoteDetour }
             configuration["http_clients"] = [httpClient]
             route["default_http_client"] = httpClientTag
             configuration["route"] = route
+        }
+
+        if target == .singBox {
+            let endpoints = nodes.compactMap(singBoxWireGuardEndpoint)
+            if !endpoints.isEmpty { configuration["endpoints"] = endpoints }
         }
 
         guard let data = try? JSONSerialization.data(

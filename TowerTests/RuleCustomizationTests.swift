@@ -1089,6 +1089,71 @@ final class RuleCustomizationTests: XCTestCase {
     }
 
     @MainActor
+    func testUserReorderChangesRulePriorityInEditorExportAndReload() throws {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let model = AppModel(persistence: store, arguments: [])
+        var scheme = makeScheme()
+        // One overlapping suffix makes the rule order observable as routing priority.
+        scheme.rulesets.insert(.init(groupName: "海外媒体", resource: .inline("DOMAIN-SUFFIX,openai.com")), at: 1)
+        scheme.rawConfigurationText = RuleSchemeTextEditorService().editableText(for: scheme)
+        model.setRuleGroupOrder(["漏网之鱼", "海外媒体", "AI 服务", "节点选择", "自动选择"], for: scheme)
+        for current in [model, AppModel(persistence: store, arguments: [])] {
+            let effective = current.customizableScheme(for: scheme)
+            XCTAssertEqual(effective.rulesets.map(\.groupName), ["海外媒体", "海外媒体", "AI 服务", "漏网之鱼"])
+            let editor = RuleSchemeTextEditorService()
+            let text = editor.editableText(for: current.manualConfigurationEditingScheme(for: scheme))
+            let reparsed = try editor.validatedScheme(from: text, replacing: scheme)
+            XCTAssertEqual(reparsed.rulesets, effective.rulesets)
+            for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
+                let generated = ConfigurationGenerator().generate(nodes: nodes, scheme: effective, target: target, preferRuleSets: false).content
+                // Both domains are present; the second occurrence of openai follows netflix
+                // only when the two overseas rules remain together ahead of AI.
+                let netflix = try XCTUnwrap(generated.range(of: "netflix.com"), "\(target)")
+                let lastOpenAI = try XCTUnwrap(generated.range(of: "openai.com", options: .backwards), "\(target)")
+                XCTAssertLessThan(netflix.lowerBound, lastOpenAI.lowerBound, "\(target)")
+            }
+        }
+        try model.renameRuleGroup(named: "海外媒体", to: "视频", for: scheme)
+        XCTAssertEqual(model.customizableScheme(for: scheme).rulesets.first?.groupName, "视频")
+    }
+
+    func testLegacyDisplayOrderKeepsRulePriorityUntilUserReorders() throws {
+        let data = Data(#"{"schemeID":"custom","groupOrder":["海外媒体","AI 服务"],"groupOverrides":{}}"#.utf8)
+        let legacy = try JSONDecoder().decode(RuleSchemeCustomization.self, from: data)
+        let scheme = makeScheme()
+        let customized = scheme.customized(enabledRuleGroupNames: nil, customRuleFlows: [], groupCustomization: legacy)
+        XCTAssertEqual(customized.rulesets, scheme.rulesets)
+        XCTAssertNil(legacy.rulePriorityOrder)
+    }
+
+    @MainActor
+    func testReorderingTwoAddedRuleGroupsSurvivesManualSave() throws {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        let scheme = makeScheme()
+        model.importedSchemes = [scheme]
+        for name in ["First", "Second"] {
+            model.upsertCustomRuleFlow(CustomRuleFlow.userCreatedRuleSet(
+                schemeID: scheme.id, name: name, rulesText: "DOMAIN-SUFFIX,overlap.example",
+                defaultPolicyName: "节点选择"
+            ))
+        }
+        let names = model.customizableRuleGroups(for: scheme).map(\.name)
+        model.setRuleGroupOrder(["Second", "First"] + names.filter { !["First", "Second"].contains($0) }, for: scheme)
+        let editor = RuleSchemeTextEditorService()
+        let text = editor.editableText(for: model.manualConfigurationEditingScheme(for: scheme))
+        let saved = try model.saveManualRuleSchemeConfiguration(text, for: scheme)
+        XCTAssertEqual(Array(saved.rulesets.prefix(2)).map(\.groupName), ["Second", "First"])
+        XCTAssertEqual(saved.rulesets.last?.resource, .inline("FINAL"))
+        let reloaded = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [])
+        let result = reloaded.customizableScheme(for: saved)
+        XCTAssertEqual(result.rulesets, saved.rulesets)
+    }
+
+    @MainActor
     func testAppModelPersistsGroupOrderingAndCandidateOverrides() throws {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-policy-group-customization-\(UUID().uuidString).json")

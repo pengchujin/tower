@@ -883,11 +883,6 @@ final class SubscriptionInteractionTests: XCTestCase {
         )
         XCTAssertFalse(theme.contains("LocalizedStringKey(detail)"))
 
-        let settings = try String(
-            contentsOf: root.appendingPathComponent("Tower/Features/Settings/SettingsView.swift"),
-            encoding: .utf8
-        )
-        XCTAssertTrue(settings.contains("SectionHeading(title: \"配置管理\")"))
         #else
         throw XCTSkip("该测试检查自定义标题组件，只在模拟器构建环境运行")
         #endif

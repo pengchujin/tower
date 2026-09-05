@@ -55,7 +55,7 @@ struct ExportView: View {
                     configurationNameDraft = ConfigurationNameDraft(text: model.configurationName)
                     isSettingsPresented = true
                 } label: {
-                    Text("高级设置")
+                    Text("设置")
                         .font(.body.weight(.semibold))
                 }
                 .accessibilityIdentifier("open-settings")

@@ -31,6 +31,125 @@ final class SingBoxGenerationTests: XCTestCase {
         return try XCTUnwrap(object as? [String: Any])
     }
 
+    func testYAMLNullFlowIsAbsentButQuotedCredentialsSurvive() throws {
+        for rawNull in ["null", "Null", "NULL", "~", ""] {
+            for inline in [false, true] {
+                let fields = ["name: test", "type: vless", "server: example.com", "port: 443",
+                              "uuid: 00000000-0000-4000-8000-000000000001", "flow: \(rawNull)"]
+                let yaml = inline ? "proxies:\n  - { \(fields.joined(separator: ", ")) }"
+                    : "proxies:\n  - \(fields.joined(separator: "\n    "))"
+                let parsed = SubscriptionParser().parse(data: Data(yaml.utf8), sourceID: nil)
+                XCTAssertEqual(parsed.nodes.count, 1)
+                let config = try json(.singBox, nodes: parsed.nodes)
+                let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+                let vless = try XCTUnwrap(outbounds.first { $0["type"] as? String == "vless" })
+                XCTAssertNil(vless["flow"], "YAML value: \(rawNull)")
+            }
+        }
+        for credential in ["'null'", "\"null\"", "'~'"] {
+            let yaml = "proxies:\n  - { name: test, type: trojan, server: example.com, port: 443, password: \(credential) }"
+            let parsed = SubscriptionParser().parse(data: Data(yaml.utf8), sourceID: nil)
+            XCTAssertEqual(parsed.nodes.first?.password, credential.contains("~") ? "~" : "null")
+        }
+    }
+
+    func testOfficialSingBoxSkipsTLSSOCKSWithoutChangingPlainSOCKSOrHTTPS() throws {
+        let nodes = [node(.socks5, name: "TLS SOCKS"), node(.socks5, name: "Plain SOCKS", tls: false), node(.http, name: "HTTPS")]
+        let generated = generator.generate(nodes: nodes, preset: preset, target: .singBox)
+        XCTAssertEqual(generated.supportedNodeCount, 2)
+        XCTAssertEqual(generated.skippedNodeCount, 1)
+        let config = try json(.singBox, nodes: nodes)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        XCTAssertEqual(outbounds.filter { $0["type"] as? String == "socks" }.count, 1)
+        XCTAssertNil(outbounds.first { $0["type"] as? String == "socks" }?["tls"])
+        XCTAssertNotNil(outbounds.first { $0["type"] as? String == "http" }?["tls"])
+        XCTAssertFalse(generated.content.contains("TLS SOCKS"))
+    }
+
+    func testSnellV5UsesV4WireProtocolAndPreservesHTTPObfuscation() throws {
+        var proxy = node(.snell, version: 5)
+        proxy.obfs = "http"
+        proxy.obfsParam = "cdn.example.com"
+        let config = try json(.singBox, nodes: [proxy])
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+        let snell = try XCTUnwrap(outbounds.first { $0["type"] as? String == "snell" })
+        XCTAssertEqual(snell["version"] as? Int, 4)
+        XCTAssertEqual(snell["obfs_mode"] as? String, "http")
+        XCTAssertEqual(snell["obfs_host"] as? String, "cdn.example.com")
+        XCTAssertNil(snell["tls"])
+        proxy.obfs = "tls"
+        XCTAssertEqual(generator.generate(nodes: [proxy], preset: preset, target: .singBox).skippedNodeCount, 1)
+    }
+
+    func testWireGuardEndpointsPreservePeersAndGroupReferencesInBothLayouts() throws {
+        let key = Data((0..<32).map(UInt8.init)).base64EncodedString()
+        let proxy = ProxyNode(kind: .wireguard, name: "WG", server: "wg.example.com", port: 51820,
+                              wireGuardPrivateKey: key, wireGuardPublicKey: key, wireGuardPreSharedKey: key,
+                              wireGuardIPv4: "10.0.0.2", wireGuardIPv6: "fd00::2/128",
+                              wireGuardAllowedIPs: "0.0.0.0/0,::/0", wireGuardReserved: "1,2,3",
+                              wireGuardMTU: 1400, wireGuardPersistentKeepalive: 25, rawURI: "wg://test")
+        let scheme = RuleScheme(id: "wg-test", name: "WG test", summary: "", groups: [
+            RuleSchemeGroup(name: "Proxy", kind: .select, members: [.nodePattern(".*"), .reference("DIRECT")])
+        ], rulesets: [RuleSchemeRuleset(groupName: "Proxy", resource: .inline("FINAL"))])
+        let schemeContent = generator.generate(nodes: [proxy], scheme: scheme, target: .singBox).content
+        let schemeJSON = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(schemeContent.utf8)) as? [String: Any]
+        )
+        let configs = [try json(.singBox, nodes: [proxy]), schemeJSON]
+        for config in configs {
+            let endpoints = try XCTUnwrap(config["endpoints"] as? [[String: Any]])
+            XCTAssertEqual(endpoints.count, 1)
+            let endpoint = try XCTUnwrap(endpoints.first)
+            XCTAssertEqual(endpoint["address"] as? [String], ["10.0.0.2/32", "fd00::2/128"])
+            XCTAssertEqual(endpoint["private_key"] as? String, key)
+            XCTAssertEqual(endpoint["mtu"] as? Int, 1400)
+            let peer = try XCTUnwrap((endpoint["peers"] as? [[String: Any]])?.first)
+            XCTAssertEqual(peer["address"] as? String, proxy.server)
+            XCTAssertEqual(peer["port"] as? Int, 51820)
+            XCTAssertEqual(peer["public_key"] as? String, key)
+            XCTAssertEqual(peer["pre_shared_key"] as? String, key)
+            XCTAssertEqual(peer["allowed_ips"] as? [String], ["0.0.0.0/0", "::/0"])
+            XCTAssertEqual(peer["reserved"] as? [Int], [1, 2, 3])
+            XCTAssertEqual(peer["persistent_keepalive_interval"] as? Int, 25)
+            let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+            XCTAssertFalse(outbounds.contains { $0["type"] as? String == "wireguard" })
+            let tag = try XCTUnwrap(endpoint["tag"] as? String)
+            XCTAssertTrue(outbounds.contains { ($0["outbounds"] as? [String])?.contains(tag) == true })
+        }
+        let hiddify = try json(.hiddify, nodes: [proxy])
+        XCTAssertNil(hiddify["endpoints"])
+        XCTAssertTrue((hiddify["outbounds"] as? [[String: Any]])?.contains { $0["type"] as? String == "wireguard" } == true)
+    }
+
+    func testCustomSchemeDNSIsPreservedWithIndependentBootstrapAndIPv4Only() throws {
+        for target in [ClientTarget.singBox, .hiddify] {
+            let scheme = RuleScheme(id: "dns", name: "DNS", summary: "", groups: [
+                RuleSchemeGroup(name: "Proxy", kind: .select, members: [.nodePattern(".*")])
+            ], rulesets: [.init(groupName: "Proxy", resource: .inline("FINAL"))], networkSettings: .init(
+                ipv6Enabled: false, dnsServers: ["9.9.9.9", "149.112.112.112"],
+                encryptedDNSServers: ["https://dns.quad9.net:8443/custom-dns?key=test", "tls://1.0.0.1:8853", "quic://[2606:4700:4700::1111]:8854"]
+            ))
+            let content = generator.generate(nodes: [node(.trojan)], scheme: scheme, target: target).content
+            let config = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any])
+            let dns = try XCTUnwrap(config["dns"] as? [String: Any])
+            let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
+            XCTAssertEqual(dns["strategy"] as? String, "ipv4_only")
+            let local = try XCTUnwrap(servers.first { $0["tag"] as? String == "local" })
+            XCTAssertEqual(local["server"] as? String, "dns.quad9.net")
+            XCTAssertEqual(local["server_port"] as? Int, 8443)
+            XCTAssertEqual(local["path"] as? String, "/custom-dns?key=test")
+            let bootstrapTag = try XCTUnwrap(local["domain_resolver"] as? String)
+            XCTAssertEqual(servers.first { $0["tag"] as? String == bootstrapTag }?["server"] as? String, "9.9.9.9")
+            XCTAssertTrue(servers.contains { $0["server"] as? String == "149.112.112.112" })
+            XCTAssertTrue(servers.contains { $0["type"] as? String == "tls" && $0["server_port"] as? Int == 8853 })
+            XCTAssertTrue(servers.contains { $0["type"] as? String == "quic" && $0["server"] as? String == "2606:4700:4700::1111" })
+            XCTAssertNil(local["detour"])
+            XCTAssertEqual(servers.first { $0["tag"] as? String == "remote" }?["detour"] as? String, "Proxy")
+            let inbound = try XCTUnwrap((config["inbounds"] as? [[String: Any]])?.first)
+            XCTAssertEqual(inbound["address"] as? [String], ["172.19.0.1/30"])
+        }
+    }
+
     // MARK: - Document shape
 
     func testOutputIsValidJSON() throws {
