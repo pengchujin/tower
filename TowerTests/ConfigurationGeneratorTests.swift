@@ -148,6 +148,8 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let expectations: [ClientTarget: String] = [
             .clash: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .clashApple: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
+            .clashMi: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
+            .karing: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .surge: "AI服务 = select, 🚀 节点选择, ♻️ 自动选择, 🎛️ 手动切换",
             .shadowrocket: "  - name: \"AI服务\"\n    type: select\n    proxies:\n      - \"🚀 节点选择\"\n      - \"♻️ 自动选择\"\n      - \"🎛️ 手动切换\"",
             .loon: "AI服务 = select,🚀 节点选择,♻️ 自动选择,🎛️ 手动切换",
@@ -228,6 +230,14 @@ final class ConfigurationGeneratorTests: XCTestCase {
                 "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
             ],
             .clashApple: [
+                "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
+                "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
+            ],
+            .clashMi: [
+                "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
+                "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
+            ],
+            .karing: [
                 "  - name: \"🇭🇰 香港\"\n    type: select\n    proxies:\n      - \"🇭🇰 香港 · 延迟优选\"\n      - \"Hong Kong\"",
                 "  - name: \"🇭🇰 香港 · 延迟优选\"\n    type: url-test"
             ],

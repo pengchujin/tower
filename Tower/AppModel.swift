@@ -60,6 +60,7 @@ final class AppModel {
     /// A row refresh can overlap a batch entry point. Store the actual source
     /// operation so both callers await one fetch and receive its real result.
     @ObservationIgnored private var sourceRefreshOperations: [UUID: SourceRefreshOperation] = [:]
+    @ObservationIgnored private var sourceUpdates = SourceUpdateCoordinator()
     /// The persistent service credential is deliberately unrelated to every
     /// airport URL. Only this random token appears in LAN sharing links.
     var lanSharingToken = LANSubscriptionAccessTokenStore.loadOrCreate()
@@ -68,12 +69,27 @@ final class AppModel {
     var renewalRemindersEnabled = false
     var isUpdatingRenewalReminders = false
     var clientOrder = ClientTargetOrder.defaultOrder
+    private(set) var visibleClientTargets = Set(ClientTargetOrder.defaultOrder)
+    var visibleClientOrder: [ClientTarget] {
+        clientOrder.filter(visibleClientTargets.contains)
+    }
+    var hiddenClientOrder: [ClientTarget] {
+        clientOrder.filter { !visibleClientTargets.contains($0) }
+    }
+    /// Canonical position among every client, including currently hidden ones.
     var lanSharingOrderIndex = ExportDestinationOrder.defaultLANSharingIndex
-    var exportDestinationOrder: [ExportDestination] {
+    var isLANSharingVisible = true
+    private var fullExportDestinationOrder: [ExportDestination] {
         ExportDestinationOrder.combined(
             clientOrder: clientOrder,
             lanSharingIndex: lanSharingOrderIndex
         )
+    }
+    var exportDestinationOrder: [ExportDestination] {
+        fullExportDestinationOrder.filter(isExportDestinationVisible)
+    }
+    var hiddenExportDestinationOrder: [ExportDestination] {
+        fullExportDestinationOrder.filter { !isExportDestinationVisible($0) }
     }
     var appendSubscriptionNameToNodes = false
     var filterSubscriptionInfoNodes = false
@@ -85,6 +101,9 @@ final class AppModel {
     var configurationName = TowerBrand.localizedName
     var preferRuleSets = false
     private var preferRuleSetsWasExplicitlySet = false
+    /// Off by default because enabling it places credential-bearing airport
+    /// URLs in the profile handed to another app.
+    var embedRemoteSubscriptionLinks = false
     var exportContentModes: [ClientTarget: ExportContentMode] = [:]
     /// Schemes the user imported by URL. The bundled ACL4SSR ones live in the
     /// app bundle and are added by `ruleSchemes`.
@@ -114,7 +133,8 @@ final class AppModel {
     var excludedKinds: [ClientTarget: Set<ProxyKind>] = [:]
 
     private let persistence: PersistenceStore
-    private let cloudSync: CloudSyncStore
+    private let cloudSync: any CloudSnapshotSyncing
+    @ObservationIgnored private var cloudSyncGeneration = UUID()
     /// Off until the user turns it on. Enabling it is the moment subscription
     /// URLs and node passwords first leave the device, so it is never a
     /// default and never silently re-enabled.
@@ -141,6 +161,7 @@ final class AppModel {
     private static let resolutionBatchSize = 8
     private static let resolvedHostCountryCodeTTL: TimeInterval = 24 * 60 * 60
     @ObservationIgnored private var generationCache = ConfigurationCache()
+    @ObservationIgnored private(set) var configurationGenerationCount = 0
 
     private struct SubscriptionRefreshBatch {
         let id: UUID
@@ -182,7 +203,7 @@ final class AppModel {
 
     init(
         persistence: PersistenceStore = PersistenceStore(),
-        cloudSync: CloudSyncStore = CloudSyncStore(),
+        cloudSync: any CloudSnapshotSyncing = CloudSyncStore(),
         subscriptionService: any SubscriptionFetching = SubscriptionService(),
         ruleRepository: RuleRepository = RuleRepository(),
         schemeRepository: RuleSchemeRepository? = nil,
@@ -196,7 +217,20 @@ final class AppModel {
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) {
         self.persistencePolicy = persistencePolicy
+        #if DEBUG
+        // UI tests get a disposable, restartable fixture, never the user's store.
+        if let value = ProcessInfo.processInfo.environment["TOWER_UI_TEST_RUN"], let id = UUID(uuidString: value) {
+            let fixture = PersistenceStore(fileURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("tower-ui-\(id.uuidString).json"))
+            if (try? fixture.load()) == nil { try? fixture.save(Self.demoSnapshot) }
+            self.persistence = fixture
+            self.iCloudSyncEnabled = false
+        } else {
+            self.persistence = persistence
+        }
+        #else
         self.persistence = persistence
+        #endif
         self.cloudSync = cloudSync
         self.subscriptionService = subscriptionService
         self.ruleRepository = ruleRepository
@@ -217,7 +251,7 @@ final class AppModel {
             nodes = demo.nodes
             selectedPresetID = demo.selectedPresetID
             selectedTarget = demo.selectedTarget
-        } else if let snapshot = try? persistence.load() {
+        } else if let snapshot = try? self.persistence.load() {
             apply(snapshot)
         }
 
@@ -1151,6 +1185,12 @@ final class AppModel {
         persist()
     }
 
+    func setEmbedRemoteSubscriptionLinks(_ enabled: Bool) {
+        guard embedRemoteSubscriptionLinks != enabled else { return }
+        embedRemoteSubscriptionLinks = enabled
+        persist()
+    }
+
     func exportContentMode(for target: ClientTarget) -> ExportContentMode {
         let fallback = target.supportedContentModes.first ?? .fullConfiguration
         let saved = exportContentModes[target] ?? fallback
@@ -1385,8 +1425,9 @@ final class AppModel {
     /// Protocols present in the enabled nodes that the client could write, with
     /// how many nodes each covers. Only these are worth offering as a choice.
     func filterableKinds(for target: ClientTarget) -> [(kind: ProxyKind, count: Int)] {
+        let remoteIDs = Set(embeddedRemoteSubscriptions(for: target).map(\.sourceID))
         var counts: [ProxyKind: Int] = [:]
-        for node in enabledNodes where target.supports(node.kind) {
+        for node in enabledNodes where target.supports(node.kind) && node.sourceID.map(remoteIDs.contains) != true {
             counts[node.kind, default: 0] += 1
         }
         return counts
@@ -1570,16 +1611,19 @@ final class AppModel {
         synchronizeReminders: Bool = true,
         commitImmediately: Bool = true
     ) async -> Bool {
+        guard !Task.isCancelled else { return false }
         if let operation = sourceRefreshOperations[id] {
             return await operation.task.value
         }
         guard let source = subscriptions.first(where: { $0.id == id }) else { return false }
 
         let operationID = UUID()
+        let ticket = sourceUpdates.begin(id)
         let task = Task(priority: .userInitiated) { [weak self] in
             guard let self else { return false }
             return await self.performSubscriptionUpdate(
                 source: source,
+                ticket: ticket,
                 showResult: showResult,
                 synchronizeReminders: synchronizeReminders,
                 commitImmediately: commitImmediately
@@ -1595,13 +1639,14 @@ final class AppModel {
 
     private func performSubscriptionUpdate(
         source: SubscriptionSource,
+        ticket: UUID,
         showResult: Bool,
         synchronizeReminders: Bool,
         commitImmediately: Bool
     ) async -> Bool {
         let id = source.id
         refreshingSourceIDs.insert(id)
-        defer { refreshingSourceIDs.remove(id) }
+        defer { finishSourceUpdate(ticket, sourceID: id) }
 
         do {
             let result = try await subscriptionService.fetch(source)
@@ -1610,7 +1655,7 @@ final class AppModel {
             // delete a subscription while they run, so the row is found again
             // before anything is written — and before this source's nodes are
             // replaced, since a deleted source should not get new ones.
-            guard let index = subscriptions.firstIndex(where: { $0.id == id }) else { return false }
+            guard let index = sourceUpdateIndex(source, ticket: ticket) else { return false }
             replaceNodes(ofSource: source.id, with: result.nodes)
             subscriptions[index].lastUpdatedAt = .now
             subscriptions[index].lastError = nil
@@ -1632,7 +1677,7 @@ final class AppModel {
             return true
         } catch {
             if Self.isCancellationError(error) { return false }
-            guard let index = subscriptions.firstIndex(where: { $0.id == id }) else { return false }
+            guard let index = sourceUpdateIndex(source, ticket: ticket) else { return false }
             subscriptions[index].lastError = error.localizedDescription
             if commitImmediately { persist() }
             if showResult {
@@ -1640,6 +1685,20 @@ final class AppModel {
             }
             return false
         }
+    }
+
+    private func sourceUpdateIndex(_ original: SubscriptionSource, ticket: UUID) -> Int? {
+        guard !Task.isCancelled, sourceUpdates.accepts(ticket, for: original.id),
+              let index = subscriptions.firstIndex(where: { $0.id == original.id }),
+              subscriptions[index].urlString == original.urlString,
+              subscriptions[index].requestOptions == original.requestOptions else { return nil }
+        return index
+    }
+
+    private func finishSourceUpdate(_ ticket: UUID, sourceID: UUID) {
+        guard sourceUpdates.accepts(ticket, for: sourceID) else { return }
+        refreshingSourceIDs.remove(sourceID)
+        sourceUpdates.finish(ticket, for: sourceID)
     }
 
     /// Swaps one subscription's nodes for a freshly parsed set.
@@ -1868,6 +1927,7 @@ final class AppModel {
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var updated = subscriptions[index]
+        let original = updated
         updated.name = trimmedName.isEmpty
             ? Self.fallbackSubscriptionName(urlString: trimmedURL, index: index)
             : trimmedName
@@ -1876,19 +1936,33 @@ final class AppModel {
         updated.nameWasAutoGenerated = trimmedName.isEmpty
         updated.lastError = nil
 
-        let requestChanged = source.urlString != trimmedURL || source.requestOptions != updated.requestOptions
+        sourceRefreshOperations.removeValue(forKey: source.id)?.task.cancel()
+        let ticket = sourceUpdates.begin(source.id)
+        defer { finishSourceUpdate(ticket, sourceID: source.id) }
+        let requestChanged = original.urlString != trimmedURL || original.requestOptions != updated.requestOptions
+        var fetched: ImportResult?
         if requestChanged {
             refreshingSourceIDs.insert(source.id)
-            defer { refreshingSourceIDs.remove(source.id) }
-            let result = try await subscriptionService.fetch(updated)
-            replaceNodes(ofSource: source.id, with: result.nodes)
+            let result: ImportResult
+            do {
+                result = try await subscriptionService.fetch(updated)
+            } catch {
+                guard sourceUpdateIndex(original, ticket: ticket) != nil else { return }
+                throw error
+            }
+            fetched = result
             updated.lastUpdatedAt = .now
             updated.usage = result.usage
             if updated.nameWasAutoGenerated == true, let suggestedName = result.suggestedName {
                 updated.name = suggestedName
             }
         }
-        subscriptions[index] = updated
+        guard let currentIndex = sourceUpdateIndex(original, ticket: ticket) else { return }
+        // A checkbox may change while the new URL is downloading.
+        updated.isEnabled = subscriptions[currentIndex].isEnabled
+        if let fetched { replaceNodes(ofSource: source.id, with: fetched.nodes) }
+        subscriptions[currentIndex] = updated
+        sortNodesToMatchSubscriptionOrder()
         persist()
         await synchronizeRenewalReminders(showFailure: false)
         showToast(String(localized: "已更新"), symbol: "checkmark.circle.fill")
@@ -1916,6 +1990,9 @@ final class AppModel {
     }
 
     func deleteSubscription(_ source: SubscriptionSource) {
+        sourceUpdates.invalidate(source.id)
+        sourceRefreshOperations.removeValue(forKey: source.id)?.task.cancel()
+        refreshingSourceIDs.remove(source.id)
         subscriptions.removeAll { $0.id == source.id }
         let removedNodeIDs = Set(nodes.filter { $0.sourceID == source.id }.map(\.id))
         nodes.removeAll { $0.sourceID == source.id }
@@ -1939,6 +2016,11 @@ final class AppModel {
         let savedSourceIDs = Set(subscriptions.map(\.id))
         let selectedSourceIDs = Set(selectedSources.map(\.id)).intersection(savedSourceIDs)
         guard !selectedSourceIDs.isEmpty else { return }
+        for id in selectedSourceIDs {
+            sourceUpdates.invalidate(id)
+            sourceRefreshOperations.removeValue(forKey: id)?.task.cancel()
+            refreshingSourceIDs.remove(id)
+        }
 
         let removedNodeIDs = Set(
             nodes.lazy
@@ -2013,8 +2095,61 @@ final class AppModel {
     }
 
     func selectTarget(_ target: ClientTarget) {
+        visibleClientTargets.insert(target)
         selectedTarget = target
         persist()
+    }
+
+    func setClient(_ target: ClientTarget, isVisible: Bool) {
+        if isVisible {
+            guard visibleClientTargets.insert(target).inserted else { return }
+        } else {
+            guard visibleClientTargets.contains(target), visibleClientTargets.count > 1 else { return }
+            visibleClientTargets.remove(target)
+            if selectedTarget == target,
+               let fallback = clientOrder.first(where: visibleClientTargets.contains) {
+                selectedTarget = fallback
+            }
+        }
+        persist()
+    }
+
+    func setExportDestination(_ destination: ExportDestination, isVisible: Bool) {
+        switch destination {
+        case .client(let target):
+            setClient(target, isVisible: isVisible)
+        case .lanSharing:
+            guard isLANSharingVisible != isVisible else { return }
+            isLANSharingVisible = isVisible
+            if !isVisible, isLANSharingActive {
+                stopLANSharing()
+            }
+            persist()
+        }
+    }
+
+    func canHideExportDestination(_ destination: ExportDestination) -> Bool {
+        switch destination {
+        case .client:
+            visibleClientTargets.count > 1
+        case .lanSharing:
+            true
+        }
+    }
+
+    func moveVisibleClients(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var reorderedVisibleClients = visibleClientOrder
+        let movingClients = source.sorted().map { reorderedVisibleClients[$0] }
+        for index in source.sorted(by: >) {
+            reorderedVisibleClients.remove(at: index)
+        }
+        let removedBeforeDestination = source.filter { $0 < destination }.count
+        let insertionIndex = min(
+            max(destination - removedBeforeDestination, 0),
+            reorderedVisibleClients.endIndex
+        )
+        reorderedVisibleClients.insert(contentsOf: movingClients, at: insertionIndex)
+        applyVisibleClientOrder(reorderedVisibleClients)
     }
 
     func moveClient(_ source: ClientTarget, before destination: ClientTarget) {
@@ -2085,19 +2220,63 @@ final class AppModel {
         applyExportDestinationOrder(reordered)
     }
 
-    private func applyExportDestinationOrder(_ destinations: [ExportDestination]) {
-        let reorderedClients = destinations.compactMap(\.clientTarget)
-        guard reorderedClients.count == clientOrder.count,
-              Set(reorderedClients) == Set(clientOrder),
-              destinations.filter({ $0 == .lanSharing }).count == 1,
-              let reorderedLANIndex = destinations.firstIndex(of: .lanSharing),
-              reorderedClients != clientOrder || reorderedLANIndex != lanSharingOrderIndex else {
-            return
-        }
+    /// Commits a complete visible destination order in one persistence write.
+    /// Drag interactions keep a local draft while the pointer moves and call
+    /// this only after the user drops, so observation and disk work never sit
+    /// on the gesture's hot path.
+    func setExportDestinationOrder(_ destinations: [ExportDestination]) {
+        applyExportDestinationOrder(destinations)
+    }
 
-        clientOrder = reorderedClients
-        lanSharingOrderIndex = reorderedLANIndex
+    private func applyExportDestinationOrder(_ destinations: [ExportDestination]) {
+        let currentVisibleOrder = exportDestinationOrder
+        guard destinations.count == currentVisibleOrder.count,
+              Set(destinations) == Set(currentVisibleOrder),
+              destinations != currentVisibleOrder else { return }
+
+        var reorderedIterator = destinations.makeIterator()
+        let reorderedFullOrder = fullExportDestinationOrder.map { destination in
+            isExportDestinationVisible(destination)
+                ? (reorderedIterator.next() ?? destination)
+                : destination
+        }
+        clientOrder = reorderedFullOrder.compactMap(\.clientTarget)
+        lanSharingOrderIndex = reorderedFullOrder.firstIndex(of: .lanSharing)
+            ?? ExportDestinationOrder.defaultLANSharingIndex
         persist()
+    }
+
+    private func applyVisibleClientOrder(_ reorderedClients: [ClientTarget]) {
+        guard reorderedClients.count == visibleClientTargets.count,
+              Set(reorderedClients) == visibleClientTargets,
+              reorderedClients != visibleClientOrder else { return }
+        replaceVisibleClientOrder(with: reorderedClients)
+        persist()
+    }
+
+    private func replaceVisibleClientOrder(with reorderedClients: [ClientTarget]) {
+        var iterator = reorderedClients.makeIterator()
+        clientOrder = clientOrder.map { target in
+            visibleClientTargets.contains(target) ? (iterator.next() ?? target) : target
+        }
+    }
+
+    private func isExportDestinationVisible(_ destination: ExportDestination) -> Bool {
+        switch destination {
+        case .client(let target):
+            visibleClientTargets.contains(target)
+        case .lanSharing:
+            isLANSharingVisible
+        }
+    }
+
+    func embeddedRemoteSubscriptions(for target: ClientTarget, contentMode: ExportContentMode? = nil) -> [RemoteSubscriptionLink] {
+        guard embedRemoteSubscriptionLinks, target.supportsEmbeddedRemoteSubscriptions,
+              (contentMode ?? exportContentMode(for: target)) == .fullConfiguration else { return [] }
+        return subscriptions.filter(\.isEnabled).filter { source in
+            guard let url = URL(string: source.urlString), let scheme = url.scheme?.lowercased() else { return false }
+            return ["http", "https"].contains(scheme) && url.host != nil
+        }.map(RemoteSubscriptionLink.init(source:))
     }
 
     func configuration(
@@ -2132,6 +2311,7 @@ final class AppModel {
                 contentMode: .nodesOnly
             )
             if let cached = generationCache[key] { return cached.named(configurationName) }
+            configurationGenerationCount += 1
             let generated = ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
                 nodes: currentNodes,
                 target: resolvedTarget,
@@ -2150,6 +2330,8 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue
         let scheme = selectedScheme.map(effectiveScheme)
+        let remoteSubscriptions = embeddedRemoteSubscriptions(for: resolvedTarget, contentMode: resolvedMode)
+        let remoteSubscriptionsHash = remoteSubscriptions.hashValue
         let key = GenerationCacheKey(
             target: resolvedTarget,
             presetID: scheme?.id ?? selectedPreset.id,
@@ -2160,9 +2342,11 @@ final class AppModel {
             // configuration for that client.
             excludedHash: excludedHash,
             preferRuleSets: preferRuleSets,
+            remoteSubscriptionsHash: remoteSubscriptionsHash,
             contentMode: .fullConfiguration
         )
         if let cached = generationCache[key] { return cached.named(configurationName) }
+        configurationGenerationCount += 1
 
         let generator = ConfigurationGenerator(rules: ruleRepository)
         let generated: GeneratedConfiguration
@@ -2174,6 +2358,7 @@ final class AppModel {
                 schemes: schemeRepository,
                 excludedKinds: excluded,
                 preferRuleSets: preferRuleSets,
+                remoteSubscriptions: remoteSubscriptions,
                 supportedKindsOverride: supportedKindsOverride
             )
         } else {
@@ -2183,6 +2368,7 @@ final class AppModel {
                 target: resolvedTarget,
                 countryCodes: currentCountryCodes,
                 excludedKinds: excluded,
+                remoteSubscriptions: remoteSubscriptions,
                 supportedKindsOverride: supportedKindsOverride
             )
         }
@@ -2192,12 +2378,16 @@ final class AppModel {
 
     var isLANSharingActive: Bool { lanSharingURL != nil }
 
+    var hasExportableSources: Bool {
+        !enabledNodes.isEmpty || !embeddedRemoteSubscriptions(for: .clash, contentMode: .fullConfiguration).isEmpty
+    }
+
     /// Starts a foreground LAN endpoint. iOS may suspend all networking after
     /// Tower leaves the foreground, so the export destination card communicates
     /// that Tower must remain open while a desktop client refreshes.
     func startLANSharing() async {
         guard !isLANSharingStarting, !isLANSharingActive else { return }
-        guard !enabledNodes.isEmpty else {
+        guard hasExportableSources else {
             showToast(String(localized: "请先添加一个可用节点"), symbol: "exclamationmark.triangle.fill")
             return
         }
@@ -2224,7 +2414,14 @@ final class AppModel {
         lanSubscriptionServer = server
 
         do {
-            lanSharingURL = try await server.start()
+            let startedURL = try await server.start()
+            guard isLANSharingVisible else {
+                server.stop()
+                lanSubscriptionServer = nil
+                lanSharingURL = nil
+                return
+            }
+            lanSharingURL = startedURL
             showToast(String(localized: "局域网订阅已开启"), symbol: "wifi.circle.fill")
         } catch {
             server.stop()
@@ -2438,6 +2635,7 @@ final class AppModel {
     /// migration.
     func setICloudSyncEnabled(_ enabled: Bool) async {
         guard enabled != iCloudSyncEnabled else { return }
+        cloudSyncGeneration = UUID()
 
         if enabled {
             guard cloudSync.isAccountAvailable else {
@@ -2476,8 +2674,19 @@ final class AppModel {
     /// Pulls whichever copy is newer, then makes sure iCloud holds it.
     func synchronizeWithCloud(showResult: Bool = false) async {
         guard iCloudSyncEnabled, !isDemoMode, !isCloudSyncing else { return }
+        let generation = cloudSyncGeneration
+        var synchronizedEditAt = lastLocalEditAt
         isCloudSyncing = true
-        defer { isCloudSyncing = false }
+        defer {
+            isCloudSyncing = false
+            if iCloudSyncEnabled, generation != cloudSyncGeneration {
+                // A new enable action arrived while the old download owned
+                // the sync slot. Retry under the new authorization generation.
+                Task { [weak self] in await self?.synchronizeWithCloud() }
+            } else if iCloudSyncEnabled, lastLocalEditAt != synchronizedEditAt {
+                scheduleCloudUpload(currentSnapshot(updatedAt: lastLocalEditAt ?? .distantPast))
+            }
+        }
 
         // A debounced edit may still be waiting to upload. The explicit sync
         // below is authoritative and already carries the latest in-memory
@@ -2486,15 +2695,19 @@ final class AppModel {
         cloudUploadTask?.cancel()
         cloudUploadTask = nil
 
-        let local = currentSnapshot(updatedAt: lastLocalEditAt ?? .distantPast)
         do {
             let remote = try await cloudSync.download()
+            guard !Task.isCancelled, iCloudSyncEnabled, cloudSyncGeneration == generation else { return }
+            // Downloading suspends the actor. Compare against the current
+            // edits, not the snapshot from before the network request.
+            let local = currentSnapshot(updatedAt: lastLocalEditAt ?? .distantPast)
             switch CloudSyncResolution.resolve(local: local.updatedAt, remote: remote?.updatedAt) {
             case .takeRemote:
                 if let remote {
                     discardPendingLocalWrite()
                     apply(remote)
                     lastLocalEditAt = remote.updatedAt
+                    synchronizedEditAt = remote.updatedAt
                     try persistence.save(remote)
                     if showResult {
                         showToast(String(localized: "已从 iCloud 取回配置"), symbol: "icloud.and.arrow.down")
@@ -2502,13 +2715,15 @@ final class AppModel {
                 }
             case .keepLocal:
                 try await cloudSync.upload(local)
+                guard !Task.isCancelled, iCloudSyncEnabled, cloudSyncGeneration == generation else { return }
+                synchronizedEditAt = local.updatedAt
                 if showResult {
                     showToast(String(localized: "已同步到 iCloud"), symbol: "icloud.and.arrow.up")
                 }
             }
             lastCloudSyncAt = .now
         } catch {
-            if showResult {
+            if showResult, !Self.isCancellationError(error), iCloudSyncEnabled, cloudSyncGeneration == generation {
                 showToast(error.localizedDescription, symbol: "exclamationmark.icloud.fill")
             }
         }
@@ -2523,11 +2738,14 @@ final class AppModel {
     /// Uploads after edits settle, so a burst of changes costs one write.
     private func scheduleCloudUpload(_ snapshot: AppSnapshot) {
         lastLocalEditAt = snapshot.updatedAt
-        guard iCloudSyncEnabled else { return }
+        guard iCloudSyncEnabled, !isCloudSyncing else { return }
         cloudUploadTask?.cancel()
         cloudUploadTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, let self else { return }
+            guard !Task.isCancelled, let self, self.iCloudSyncEnabled else { return }
+            // A foreground sync owns the download/compare/upload transaction.
+            // It will pick up edits made during its download itself.
+            guard !self.isCloudSyncing else { return }
             do {
                 try await self.cloudSync.upload(snapshot)
                 self.lastCloudSyncAt = .now
@@ -2544,6 +2762,12 @@ final class AppModel {
     /// Shared by launch and by an iCloud pull so a synced snapshot cannot be
     /// applied differently from a local one.
     private func apply(_ snapshot: AppSnapshot) {
+        subscriptionRefreshBatch?.task.cancel()
+        subscriptionRefreshBatch = nil
+        sourceUpdates.invalidateAll()
+        for operation in sourceRefreshOperations.values { operation.task.cancel() }
+        sourceRefreshOperations.removeAll()
+        refreshingSourceIDs.removeAll()
         schemeRuleCountCache.removeAll(keepingCapacity: true)
         invalidateRuleSchemePresentationCaches()
         // The moment this snapshot's edits became current. Without it a launch
@@ -2583,15 +2807,30 @@ final class AppModel {
             rawValues: snapshot.clientOrder,
             savedMigrationVersion: snapshot.clientOrderMigrationVersion
         )
+        visibleClientTargets = ClientTargetVisibility.normalized(
+            rawValues: snapshot.visibleClientTargets,
+            clientOrder: clientOrder
+        )
+        isLANSharingVisible = snapshot.isLANSharingVisible ?? true
         let usedPreviousOfficialOrder = snapshot.clientOrder == nil
             || ClientTargetOrder.matchesPreviousDefault(rawValues: snapshot.clientOrder)
-        if usedPreviousOfficialOrder,
-           snapshot.lanSharingOrderIndex == ExportDestinationOrder.previousDefaultLANSharingIndex {
-            lanSharingOrderIndex = ExportDestinationOrder.defaultLANSharingIndex
-        } else {
+        if let fullOrderIndex = snapshot.lanSharingFullOrderIndex {
             lanSharingOrderIndex = ExportDestinationOrder.normalizedLANSharingIndex(
-                snapshot.lanSharingOrderIndex,
+                fullOrderIndex,
                 clientCount: clientOrder.count
+            )
+        } else {
+            let legacyVisibleIndex: Int?
+            if usedPreviousOfficialOrder,
+               snapshot.lanSharingOrderIndex == ExportDestinationOrder.previousDefaultLANSharingIndex {
+                legacyVisibleIndex = ExportDestinationOrder.defaultLANSharingIndex
+            } else {
+                legacyVisibleIndex = snapshot.lanSharingOrderIndex
+            }
+            lanSharingOrderIndex = ExportDestinationOrder.fullLANSharingIndex(
+                legacyVisibleIndex: legacyVisibleIndex,
+                clientOrder: clientOrder,
+                visibleClientTargets: visibleClientTargets
             )
         }
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
@@ -2603,6 +2842,7 @@ final class AppModel {
         preferRuleSets = ruleSetPreferenceWasExplicit
             ? (snapshot.preferRuleSets ?? false)
             : false
+        embedRemoteSubscriptionLinks = snapshot.embedRemoteSubscriptionLinks ?? false
         exportContentModes = Self.decodeExportContentModes(snapshot.exportContentModes)
         resolvedHostCountryCodes = snapshot.resolvedHostCountryCodes ?? [:]
         resolvedHostCountryCodeUpdatedAt = snapshot.resolvedHostCountryCodeUpdatedAt ?? [:]
@@ -2618,6 +2858,10 @@ final class AppModel {
         }
         selectedPresetID = snapshot.selectedPresetID
         selectedTarget = snapshot.selectedTarget
+        if !visibleClientTargets.contains(selectedTarget),
+           let fallback = visibleClientOrder.first {
+            selectedTarget = fallback
+        }
     }
 
     /// Catalog rules briefly reused broad upstream groups such as `AI 服务`,
@@ -2693,13 +2937,23 @@ final class AppModel {
             renewalRemindersEnabled: renewalRemindersEnabled,
             clientOrder: clientOrder.map(\.rawValue),
             clientOrderMigrationVersion: ClientTargetOrder.currentMigrationVersion,
-            lanSharingOrderIndex: lanSharingOrderIndex,
+            lanSharingOrderIndex: ExportDestinationOrder.visibleLANSharingIndex(
+                fullIndex: lanSharingOrderIndex,
+                clientOrder: clientOrder,
+                visibleClientTargets: visibleClientTargets
+            ),
+            lanSharingFullOrderIndex: lanSharingOrderIndex,
+            visibleClientTargets: visibleClientTargets.count == clientOrder.count
+                ? nil
+                : visibleClientOrder.map(\.rawValue),
+            isLANSharingVisible: isLANSharingVisible ? nil : false,
             appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
             filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
             autoRefreshOnOpen: autoRefreshOnOpen,
             configurationName: configurationName,
             preferRuleSets: preferRuleSets,
             preferRuleSetsWasExplicitlySet: preferRuleSetsWasExplicitlySet,
+            embedRemoteSubscriptionLinks: embedRemoteSubscriptionLinks,
             exportContentModes: Self.encodeExportContentModes(exportContentModes),
             // Pruned to the hosts still in use so a long-lived install does not
             // carry every server it has ever seen in its snapshot.
@@ -2932,119 +3186,6 @@ final class AppModel {
     }
 }
 
-struct GenerationCacheKey: Hashable {
-    let target: ClientTarget
-    let presetID: String
-    let nodesHash: Int
-    let countryCodesHash: Int
-    let rulesHash: Int
-    let excludedHash: Int
-    let preferRuleSets: Bool
-    /// A node subscription and a complete profile are different documents built
-    /// from the same nodes, so they need separate entries rather than one
-    /// overwriting the other.
-    let contentMode: ExportContentMode
-
-    init(
-        target: ClientTarget,
-        presetID: String,
-        nodesHash: Int,
-        countryCodesHash: Int,
-        rulesHash: Int = 0,
-        excludedHash: Int = 0,
-        preferRuleSets: Bool = true,
-        contentMode: ExportContentMode = .fullConfiguration
-    ) {
-        self.target = target
-        self.presetID = presetID
-        self.nodesHash = nodesHash
-        self.countryCodesHash = countryCodesHash
-        self.rulesHash = rulesHash
-        self.excludedHash = excludedHash
-        self.preferRuleSets = preferRuleSets
-        self.contentMode = contentMode
-    }
-
-    /// What makes a previously generated profile obsolete.
-    fileprivate var signature: GenerationCacheSignature {
-        GenerationCacheSignature(
-            presetID: presetID,
-            nodesHash: nodesHash,
-            countryCodesHash: countryCodesHash,
-            rulesHash: rulesHash
-        )
-    }
-
-    /// The same, for node subscriptions. They contain no rules, so nothing
-    /// about the selected scheme belongs here.
-    fileprivate var nodeSubscriptionSignature: NodeSubscriptionSignature {
-        NodeSubscriptionSignature(
-            nodesHash: nodesHash,
-            countryCodesHash: countryCodesHash
-        )
-    }
-}
-
-private struct GenerationCacheSignature: Hashable {
-    let presetID: String
-    let nodesHash: Int
-    let countryCodesHash: Int
-    let rulesHash: Int
-}
-
-private struct NodeSubscriptionSignature: Hashable {
-    let nodesHash: Int
-    let countryCodesHash: Int
-}
-
-struct ConfigurationCache {
-    /// Complete client profiles. One of these can be several hundred kilobytes,
-    /// so a superseded generation is dropped as soon as the nodes or the rules
-    /// change rather than accumulating one copy per client.
-    private var profiles: [GenerationCacheKey: GeneratedConfiguration] = [:]
-    private var profileSignature: GenerationCacheSignature?
-
-    /// Node subscriptions, held apart from the profiles.
-    ///
-    /// They are built from the nodes alone and name no scheme, so sharing one
-    /// signature with the profiles made the two evict each other every time the
-    /// user switched between 完整配置 and 仅节点 — which is exactly the switch
-    /// this cache exists to make cheap.
-    private var nodeSubscriptions: [GenerationCacheKey: GeneratedConfiguration] = [:]
-    private var nodeSubscriptionSignature: NodeSubscriptionSignature?
-
-    var count: Int { profiles.count + nodeSubscriptions.count }
-
-    subscript(key: GenerationCacheKey) -> GeneratedConfiguration? {
-        get {
-            key.contentMode == .nodesOnly ? nodeSubscriptions[key] : profiles[key]
-        }
-        set {
-            if key.contentMode == .nodesOnly {
-                guard let newValue else {
-                    nodeSubscriptions[key] = nil
-                    return
-                }
-                if nodeSubscriptionSignature != key.nodeSubscriptionSignature {
-                    nodeSubscriptions.removeAll(keepingCapacity: true)
-                    nodeSubscriptionSignature = key.nodeSubscriptionSignature
-                }
-                nodeSubscriptions[key] = newValue
-                return
-            }
-
-            guard let newValue else {
-                profiles[key] = nil
-                return
-            }
-            if profileSignature != key.signature {
-                profiles.removeAll(keepingCapacity: true)
-                profileSignature = key.signature
-            }
-            profiles[key] = newValue
-        }
-    }
-}
 
 enum ToastTone: Equatable {
     case neutral

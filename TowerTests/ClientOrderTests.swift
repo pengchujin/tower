@@ -24,6 +24,8 @@ final class ClientOrderTests: XCTestCase {
             .client(.singBox),
             .client(.hiddify),
             .client(.egern),
+            .client(.clashMi),
+            .client(.karing),
         ])
     }
 
@@ -76,7 +78,10 @@ final class ClientOrderTests: XCTestCase {
         let order = ClientTargetOrder.normalized(rawValues: customOrder)
 
         XCTAssertEqual(order[7], .singBox)
-        XCTAssertEqual(order.filter { $0 != .singBox }.map(\.rawValue), customOrder)
+        XCTAssertEqual(
+            order.filter { $0 != .singBox }.map(\.rawValue),
+            customOrder + ["clash-mi", "karing"]
+        )
     }
 
     func testCurrentExplicitSingBoxPositionIsPreserved() {
@@ -95,7 +100,7 @@ final class ClientOrderTests: XCTestCase {
 
         XCTAssertEqual(
             ClientTargetOrder.normalized(rawValues: customOrder).map(\.rawValue),
-            customOrder
+            customOrder + ["clash-mi", "karing"]
         )
     }
 
@@ -112,7 +117,7 @@ final class ClientOrderTests: XCTestCase {
         XCTAssertEqual(migrated[4], .singBox)
         XCTAssertEqual(
             migrated.filter { $0 != .singBox }.map(\.rawValue),
-            customOrder.filter { $0 != "sing-box" }
+            customOrder.filter { $0 != "sing-box" } + ["clash-mi", "karing"]
         )
     }
 
@@ -196,7 +201,10 @@ final class ClientOrderTests: XCTestCase {
         let model = AppModel(persistence: store, arguments: [])
 
         XCTAssertEqual(model.exportDestinationOrder[2], .lanSharing)
-        XCTAssertEqual(model.clientOrder.map(\.rawValue), customOrder)
+        XCTAssertEqual(
+            model.clientOrder.map(\.rawValue),
+            customOrder + ["clash-mi", "karing"]
+        )
     }
 
     func testPreviousOfficialExportOrderMigratesAsOneSequence() throws {
@@ -231,6 +239,8 @@ final class ClientOrderTests: XCTestCase {
             .client(.singBox),
             .client(.hiddify),
             .client(.egern),
+            .client(.clashMi),
+            .client(.karing),
         ])
     }
 
@@ -283,11 +293,36 @@ final class ClientOrderTests: XCTestCase {
             .client(.shadowrocket),
         ])
 
-        model.moveExportDestination(.lanSharing, across: .client(.egern))
+        model.moveExportDestination(.lanSharing, across: .client(.karing))
         XCTAssertEqual(model.exportDestinationOrder.last, .lanSharing)
         XCTAssertEqual(
             AppModel(persistence: store, arguments: []).exportDestinationOrder.last,
             .lanSharing
+        )
+    }
+
+    func testCompleteDestinationOrderCommitPlacesLastCardInAnExactMiddleSlot() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-export-order-exact-slot-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let model = AppModel(persistence: store, arguments: [])
+        let source = ExportDestination.client(.karing)
+        let reordered = ReorderPlanner.moving(
+            model.exportDestinationOrder,
+            identifiedBy: \.id,
+            sourceID: source.id,
+            toInsertionIndex: 1
+        )
+
+        model.setExportDestinationOrder(reordered)
+
+        XCTAssertEqual(model.exportDestinationOrder[0], .client(.shadowrocket))
+        XCTAssertEqual(model.exportDestinationOrder[1], source)
+        XCTAssertEqual(model.exportDestinationOrder[2], .client(.clash))
+        XCTAssertEqual(
+            AppModel(persistence: store, arguments: []).exportDestinationOrder,
+            reordered
         )
     }
 

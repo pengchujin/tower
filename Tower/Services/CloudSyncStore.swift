@@ -1,5 +1,12 @@
 import Foundation
 
+protocol CloudSnapshotSyncing: Sendable {
+    var isAccountAvailable: Bool { get }
+    func download() async throws -> AppSnapshot?
+    func upload(_ snapshot: AppSnapshot) async throws
+    func removeRemoteSnapshot() async throws
+}
+
 enum CloudSyncError: LocalizedError, Equatable {
     case unavailable
     case noRemoteSnapshot
@@ -24,7 +31,7 @@ enum CloudSyncError: LocalizedError, Equatable {
 /// Everything here is deliberately explicit rather than automatic. Sync is off
 /// until the user turns it on, and turning it on is the moment their
 /// subscription URLs and node passwords first leave the device.
-actor CloudSyncStore {
+actor CloudSyncStore: CloudSnapshotSyncing {
     static let containerIdentifier = "iCloud.com.jzb.tower"
     private static let fileName = "state.json"
 

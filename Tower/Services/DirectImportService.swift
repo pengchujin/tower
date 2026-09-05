@@ -38,6 +38,15 @@ struct ClientImportURLBuilder {
             value = "stash://install-config?url=\(encodedURL)"
         case .clashApple:
             value = "clashmeta://install-config?url=\(encodedURL)"
+        case .clashMi:
+            // Clash Mi registers its own scheme alongside the generic clash
+            // route. Supplying the stable Tower URL makes its URL-derived
+            // profile id update in place on later imports.
+            value = "clashmi://install-config?url=\(encodedURL)&name=\(encodedName)"
+        case .karing:
+            // Karing's published integration route accepts a complete Clash
+            // configuration URL and an optional display name.
+            value = "karing://install-config?url=\(encodedURL)&name=\(encodedName)"
         case .shadowrocket:
             value = contentMode == .nodesOnly
                 ? "shadowrocket://add/\(configurationURL.absoluteString)#\(displayName)"

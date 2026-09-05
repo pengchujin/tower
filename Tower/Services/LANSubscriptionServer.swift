@@ -70,7 +70,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     var displayName: String {
         switch self {
-        case .clash: "Clash / OpenClash / Nikki / Stash"
+        case .clash: "Clash / Clash Mi / Karing / OpenClash / Nikki / Stash"
         case .surge: "Surge"
         case .surfboard: "Surfboard"
         case .shadowrocket: "Shadowrocket"
@@ -114,7 +114,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     init?(target: ClientTarget) {
         switch target {
-        case .clash, .clashApple: self = .clash
+        case .clash, .clashApple, .clashMi, .karing: self = .clash
         case .surge: self = .surge
         case .shadowrocket: self = .shadowrocket
         case .loon: self = .loon
@@ -148,6 +148,7 @@ enum LANSubscriptionTargetResolver {
         if agent.contains("quantumult") || agent.contains("quanx") { return .quanx }
         if agent.contains("hiddify") { return .hiddify }
         if agent.contains("sing-box") || agent.contains("singbox") { return .singBox }
+        if agent.contains("karing") { return .clash }
         if agent.contains("openclash") || agent.contains("nikki") || agent.contains("clash") || agent.contains("mihomo") || agent.contains("stash") { return .clash }
         if agent.contains("surfboard") { return .surfboard }
         if agent.contains("surge") { return .surge }
@@ -163,6 +164,9 @@ enum LANSubscriptionTargetResolver {
 
     private static let explicitFormats: [String: LANSubscriptionFormat] = [
         "clash": .clash,
+        "clash-mi": .clash,
+        "clashmi": .clash,
+        "karing": .clash,
         "openclash": .clash,
         "nikki": .clash,
         "mihomo": .clash,

@@ -23,7 +23,7 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), content)
     }
 
-    func testStashAndClashUseVerifiedMRSWithoutDroppingResidualRules() throws {
+    func testStashClashAndClashMiUseVerifiedMRSWithoutDroppingResidualRules() throws {
         let domainURL = URL(string: "https://rules.example.com/Streaming_domain.mrs")!
         let ipURL = URL(string: "https://rules.example.com/Streaming_ip.mrs")!
         let fixture = try makeFixture(
@@ -41,7 +41,7 @@ final class RuleSetGenerationTests: XCTestCase {
             ]
         )
 
-        for target in [ClientTarget.clash, .clashApple] {
+        for target in [ClientTarget.clash, .clashApple, .clashMi] {
             let content = fixture.generator.generate(
                 nodes: [],
                 scheme: fixture.scheme,
@@ -75,6 +75,18 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertFalse(shadowrocket.contains(domainURL.absoluteString), shadowrocket)
         XCTAssertFalse(shadowrocket.contains(ipURL.absoluteString), shadowrocket)
         XCTAssertTrue(shadowrocket.contains(url.absoluteString), shadowrocket)
+
+        let karing = fixture.generator.generate(
+            nodes: [],
+            scheme: fixture.scheme,
+            target: .karing,
+            schemes: fixture.repository,
+            preferRuleSets: true
+        ).content
+        XCTAssertFalse(karing.contains("format: mrs"), karing)
+        XCTAssertFalse(karing.contains(domainURL.absoluteString), karing)
+        XCTAssertFalse(karing.contains(ipURL.absoluteString), karing)
+        XCTAssertTrue(karing.contains(url.absoluteString), karing)
 
         let inline = fixture.generator.generate(
             nodes: [],
@@ -209,7 +221,7 @@ final class RuleSetGenerationTests: XCTestCase {
         )
         let generator = ConfigurationGenerator()
 
-        for target in [ClientTarget.clash, .clashApple] {
+        for target in [ClientTarget.clash, .clashApple, .clashMi] {
             let content = generator.generate(
                 nodes: [],
                 scheme: scheme,
@@ -346,7 +358,7 @@ final class RuleSetGenerationTests: XCTestCase {
     func testClashKeepsGeoSiteClassicalRuleProviderWhenEnabled() throws {
         let fixture = try makeFixture(content: "GEOSITE,CN")
 
-        for target in [ClientTarget.clash, .clashApple] {
+        for target in [ClientTarget.clash, .clashApple, .clashMi, .karing] {
             let content = fixture.generator.generate(
                 nodes: [],
                 scheme: fixture.scheme,
@@ -757,7 +769,7 @@ final class RuleSetGenerationTests: XCTestCase {
             ).content
 
             switch target {
-            case .clash, .clashApple, .surge, .shadowrocket, .loon:
+            case .clash, .clashApple, .clashMi, .karing, .surge, .shadowrocket, .loon:
                 XCTAssertTrue(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), "\(target.name): \(content)")
             case .quanx:
                 XCTAssertTrue(content.contains("host-suffix, example.com, Proxy"), content)

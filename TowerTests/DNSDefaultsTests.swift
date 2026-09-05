@@ -215,19 +215,23 @@ final class DNSDefaultsTests: XCTestCase {
         )
     }
 
-    func testStrictProtectionAddsMihomoTUNInterceptionOnlyToClashTarget() {
+    func testStrictProtectionAddsMihomoTUNInterceptionOnlyToNativeMihomoTargets() {
         let scheme = makeScheme(dnsProtectionMode: .strict)
-        let clash = generatedScheme(scheme, target: .clashApple)
 
-        XCTAssertTrue(clash.contains("tun:\n"), clash)
-        XCTAssertTrue(clash.contains("dns-hijack:\n"), clash)
-        XCTAssertTrue(clash.contains("- any:53"), clash)
-        XCTAssertTrue(clash.contains("- tcp://any:53"), clash)
-        XCTAssertTrue(clash.contains("strict-route: true"), clash)
+        for target in [ClientTarget.clashApple, .clashMi] {
+            let content = generatedScheme(scheme, target: target)
+            XCTAssertTrue(content.contains("tun:\n"), content)
+            XCTAssertTrue(content.contains("dns-hijack:\n"), content)
+            XCTAssertTrue(content.contains("- any:53"), content)
+            XCTAssertTrue(content.contains("- tcp://any:53"), content)
+            XCTAssertTrue(content.contains("strict-route: true"), content)
+        }
 
-        let stash = generatedScheme(scheme, target: .clash)
-        XCTAssertFalse(stash.contains("tun:\n"), stash)
-        XCTAssertFalse(stash.contains("strict-route: true"), stash)
+        for target in [ClientTarget.clash, .karing] {
+            let content = generatedScheme(scheme, target: target)
+            XCTAssertFalse(content.contains("tun:\n"), content)
+            XCTAssertFalse(content.contains("strict-route: true"), content)
+        }
     }
 
     func testStandardProtectionKeepsCurrentClashAndSurgeBehavior() {

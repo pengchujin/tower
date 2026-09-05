@@ -34,6 +34,54 @@ final class DirectImportServiceTests: XCTestCase {
         XCTAssertEqual(components.queryItems, [URLQueryItem(name: "url", value: localURL.absoluteString)])
     }
 
+    func testClashMiAndKaringUseTheirDocumentedNamedInstallRoutes() throws {
+        let expectedSchemes: [ClientTarget: String] = [
+            .clashMi: "clashmi",
+            .karing: "karing"
+        ]
+
+        for (target, scheme) in expectedSchemes {
+            let url = try ClientImportURLBuilder.make(
+                target: target,
+                configurationURL: localURL,
+                displayName: "塔台 配置"
+            )
+            let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+
+            XCTAssertEqual(components.scheme, scheme, target.name)
+            XCTAssertEqual(components.host, "install-config", target.name)
+            XCTAssertEqual(
+                components.queryItems?.first(where: { $0.name == "url" })?.value,
+                localURL.absoluteString,
+                target.name
+            )
+            XCTAssertEqual(
+                components.queryItems?.first(where: { $0.name == "name" })?.value,
+                "塔台 配置",
+                target.name
+            )
+        }
+    }
+
+    func testClashMiAndKaringKeepAStableRemoteIdentityAcrossExports() throws {
+        for target in [ClientTarget.clashMi, .karing] {
+            let first = try ClientImportURLBuilder.make(
+                target: target,
+                configurationURL: localURL,
+                displayName: "塔台",
+                importRevision: "first"
+            )
+            let second = try ClientImportURLBuilder.make(
+                target: target,
+                configurationURL: localURL,
+                displayName: "塔台",
+                importRevision: "second"
+            )
+
+            XCTAssertEqual(first, second, "\(target.name) 不应因重复导出创建新来源地址")
+        }
+    }
+
     func testSingBoxMTUsesOfficialRemoteProfileImportScheme() throws {
         let configurationURL = try XCTUnwrap(
             URL(string: "http://127.0.0.1:7788/private/%E5%A1%94%E5%8F%B0.json")
@@ -324,6 +372,8 @@ extension DirectImportServiceTests {
         let expected: [ClientTarget: String] = [
             .clash: "application/yaml",
             .clashApple: "application/yaml",
+            .clashMi: "application/yaml",
+            .karing: "application/yaml",
             .egern: "application/yaml",
             .hiddify: "application/json",
             .singBox: "application/json",

@@ -3,13 +3,13 @@
 这是“塔台”iOS App 的仓库级入口说明。开始修改前，请依次阅读：
 
 1. `README.md`：产品能力、隐私模型和已知边界。
-2. `docs/HANDOFF.md`：截至 2026-08-03 的实现状态、TestFlight 状态和优先事项。
+2. `docs/HANDOFF.md`：当前实现状态、发布边界和任务索引。
 3. `docs/ARCHITECTURE.md`：模块、数据流、配置生成和测试结构。
 
 ## 工程基线
 
 - 原生 SwiftUI，最低 iOS 17，建议使用 Xcode 26 或更新版本。
-- **按三台机器固定 Xcode**：出门使用的 MacBook Air M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 开发调试、真机安装、归档，并可在出门时完成 App Store Connect / TestFlight 上传；家中的 Mac mini M4 用 `/Applications/Xcode-beta.app/Contents/Developer` 开发调试；家中另一台 Mac mini M2 用正式版 `/Applications/Xcode.app/Contents/Developer` 作为固定发布机。运行 `xcodebuild`、`xcrun simctl` 或 `xcrun devicectl` 前必须按所在机器显式设置 `DEVELOPER_DIR` 并用 `xcodebuild -version` 复核；不要依赖或切换全局 `xcode-select`。2026-09-01 已在 Air 上完成 `1.0.5 (38)` 的自动签名、归档和上传；此前的 `Failed to Use Accounts` 是正式版 Xcode 未登录 Apple Account，不是证书、描述文件或 App Store Connect 角色问题。相同错误先检查 Xcode **Settings ▸ Accounts**，登录后复用已有归档，不要无谓重打包。
+- 工具链必须按 [AGENTS.md](AGENTS.md) 的机器规定设置 DEVELOPER_DIR，并用 xcodebuild -version 复核；不切换全局 xcode-select。命令见 [DEVELOPMENT](docs/DEVELOPMENT.md)，账号/上传排错见 [RELEASING](docs/RELEASING.md)。
 - 工程：`Tower.xcodeproj`；Scheme：`Tower`。
 - Bundle ID：`com.jzb.tower`。
 - App Store Connect App ID：`<App Store Connect App ID>`。
@@ -42,50 +42,13 @@
 22. 刷新订阅必须保住用户「取消勾选」的节点。节点 id 每次解析都会重新生成，机场又常把剩余流量、倍率写进 remark，塔台自己也会给纯国旗节点重编号——所以不能只按含 name 的精确 identity 匹配。`AppModel.carriedOverExclusions` 是唯一的判定入口：先精确匹配，失配再用去掉 remark 的宽松键，且只有该键在刷新前后都唯一时才认。丢失排除的后果是静默的——节点直接回到每一份导出配置里。
 23. `AppModel.apply()` 必须把 `snapshot.updatedAt` 恢复到 `lastLocalEditAt`。不恢复的话，启动后第一次前台同步会拿 `.distantPast` 去和 iCloud 比，任何远端快照都赢——包括更旧的那份，然后覆盖本地文件。离线时改的订阅会在下次启动被静默丢弃。
 
-## 常用命令
+## 开发入口
 
-```sh
-# 当前出门使用的 MacBook Air M2 使用正式版 Xcode；可开发、真机安装、归档和上传
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-
-# 家中 Mac mini M4 开发调试时改用 Xcode Beta
-# export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
-
-# 家中 Mac mini M2 作为固定 App Store Connect / TestFlight 发布机时仍使用正式版 Xcode
-# export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-
-# 查看可用模拟器
-xcrun simctl list devices available
-
-# 模拟器测试（设备名称可按本机修改）
-xcodebuild -project Tower.xcodeproj \
-  -scheme Tower \
-  -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -derivedDataPath .derived-data-sim \
-  test
-
-# 不签名编译检查
-xcodebuild -project Tower.xcodeproj \
-  -scheme Tower \
-  -configuration Debug \
-  -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath .derived-data-audit \
-  build
-
-# 更新固定版本的规则和 IP 国家库
-python3 Scripts/update_self_configuration_rules.py
-python3 Scripts/update_ip_country_db.py --help
-
-# 检查有没有「源码能显示、目录里没有」的文案
-bash Scripts/check_localization.sh
-```
-
-更新规则或 IP 库后，必须同时检查对应 `manifest.json` / `NOTICE.txt`、资源哈希和自动测试；不要只替换二进制资源。
+构建、测试、本地化、真机安装命令统一维护在 [DEVELOPMENT](docs/DEVELOPMENT.md)。更新资源须核对 manifest / NOTICE、哈希与测试，规则发布见 [RELEASING](docs/RELEASING.md)。
 
 ## 改动验收
 
-- 每次提交至少通过 TowerTests；配置生成相关修改要覆盖全部七种目标客户端。
+- 每次提交至少通过 TowerTests；配置生成相关修改要覆盖全部目标客户端。
 - 新增或修改界面文案后跑 `Scripts/check_localization.sh` 发现缺口，再用 `Scripts/generate_localizations.py --source-catalog <Xcode 导出的 Localizable.xcstrings>` 填补，短标签和无障碍文案需人工复核。`LocalizationTests` 只校验「目录里已有的条目是否 15 种语言齐全」，对「源码有、目录没有」完全无感——这类缺口不会报错，只会在其余 14 种语言下直接显示中文。该脚本用 Xcode 自己的提取器比对，不要改用 grep 手写：`Text`、`Label`、`.navigationTitle`、`.accessibilityHint`、弹窗标题等位置手写正则覆盖不全，插值也无法还原成 `%@` / `%lld`。
 - 目录里被 Xcode 标成 `stale` 的条目**不要删**。内置 ACL4SSR 方案名和简介来自 manifest，运行时经 `String(localized: String.LocalizationValue(name))` 本地化，静态提取器看不见它们。
 - 涉及导入、分享、剪贴板、地图、ICMP、动画或大文本预览时，模拟器结果只算基础验证，必须再用真机验收。
@@ -93,4 +56,4 @@ bash Scripts/check_localization.sh
 - 不提交 `.artifacts`、DerivedData、归档、IPA、证书、描述文件、App Store Connect API Key 或任何密码。
 - 加密合规：当前实现没有自研或非标准加密，只通过 Apple 系统网络栈使用 HTTPS。App target 的 Debug/Release 都已设置 `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO`，构建不会再在 App Store Connect 留下待回答的出口合规问题；新增 target 时记得一并设置。
 
-真机回归清单、待办任务与发布信息见 `docs/HANDOFF.md`。
+真机清单见 `docs/DEVELOPMENT.md`，待办见 `docs/TODO.md`，当前状态见 `docs/HANDOFF.md`。

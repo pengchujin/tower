@@ -78,7 +78,7 @@ struct RuleSetEmissionPlanner {
             case .remote(let url):
                 let lines = repository.lines(for: ruleset.resource)
                 if preferRuleSets,
-                   target == .clash || target == .clashApple,
+                   [.clash, .clashApple, .clashMi].contains(target),
                    let optimized = optimizedClashEntries(
                     resource: ruleset.resource,
                     sourceURL: url,
@@ -229,7 +229,7 @@ struct RuleSetEmissionPlanner {
         isClashProviderYAML: Bool
     ) -> NativeFormat? {
         switch target {
-        case .clash, .clashApple:
+        case .clash, .clashApple, .clashMi, .karing:
             guard linesAreClassical(lines, allowedTypes: Self.clashRuleTypes) else { return nil }
             return isClashProviderYAML ? .clashProviderYAML : .classicalText
         case .surge:

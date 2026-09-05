@@ -55,6 +55,11 @@ DYNAMIC_STRINGS = (
     "开启后隐藏流量、到期、官网和客服等信息节点。",
     "优先使用规则集",
     "兼容时引用远程规则集，不兼容的客户端会自动保留本地规则。",
+    "代理集合",
+    "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。",
+    "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。",
+    "原始订阅链接直接写入配置文件，交由客户端更新。不支持 Shadowrocket、Hiddify、V2Box 和 sing-box MT。",
+    "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。",
     "配置名称",
     "恢复默认",
     "导出的文件、本机导入和客户端订阅会使用同一个名称。",
@@ -67,6 +72,10 @@ DYNAMIC_STRINGS = (
     "仅节点",
     "只添加节点订阅，不替换客户端现有的规则和策略组。",
     "导出节点、规则和策略组组成的完整配置。",
+    "所有导出目标",
+    "所有导出目标均已显示",
+    "未显示的导出目标会列在这里，点一下即可加入上方。",
+    "调整 %@ 的顺序",
     "仅节点 · %@",
     "塔台只会把节点订阅交给 %@，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。",
     "仅导出节点到 %@",
@@ -124,6 +133,9 @@ DEPRECATED_KEYS = {
 # remaining catalog is generated in full and can be polished in Xcode later.
 CORE_OVERRIDES = {
     "en": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Filters local nodes only. Provider nodes are fetched by the client and are not affected.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld providers · Updated by the client. Counts above include local nodes only.",
+        "客户端筛选": "Client Filter",
         "塔台": "Tower",
         "订阅": "Subscriptions",
         "规则": "Rules",
@@ -226,6 +238,9 @@ CORE_OVERRIDES = {
         "可能影响局域网、公共网络认证和使用域名的代理节点。": "May affect local networks, captive portals, and proxy nodes that use domain names.",
     },
     "zh-Hant": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "僅篩選本機節點；代理集合中的節點由用戶端取得，不受此處篩選影響。",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld 個代理集合 · 節點由用戶端更新，以上僅統計本機節點。",
+        "客户端筛选": "客戶端篩選",
         "塔台": "塔台",
         "订阅": "訂閱",
         "规则": "規則",
@@ -275,6 +290,9 @@ CORE_OVERRIDES = {
         "可能影响局域网、公共网络认证和使用域名的代理节点。": "可能影響區域網路、公共網路驗證和使用網域的代理節點。",
     },
     "ja": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "ローカルノードのみを絞り込みます。プロバイダーのノードはクライアントが取得するため、この設定の対象外です。",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "プロバイダー %lld 件 · クライアントが更新します。上記はローカルノードのみの集計です。",
+        "客户端筛选": "クライアントフィルタ",
         "塔台": "Tower",
         "订阅": "サブスクリプション",
         "规则": "ルール",
@@ -312,6 +330,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "カスタムネットワークチェック",
     },
     "ko": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "로컬 노드만 필터링합니다. 공급자의 노드는 클라이언트가 가져오므로 이 필터의 영향을 받지 않습니다.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "공급자 %lld개 · 클라이언트가 업데이트합니다. 위 수치는 로컬 노드만 포함합니다.",
+        "客户端筛选": "클라이언트 필터",
         "塔台": "Tower",
         "订阅": "구독",
         "规则": "규칙",
@@ -347,6 +368,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "사용자 정의 네트워크 확인",
     },
     "es": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Solo filtra nodos locales. Los nodos del proveedor los obtiene el cliente y no se ven afectados.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld proveedores · El cliente los actualiza. Los recuentos anteriores solo incluyen nodos locales.",
+        "客户端筛选": "Filtro de clientes",
         "塔台": "Tower",
         "订阅": "Suscripciones",
         "规则": "Reglas",
@@ -368,6 +392,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Comprobación de red personalizada",
     },
     "fr": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Filtre uniquement les nœuds locaux. Les nœuds des fournisseurs sont récupérés par le client et ne sont pas concernés.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld fournisseurs · Mis à jour par le client. Les totaux ci-dessus concernent uniquement les nœuds locaux.",
+        "客户端筛选": "Filtre des clients",
         "塔台": "Tower",
         "订阅": "Abonnements",
         "规则": "Règles",
@@ -389,6 +416,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Vérification du réseau personnalisée",
     },
     "de": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Filtert nur lokale Knoten. Anbieter-Knoten werden vom Client abgerufen und sind davon nicht betroffen.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld Anbieter · Vom Client aktualisiert. Die Zahlen oben enthalten nur lokale Knoten.",
+        "客户端筛选": "App-Filter",
         "塔台": "Tower",
         "订阅": "Abonnements",
         "规则": "Regeln",
@@ -410,6 +440,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Benutzerdefinierte Netzwerkprüfung",
     },
     "pt-BR": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Filtra apenas nós locais. Os nós dos provedores são obtidos pelo cliente e não são afetados.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld provedores · Atualizados pelo cliente. As contagens acima incluem apenas nós locais.",
+        "客户端筛选": "Filtro de clientes",
         "塔台": "Tower",
         "订阅": "Assinaturas",
         "规则": "Regras",
@@ -431,6 +464,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Verificação de rede personalizada",
     },
     "ru": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Фильтр применяется только к локальным узлам. Узлы провайдеров загружает клиент; этот фильтр на них не влияет.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "Провайдеров: %lld · Обновляются клиентом. Выше учтены только локальные узлы.",
+        "客户端筛选": "Фильтр клиентов",
         "塔台": "Tower",
         "订阅": "Подписки",
         "规则": "Правила",
@@ -452,6 +488,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Пользовательская проверка сети",
     },
     "ar": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "تتم تصفية العقد المحلية فقط. يجلب العميل عقد المزوّدين ولا تؤثر هذه التصفية عليها.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld من المزوّدين · يحدّثها العميل. الأعداد أعلاه تشمل العقد المحلية فقط.",
+        "客户端筛选": "تصفية التطبيقات",
         "塔台": "Tower",
         "订阅": "الاشتراكات",
         "规则": "القواعد",
@@ -473,6 +512,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "فحص شبكة مخصص",
     },
     "tr": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Yalnızca yerel düğümleri filtreler. Sağlayıcı düğümleri istemci tarafından alınır ve bu filtreden etkilenmez.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld sağlayıcı · İstemci tarafından güncellenir. Yukarıdaki sayılar yalnızca yerel düğümleri içerir.",
+        "客户端筛选": "İstemci Filtresi",
         "塔台": "Tower",
         "订阅": "Abonelikler",
         "规则": "Kurallar",
@@ -494,6 +536,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Özel Ağ Kontrolü",
     },
     "id": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Hanya memfilter node lokal. Node penyedia diambil oleh klien dan tidak terpengaruh filter ini.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld penyedia · Diperbarui oleh klien. Jumlah di atas hanya mencakup node lokal.",
+        "客户端筛选": "Filter klien",
         "塔台": "Tower",
         "订阅": "Langganan",
         "规则": "Aturan",
@@ -515,6 +560,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Pemeriksaan Jaringan Khusus",
     },
     "th": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "กรองเฉพาะโหนดในเครื่อง โหนดจากผู้ให้บริการจะถูกดึงโดยไคลเอนต์และไม่ได้รับผลจากตัวกรองนี้",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "ผู้ให้บริการ %lld ราย · อัปเดตโดยไคลเอนต์ จำนวนด้านบนนับเฉพาะโหนดในเครื่อง",
+        "客户端筛选": "ตัวกรองไคลเอนต์",
         "塔台": "Tower",
         "订阅": "การสมัครสมาชิก",
         "规则": "กฎ",
@@ -536,6 +584,9 @@ CORE_OVERRIDES = {
         "自定义网络检查": "ตรวจสอบเครือข่ายแบบกำหนดเอง",
     },
     "vi": {
+        "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。": "Chỉ lọc các nút cục bộ. Các nút của nhà cung cấp do ứng dụng khách tải về và không chịu ảnh hưởng của bộ lọc này.",
+        "%lld 个代理集合 · 节点由客户端更新，以上仅统计本地节点。": "%lld nhà cung cấp · Do ứng dụng khách cập nhật. Số liệu trên chỉ tính các nút cục bộ.",
+        "客户端筛选": "Bộ lọc ứng dụng",
         "塔台": "Tower",
         "订阅": "Gói đăng ký",
         "规则": "Quy tắc",
@@ -557,6 +608,178 @@ CORE_OVERRIDES = {
         "自定义网络检查": "Kiểm tra mạng tùy chỉnh",
     },
 }
+
+REMOTE_SUBSCRIPTION_TITLE = "代理集合"
+REMOTE_SUBSCRIPTION_DETAIL = (
+    "原始订阅链接直接写入配置文件，交由客户端更新。"
+    "不支持 Shadowrocket、Hiddify、V2Box 和 sing-box MT。"
+)
+
+REMOTE_SUBSCRIPTION_OVERRIDES = {
+    "en": {
+        REMOTE_SUBSCRIPTION_TITLE: "Proxy Providers",
+        REMOTE_SUBSCRIPTION_DETAIL: "Writes the original subscription URL directly into the configuration file for the client to update. Not supported: Shadowrocket, Hiddify, V2Box, and sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "The generated profile contains the original subscription URL so %@ can refresh remote nodes directly. Share it only with a client you trust; changes to Tower rules or self-hosted nodes still require a new export.",
+    },
+    "zh-Hant": {
+        REMOTE_SUBSCRIPTION_TITLE: "代理集合",
+        REMOTE_SUBSCRIPTION_DETAIL: "將原始訂閱連結直接寫入設定檔，交由客戶端更新。不支援 Shadowrocket、Hiddify、V2Box 和 sing-box MT。",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "產生的設定檔包含原始訂閱連結，%@ 可直接更新遠端節點。請只交給可信任的客戶端；塔台規則與自建節點變更後仍需重新匯出。",
+    },
+    "ja": {
+        REMOTE_SUBSCRIPTION_TITLE: "プロキシプロバイダー",
+        REMOTE_SUBSCRIPTION_DETAIL: "元のサブスクリプションURLを設定ファイルに直接書き込み、クライアント側で更新します。Shadowrocket、Hiddify、V2Box、sing-box MTには対応していません。",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "生成された設定には元のサブスクリプション URL が含まれるため、%@ はリモートノードを直接更新できます。信頼できるクライアントにのみ渡してください。Tower のルールや自前ノードを変更した場合は再度エクスポートが必要です。",
+    },
+    "ko": {
+        REMOTE_SUBSCRIPTION_TITLE: "프록시 공급자",
+        REMOTE_SUBSCRIPTION_DETAIL: "원본 구독 URL을 구성 파일에 직접 기록하고 클라이언트에서 업데이트합니다. Shadowrocket, Hiddify, V2Box 및 sing-box MT는 지원하지 않습니다.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "생성된 프로필에는 원본 구독 URL이 포함되어 %@에서 원격 노드를 직접 새로 고칠 수 있습니다. 신뢰할 수 있는 클라이언트에만 전달하세요. Tower 규칙이나 자체 노드를 변경하면 다시 내보내야 합니다.",
+    },
+    "es": {
+        REMOTE_SUBSCRIPTION_TITLE: "Proveedores de proxy",
+        REMOTE_SUBSCRIPTION_DETAIL: "Escribe la URL de suscripción original directamente en el archivo de configuración para que el cliente la actualice. No compatible con Shadowrocket, Hiddify, V2Box ni sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "El perfil generado contiene la URL de suscripción original para que %@ actualice directamente los nodos remotos. Compártelo solo con un cliente de confianza; los cambios en las reglas de Tower o en los nodos propios requieren volver a exportar.",
+    },
+    "fr": {
+        REMOTE_SUBSCRIPTION_TITLE: "Fournisseurs de proxy",
+        REMOTE_SUBSCRIPTION_DETAIL: "Inscrit directement l’URL d’abonnement d’origine dans le fichier de configuration afin que le client la mette à jour. Non compatible avec Shadowrocket, Hiddify, V2Box et sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Le profil généré contient l’URL d’abonnement d’origine afin que %@ puisse actualiser directement les nœuds distants. Ne le confiez qu’à un client de confiance ; toute modification des règles Tower ou des nœuds personnels exige un nouvel export.",
+    },
+    "de": {
+        REMOTE_SUBSCRIPTION_TITLE: "Proxy-Anbieter",
+        REMOTE_SUBSCRIPTION_DETAIL: "Schreibt die ursprüngliche Abo-URL direkt in die Konfigurationsdatei, damit der Client sie aktualisiert. Nicht unterstützt: Shadowrocket, Hiddify, V2Box und sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Das erzeugte Profil enthält die ursprüngliche Abo-URL, damit %@ entfernte Knoten direkt aktualisieren kann. Gib es nur an einen vertrauenswürdigen Client weiter; Änderungen an Tower-Regeln oder eigenen Knoten erfordern einen neuen Export.",
+    },
+    "pt-BR": {
+        REMOTE_SUBSCRIPTION_TITLE: "Provedores de proxy",
+        REMOTE_SUBSCRIPTION_DETAIL: "Grava a URL original da assinatura diretamente no arquivo de configuração para o cliente atualizar. Não compatível com Shadowrocket, Hiddify, V2Box nem sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "O perfil gerado contém a URL original da assinatura para que %@ atualize os nós remotos diretamente. Compartilhe apenas com um cliente confiável; alterações nas regras do Tower ou nos nós próprios exigem uma nova exportação.",
+    },
+    "ru": {
+        REMOTE_SUBSCRIPTION_TITLE: "Провайдеры прокси",
+        REMOTE_SUBSCRIPTION_DETAIL: "Записывает исходный URL подписки прямо в файл конфигурации для обновления клиентом. Не поддерживаются Shadowrocket, Hiddify, V2Box и sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Созданный профиль содержит исходный URL подписки, поэтому %@ может напрямую обновлять удалённые узлы. Передавайте его только доверенному клиенту; изменения правил Tower или собственных узлов требуют нового экспорта.",
+    },
+    "ar": {
+        REMOTE_SUBSCRIPTION_TITLE: "موفرو الوكيل",
+        REMOTE_SUBSCRIPTION_DETAIL: "يكتب رابط الاشتراك الأصلي مباشرةً في ملف الإعداد ليحدّثه التطبيق. غير مدعوم: Shadowrocket وHiddify وV2Box وsing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "يحتوي ملف التعريف الناتج على رابط الاشتراك الأصلي كي يتمكن %@ من تحديث العقد البعيدة مباشرة. شاركه فقط مع تطبيق موثوق؛ تتطلب تغييرات قواعد Tower أو العقد الخاصة تصديرًا جديدًا.",
+    },
+    "tr": {
+        REMOTE_SUBSCRIPTION_TITLE: "Proxy sağlayıcıları",
+        REMOTE_SUBSCRIPTION_DETAIL: "Özgün abonelik URL'sini istemcinin güncellemesi için doğrudan yapılandırma dosyasına yazar. Shadowrocket, Hiddify, V2Box ve sing-box MT desteklenmez.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Oluşturulan profil özgün abonelik URL'sini içerir; böylece %@ uzak düğümleri doğrudan yenileyebilir. Yalnızca güvendiğiniz bir istemciyle paylaşın; Tower kuralları veya kendi düğümleriniz değişirse yeniden dışa aktarmanız gerekir.",
+    },
+    "id": {
+        REMOTE_SUBSCRIPTION_TITLE: "Penyedia proxy",
+        REMOTE_SUBSCRIPTION_DETAIL: "Menulis URL langganan asli langsung ke file konfigurasi agar diperbarui oleh klien. Tidak didukung: Shadowrocket, Hiddify, V2Box, dan sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Profil yang dibuat berisi URL langganan asli agar %@ dapat memperbarui node jarak jauh secara langsung. Bagikan hanya kepada klien tepercaya; perubahan aturan Tower atau node milik sendiri tetap memerlukan ekspor baru.",
+    },
+    "th": {
+        REMOTE_SUBSCRIPTION_TITLE: "ผู้ให้บริการพร็อกซี",
+        REMOTE_SUBSCRIPTION_DETAIL: "เขียน URL การสมัครสมาชิกเดิมลงในไฟล์การกำหนดค่าโดยตรงเพื่อให้ไคลเอนต์อัปเดต ไม่รองรับ Shadowrocket, Hiddify, V2Box และ sing-box MT",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "โปรไฟล์ที่สร้างมี URL การสมัครสมาชิกเดิมเพื่อให้ %@ รีเฟรชโหนดระยะไกลได้โดยตรง โปรดส่งต่อให้ไคลเอนต์ที่เชื่อถือได้เท่านั้น การเปลี่ยนกฎ Tower หรือโหนดส่วนตัวยังคงต้องส่งออกใหม่",
+    },
+    "vi": {
+        REMOTE_SUBSCRIPTION_TITLE: "Nhà cung cấp proxy",
+        REMOTE_SUBSCRIPTION_DETAIL: "Ghi trực tiếp URL đăng ký gốc vào tệp cấu hình để ứng dụng cập nhật. Không hỗ trợ Shadowrocket, Hiddify, V2Box và sing-box MT.",
+        "生成的配置包含原始订阅链接，%@ 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。": "Hồ sơ được tạo chứa URL đăng ký gốc để %@ có thể làm mới trực tiếp các nút từ xa. Chỉ chia sẻ với ứng dụng đáng tin cậy; thay đổi quy tắc Tower hoặc nút riêng vẫn cần xuất lại.",
+    },
+}
+
+for locale, overrides in REMOTE_SUBSCRIPTION_OVERRIDES.items():
+    CORE_OVERRIDES.setdefault(locale, {}).update(overrides)
+
+CLIENT_FILTER_OVERRIDES = {
+    "en": {
+        "所有导出目标": "All Export Destinations",
+        "所有导出目标均已显示": "All export destinations are shown",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Hidden export destinations appear here. Tap one to add it above.",
+        "调整 %@ 的顺序": "Reorder %@",
+    },
+    "zh-Hant": {
+        "所有导出目标": "所有匯出目標",
+        "所有导出目标均已显示": "所有匯出目標均已顯示",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "未顯示的匯出目標會列在這裡，點一下即可加入上方。",
+        "调整 %@ 的顺序": "調整 %@ 的順序",
+    },
+    "ja": {
+        "所有导出目标": "すべてのエクスポート先",
+        "所有导出目标均已显示": "すべてのエクスポート先を表示中",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "非表示のエクスポート先がここに表示されます。タップすると上に追加できます。",
+        "调整 %@ 的顺序": "%@ の順序を変更",
+    },
+    "ko": {
+        "所有导出目标": "모든 내보내기 대상",
+        "所有导出目标均已显示": "모든 내보내기 대상이 표시됨",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "숨긴 내보내기 대상이 여기에 표시됩니다. 탭하면 위에 추가됩니다.",
+        "调整 %@ 的顺序": "%@ 순서 조정",
+    },
+    "es": {
+        "所有导出目标": "Todos los destinos de exportación",
+        "所有导出目标均已显示": "Se muestran todos los destinos de exportación",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Los destinos ocultos aparecen aquí. Toca uno para añadirlo arriba.",
+        "调整 %@ 的顺序": "Reordenar %@",
+    },
+    "fr": {
+        "所有导出目标": "Toutes les destinations d’export",
+        "所有导出目标均已显示": "Toutes les destinations d’export sont affichées",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Les destinations masquées apparaissent ici. Touchez-en une pour l’ajouter au-dessus.",
+        "调整 %@ 的顺序": "Réorganiser %@",
+    },
+    "de": {
+        "所有导出目标": "Alle Exportziele",
+        "所有导出目标均已显示": "Alle Exportziele werden angezeigt",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Ausgeblendete Exportziele erscheinen hier. Tippe eines an, um es oben hinzuzufügen.",
+        "调整 %@ 的顺序": "%@ neu anordnen",
+    },
+    "pt-BR": {
+        "所有导出目标": "Todos os destinos de exportação",
+        "所有导出目标均已显示": "Todos os destinos de exportação estão visíveis",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Os destinos ocultos aparecem aqui. Toque em um para adicioná-lo acima.",
+        "调整 %@ 的顺序": "Reordenar %@",
+    },
+    "ru": {
+        "所有导出目标": "Все цели экспорта",
+        "所有导出目标均已显示": "Показаны все цели экспорта",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Скрытые цели экспорта появятся здесь. Нажмите, чтобы добавить выше.",
+        "调整 %@ 的顺序": "Изменить порядок %@",
+    },
+    "ar": {
+        "所有导出目标": "جميع وجهات التصدير",
+        "所有导出目标均已显示": "جميع وجهات التصدير ظاهرة",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "تظهر وجهات التصدير المخفية هنا. اضغط على واحدة لإضافتها أعلاه.",
+        "调整 %@ 的顺序": "إعادة ترتيب %@",
+    },
+    "tr": {
+        "所有导出目标": "Tüm dışa aktarma hedefleri",
+        "所有导出目标均已显示": "Tüm dışa aktarma hedefleri gösteriliyor",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Gizli dışa aktarma hedefleri burada görünür. Yukarı eklemek için birine dokunun.",
+        "调整 %@ 的顺序": "%@ sırasını değiştir",
+    },
+    "id": {
+        "所有导出目标": "Semua tujuan ekspor",
+        "所有导出目标均已显示": "Semua tujuan ekspor ditampilkan",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Tujuan ekspor tersembunyi muncul di sini. Ketuk untuk menambahkannya ke atas.",
+        "调整 %@ 的顺序": "Atur ulang %@",
+    },
+    "th": {
+        "所有导出目标": "ปลายทางการส่งออกทั้งหมด",
+        "所有导出目标均已显示": "แสดงปลายทางการส่งออกทั้งหมดแล้ว",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "ปลายทางการส่งออกที่ซ่อนอยู่จะแสดงที่นี่ แตะเพื่อเพิ่มไว้ด้านบน",
+        "调整 %@ 的顺序": "จัดลำดับ %@ ใหม่",
+    },
+    "vi": {
+        "所有导出目标": "Tất cả đích xuất",
+        "所有导出目标均已显示": "Tất cả đích xuất đang được hiển thị",
+        "未显示的导出目标会列在这里，点一下即可加入上方。": "Các đích xuất bị ẩn sẽ xuất hiện ở đây. Chạm để thêm lên trên.",
+        "调整 %@ 的顺序": "Sắp xếp lại %@",
+    },
+}
+
+for locale, overrides in CLIENT_FILTER_OVERRIDES.items():
+    CORE_OVERRIDES.setdefault(locale, {}).update(overrides)
 
 INFO_PLIST_SOURCE = {
     "CFBundleDisplayName": "塔台",
@@ -761,6 +984,8 @@ def build_catalog(source_catalog: Path, output: Path) -> dict[str, dict[str, str
             )
             if existing_source == source_value and existing_translation:
                 lookup[locale][key] = existing_translation
+            elif key in CORE_OVERRIDES.get(locale, {}):
+                lookup[locale][key] = CORE_OVERRIDES[locale][key]
             else:
                 missing_by_locale[locale].append((key, source_value))
 

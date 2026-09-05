@@ -17,6 +17,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BB0000000000000000000001 /* TowerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = TowerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000004 /* Tower.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tower.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000005 /* TowerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TowerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -32,6 +33,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		BB0000000000000000000002 /* TowerUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = TowerUITests; sourceTree = "<group>"; };
 		AA0000000000000000000006 /* Tower */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -48,6 +50,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		BB0000000000000000000003 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		AA0000000000000000000008 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +73,7 @@
 			children = (
 				AA0000000000000000000006 /* Tower */,
 				AA0000000000000000000007 /* TowerTests */,
+				BB0000000000000000000002 /* TowerUITests */,
 				AA000000000000000000000B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,6 +83,7 @@
 			children = (
 				AA0000000000000000000004 /* Tower.app */,
 				AA0000000000000000000005 /* TowerTests.xctest */,
+				BB0000000000000000000001 /* TowerUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -86,6 +91,18 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		BB0000000000000000000004 /* TowerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000005;
+			buildPhases = (BB0000000000000000000006, BB0000000000000000000003, BB0000000000000000000007);
+			buildRules = ();
+			dependencies = (AA0000000000000000000010);
+			fileSystemSynchronizedGroups = (BB0000000000000000000002);
+			name = TowerUITests;
+			productName = TowerUITests;
+			productReference = BB0000000000000000000001;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		AA0000000000000000000002 /* Tower */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA0000000000000000000012 /* Build configuration list for PBXNativeTarget "Tower" */;
@@ -178,6 +195,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				BB0000000000000000000004 /* TowerUITests */,
 				AA0000000000000000000002 /* Tower */,
 				AA0000000000000000000003 /* TowerTests */,
 			);
@@ -185,6 +203,7 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		BB0000000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		AA000000000000000000000D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -202,6 +221,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		BB0000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		AA000000000000000000000C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -227,6 +247,8 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		BB0000000000000000000008 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.jzb.tower.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TEST_TARGET_NAME = Tower; IPHONEOS_DEPLOYMENT_TARGET = 17.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		BB0000000000000000000009 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.jzb.tower.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TEST_TARGET_NAME = Tower; IPHONEOS_DEPLOYMENT_TARGET = 17.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
 		AA0000000000000000000020 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -404,6 +426,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		BB0000000000000000000005 = {isa = XCConfigurationList; buildConfigurations = (BB0000000000000000000008, BB0000000000000000000009); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		AA0000000000000000000012 /* Build configuration list for PBXNativeTarget "Tower" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

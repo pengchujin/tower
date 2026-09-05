@@ -42,6 +42,7 @@ struct ConfigurationGenerator {
         target: ClientTarget,
         countryCodes: [UUID: String] = [:],
         excludedKinds: Set<ProxyKind> = [],
+        remoteSubscriptions: [RemoteSubscriptionLink] = [],
         supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
@@ -55,28 +56,74 @@ struct ConfigurationGenerator {
             },
             reservedNames: reservedProxyNames(for: preset)
         )
+        let remoteEntries = remoteSubscriptionEntries(
+            target.supportsEmbeddedRemoteSubscriptions ? remoteSubscriptions : []
+        )
+        let remoteSourceIDs = Set(remoteEntries.map(\.sourceID))
+        let inlineNodes = supported.filter { node in
+            node.sourceID.map(remoteSourceIDs.contains) != true
+        }
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
         let content: String
         switch target {
-        case .clash, .clashApple:
-            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: target)
+        case .clash, .clashApple, .clashMi, .karing:
+            content = clash(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                preset: preset,
+                regionGroups: regionGroups,
+                target: target
+            )
         case .surge:
-            content = surgeLike(nodes: supported, preset: preset, regionGroups: regionGroups, shadowrocket: false)
+            content = surgeLike(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                preset: preset,
+                regionGroups: regionGroups,
+                shadowrocket: false
+            )
         case .shadowrocket:
             // Shadowrocket accepts Clash YAML directly. Keeping nodes in that
             // structured form preserves connection fields which have no
             // reliable equivalent in its legacy one-line configuration
             // dialect (client fingerprints, port hopping and nested transport
             // options in particular).
-            content = clash(nodes: supported, preset: preset, regionGroups: regionGroups, target: .shadowrocket)
+            content = clash(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: [],
+                preset: preset,
+                regionGroups: regionGroups,
+                target: .shadowrocket
+            )
         case .loon:
-            content = loon(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = loon(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                preset: preset,
+                regionGroups: regionGroups
+            )
         case .quanx:
-            content = quanX(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = quanX(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                preset: preset,
+                regionGroups: regionGroups
+            )
         case .hiddify, .singBox:
             content = singBox(nodes: supported, preset: preset, regionGroups: regionGroups)
         case .egern:
-            content = egern(nodes: supported, preset: preset, regionGroups: regionGroups)
+            content = egern(
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                preset: preset,
+                regionGroups: regionGroups
+            )
         case .v2box:
             content = ""
         }
@@ -84,10 +131,11 @@ struct ConfigurationGenerator {
         return GeneratedConfiguration(
             target: target,
             content: content,
-            supportedNodeCount: supported.count,
-            skippedNodeCount: nodes.count - supported.count,
+            supportedNodeCount: inlineNodes.count,
+            skippedNodeCount: nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }.count - inlineNodes.count,
             ruleCount: rules.count(for: preset),
-            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil
+            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
+            remoteSourceCount: remoteEntries.count
         )
     }
 
@@ -102,6 +150,7 @@ struct ConfigurationGenerator {
         schemes: RuleSchemeRepository = RuleSchemeRepository(),
         excludedKinds: Set<ProxyKind> = [],
         preferRuleSets: Bool = true,
+        remoteSubscriptions: [RemoteSubscriptionLink] = [],
         supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
@@ -115,7 +164,19 @@ struct ConfigurationGenerator {
             },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
         )
-        let resolved = resolveGroups(scheme: scheme, nodes: supported, target: target)
+        let remoteEntries = remoteSubscriptionEntries(
+            target.supportsEmbeddedRemoteSubscriptions ? remoteSubscriptions : []
+        )
+        let remoteSourceIDs = Set(remoteEntries.map(\.sourceID))
+        let inlineNodes = supported.filter { node in
+            node.sourceID.map(remoteSourceIDs.contains) != true
+        }
+        let resolved = resolveGroups(
+            scheme: scheme,
+            nodes: supported,
+            target: target,
+            preserveUnresolvedPatterns: !remoteEntries.isEmpty
+        )
         let rulePlan = RuleSetEmissionPlanner(repository: schemes).plan(
             for: scheme,
             target: target,
@@ -123,16 +184,54 @@ struct ConfigurationGenerator {
         )
         let content: String
         switch target {
-        case .clash, .clashApple:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, target: target, rulePlan: rulePlan)
+        case .clash, .clashApple, .clashMi, .karing:
+            content = clashScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                target: target,
+                rulePlan: rulePlan
+            )
         case .shadowrocket:
-            content = clashScheme(scheme, groups: resolved, nodes: supported, target: .shadowrocket, rulePlan: rulePlan)
+            content = clashScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: [],
+                target: .shadowrocket,
+                rulePlan: rulePlan
+            )
         case .surge:
-            content = surgeLikeScheme(scheme, groups: resolved, nodes: supported, target: target, rulePlan: rulePlan)
+            content = surgeLikeScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                target: target,
+                rulePlan: rulePlan
+            )
         case .loon:
-            content = loonScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
+            content = loonScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                rulePlan: rulePlan
+            )
         case .quanx:
-            content = quanXScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
+            content = quanXScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                rulePlan: rulePlan
+            )
         case .hiddify, .singBox:
             content = singBoxScheme(
                 scheme,
@@ -142,7 +241,14 @@ struct ConfigurationGenerator {
                 target: target
             )
         case .egern:
-            content = egernScheme(scheme, groups: resolved, nodes: supported, rulePlan: rulePlan)
+            content = egernScheme(
+                scheme,
+                groups: resolved,
+                nodes: supported,
+                inlineNodes: inlineNodes,
+                remoteSubscriptions: remoteEntries,
+                rulePlan: rulePlan
+            )
         case .v2box:
             content = ""
         }
@@ -150,10 +256,11 @@ struct ConfigurationGenerator {
         return GeneratedConfiguration(
             target: target,
             content: content,
-            supportedNodeCount: supported.count,
-            skippedNodeCount: nodes.count - supported.count,
+            supportedNodeCount: inlineNodes.count,
+            skippedNodeCount: nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }.count - inlineNodes.count,
             ruleCount: ruleCount(for: scheme, schemes: schemes),
-            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil
+            fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
+            remoteSourceCount: remoteEntries.count
         )
     }
 
@@ -264,7 +371,7 @@ struct ConfigurationGenerator {
         if node.usesReality, !target.expressesReality { return false }
         // Clash and Stash implement Snell only up to version 3, so a v4+ node
         // is skipped there rather than written as a proxy they would reject.
-        if node.kind == .snell, [.clash, .clashApple].contains(target), (node.version ?? 4) >= 4 { return false }
+        if node.kind == .snell, [.clash, .clashApple, .clashMi].contains(target), (node.version ?? 4) >= 4 { return false }
         // Current sing-box supports Snell v4 and later, not legacy v1-v3.
         if node.kind == .snell, target == .singBox, (node.version ?? 4) < 4 { return false }
         // Surge and Shadowrocket carry Hysteria 2's obfuscator in the key name
@@ -281,7 +388,7 @@ struct ConfigurationGenerator {
             // SIP003 directly or have a documented equivalent; the others must
             // skip instead of silently exporting plain Shadowsocks.
             guard node.transport == "ws",
-                  [.clash, .clashApple, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
+                  [.clash, .clashApple, .clashMi, .karing, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
         }
         if !canExpressTransport(of: node, on: target) { return false }
         return true
@@ -292,7 +399,7 @@ struct ConfigurationGenerator {
         let transport = node.transport?.lowercased() ?? "tcp"
         if transport == "tcp" || transport.isEmpty { return true }
         switch target {
-        case .clash, .clashApple:
+        case .clash, .clashApple, .clashMi, .karing:
             if transport == "xhttp" { return node.kind == .vless }
             return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
         case .surge:
@@ -316,6 +423,70 @@ struct ConfigurationGenerator {
         }
     }
 
+    struct RemoteSubscriptionEntry: Hashable {
+        let sourceID: UUID
+        let identifier: String
+        let displayName: String
+        let urlString: String
+        let userAgent: String?
+    }
+
+    private func remoteSubscriptionEntries(
+        _ subscriptions: [RemoteSubscriptionLink]
+    ) -> [RemoteSubscriptionEntry] {
+        subscriptions.enumerated().map { index, subscription in
+            RemoteSubscriptionEntry(
+                sourceID: subscription.sourceID,
+                identifier: "tower-subscription-\(index + 1)",
+                displayName: "塔台订阅 \(index + 1) · \(confName(subscription.name))",
+                urlString: collapsingLineBreaks(subscription.urlString),
+                userAgent: subscription.userAgent.map(collapsingLineBreaks)
+            )
+        }
+    }
+
+    private func remoteNodeNameSet(
+        nodes: [ProxyNode],
+        subscriptions: [RemoteSubscriptionEntry]
+    ) -> Set<String> {
+        let sourceIDs = Set(subscriptions.map(\.sourceID))
+        return Set(nodes.compactMap { node in
+            guard node.sourceID.map(sourceIDs.contains) == true else { return nil }
+            return NodeRegionResolver.displayName(for: node)
+        })
+    }
+
+    private func remoteFilter(for patterns: [String]) -> String? {
+        let valid = patterns.compactMap { pattern -> String? in
+            let trimmed = collapsingLineBreaks(pattern)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty,
+                  (try? NSRegularExpression(pattern: trimmed)) != nil else { return nil }
+            return trimmed
+        }
+        guard !valid.isEmpty else { return nil }
+        if valid.contains(".*") { return nil }
+        return valid.map { "(?:\($0))" }.joined(separator: "|")
+    }
+
+    private func exactNameFilter(_ names: [String]) -> String? {
+        let names = names.removingDuplicates()
+        guard !names.isEmpty else { return nil }
+        let alternatives = names.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|")
+        return "^(?:\(alternatives))$"
+    }
+
+    private func remoteGroupSelection(
+        for group: ResolvedSchemeGroup,
+        remoteNodeNames: Set<String>
+    ) -> (includesRemoteNodes: Bool, filter: String?) {
+        if !group.nodePatterns.isEmpty {
+            return (true, remoteFilter(for: group.nodePatterns))
+        }
+        let explicitRemoteNames = group.members.filter(remoteNodeNames.contains)
+        return (!explicitRemoteNames.isEmpty, exactNameFilter(explicitRemoteNames))
+    }
+
     struct ResolvedSchemeGroup {
         let name: String
         let kind: RuleSchemeGroup.Kind
@@ -326,6 +497,10 @@ struct ConfigurationGenerator {
         /// Preserve an all-node source regex instead of expanding it into one
         /// very long Quantumult X tag regex.
         let matchesAllNodes: Bool
+        /// Original subscription-node regexes. Remote providers can apply
+        /// these after a background refresh, including to nodes Tower has not
+        /// downloaded yet.
+        let nodePatterns: [String]
         let testURL: String
         let interval: Int
         let tolerance: Int
@@ -334,7 +509,8 @@ struct ConfigurationGenerator {
     private func resolveGroups(
         scheme: RuleScheme,
         nodes: [ProxyNode],
-        target: ClientTarget
+        target: ClientTarget,
+        preserveUnresolvedPatterns: Bool = false
     ) -> [ResolvedSchemeGroup] {
         let groupNames = Set(scheme.groups.map(\.name))
         let displayNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
@@ -343,6 +519,7 @@ struct ConfigurationGenerator {
             var members: [String] = []
             var nodeNames: [String] = []
             var matchesAllNodes = false
+            var nodePatterns: [String] = []
 
             for member in group.members {
                 switch member {
@@ -355,6 +532,7 @@ struct ConfigurationGenerator {
                         members.append(builtinPolicyName(name, target: target))
                     }
                 case .nodePattern(let pattern):
+                    nodePatterns.append(pattern)
                     if pattern.trimmingCharacters(in: .whitespacesAndNewlines) == ".*" {
                         matchesAllNodes = true
                     }
@@ -366,16 +544,20 @@ struct ConfigurationGenerator {
 
             // A group whose regex matched nothing would be empty and rejected by
             // every client, so it falls back to a direct connection.
-            if members.isEmpty {
+            if members.isEmpty && !(preserveUnresolvedPatterns && !nodePatterns.isEmpty) {
                 members = [builtinPolicyName("DIRECT", target: target)]
             }
 
             return ResolvedSchemeGroup(
                 name: group.name,
-                kind: nodeNames.isEmpty && group.kind == .urlTest ? .select : group.kind,
+                kind: nodeNames.isEmpty && group.kind == .urlTest
+                    && !(preserveUnresolvedPatterns && !nodePatterns.isEmpty)
+                    ? .select
+                    : group.kind,
                 members: members.removingDuplicates(),
                 nodeNames: nodeNames.removingDuplicates(),
                 matchesAllNodes: matchesAllNodes,
+                nodePatterns: nodePatterns.removingDuplicates(),
                 testURL: group.testURLString ?? "http://www.gstatic.com/generate_204",
                 interval: group.interval ?? 300,
                 tolerance: group.tolerance ?? 50
@@ -436,7 +618,7 @@ struct ConfigurationGenerator {
 
         guard let finalGroup = plan.finalGroupName else { return output }
         switch target {
-        case .clash, .clashApple: output += "\(indent)MATCH,\(finalGroup)\n"
+        case .clash, .clashApple, .clashMi, .karing: output += "\(indent)MATCH,\(finalGroup)\n"
         case .quanx: output += "\(indent)final, \(finalGroup)\n"
         default: output += "\(indent)FINAL,\(finalGroup)\n"
         }
@@ -483,12 +665,19 @@ struct ConfigurationGenerator {
         return fields.dropFirst(2).contains { $0.lowercased() == "no-resolve" }
     }
 
-    private func schemeHeader(_ scheme: RuleScheme, target: ClientTarget) -> String {
+    private func schemeHeader(
+        _ scheme: RuleScheme,
+        target: ClientTarget,
+        embedsRemoteSubscriptions: Bool = false
+    ) -> String {
         let origin = scheme.sourceURLString ?? (scheme.isBundled ? "随 App 打包的快照" : "导出")
+        let credentialNotice = embedsRemoteSubscriptions
+            ? "Subscription URLs are embedded for client-side updates."
+            : "Subscription credentials never leave this device."
         return """
         # Generated locally by 塔台 for \(target.name)
         # Rules: \(scheme.name) (\(origin))
-        # Subscription credentials never leave this device.
+        # \(credentialNotice)
 
         """
     }
@@ -556,7 +745,7 @@ struct ConfigurationGenerator {
             output += "    geoip: true\n"
             output += "    geoip-code: CN\n"
         }
-        if protectionMode == .strict, target == .clashApple {
+        if protectionMode == .strict, [.clashApple, .clashMi].contains(target) {
             output += "\ntun:\n"
             output += "  enable: true\n"
             output += "  stack: mixed\n"
@@ -574,10 +763,18 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         target: ClientTarget,
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: target)
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let providerNames = remoteSubscriptions.map(\.identifier)
+        var output = schemeHeader(
+            scheme,
+            target: target,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += """
         mixed-port: 7890
         allow-lan: false
@@ -586,20 +783,34 @@ struct ConfigurationGenerator {
         """
         output += "\n" + clashNetworkBlock(scheme, target: target) + "\nproxies:\n"
         output += "\n"
-        output += nodes.isEmpty ? "  []\n" : nodes.map(clashNode).joined(separator: "\n") + "\n"
+        output += inlineNodes.isEmpty ? "  []\n" : inlineNodes.map(clashNode).joined(separator: "\n") + "\n"
+        output += clashProxyProviders(remoteSubscriptions, target: target)
         output += "\nproxy-groups:\n"
         for group in groups {
+            let inlineMembers = group.members.filter { !remoteNodeNames.contains($0) }
+            let remoteSelection = remoteGroupSelection(
+                for: group,
+                remoteNodeNames: remoteNodeNames
+            )
             switch group.kind {
             case .select:
-                output += clashSelectGroup(name: group.name, nodeNames: group.members)
+                output += clashSelectGroup(
+                    name: group.name,
+                    nodeNames: inlineMembers,
+                    providerNames: remoteSelection.includesRemoteNodes ? providerNames : [],
+                    providerFilter: remoteSelection.filter
+                )
             case .urlTest:
                 var block = "  - name: \(yaml(group.name))\n"
                 block += "    type: url-test\n"
                 block += "    url: \(group.testURL)\n"
                 block += "    interval: \(group.interval)\n"
                 block += "    tolerance: \(group.tolerance)\n"
-                block += "    proxies:\n"
-                for member in group.members { block += "      - \(yaml(member))\n" }
+                block += clashGroupMembers(
+                    nodeNames: inlineMembers,
+                    providerNames: remoteSelection.includesRemoteNodes ? providerNames : [],
+                    providerFilter: remoteSelection.filter
+                )
                 output += block
             }
         }
@@ -649,10 +860,18 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         target: ClientTarget,
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: target)
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let sourceGroupNames = remoteSubscriptions.map(\.displayName)
+        var output = schemeHeader(
+            scheme,
+            target: target,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += "[General]\n"
         output += "loglevel = notify\n"
         output += "ipv6 = \(schemeIPv6(scheme))\n"
@@ -665,19 +884,37 @@ struct ConfigurationGenerator {
         output += "skip-proxy = 127.0.0.1, localhost, *.local\n"
         output += "test-timeout = 5\n\n[Proxy]\n"
         output += "\n"
-        for node in nodes {
+        for node in inlineNodes {
             output += surgeNode(node, shadowrocket: target == .shadowrocket) + "\n"
         }
-        output += surgeWireGuardSections(nodes)
+        output += surgeWireGuardSections(inlineNodes)
         output += "\n[Proxy Group]\n"
+        output += surgeRemoteSourceGroups(remoteSubscriptions)
         for group in groups {
+            let inlineMembers = group.members.filter { !remoteNodeNames.contains($0) }
+            let remoteSelection = remoteGroupSelection(
+                for: group,
+                remoteNodeNames: remoteNodeNames
+            )
+            let includedSources = remoteSelection.includesRemoteNodes ? sourceGroupNames : []
             switch group.kind {
             case .select:
-                output += surgeSelect(name: group.name, values: group.members)
+                output += surgeSelect(
+                    name: group.name,
+                    values: inlineMembers,
+                    sourceGroupNames: includedSources,
+                    remoteFilter: remoteSelection.filter
+                )
             case .urlTest:
-                let members = group.members.map(confName).joined(separator: ", ")
-                output += "\(confName(group.name)) = url-test, \(members), url=\(group.testURL)"
-                output += ", interval=\(group.interval), tolerance=\(group.tolerance)\n"
+                output += surgeURLTest(
+                    name: group.name,
+                    names: inlineMembers,
+                    sourceGroupNames: includedSources,
+                    remoteFilter: remoteSelection.filter,
+                    testURL: group.testURL,
+                    interval: group.interval,
+                    tolerance: group.tolerance
+                )
             }
         }
         output += "\n[Rule]\n"
@@ -699,23 +936,56 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: .loon)
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteAliases = remoteSubscriptions.map(\.displayName)
+        var filtersByGroupName: [String: String] = [:]
+        var remoteFilters: [(name: String, pattern: String)] = []
+        for (index, group) in groups.enumerated() {
+            let selection = remoteGroupSelection(for: group, remoteNodeNames: remoteNodeNames)
+            guard selection.includesRemoteNodes, let filter = selection.filter else { continue }
+            let name = "塔台筛选 \(index + 1) · \(group.name)"
+            filtersByGroupName[group.name] = name
+            remoteFilters.append((name, filter))
+        }
+        var output = schemeHeader(
+            scheme,
+            target: .loon,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += "[General]\n"
         output += "ipv6 = \(schemeIPv6(scheme))\n"
         output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n\n"
         output += "[Proxy]\n"
         output += "\n"
-        for node in nodes { output += loonNode(node) + "\n" }
+        for node in inlineNodes { output += loonNode(node) + "\n" }
+        output += loonRemoteProxySections(
+            subscriptions: remoteSubscriptions,
+            filters: remoteFilters
+        )
         output += "\n[Proxy Group]\n"
         for group in groups {
-            let members = group.members.map(confName).joined(separator: ",")
+            var members = group.members.filter { !remoteNodeNames.contains($0) }
+            let remoteSelection = remoteGroupSelection(
+                for: group,
+                remoteNodeNames: remoteNodeNames
+            )
+            if remoteSelection.includesRemoteNodes {
+                if let filterName = filtersByGroupName[group.name] {
+                    members.append(filterName)
+                } else {
+                    members.append(contentsOf: remoteAliases)
+                }
+            }
+            let memberList = members.map(confName).joined(separator: ",")
             switch group.kind {
             case .select:
-                output += "\(confName(group.name)) = select,\(members)\n"
+                output += "\(confName(group.name)) = select,\(memberList)\n"
             case .urlTest:
-                output += "\(confName(group.name)) = url-test,\(members)"
+                output += "\(confName(group.name)) = url-test,\(memberList)"
                 output += ",url=\(group.testURL),interval=\(group.interval),tolerance=\(group.tolerance)\n"
             }
         }
@@ -736,9 +1006,17 @@ struct ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: .quanx)
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteAliases = remoteSubscriptions.map(\.displayName)
+        var output = schemeHeader(
+            scheme,
+            target: .quanx,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += "[general]\n"
         output += "server_check_url = \(schemeTestURL(scheme))\n"
         output += "server_check_timeout = 5000\n\n"
@@ -751,17 +1029,42 @@ struct ConfigurationGenerator {
         // rules while dropping every policy group.
         output += "\n\n[policy]\n"
         for group in groups {
+            if remoteSubscriptions.isEmpty {
+                switch group.kind {
+                case .select:
+                    let members = group.members.map(confName).joined(separator: ", ")
+                    output += "static=\(confName(group.name)), \(members)\n"
+                case .urlTest:
+                    output += "url-latency-benchmark=\(confName(group.name))"
+                    if group.matchesAllNodes {
+                        output += ", \(group.nodeNames.map(confName).joined(separator: ", "))"
+                    } else {
+                        output += ", server-tag-regex=\(quanXServerTagRegex(group.nodeNames))"
+                    }
+                    output += ", check-interval=\(group.interval), alive-checking=false"
+                    output += ", tolerance=\(group.tolerance)\n"
+                }
+                continue
+            }
+            let inlineMembers = group.members.filter { !remoteNodeNames.contains($0) }
+            let remoteSelection = remoteGroupSelection(
+                for: group,
+                remoteNodeNames: remoteNodeNames
+            )
+            let remoteParameters = !remoteSelection.includesRemoteNodes
+                ? []
+                : quanXRemotePolicyParameters(
+                    aliases: remoteAliases,
+                    filter: remoteSelection.filter
+                )
             switch group.kind {
             case .select:
-                let members = group.members.map(confName).joined(separator: ", ")
+                let members = (inlineMembers.map(confName) + remoteParameters).joined(separator: ", ")
                 output += "static=\(confName(group.name)), \(members)\n"
             case .urlTest:
                 output += "url-latency-benchmark=\(confName(group.name))"
-                if group.matchesAllNodes {
-                    output += ", \(group.nodeNames.map(confName).joined(separator: ", "))"
-                } else {
-                    output += ", server-tag-regex=\(quanXServerTagRegex(group.nodeNames))"
-                }
+                let members = inlineMembers.map(confName) + remoteParameters
+                if !members.isEmpty { output += ", \(members.joined(separator: ", "))" }
                 output += ", check-interval=\(group.interval), alive-checking=false"
                 output += ", tolerance=\(group.tolerance)\n"
             }
@@ -774,11 +1077,12 @@ struct ConfigurationGenerator {
             "\($0.url.absoluteString), tag=\($0.identifier), force-policy=\(confName($0.policyName)), enabled=true"
         }
         output += "\n[server_remote]\n"
+        output += quanXRemoteSubscriptionLines(remoteSubscriptions)
         output += "\n[filter_remote]\n"
         if !remoteRules.isEmpty { output += remoteRules.joined(separator: "\n") + "\n" }
         output += "\n[rewrite_remote]\n"
         output += "\n[server_local]\n"
-        for node in nodes { output += quanXNode(node) + "\n" }
+        for node in inlineNodes { output += quanXNode(node) + "\n" }
         output += "\n[filter_local]\n"
         output += quanXLocalSchemeRules(
             rulePlan,
@@ -794,13 +1098,20 @@ struct ConfigurationGenerator {
 
     private func clash(
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup],
         target: ClientTarget
     ) -> String {
-        let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let inlineNodeNames = inlineNodes.map { NodeRegionResolver.displayName(for: $0) }
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let providerNames = remoteSubscriptions.map(\.identifier)
         let regionGroupNames = regionGroups.map(\.name)
-        var output = header(target: target)
+        var output = header(
+            target: target,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += """
         mixed-port: 7890
         allow-lan: false
@@ -835,7 +1146,8 @@ struct ConfigurationGenerator {
         proxies:
         """
         output += "\n"
-        output += nodes.isEmpty ? "  []\n" : nodes.map(clashNode).joined(separator: "\n") + "\n"
+        output += inlineNodes.isEmpty ? "  []\n" : inlineNodes.map(clashNode).joined(separator: "\n") + "\n"
+        output += clashProxyProviders(remoteSubscriptions, target: target)
         output += "\nproxy-groups:\n"
         output += clashSelectGroup(
             name: RulePolicy.select.configurationName,
@@ -843,11 +1155,13 @@ struct ConfigurationGenerator {
         )
         output += clashSelectGroup(
             name: Self.manualGroupName,
-            nodeNames: nodeNames.isEmpty ? ["DIRECT"] : nodeNames
+            nodeNames: inlineNodeNames.isEmpty && providerNames.isEmpty ? ["DIRECT"] : inlineNodeNames,
+            providerNames: providerNames
         )
         output += clashURLTestGroup(
             name: RulePolicy.auto.configurationName,
-            nodeNames: nodeNames
+            nodeNames: inlineNodeNames,
+            providerNames: providerNames
         )
         output += clashSelectGroup(
             name: Self.nestedSelectGroupName,
@@ -856,12 +1170,14 @@ struct ConfigurationGenerator {
         )
         output += clashSelectGroup(
             name: Self.nestedManualGroupName,
-            nodeNames: nodeNames.isEmpty ? [Self.directGroupName] : nodeNames,
+            nodeNames: inlineNodeNames.isEmpty && providerNames.isEmpty ? [Self.directGroupName] : inlineNodeNames,
+            providerNames: providerNames,
             hidden: true
         )
         output += clashURLTestGroup(
             name: Self.nestedAutoGroupName,
-            nodeNames: nodeNames,
+            nodeNames: inlineNodeNames,
+            providerNames: providerNames,
             hidden: true
         )
         output += clashSelectGroup(
@@ -880,13 +1196,19 @@ struct ConfigurationGenerator {
             )
         }
         for group in regionGroups {
+            let inlineNames = group.nodeNames.filter { !remoteNodeNames.contains($0) }
+            let remoteNames = group.nodeNames.filter(remoteNodeNames.contains)
             output += clashSelectGroup(
                 name: group.name,
-                nodeNames: [group.automaticName] + group.nodeNames
+                nodeNames: [group.automaticName] + inlineNames,
+                providerNames: remoteNames.isEmpty ? [] : providerNames,
+                providerFilter: exactNameFilter(remoteNames)
             )
             output += clashURLTestGroup(
                 name: group.automaticName,
-                nodeNames: group.nodeNames,
+                nodeNames: inlineNames,
+                providerNames: remoteNames.isEmpty ? [] : providerNames,
+                providerFilter: exactNameFilter(remoteNames),
                 hidden: true
             )
         }
@@ -1159,12 +1481,16 @@ struct ConfigurationGenerator {
     private func clashSelectGroup(
         name: String,
         nodeNames: [String],
+        providerNames: [String] = [],
+        providerFilter: String? = nil,
         hidden: Bool = false
     ) -> String {
-        var output = "  - name: \(yaml(name))\n    type: select\n    proxies:\n"
-        for name in nodeNames.removingDuplicates() {
-            output += "      - \(yaml(name))\n"
-        }
+        var output = "  - name: \(yaml(name))\n    type: select\n"
+        output += clashGroupMembers(
+            nodeNames: nodeNames,
+            providerNames: providerNames,
+            providerFilter: providerFilter
+        )
         if hidden { output += "    hidden: true\n" }
         return output
     }
@@ -1172,9 +1498,11 @@ struct ConfigurationGenerator {
     private func clashURLTestGroup(
         name: String,
         nodeNames: [String],
+        providerNames: [String] = [],
+        providerFilter: String? = nil,
         hidden: Bool = false
     ) -> String {
-        guard !nodeNames.isEmpty else {
+        guard !nodeNames.isEmpty || !providerNames.isEmpty else {
             return clashSelectGroup(name: name, nodeNames: ["DIRECT"])
         }
         var output = "  - name: \(yaml(name))\n"
@@ -1182,22 +1510,88 @@ struct ConfigurationGenerator {
         output += "    url: http://www.gstatic.com/generate_204\n"
         output += "    interval: 300\n"
         output += "    tolerance: 50\n"
-        output += "    proxies:\n"
-        for name in nodeNames { output += "      - \(yaml(name))\n" }
+        output += clashGroupMembers(
+            nodeNames: nodeNames,
+            providerNames: providerNames,
+            providerFilter: providerFilter
+        )
         if hidden { output += "    hidden: true\n" }
+        return output
+    }
+
+    private func clashGroupMembers(
+        nodeNames: [String],
+        providerNames: [String],
+        providerFilter: String?
+    ) -> String {
+        var output = ""
+        let names = nodeNames.removingDuplicates()
+        if !names.isEmpty {
+            output += "    proxies:\n"
+            for name in names { output += "      - \(yaml(name))\n" }
+        }
+        if !providerNames.isEmpty {
+            output += "    use:\n"
+            for name in providerNames.removingDuplicates() {
+                output += "      - \(yaml(name))\n"
+            }
+            if let providerFilter, !providerFilter.isEmpty {
+                output += "    filter: \(yaml(providerFilter))\n"
+            }
+        }
+        if names.isEmpty && providerNames.isEmpty {
+            output += "    proxies:\n      - DIRECT\n"
+        }
+        return output
+    }
+
+    private func clashProxyProviders(
+        _ subscriptions: [RemoteSubscriptionEntry],
+        target: ClientTarget
+    ) -> String {
+        guard !subscriptions.isEmpty else { return "" }
+        var output = "\nproxy-providers:\n"
+        for subscription in subscriptions {
+            output += "  \(subscription.identifier):\n"
+            output += "    type: http\n"
+            output += "    url: \(yaml(subscription.urlString))\n"
+            output += "    path: ./providers/\(subscription.identifier).yaml\n"
+            output += "    interval: 86400\n"
+            if let userAgent = subscription.userAgent, !userAgent.isEmpty {
+                if target == .clash {
+                    output += "    headers:\n"
+                    output += "      User-Agent: \(yaml(userAgent))\n"
+                } else {
+                    output += "    header:\n"
+                    output += "      User-Agent:\n"
+                    output += "        - \(yaml(userAgent))\n"
+                }
+            }
+            output += "    health-check:\n"
+            output += "      enable: true\n"
+            output += "      url: http://www.gstatic.com/generate_204\n"
+            output += "      interval: 600\n"
+        }
         return output
     }
 
     private func surgeLike(
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup],
         shadowrocket: Bool
     ) -> String {
         let target: ClientTarget = shadowrocket ? .shadowrocket : .surge
-        let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let names = inlineNodes.map { NodeRegionResolver.displayName(for: $0) }
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let sourceGroupNames = remoteSubscriptions.map(\.displayName)
         let regionGroupNames = regionGroups.map(\.name)
-        var output = header(target: target)
+        var output = header(
+            target: target,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += """
         [General]
         loglevel = notify
@@ -1212,22 +1606,25 @@ struct ConfigurationGenerator {
         [Proxy]
         """
         output += "\n"
-        for node in nodes {
+        for node in inlineNodes {
             output += surgeNode(node, shadowrocket: shadowrocket) + "\n"
         }
-        output += surgeWireGuardSections(nodes)
+        output += surgeWireGuardSections(inlineNodes)
         output += "\n[Proxy Group]\n"
+        output += surgeRemoteSourceGroups(remoteSubscriptions)
         output += surgeSelect(
             name: RulePolicy.select.configurationName,
             values: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
         )
         output += surgeSelect(
             name: Self.manualGroupName,
-            values: names.isEmpty ? ["DIRECT"] : names
+            values: names.isEmpty && sourceGroupNames.isEmpty ? ["DIRECT"] : names,
+            sourceGroupNames: sourceGroupNames
         )
         output += surgeURLTest(
             name: RulePolicy.auto.configurationName,
-            names: names
+            names: names,
+            sourceGroupNames: sourceGroupNames
         )
         output += surgeSelect(
             name: Self.nestedSelectGroupName,
@@ -1236,12 +1633,14 @@ struct ConfigurationGenerator {
         )
         output += surgeSelect(
             name: Self.nestedManualGroupName,
-            values: names.isEmpty ? [Self.directGroupName] : names,
+            values: names.isEmpty && sourceGroupNames.isEmpty ? [Self.directGroupName] : names,
+            sourceGroupNames: sourceGroupNames,
             hidden: true
         )
         output += surgeURLTest(
             name: Self.nestedAutoGroupName,
             names: names,
+            sourceGroupNames: sourceGroupNames,
             hidden: true
         )
         output += surgeSelect(
@@ -1260,13 +1659,19 @@ struct ConfigurationGenerator {
             )
         }
         for group in regionGroups {
+            let inlineNames = group.nodeNames.filter { !remoteNodeNames.contains($0) }
+            let remoteNames = group.nodeNames.filter(remoteNodeNames.contains)
             output += surgeSelect(
                 name: group.name,
-                values: [group.automaticName] + group.nodeNames
+                values: [group.automaticName] + inlineNames,
+                sourceGroupNames: remoteNames.isEmpty ? [] : sourceGroupNames,
+                remoteFilter: exactNameFilter(remoteNames)
             )
             output += surgeURLTest(
                 name: group.automaticName,
-                names: group.nodeNames,
+                names: inlineNames,
+                sourceGroupNames: remoteNames.isEmpty ? [] : sourceGroupNames,
+                remoteFilter: exactNameFilter(remoteNames),
                 hidden: true
             )
         }
@@ -1514,30 +1919,92 @@ struct ConfigurationGenerator {
     private func surgeSelect(
         name: String,
         values: [String],
+        sourceGroupNames: [String] = [],
+        remoteFilter: String? = nil,
         hidden: Bool = false
     ) -> String {
-        let hiddenParameter = hidden ? ", hidden=true" : ""
-        return "\(confName(name)) = select, \(values.removingDuplicates().map(confName).joined(separator: ", "))\(hiddenParameter)\n"
+        var parameters = values.removingDuplicates().map(confName)
+        parameters += surgeRemoteGroupParameters(
+            sourceGroupNames: sourceGroupNames,
+            remoteFilter: remoteFilter
+        )
+        if hidden { parameters.append("hidden=true") }
+        if parameters.isEmpty { parameters.append("DIRECT") }
+        return "\(confName(name)) = select, \(parameters.joined(separator: ", "))\n"
     }
 
     private func surgeURLTest(
         name: String,
         names: [String],
+        sourceGroupNames: [String] = [],
+        remoteFilter: String? = nil,
+        testURL: String = "http://www.gstatic.com/generate_204",
+        interval: Int = 300,
+        tolerance: Int = 50,
         hidden: Bool = false
     ) -> String {
-        guard !names.isEmpty else { return surgeSelect(name: name, values: ["DIRECT"]) }
-        let hiddenParameter = hidden ? ", hidden=true" : ""
-        return "\(confName(name)) = url-test, \(names.map(confName).joined(separator: ", ")), url=http://www.gstatic.com/generate_204, interval=300, tolerance=50\(hiddenParameter)\n"
+        guard !names.isEmpty || !sourceGroupNames.isEmpty else {
+            return surgeSelect(name: name, values: ["DIRECT"], hidden: hidden)
+        }
+        var parameters = names.map(confName)
+        parameters += surgeRemoteGroupParameters(
+            sourceGroupNames: sourceGroupNames,
+            remoteFilter: remoteFilter
+        )
+        parameters += [
+            "url=\(confValue(testURL))",
+            "interval=\(interval)",
+            "tolerance=\(tolerance)"
+        ]
+        if hidden { parameters.append("hidden=true") }
+        return "\(confName(name)) = url-test, \(parameters.joined(separator: ", "))\n"
+    }
+
+    private func surgeRemoteSourceGroups(
+        _ subscriptions: [RemoteSubscriptionEntry]
+    ) -> String {
+        subscriptions.map { subscription in
+            "\(confName(subscription.displayName)) = select, policy-path=\(confValue(subscription.urlString)), update-interval=86400, hidden=true\n"
+        }.joined()
+    }
+
+    private func surgeRemoteGroupParameters(
+        sourceGroupNames: [String],
+        remoteFilter: String?
+    ) -> [String] {
+        guard !sourceGroupNames.isEmpty else { return [] }
+        let groups = sourceGroupNames.map(confName).joined(separator: ",")
+        var parameters = ["include-other-group=\(surgeQuoted(groups))"]
+        if let remoteFilter, !remoteFilter.isEmpty {
+            parameters.append("policy-regex-filter=\(surgeQuoted(remoteFilter))")
+        }
+        return parameters
     }
 
     private func loon(
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup]
     ) -> String {
-        let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let names = inlineNodes.map { NodeRegionResolver.displayName(for: $0) }
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteAliases = remoteSubscriptions.map(\.displayName)
         let regionGroupNames = regionGroups.map(\.name)
-        var output = header(target: .loon)
+        var filterNamesByRegion: [String: String] = [:]
+        let regionFilters: [(name: String, pattern: String)] = regionGroups.enumerated().compactMap {
+            index, group in
+            let remoteNames = group.nodeNames.filter(remoteNodeNames.contains)
+            guard let filter = exactNameFilter(remoteNames) else { return nil }
+            let filterName = "塔台地区筛选 \(index + 1) · \(group.name)"
+            filterNamesByRegion[group.name] = filterName
+            return (filterName, filter)
+        }
+        var output = header(
+            target: .loon,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += """
         [General]
         ipv6 = true
@@ -1546,31 +2013,36 @@ struct ConfigurationGenerator {
         [Proxy]
         """
         output += "\n"
-        for node in nodes { output += loonNode(node) + "\n" }
+        for node in inlineNodes { output += loonNode(node) + "\n" }
+        output += loonRemoteProxySections(
+            subscriptions: remoteSubscriptions,
+            filters: regionFilters
+        )
         output += "\n[Proxy Group]\n"
         let selectNames = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ",")
         output += "\(confName(RulePolicy.select.configurationName)) = select,\(selectNames)\n"
-        let manualNames = (names.isEmpty ? ["DIRECT"] : names).map(confName).joined(separator: ",")
+        let manualNames = (names.isEmpty && remoteAliases.isEmpty ? ["DIRECT"] : names + remoteAliases)
+            .map(confName).joined(separator: ",")
         output += "\(confName(Self.manualGroupName)) = select,\(manualNames)\n"
-        if names.isEmpty {
+        if names.isEmpty && remoteAliases.isEmpty {
             output += "\(confName(RulePolicy.auto.configurationName)) = select,DIRECT\n"
         } else {
-            output += "\(confName(RulePolicy.auto.configurationName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50\n"
+            output += "\(confName(RulePolicy.auto.configurationName)) = url-test,\((names + remoteAliases).map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50\n"
         }
         let nestedSelectNames = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ",")
         output += "\(confName(Self.nestedSelectGroupName)) = select,\(nestedSelectNames),hidden=true\n"
-        let nestedManualNames = (names.isEmpty ? [Self.directGroupName] : names)
+        let nestedManualNames = (names.isEmpty && remoteAliases.isEmpty ? [Self.directGroupName] : names + remoteAliases)
             .map(confName)
             .joined(separator: ",")
         output += "\(confName(Self.nestedManualGroupName)) = select,\(nestedManualNames),hidden=true\n"
-        if names.isEmpty {
+        if names.isEmpty && remoteAliases.isEmpty {
             output += "\(confName(Self.nestedAutoGroupName)) = select,\(confName(Self.directGroupName)),hidden=true\n"
         } else {
-            output += "\(confName(Self.nestedAutoGroupName)) = url-test,\(names.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,hidden=true\n"
+            output += "\(confName(Self.nestedAutoGroupName)) = url-test,\((names + remoteAliases).map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,hidden=true\n"
         }
         output += "\(confName(Self.directGroupName)) = select,DIRECT,hidden=true\n"
         for policy in configurablePolicies(preset) {
@@ -1584,8 +2056,10 @@ struct ConfigurationGenerator {
             output += "\(confName(policy.configurationName)) = select,\(choices)\n"
         }
         for group in regionGroups {
-            output += "\(confName(group.name)) = select,\(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ","))\n"
-            output += "\(confName(group.automaticName)) = url-test,\(group.nodeNames.map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,hidden=true\n"
+            let inlineNames = group.nodeNames.filter { !remoteNodeNames.contains($0) }
+            let remoteMembers = filterNamesByRegion[group.name].map { [$0] } ?? []
+            output += "\(confName(group.name)) = select,\(([group.automaticName] + inlineNames + remoteMembers).map(confName).joined(separator: ","))\n"
+            output += "\(confName(group.automaticName)) = url-test,\((inlineNames + remoteMembers).map(confName).joined(separator: ",")),url=http://www.gstatic.com/generate_204,interval=300,tolerance=50,hidden=true\n"
         }
         output += "\n[Rule]\n"
         for assignment in preset.assignments {
@@ -1600,6 +2074,23 @@ struct ConfigurationGenerator {
         // final policy, and the node resolves it instead.
         if preset.includeGeoIPCN { output += "GEOIP,CN,DIRECT,no-resolve\n" }
         output += "FINAL,\(surgePolicyName(preset.finalPolicy))\n"
+        return output
+    }
+
+    private func loonRemoteProxySections(
+        subscriptions: [RemoteSubscriptionEntry],
+        filters: [(name: String, pattern: String)]
+    ) -> String {
+        guard !subscriptions.isEmpty else { return "" }
+        var output = "\n[Remote Proxy]\n"
+        for subscription in subscriptions {
+            output += "\(confName(subscription.displayName)) = \(subscription.urlString)\n"
+        }
+        output += "\n[Remote Filter]\n"
+        let aliases = subscriptions.map { confName($0.displayName) }.joined(separator: ",")
+        for filter in filters {
+            output += "\(confName(filter.name)) = NameRegex,\(aliases),FilterKey = \(loonQuoted(filter.pattern))\n"
+        }
         return output
     }
 
@@ -1725,12 +2216,20 @@ struct ConfigurationGenerator {
 
     private func quanX(
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup]
     ) -> String {
-        let names = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let names = inlineNodes.map { NodeRegionResolver.displayName(for: $0) }
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteAliases = remoteSubscriptions.map(\.displayName)
+        let allRemoteParameters = quanXRemotePolicyParameters(aliases: remoteAliases, filter: nil)
         let regionGroupNames = regionGroups.map(\.name)
-        var output = header(target: .quanx)
+        var output = header(
+            target: .quanx,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += """
         [general]
         server_check_url = http://www.gstatic.com/generate_204
@@ -1751,25 +2250,27 @@ struct ConfigurationGenerator {
             .map(confName)
             .joined(separator: ", ")
         output += "static=\(RulePolicy.select.configurationName), \(selectValues)\n"
-        let manualValues = (names.isEmpty ? ["direct"] : names).map(confName).joined(separator: ", ")
+        let manualValues = (names.isEmpty && allRemoteParameters.isEmpty ? ["direct"] : names.map(confName) + allRemoteParameters)
+            .joined(separator: ", ")
         output += "static=\(Self.manualGroupName), \(manualValues)\n"
-        if names.isEmpty {
+        if names.isEmpty && allRemoteParameters.isEmpty {
             output += "static=\(RulePolicy.auto.configurationName), direct\n"
         } else {
-            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "url-latency-benchmark=\(RulePolicy.auto.configurationName), \((names.map(confName) + allRemoteParameters).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         let nestedSelectValues = nestedPrimaryChoices(regionGroupNames: regionGroupNames)
             .map(confName)
             .joined(separator: ", ")
         output += "static=\(Self.nestedSelectGroupName), \(nestedSelectValues)\n"
-        let nestedManualValues = (names.isEmpty ? [Self.directGroupName] : names)
-            .map(confName)
+        let nestedManualValues = (names.isEmpty && allRemoteParameters.isEmpty
+            ? [confName(Self.directGroupName)]
+            : names.map(confName) + allRemoteParameters)
             .joined(separator: ", ")
         output += "static=\(Self.nestedManualGroupName), \(nestedManualValues)\n"
-        if names.isEmpty {
+        if names.isEmpty && allRemoteParameters.isEmpty {
             output += "static=\(Self.nestedAutoGroupName), \(Self.directGroupName)\n"
         } else {
-            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \(names.map(confName).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
+            output += "url-latency-benchmark=\(Self.nestedAutoGroupName), \((names.map(confName) + allRemoteParameters).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
         output += "static=\(Self.directGroupName), direct\n"
         for policy in configurablePolicies(preset) {
@@ -1783,12 +2284,27 @@ struct ConfigurationGenerator {
             output += "static=\(policy.configurationName), \(choices)\n"
         }
         for group in regionGroups {
-            output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
-            output += "url-latency-benchmark=\(group.automaticName), server-tag-regex=\(quanXServerTagRegex(group.nodeNames)), check-interval=300, alive-checking=false, tolerance=50\n"
+            if remoteSubscriptions.isEmpty {
+                output += "static=\(group.name), \(([group.automaticName] + group.nodeNames).map(confName).joined(separator: ", "))\n"
+                output += "url-latency-benchmark=\(group.automaticName), server-tag-regex=\(quanXServerTagRegex(group.nodeNames)), check-interval=300, alive-checking=false, tolerance=50\n"
+                continue
+            }
+            let inlineNames = group.nodeNames.filter { !remoteNodeNames.contains($0) }.map(confName)
+            let remoteNames = group.nodeNames.filter(remoteNodeNames.contains)
+            let remoteParameters = remoteNames.isEmpty
+                ? []
+                : quanXRemotePolicyParameters(
+                    aliases: remoteAliases,
+                    filter: exactNameFilter(remoteNames)
+                )
+            output += "static=\(group.name), \(([confName(group.automaticName)] + inlineNames + remoteParameters).joined(separator: ", "))\n"
+            output += "url-latency-benchmark=\(group.automaticName), \((inlineNames + remoteParameters).joined(separator: ", ")), check-interval=300, alive-checking=false, tolerance=50\n"
         }
-        output += "\n[server_remote]\n\n[filter_remote]\n\n[rewrite_remote]\n"
+        output += "\n[server_remote]\n"
+        output += quanXRemoteSubscriptionLines(remoteSubscriptions)
+        output += "\n[filter_remote]\n\n[rewrite_remote]\n"
         output += "\n[server_local]\n"
-        for node in nodes { output += quanXNode(node) + "\n" }
+        for node in inlineNodes { output += quanXNode(node) + "\n" }
         output += "\n[filter_local]\n"
         for assignment in preset.assignments {
             for rule in rules.lines(for: assignment) {
@@ -1803,6 +2319,25 @@ struct ConfigurationGenerator {
             output += "\n[\(section)]\n"
         }
         return output
+    }
+
+    private func quanXRemoteSubscriptionLines(
+        _ subscriptions: [RemoteSubscriptionEntry]
+    ) -> String {
+        subscriptions.map { subscription in
+            "\(confValue(subscription.urlString)), tag=\(confName(subscription.displayName)), update-interval=86400, enabled=true\n"
+        }.joined()
+    }
+
+    private func quanXRemotePolicyParameters(
+        aliases: [String],
+        filter: String?
+    ) -> [String] {
+        guard !aliases.isEmpty else { return [] }
+        let aliasRegex = exactNameFilter(aliases) ?? ".*"
+        var values = ["resource-tag-regex=\(aliasRegex)"]
+        if let filter, !filter.isEmpty { values.append("server-tag-regex=\(filter)") }
+        return values
     }
 
     private func quanXNode(_ node: ProxyNode) -> String {
@@ -1948,7 +2483,7 @@ struct ConfigurationGenerator {
     private func mappedRule(_ rule: String, policy: RulePolicy, target: ClientTarget) -> String? {
         let policyName: String
         switch target {
-        case .clash, .clashApple: policyName = clashPolicyName(policy)
+        case .clash, .clashApple, .clashMi, .karing: policyName = clashPolicyName(policy)
         case .quanx: policyName = quanXPolicyName(policy)
         default: policyName = surgePolicyName(policy)
         }
@@ -1968,7 +2503,7 @@ struct ConfigurationGenerator {
         // Clash/Mihomo does not implement Surge's URL-REGEX dialect. These
         // expressions may inspect the URL path, so converting them to a domain
         // rule would silently change their meaning; omit them for Clash only.
-        if [.clash, .clashApple].contains(target), ruleType == "URL-REGEX" {
+        if target.usesClashFormat, ruleType == "URL-REGEX" {
             return nil
         }
 
@@ -1997,7 +2532,7 @@ struct ConfigurationGenerator {
             // subconverter dialect can therefore be preserved for the two
             // Clash targets, while clients without a documented equivalent
             // must continue dropping it instead of rejecting the profile.
-            guard [.clash, .clashApple].contains(target) else { return nil }
+            guard target.usesClashFormat else { return nil }
         } else if !Self.surgeFamilyRuleTypes.contains(ruleType) {
             // A future rule snapshot may introduce a type these clients cannot
             // parse. Dropping it keeps the rest of the configuration loadable
@@ -2116,11 +2651,17 @@ struct ConfigurationGenerator {
         }
     }
 
-    private func header(target: ClientTarget) -> String {
-        """
+    private func header(
+        target: ClientTarget,
+        embedsRemoteSubscriptions: Bool = false
+    ) -> String {
+        let credentialNotice = embedsRemoteSubscriptions
+            ? "Subscription URLs are embedded for client-side updates."
+            : "Subscription credentials never leave this device."
+        return """
         # Generated locally by 塔台 for \(target.name)
         # Rules are selected and stored locally on this device.
-        # Subscription credentials never leave this device.
+        # \(credentialNotice)
 
         """
     }
@@ -2214,6 +2755,13 @@ struct ConfigurationGenerator {
     private func confValue(_ value: String) -> String {
         collapsingLineBreaks(value)
             .replacingOccurrences(of: ",", with: "%2C")
+    }
+
+    private func surgeQuoted(_ value: String) -> String {
+        let escaped = collapsingLineBreaks(value)
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 
     /// Loon's positional credential fields are quoted in its documented node
@@ -2899,25 +3447,37 @@ extension ConfigurationGenerator {
 
     func egern(
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         preset: RulePreset,
         regionGroups: [RegionStrategyGroup]
     ) -> String {
-        let nodeNames = nodes.map { NodeRegionResolver.displayName(for: $0) }
+        let nodeNames = inlineNodes.map { NodeRegionResolver.displayName(for: $0) }
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteURLs = remoteSubscriptions.map(\.urlString)
         let regionGroupNames = regionGroups.map(\.name)
 
-        var output = header(target: .egern)
+        var output = header(
+            target: .egern,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += "\nproxies:\n"
-        output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
+        output += inlineNodes.isEmpty ? "  []\n" : inlineNodes.compactMap(egernProxy).joined()
 
         output += "\npolicy_groups:\n"
         output += egernSelect(
             name: RulePolicy.select.configurationName,
             policies: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
         )
-        output += egernAutoTest(name: RulePolicy.auto.configurationName, policies: nodeNames)
+        output += egernAutoTest(
+            name: RulePolicy.auto.configurationName,
+            policies: nodeNames,
+            urls: remoteURLs
+        )
         output += egernSelect(
             name: Self.manualGroupName,
-            policies: nodeNames.isEmpty ? [Self.egernDirect] : nodeNames
+            policies: nodeNames.isEmpty && remoteURLs.isEmpty ? [Self.egernDirect] : nodeNames,
+            urls: remoteURLs
         )
         // The four aliases every policy group points at, declared here the way
         // the other formats declare them.
@@ -2925,10 +3485,11 @@ extension ConfigurationGenerator {
             name: Self.nestedSelectGroupName,
             policies: nestedPrimaryChoices(regionGroupNames: regionGroupNames)
         )
-        output += egernAutoTest(name: Self.nestedAutoGroupName, policies: nodeNames)
+        output += egernAutoTest(name: Self.nestedAutoGroupName, policies: nodeNames, urls: remoteURLs)
         output += egernSelect(
             name: Self.nestedManualGroupName,
-            policies: nodeNames.isEmpty ? [Self.egernDirect] : nodeNames
+            policies: nodeNames.isEmpty && remoteURLs.isEmpty ? [Self.egernDirect] : nodeNames,
+            urls: remoteURLs
         )
         output += egernSelect(name: Self.directGroupName, policies: [Self.egernDirect])
 
@@ -2943,8 +3504,22 @@ extension ConfigurationGenerator {
             )
         }
         for group in regionGroups {
-            output += egernSelect(name: group.name, policies: [group.automaticName] + group.nodeNames)
-            output += egernAutoTest(name: group.automaticName, policies: group.nodeNames)
+            let inlineNames = group.nodeNames.filter { !remoteNodeNames.contains($0) }
+            let remoteNames = group.nodeNames.filter(remoteNodeNames.contains)
+            let urls = remoteNames.isEmpty ? [] : remoteURLs
+            let filter = exactNameFilter(remoteNames)
+            output += egernSelect(
+                name: group.name,
+                policies: [group.automaticName] + inlineNames,
+                urls: urls,
+                filter: filter
+            )
+            output += egernAutoTest(
+                name: group.automaticName,
+                policies: inlineNames,
+                urls: urls,
+                filter: filter
+            )
         }
 
         output += "\nrules:\n"
@@ -2967,17 +3542,45 @@ extension ConfigurationGenerator {
         _ scheme: RuleScheme,
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
+        inlineNodes: [ProxyNode],
+        remoteSubscriptions: [RemoteSubscriptionEntry],
         rulePlan: RuleSetEmissionPlanner.Plan
     ) -> String {
-        var output = schemeHeader(scheme, target: .egern)
+        let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
+        let remoteURLs = remoteSubscriptions.map(\.urlString)
+        var output = schemeHeader(
+            scheme,
+            target: .egern,
+            embedsRemoteSubscriptions: !remoteSubscriptions.isEmpty
+        )
         output += "\nproxies:\n"
-        output += nodes.isEmpty ? "  []\n" : nodes.compactMap(egernProxy).joined()
+        output += inlineNodes.isEmpty ? "  []\n" : inlineNodes.compactMap(egernProxy).joined()
 
         output += "\npolicy_groups:\n"
         for group in groups {
+            let inlineMembers = group.members.filter { !remoteNodeNames.contains($0) }
+            let remoteSelection = remoteGroupSelection(
+                for: group,
+                remoteNodeNames: remoteNodeNames
+            )
+            let urls = remoteSelection.includesRemoteNodes ? remoteURLs : []
             switch group.kind {
-            case .select: output += egernSelect(name: group.name, policies: group.members)
-            case .urlTest: output += egernAutoTest(name: group.name, policies: group.members)
+            case .select:
+                output += egernSelect(
+                    name: group.name,
+                    policies: inlineMembers,
+                    urls: urls,
+                    filter: remoteSelection.filter
+                )
+            case .urlTest:
+                output += egernAutoTest(
+                    name: group.name,
+                    policies: inlineMembers,
+                    urls: urls,
+                    filter: remoteSelection.filter,
+                    interval: group.interval,
+                    tolerance: group.tolerance
+                )
             }
         }
 
@@ -2998,20 +3601,48 @@ extension ConfigurationGenerator {
         return output
     }
 
-    private func egernSelect(name: String, policies: [String]) -> String {
-        var block = "  - select:\n      name: \(yaml(name))\n      policies:\n"
-        for policy in (policies.isEmpty ? [Self.egernDirect] : policies) {
-            block += "        - \(yaml(policy))\n"
-        }
+    private func egernSelect(
+        name: String,
+        policies: [String],
+        urls: [String] = [],
+        filter: String? = nil
+    ) -> String {
+        var block = "  - select:\n      name: \(yaml(name))\n"
+        block += egernGroupMembers(policies: policies, urls: urls, filter: filter)
         return block
     }
 
-    private func egernAutoTest(name: String, policies: [String]) -> String {
-        var block = "  - auto_test:\n      name: \(yaml(name))\n      policies:\n"
-        for policy in (policies.isEmpty ? [Self.egernDirect] : policies) {
-            block += "        - \(yaml(policy))\n"
+    private func egernAutoTest(
+        name: String,
+        policies: [String],
+        urls: [String] = [],
+        filter: String? = nil,
+        interval: Int = 600,
+        tolerance: Int = 100
+    ) -> String {
+        var block = "  - auto_test:\n      name: \(yaml(name))\n"
+        block += egernGroupMembers(policies: policies, urls: urls, filter: filter)
+        return block + "      interval: \(interval)\n      tolerance: \(tolerance)\n      timeout: 5\n"
+    }
+
+    private func egernGroupMembers(
+        policies: [String],
+        urls: [String],
+        filter: String?
+    ) -> String {
+        var output = ""
+        let policies = policies.isEmpty && urls.isEmpty ? [Self.egernDirect] : policies
+        if !policies.isEmpty {
+            output += "      policies:\n"
+            for policy in policies { output += "        - \(yaml(policy))\n" }
         }
-        return block + "      interval: 600\n      tolerance: 100\n      timeout: 5\n"
+        if !urls.isEmpty {
+            output += "      urls:\n"
+            for url in urls.removingDuplicates() { output += "        - \(yaml(url))\n" }
+            output += "      update_interval: 86400\n"
+            if let filter, !filter.isEmpty { output += "      filter: \(yaml(filter))\n" }
+        }
+        return output
     }
 
     /// One rule per entry: Egern's `match` takes a single value, so a rule list

@@ -604,7 +604,7 @@ private struct SubscriptionCard: View {
                 )
                 .labelsHidden()
                 .toggleStyle(CheckmarkToggleStyle())
-                .frame(width: 34, height: 44)
+                .frame(width: 44, height: 44)
                 .accessibilityLabel("启用 \(source.name)")
             }
             // Scoped to the header. On the whole card a long press anywhere —

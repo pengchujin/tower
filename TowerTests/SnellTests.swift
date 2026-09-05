@@ -65,7 +65,9 @@ final class SnellTests: XCTestCase {
         XCTAssertTrue(ClientTarget.surge.supports(.snell))
         XCTAssertTrue(ClientTarget.shadowrocket.supports(.snell))
         XCTAssertTrue(ClientTarget.clash.supports(.snell))
+        XCTAssertTrue(ClientTarget.clashMi.supports(.snell))
         XCTAssertTrue(ClientTarget.singBox.supports(.snell))
+        XCTAssertFalse(ClientTarget.karing.supports(.snell))
         XCTAssertFalse(ClientTarget.loon.supports(.snell))
         XCTAssertFalse(ClientTarget.quanx.supports(.snell))
     }
@@ -85,19 +87,23 @@ final class SnellTests: XCTestCase {
         }
     }
 
-    func testClashSkipsSnellVersionFourAndAbove() throws {
+    func testClashTargetsSkipSnellVersionFourAndAbove() throws {
         let v4 = try XCTUnwrap(parser.parseURI(line))
         let v3 = try XCTUnwrap(parser.parseURI("HK = snell, 198.51.100.4, 443, psk=abc, version=3"))
 
         // Clash and Stash implement Snell only up to version 3.
-        XCTAssertEqual(
-            ConfigurationGenerator().generate(nodes: [v4], preset: RulePreset.builtIns[0], target: .clash).skippedNodeCount,
-            1
-        )
-        XCTAssertEqual(
-            ConfigurationGenerator().generate(nodes: [v3], preset: RulePreset.builtIns[0], target: .clash).supportedNodeCount,
-            1
-        )
+        for target in [ClientTarget.clash, .clashApple, .clashMi] {
+            XCTAssertEqual(
+                ConfigurationGenerator().generate(nodes: [v4], preset: RulePreset.builtIns[0], target: target).skippedNodeCount,
+                1,
+                target.name
+            )
+            XCTAssertEqual(
+                ConfigurationGenerator().generate(nodes: [v3], preset: RulePreset.builtIns[0], target: target).supportedNodeCount,
+                1,
+                target.name
+            )
+        }
     }
 
     // MARK: - Generation

@@ -504,7 +504,7 @@ final class RuleSchemeTests: XCTestCase {
     func testClashTargetsPreserveImportedGeoSiteRule() throws {
         let scheme = try parse()
 
-        for target in [ClientTarget.clash, .clashApple] {
+        for target in [ClientTarget.clash, .clashApple, .clashMi, .karing] {
             let content = ConfigurationGenerator().generate(
                 nodes: nodes,
                 scheme: scheme,

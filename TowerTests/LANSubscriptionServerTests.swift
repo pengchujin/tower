@@ -38,6 +38,9 @@ final class LANSubscriptionServerTests: XCTestCase {
     func testExplicitTargetsAndDesktopAliasesResolve() throws {
         let expected: [String: ClientTarget] = [
             "clash": .clash,
+            "clash-mi": .clash,
+            "clashmi": .clash,
+            "karing": .clash,
             "openclash": .clash,
             "nikki": .clash,
             "mihomo": .clash,
@@ -100,6 +103,8 @@ final class LANSubscriptionServerTests: XCTestCase {
             ("OpenClash/v0.46.014", .clash),
             ("Nikki/1.6.3", .clash),
             ("Clash-Verge/2.3", .clash),
+            ("Clash Mi/1.0", .clash),
+            ("Karing/1.2", .clash),
             ("Surge iOS/5.14", .surge),
             ("Surfboard/2.33.0", .surge),
             ("Shadowrocket/1997 CFNetwork", .shadowrocket),
@@ -140,7 +145,7 @@ final class LANSubscriptionServerTests: XCTestCase {
     func testClashLANFormatNamesItsCompatibleClientsInUserFacingOrder() {
         XCTAssertEqual(
             LANSubscriptionFormat.clash.displayName,
-            "Clash / OpenClash / Nikki / Stash"
+            "Clash / Clash Mi / Karing / OpenClash / Nikki / Stash"
         )
     }
 

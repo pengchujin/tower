@@ -1,125 +1,57 @@
 # 塔台
 
-塔台是一款原生 SwiftUI iOS App，用来在设备本地管理机场订阅和自有节点，选择本机规则或手动下载 Self-Configuration，并生成 Surge、Stash、Clash、Shadowrocket、Loon、Quantumult X、Hiddify、sing-box MT 和 Egern 完整配置，以及 V2Box 节点订阅。
+塔台是在 iPhone 本机管理订阅、自有节点与规则，并生成客户端配置的原生 SwiftUI App。它不建立网络隧道、不接管流量、不提供服务器或节点。
 
-## 开发交接
+## 能做什么
 
-- [Claude 接手指南](CLAUDE.md)：工程约束、常用命令和验收门槛。
-- [当前开发状态](docs/HANDOFF.md)：TestFlight、远程归档、已知问题和后续任务。
-- [技术架构](docs/ARCHITECTURE.md)：模块职责、数据流、配置生成和测试结构。
-- [发布流程](docs/RELEASING.md)：TestFlight 归档、上传和本地配置。
+- 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S)。
+- 管理订阅、自有节点和单节点勾选；刷新保留排除状态，勾选不改变首页顺序。
+- 名称优先识别地区，无法判断时回退离线 IP 国家库；点阵地图、ICMP 测速及明确标注的端口测试。
+- 内置 ACL4SSR 默认、精简、全分组三套离线规则；手动导入 HTTPS 规则方案、添加自定义规则流。Self-Configuration 仅提供手动下载，不随 App 分发。
+- 预览、分享或一键交给客户端；筛选客户端、拖动排序，局域网共享可一起显示/隐藏和排序。
+- 支持 15 种界面语言，以及默认关闭的到期提醒、打开时刷新订阅、iCloud 同步和代理集合。
 
-## 当前能力
+## 客户端与导出
 
-- 添加、启用、更新和删除 HTTPS 订阅
-- 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S) 节点
-- 添加 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S) 自有节点
-- 首页节点与订阅都可展开查看地址、协议、地区和测试方式
-- 节点行使用服务器 IP 的离线国家识别结果显示地区 Logo，并列出协议、传输、TLS 与 UDP 能力
-- 首页使用自绘的平面点阵世界地图，保留完整日期变更线范围；节点按名称优先、服务器主机名其次、离线 IP 回退的统一结果聚合，密集地区标签会按权重多方向避让
-- 展开地图或订阅时自动进行真实 ICMP 延迟测试，也可单独或批量重测
-- 读取常见 Base64 节点订阅和 Clash YAML，包括仅含 HTTP(S)/SOCKS 的 Base64 列表与 Clash 嵌套 WebSocket 选项
-- Surge 配置形式的订阅目前只从 `[Proxy]` 读取 `ss=` 节点；其他 Surge 代理行会计入“跳过”，不会被误识别成 HTTP 链接
-- 规则页底部提供 Self-Configuration 手动下载，只有用户点击后才从项目上游获取
-- 内置 ACL4SSR 默认、精简、全分组三套规则，按配置原有的策略组结构还原
-- 当前方案可搜索并勾选服务分组；最终兜底与被引用的基础策略自动保留
-- 可新增、编辑和停用本地自定义规则流，内置 Tailscale 示例，刷新上游方案不会覆盖
-- 输入链接导入 Clash YAML、subconverter（`.ini`）或 Surge 远程配置，下载到本机后离线使用，可刷新或删除
-- 生成 Surge / Stash / Clash / Shadowrocket / Loon / QuanX / Hiddify / sing-box MT / Egern 完整配置
-- 生成 V2Box Base64 节点订阅并通过其公开 URL Scheme 一键导入
-- 在导出前预览配置，并明确显示目标客户端不兼容而跳过的节点
-- Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 支持点击主按钮后通过 URL Scheme 一键打开并导入
-- 主导入按钮固定在标签栏上方，滚动预览时仍可随时操作
-- 十个目标客户端和“局域网共享”均可长按拖动排序；默认顺序为 Shadowrocket、Stash、局域网共享、Surge、Loon、QuanX、Clash、V2Box、sing-box MT、Hiddify、Egern；旧的官方默认顺序会迁移，用户手动调整的顺序继续保留
-- Quantumult X 通过系统分享接收本地配置文件
-- 导出页可按需开启带随机密钥的局域网订阅，供 OpenClash、Windows 和 Mac 客户端自动识别或指定格式读取
-- 设置页可由用户主动开启续费提醒；授权后在机场到期前 24 小时发送本地通知
-- 设置页可开关“优先使用规则集”（默认关闭）；开启后 Stash/Clash 对内置 ACL4SSR 优先引用经源哈希和覆盖条数校验的 domain/ipcidr MRS，sing-box MT 优先引用 source-format v2 SRS；Hiddify 暂时保持原有 source JSON 或内联路径，无法无损转换的规则仍本地生成
-- 用户新增的自定义规则始终由塔台本地生成；远程规则刷新后只有当前解析内容仍与二进制编译源完全一致时才复用 MRS/SRS，内容有增删或修改会自动回退文本/内联规则，不会拿旧二进制吞掉新规则
+| 配置类型 | 客户端 |
+| --- | --- |
+| 完整配置 | Shadowrocket、Stash、Surge、Loon、QuanX、Clash、sing-box MT、Hiddify、Egern、Clash Mi、Karing |
+| 仅节点订阅 | V2Box |
+| 前台局域网共享 | 按客户端 User-Agent 自动识别，或手动指定支持格式 |
 
-## 隐私设计
+QuanX 使用系统文件分享；其他目标通过客户端 URL Scheme 导入，无法打开时回退分享。Hiddify 和 sing-box MT 虽然同为 sing-box JSON，身份与协议能力分别处理。无法无损表达的节点会跳过并计数，不会伪装成另一种协议。
 
-转换、规则匹配和 IP 国家查询全部在设备上完成。App 不调用第三方订阅转换或 IP 地理位置服务，也不会上传用户节点。域名节点只通过系统 DNS 解析地址，随后查询 App 内置的离线数据库。
+**代理集合**默认关闭。开启后，Stash、Clash、Clash Mi、Karing、Surge、Loon、QuanX、Egern 的完整配置可包含原始订阅 URL，由客户端自行更新远端节点。Shadowrocket、Hiddify、V2Box、sing-box MT 保持本地展开。
 
-规则联网的边界：三个 ACL4SSR 快照随 App 打包，**完全离线**。Self-Configuration 不在源码或 App 包内，只在用户点击规则页底部的「手动下载」后直接从上游获取；导入其他规则链接或刷新已导入方案同样只在用户操作时联网。下载内容保存在本机，之后生成配置不再联网。
+远端来源必须返回目标兼容的格式；远端节点不受塔台的逐节点勾选、协议筛选、名称追加和自定义 DoH 控制。协议筛选与节点计数只作用于本地输出；摘要另外列出远端来源数。塔台规则或自有节点变化后仍需重新导出。
 
-iCloud 同步是塔台里唯一会让数据离开这台设备的功能，因此默认关闭，且只在您明确开启时生效。开启后，订阅地址和节点密码会存进**您自己的** iCloud 账户，用于在同一 Apple 账户的设备之间同步；它们不会发给塔台或任何第三方。两台设备都改过时以最后保存的那份为准。关闭同步时可以选择一并删除 iCloud 上的副本，关闭之后也能在设置页随时删除。
+## 隐私与网络边界
 
-写入磁盘的三类文件都使用 iOS 完整文件保护：Application Support 中的订阅快照、分享用的临时配置文件，以及分享用的临时二维码 PNG。后两类还会在再次生成时清理超过 5 分钟的旧文件，不会在 `tmp` 中长期堆积明文凭据。
+转换、规则匹配、地区查询在本机完成，没有第三方在线转换或 IP 查询服务。订阅凭据默认留在设备；主动开启 iCloud 后存入自己的 iCloud，主动开启代理集合后原始 URL 随配置交给目标客户端。分享文件也会分享其中的凭据，请只交给可信接收方。
 
-打开添加面板时，塔台会按产品设定自动请求一次系统剪贴板权限；只有识别到支持的订阅或节点链接才会自动填入。也可以随时点击“从剪贴板粘贴”手动读取。
+- 本机一键导入使用仅绑定 `127.0.0.1`、45 秒失效的临时 HTTP 服务，不是长期订阅托管。
+- 局域网共享是独立的前台服务，主动开启后允许同一网络的设备凭随机密钥获取配置；关闭或轮换密钥可撤销访问。代理集合开启时，这份配置也可能含原始订阅链接。
+- 凭据类快照、配置文件和二维码使用完整文件保护；临时导出文件会清理。
+- 内置规则不会在运行时联网更新；只有用户导入或刷新规则时才获取 HTTPS 地址。
+- 添加面板请求一次剪贴板读取，仅识别受支持链接；相机与本地网络按使用场景请求权限。
 
-延迟测试优先向节点地址发送 ICMP Echo。部分机场或网络会屏蔽 ICMP，此时塔台会退回节点端口握手，并在界面明确标成“端口”，不会把它伪装成 ICMP 延迟。测试结果只保存在本次运行内。
+详见[隐私政策](docs/privacy.md)及[使用与支持](docs/support.md)。
 
-Surge、Stash、Clash、Shadowrocket、Loon、Egern、Hiddify、sing-box MT 和 V2Box 的导入 Scheme 都需要客户端可读取的 URL。塔台会在导入时启动一个仅绑定到 `127.0.0.1` 的临时服务，并在 45 秒后自动关闭，所以配置不会上传到互联网。sing-box MT 使用官方 `sing-box://import-remote-profile` 入口接收完整 JSON 配置；V2Box 接收的是 Base64 节点订阅，不包含塔台规则和策略组。临时地址不用于后续自动刷新；规则或节点变化后，需要回到塔台再次一键导入。
+## 规则与已知边界
 
-导出页的局域网订阅与上述临时服务完全分开：它默认关闭，只在用户主动开启时监听 Wi-Fi，并用随机访问密钥保护路径。`target=auto` 会按 OpenClash/Clash、Surge、Shadowrocket、Loon、Quantumult X、Hiddify 或 Egern 的 User-Agent 生成对应格式，也可以在界面里复制指定格式的链接。客户端拿到的是塔台当前本地快照的转换结果，链接和 HTTP 响应都不包含机场原始订阅地址；因此需要自定义 UA 或 DNS 的机场仍由塔台请求，电脑和路由器不会接触机场密钥。受 iOS 后台限制，客户端刷新时需要让塔台保持在前台并与客户端位于同一 Wi-Fi。
+自定义规则在本机生成，不即时编译 MRS/SRS。内置 ACL4SSR 的已验证二进制可供兼容客户端引用：Stash / Clash / Clash Mi 使用 MRS，sing-box MT 使用 SRS；其他目标沿用兼容文本或内联。内容与编译源不一致时回退，不复用旧二进制覆盖新规则。发布流程固定源版本、哈希和不可变产物 URL。
 
-Quantumult X 官方公开的 [URL Scheme](https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md) 只能添加或替换远程资源（`server_remote` / `filter_remote` / `rewrite_remote`），策略组不在其中，因此没有完整本地配置导入接口。塔台对 QuanX 保留系统文件分享，避免导入一份引用了不存在策略组的配置。
+SS 插件仅支持 simple-obfs；WireGuard 多 Peer 不做有损压缩；Snell 等协议按各目标能力判断。Surge 输入目前仅解析 `[Proxy]` 中的 SS 行，其他行计入跳过。客户端是否接收分享、重复导入是否覆盖，由客户端决定，不能由生成成功推断连通。
 
-## 规则来源
+## 开发入口
 
-规则页底部提供 [ClashConnectRules/Self-Configuration](https://github.com/ClashConnectRules/Self-Configuration) 的手动下载入口。App 不再分发它的配置或规则列表；点击后读取上游 `Clash.yaml`，解析策略组并把引用的规则列表保存到当前设备。删除该方案会同时删除本地下载内容。
+最低 iOS 17；打开 `Tower.xcodeproj`，运行 `Tower` Scheme。
 
-### ACL4SSR
-
-[acl4ssr-sub.github.io](https://acl4ssr-sub.github.io) 提供的默认、精简、全分组三份配置同样随 App 打包，资源位于 `Tower/Resources/ACL4SSR/`，固定提交号、来源与 SHA-256 记录在 `ACL4SSR_manifest.json`。对 Stash / Clash 可无损转换的域名与 IP CIDR 规则会用固定版本 Mihomo 生成 MRS；对 sing-box MT 可无损转换的域名、关键词与 CIDR 规则会用固定版本 sing-box 生成 source-format v2 SRS。二进制放在 `Rulesets/ACL4SSR/` 供客户端按需下载，不随 App 打包；正式清单必须指向已推送产物的不可变 Git commit URL，App 也会要求 `artifactCommit` 与每个二进制 URL 精确一致；未绑定提交或仍指向 `main` 的预备清单只会回退到文本规则。临时 JSON 源文件与反编译结果不会发布。Hiddify 尚未启用这条 SRS 路径，仍使用原生 source JSON 或内联规则。sing-box MT 的远程规则集使用 1.14+ 的显式 Go HTTP client，避免依赖已废弃的隐式下载器。打包前更新命令及编译器要求见 [发布流程](docs/RELEASING.md)。
-
-这三份配置各自声明了自己的策略组（精简 5 组、默认 11 组、全分组 29 组），塔台按原样还原，其中的地区组沿用配置里的节点名正则。
-
-ACL4SSR 的全部资源保留 `ACL4SSR_` 前缀，便于在 Xcode 拍平后的 bundle 根目录中识别来源，也让旧版本迁移保持稳定。
-
-### 导入自己的规则
-
-规则页的「导入规则链接」支持 Clash YAML、subconverter（`.ini`）和 Surge 配置。塔台只接受 HTTPS 地址，会下载配置和它引用的全部规则列表并保存到本机（完整文件保护），之后生成配置不再联网。已导入的方案可以随时刷新或删除。
-
-选择方案后，「当前规则定制」可以搜索并勾选其中拥有实际规则的服务分组，例如国外媒体或 AI。取消分组不会破坏配置：末尾兜底和被引用的节点选择、自动选择等基础策略会按依赖自动保留。
-
-「添加自定义规则流」把用户规则单独保存在 App 状态中，而不是写回下载的方案。每行接受 `TYPE,VALUE`，也可以粘贴带旧策略的客户端规则；塔台会统一改用界面里选择的流向，并按目标客户端保留等价的 DNS 匹配语义。支持 `no-resolve` 的客户端继续保留该参数；Quantumult X 会去掉它，并在末尾兜底前使用官方的 `host-keyword, .` 写法。因此刷新 Self-Configuration 或其他上游方案后，Tailscale 等自定义规则仍然存在，并会进入所有完整配置目标。
-
-这些用户规则不需要也不会在 iPhone 上即时编译成 MRS/SRS：它们以本地规则与已验证的二进制规则集并存。若某个已下载规则 URL 的实际内容发生变化，塔台会比较规范化后的完整规则内容并拒绝复用旧二进制；Clash/Stash 回到兼容的远程文本或本地映射，sing-box MT 对 classical 列表回到本地 JSON 规则。内置规则升级则由仓库脚本重新编译、反向校验并发布新的不可变 MRS/SRS。
-
-## 多语言
-
-App 内置简体中文、繁体中文、英语、日语、韩语、西班牙语、法语、德语、巴西葡萄牙语、俄语、阿拉伯语、土耳其语、印尼语、泰语和越南语，共 15 种语言。系统会自动跟随 iOS，也可以在“设置 > App > 塔台 > 语言”里只修改塔台的显示语言。
-
-界面、错误提示、通知权限说明和国家/地区名称会本地化；用户自己的订阅名、节点名和导入规则名保持原文。字符串位于 `Tower/Localizable.xcstrings` 和 `Tower/InfoPlist.xcstrings`。新增界面文案后先用 Xcode 导出简体中文源目录，再运行 `Scripts/generate_localizations.py --source-catalog <导出的 Localizable.xcstrings>`，最后执行完整测试；`LocalizationTests` 会检查所有文案是否覆盖全部 15 种语言。
-
-## IP 国家库
-
-离线国家数据来自 [sapics/ip-location-db](https://github.com/sapics/ip-location-db/tree/main/geo-whois-asn-country) 的 `geo-whois-asn-country`，版本 `2.3.2026061719`，依据 CC0 许可随 App 打包。`Scripts/update_ip_country_db.py` 可下载指定版本并重新生成紧凑的 IPv4/IPv6 二进制索引，来源说明位于 `Tower/Resources/IPCountry/NOTICE.txt`。
-
-## 运行
-
-1. 使用 Xcode 26 或更新版本打开 `Tower.xcodeproj`。
-2. 选择 iOS 17 或更新版本的模拟器/设备。
-3. 运行 `Tower` Scheme。
-
-测试覆盖订阅解析、Clash YAML 嵌套字段、名称优先的国家地区聚合与离线 IP 回退、网络延迟链路、本地规则资源、各客户端一键导入 Scheme、九个完整配置目标，以及 V2Box 节点订阅。Loon 的 VMess/VLESS/Trojan/Hysteria 2 参数按其[节点文档](https://nsloon.bid/document/node)生成；Surge 的 TLS 与 WebSocket 参数按其[代理策略文档](https://manual.nssurge.com/policy/proxy.html)生成。
-
-## 已知边界
-
-- Shadowsocks 的 SIP003 插件只支持 simple-obfs（`obfs`/`obfs-local`）。`v2ray-plugin` 等其余插件会被明确拒绝并计入“跳过”，不会伪装成可用的裸 SS 节点导入。
-- Snell 只有 Surge 和 Shadowrocket 全版本支持，Clash/Stash 仅到 v3，sing-box MT 只接受 v4 以上，Hiddify、Loon 和 Quantumult X 不支持——不支持的目标会计入“跳过”。
-- WireGuard 只接受能够完整保留密钥、本机地址、对端和路由的单 Peer 配置；多 Peer 配置会明确计入“跳过”，不会静默压成错误节点。QuanX 不支持 WireGuard，Shadowrocket 的仅节点订阅也会跳过它，完整配置仍可写入。
-- Hiddify 与 sing-box MT 都接收 sing-box JSON，但保留各自的客户端身份、导入 Scheme 和协议能力矩阵。
-- V2Box 当前接收 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S) 节点订阅，不生成或替换规则与策略组；其余协议会明确计入“跳过”。
-- 机场厂商自定义的非标准节点字段可能需要增加兼容适配。
-- 如果目标客户端未安装或没有接管对应 Scheme，塔台会自动退回系统分享。
-- Quantumult X 是否直接出现在分享列表中，取决于其声明的文件类型；未出现时可先存到“文件”再从客户端导入。
-- 当前未连接安装了 Surge、Shadowrocket、Loon、Quantumult X 的真机做最终接收测试；生成格式与兼容跳过逻辑已有自动测试。
+- [CLAUDE](CLAUDE.md)：产品约束与验收门槛
+- [当前交接](docs/HANDOFF.md)、[未完成任务](docs/TODO.md)
+- [开发、测试与安装](docs/DEVELOPMENT.md)、[架构](docs/ARCHITECTURE.md)
+- [规则更新与 TestFlight 发布](docs/RELEASING.md)
 
 ## 许可证
 
-源码以 [MIT](LICENSE) 发布。
-
-`Tower/Resources/` 下随 App 打包的规则列表和 IP 数据库来自第三方，**保留各自原有条款，不适用 MIT**：
-
-| 资源 | 来源 | 许可证 |
-| --- | --- | --- |
-| ACL4SSR 规则 | [ACL4SSR/ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) | CC BY-SA 4.0 |
-| IP 国家库 | [sapics/ip-location-db](https://github.com/sapics/ip-location-db) | CC0 1.0 |
-
-详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。Self-Configuration 由用户从其上游手动下载，不属于随 App 分发的资源。
-
-塔台只在本机把订阅转换成各客户端的配置文件，**不含 VPN 或代理功能，不接管任何流量**。
+源码以 [MIT](LICENSE) 发布。第三方资源不适用源码 MIT：ACL4SSR 为 CC BY-SA 4.0，离线 IP 国家库为 CC0；其他来源与版本见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) 和资源目录 NOTICE。不得删除或改写原许可义务。

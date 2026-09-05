@@ -18,7 +18,7 @@ title: 塔台 · 使用与支持
 
 ### 支持哪些客户端？
 
-Surge、Stash、Clash、Shadowrocket、Loon、Quantumult X、Hiddify、sing-box MT、Egern，以及仅接收节点订阅的 V2Box。V2Box 可接收 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S)，不会替换它现有的规则和策略组。
+Surge、Stash、Clash、Clash Mi、Karing、Shadowrocket、Loon、Quantumult X、Hiddify、sing-box MT、Egern，以及仅接收节点订阅的 V2Box。V2Box 可接收 SS、VMess、VLESS、Trojan、WireGuard、Hysteria 2、SOCKS5 和 HTTP(S)，不会替换它现有的规则和策略组。
 
 ### 支持哪些协议？
 
@@ -32,9 +32,9 @@ Shadowsocks、ShadowsocksR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TU
 
 ### 为什么每次导入都多出一条配置？
 
-这是目标客户端的行为，不是塔台能控制的。以 Stash 为例：它按配置名新建，遇到重名就在前面加时间戳区分，既不按地址去重，也不会更新已有的那条。
+覆盖、重命名或新增由目标客户端决定，不同客户端的行为不同。不要把塔台的 45 秒本机交接地址当作长期订阅地址。
 
-所以只要再导入一次，就一定会多一条。建议只保留最新的一条，把旧的删掉。
+如果只是希望客户端更新节点，可在高级设置开启“代理集合”，让兼容客户端直接请求原始订阅链接。它不自动更新塔台规则和自有节点，这些变化后仍需重新导出。
 
 ### 节点名字显示成 `\U0001F1ED\U0001F1F0` 这样的乱码？
 
@@ -52,7 +52,7 @@ Shadowsocks、ShadowsocksR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TU
 
 ### 我的订阅内容会被上传吗？
 
-不会。解析和配置生成全部在你的设备上完成，不经过任何第三方在线转换服务。详见[隐私政策](privacy.html)。
+塔台不会把订阅上传到自己的服务器或第三方在线转换服务，解析和配置生成全部在你的设备上完成。设置中的“代理集合”默认关闭；如果你主动开启，原始订阅链接会写入导出配置，交给你选择的客户端直接更新。详见[隐私政策](privacy.html)。
 
 全部源码公开，上面这些都可以自己去代码里核对：<https://github.com/pengchujin/tower>
 

@@ -132,6 +132,24 @@ struct SubscriptionRequestOptions: Codable, Hashable, Sendable {
     }
 }
 
+/// The minimum subscription metadata a generated profile needs in order to
+/// let the destination client refresh nodes itself. The URL is intentionally
+/// carried as a value rather than exposing `SubscriptionSource` to the
+/// generator: usage, errors and timestamps have no place in an exported file.
+struct RemoteSubscriptionLink: Hashable, Sendable {
+    let sourceID: UUID
+    let name: String
+    let urlString: String
+    let userAgent: String?
+
+    init(source: SubscriptionSource) {
+        sourceID = source.id
+        name = source.name
+        urlString = source.urlString
+        userAgent = source.requestOptions?.userAgent
+    }
+}
+
 /// How much of an airport's plan is left.
 ///
 /// Airports report this three different ways and Tower reads all of them: the
@@ -1057,6 +1075,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case v2box
     case clashApple = "clash-apple"
     case singBox = "sing-box"
+    case clashMi = "clash-mi"
+    case karing
 
     var id: String { rawValue }
 
@@ -1072,6 +1092,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "Egern"
         case .v2box: "V2Box"
         case .singBox: "sing-box MT"
+        case .clashMi: "Clash Mi"
+        case .karing: "Karing"
         }
     }
 
@@ -1087,6 +1109,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "Egern YAML"
         case .v2box: "V2Ray / Xray"
         case .singBox: "sing-box JSON"
+        case .clashMi: "Mihomo YAML"
+        case .karing: "Clash YAML"
         }
     }
 
@@ -1102,6 +1126,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "e.circle.fill"
         case .v2box: "shippingbox.circle.fill"
         case .singBox: "shippingbox.fill"
+        case .clashMi: "cat.circle.fill"
+        case .karing: "link.circle.fill"
         }
     }
 
@@ -1119,6 +1145,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "ClientEgern"
         case .v2box: "ClientV2Box"
         case .singBox: "ClientSingBox"
+        case .clashMi: "ClientClashMi"
+        case .karing: "ClientKaring"
         }
     }
 
@@ -1134,6 +1162,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "e.circle.fill"
         case .v2box: "shippingbox.fill"
         case .singBox: "shippingbox.fill"
+        case .clashMi: "cat.fill"
+        case .karing: "link"
         }
     }
 
@@ -1149,6 +1179,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .egern: "F08A2B"
         case .v2box: "246BFD"
         case .singBox: "334854"
+        case .clashMi: "224D7A"
+        case .karing: "5367F7"
         }
     }
 
@@ -1167,9 +1199,29 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         self == .hiddify || self == .singBox
     }
 
+    /// Stash, Clash, Clash Mi and Karing all consume complete Clash YAML.
+    var usesClashFormat: Bool {
+        [.clash, .clashApple, .clashMi, .karing].contains(self)
+    }
+
+    /// Clients that can reference an airport's node resource from inside a
+    /// complete Tower profile, keeping Tower's rules while the client refreshes
+    /// the node list. Importing a remote *whole profile* is a different feature
+    /// and deliberately does not qualify here. The provider syntax sometimes
+    /// shown for sing-box belongs to third-party forks rather than upstream
+    /// sing-box, so it must not be emitted for sing-box MT or Hiddify.
+    var supportsEmbeddedRemoteSubscriptions: Bool {
+        switch self {
+        case .clash, .clashApple, .clashMi, .karing, .surge, .loon, .quanx, .egern:
+            true
+        case .shadowrocket, .hiddify, .v2box, .singBox:
+            false
+        }
+    }
+
     var fileExtension: String {
         switch self {
-        case .clash, .clashApple, .egern: "yaml"
+        case .clash, .clashApple, .clashMi, .karing, .egern: "yaml"
         case .hiddify, .singBox: "json"
         case .v2box: "txt"
         default: "conf"
@@ -1215,8 +1267,14 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     func supports(_ kind: ProxyKind) -> Bool {
         switch self {
-        case .clash, .clashApple:
+        case .clash, .clashApple, .clashMi:
             kind != .unknown
+        case .karing:
+            // Karing documents these protocols for imported Clash profiles.
+            // Snell is deliberately omitted: neither its current client guide
+            // nor its bundled sing-box-derived core claims support for it.
+            [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria,
+             .hysteria2, .tuic, .wireguard, .anytls, .socks5, .http].contains(kind)
         case .surge:
             // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
             // shipped a Hysteria 1 server type.
@@ -1321,14 +1379,60 @@ enum ExportDestinationOrder {
 
     static func combined(
         clientOrder: [ClientTarget],
-        lanSharingIndex: Int
+        lanSharingIndex: Int,
+        includesLANSharing: Bool = true
     ) -> [ExportDestination] {
         var destinations = clientOrder.map(ExportDestination.client)
-        destinations.insert(
-            .lanSharing,
-            at: normalizedLANSharingIndex(lanSharingIndex, clientCount: clientOrder.count)
-        )
+        if includesLANSharing {
+            destinations.insert(
+                .lanSharing,
+                at: normalizedLANSharingIndex(lanSharingIndex, clientCount: clientOrder.count)
+            )
+        }
         return destinations
+    }
+
+    /// Converts the former visible-client-relative index into the canonical
+    /// full-list index. Inserting immediately before the visible client that
+    /// occupied the old slot preserves the exact order an older build showed.
+    static func fullLANSharingIndex(
+        legacyVisibleIndex: Int?,
+        clientOrder: [ClientTarget],
+        visibleClientTargets: Set<ClientTarget>
+    ) -> Int {
+        let visibleClients = clientOrder.filter(visibleClientTargets.contains)
+        let visibleIndex = normalizedLANSharingIndex(
+            legacyVisibleIndex,
+            clientCount: visibleClients.count
+        )
+
+        if visibleIndex < visibleClients.count,
+           let fullIndex = clientOrder.firstIndex(of: visibleClients[visibleIndex]) {
+            return fullIndex
+        }
+
+        guard let lastVisibleClient = visibleClients.last,
+              let lastVisibleIndex = clientOrder.firstIndex(of: lastVisibleClient) else {
+            return normalizedLANSharingIndex(nil, clientCount: clientOrder.count)
+        }
+        return lastVisibleIndex + 1
+    }
+
+    /// Older builds store LAN sharing relative to visible clients. Keep
+    /// writing that projection beside the canonical index so downgrade and
+    /// mixed-version iCloud snapshots preserve the same visible order.
+    static func visibleLANSharingIndex(
+        fullIndex: Int,
+        clientOrder: [ClientTarget],
+        visibleClientTargets: Set<ClientTarget>
+    ) -> Int {
+        let normalizedFullIndex = normalizedLANSharingIndex(
+            fullIndex,
+            clientCount: clientOrder.count
+        )
+        return clientOrder.prefix(normalizedFullIndex)
+            .filter(visibleClientTargets.contains)
+            .count
     }
 }
 
@@ -1345,7 +1449,9 @@ enum ClientTargetOrder {
         .v2box,
         .singBox,
         .hiddify,
-        .egern
+        .egern,
+        .clashMi,
+        .karing
     ]
 
     private static let previousDefaultOrders: [[ClientTarget]] = [
@@ -1425,6 +1531,22 @@ enum ClientTargetOrder {
     }
 }
 
+enum ClientTargetVisibility {
+    /// A missing value belongs to a snapshot with every client visible, so new
+    /// targets are shown automatically after an update. Once at least one
+    /// target is hidden, that explicit subset stays curated until it is added
+    /// again from the filter screen.
+    static func normalized(
+        rawValues: [String]?,
+        clientOrder: [ClientTarget]
+    ) -> Set<ClientTarget> {
+        guard let rawValues else { return Set(clientOrder) }
+        let visible = Set(rawValues.compactMap(ClientTarget.init(rawValue:)))
+            .intersection(clientOrder)
+        return visible.isEmpty ? Set(clientOrder) : visible
+    }
+}
+
 struct AppSnapshot: Codable {
     var subscriptions: [SubscriptionSource]
     var nodes: [ProxyNode]
@@ -1465,9 +1587,19 @@ struct AppSnapshot: Codable {
     /// migration.
     var clientOrderMigrationVersion: Int?
     /// Position of the LAN-sharing card inside the combined export destination
-    /// list. Missing snapshots use the current default slot; values are clamped
-    /// when loading so damaged state stays usable.
+    /// list relative to visible clients. Retained for snapshots written by
+    /// older builds and as a downgrade-compatible projection of the canonical
+    /// position below.
     var lanSharingOrderIndex: Int?
+    /// Canonical position of LAN sharing among every supported client,
+    /// including hidden ones. Optional keeps older snapshots decodable.
+    var lanSharingFullOrderIndex: Int?
+    /// Clients shown in the export picker. Missing snapshots predate client
+    /// filtering and therefore keep every supported client visible.
+    var visibleClientTargets: [String]?
+    /// Whether LAN sharing appears in the export picker. Missing snapshots
+    /// predate filtering it and therefore keep the destination visible.
+    var isLANSharingVisible: Bool?
     /// Optional settings keep every previously written snapshot decodable.
     var appendSubscriptionNameToNodes: Bool?
     var filterSubscriptionInfoNodes: Bool?
@@ -1482,6 +1614,11 @@ struct AppSnapshot: Codable {
     /// This marker lets that implicit value migrate back to the safer disabled
     /// default without overwriting a choice the user makes afterwards.
     var preferRuleSetsWasExplicitlySet: Bool?
+    /// When enabled, compatible complete-profile formats retain the original
+    /// subscription URL and let the destination client refresh remote nodes.
+    /// Missing means disabled so existing users never disclose a URL merely by
+    /// updating Tower.
+    var embedRemoteSubscriptionLinks: Bool?
     /// When this snapshot was written, used to decide which of two devices'
     /// copies wins. Optional so every snapshot written before iCloud sync
     /// existed still decodes; a missing value loses to any dated one, which is
@@ -1517,12 +1654,16 @@ struct AppSnapshot: Codable {
         clientOrder: [String]? = nil,
         clientOrderMigrationVersion: Int? = nil,
         lanSharingOrderIndex: Int? = nil,
+        lanSharingFullOrderIndex: Int? = nil,
+        visibleClientTargets: [String]? = nil,
+        isLANSharingVisible: Bool? = nil,
         appendSubscriptionNameToNodes: Bool? = nil,
         filterSubscriptionInfoNodes: Bool? = nil,
         autoRefreshOnOpen: Bool? = nil,
         configurationName: String? = nil,
         preferRuleSets: Bool? = nil,
         preferRuleSetsWasExplicitlySet: Bool? = nil,
+        embedRemoteSubscriptionLinks: Bool? = nil,
         exportContentModes: [String: String]? = nil,
         resolvedHostCountryCodes: [String: String]? = nil,
         resolvedHostCountryCodeUpdatedAt: [String: Date]? = nil,
@@ -1544,12 +1685,16 @@ struct AppSnapshot: Codable {
         self.clientOrder = clientOrder
         self.clientOrderMigrationVersion = clientOrderMigrationVersion
         self.lanSharingOrderIndex = lanSharingOrderIndex
+        self.lanSharingFullOrderIndex = lanSharingFullOrderIndex
+        self.visibleClientTargets = visibleClientTargets
+        self.isLANSharingVisible = isLANSharingVisible
         self.appendSubscriptionNameToNodes = appendSubscriptionNameToNodes
         self.filterSubscriptionInfoNodes = filterSubscriptionInfoNodes
         self.autoRefreshOnOpen = autoRefreshOnOpen
         self.configurationName = configurationName
         self.preferRuleSets = preferRuleSets
         self.preferRuleSetsWasExplicitlySet = preferRuleSetsWasExplicitlySet
+        self.embedRemoteSubscriptionLinks = embedRemoteSubscriptionLinks
         self.exportContentModes = exportContentModes
         self.resolvedHostCountryCodes = resolvedHostCountryCodes
         self.resolvedHostCountryCodeUpdatedAt = resolvedHostCountryCodeUpdatedAt
@@ -1672,6 +1817,9 @@ struct GeneratedConfiguration {
     let content: String
     let supportedNodeCount: Int
     let skippedNodeCount: Int
+    /// Remote node counts are unknown until the target client refreshes.
+    let remoteSourceCount: Int
+    var hasExportableProxies: Bool { supportedNodeCount > 0 || remoteSourceCount > 0 }
     let ruleCount: Int
     let profileName: String
     let contentMode: ExportContentMode
@@ -1685,12 +1833,14 @@ struct GeneratedConfiguration {
         ruleCount: Int,
         profileName: String = TowerBrand.localizedName,
         contentMode: ExportContentMode = .fullConfiguration,
-        fileExtensionOverride: String? = nil
+        fileExtensionOverride: String? = nil,
+        remoteSourceCount: Int = 0
     ) {
         self.target = target
         self.content = content
         self.supportedNodeCount = supportedNodeCount
         self.skippedNodeCount = skippedNodeCount
+        self.remoteSourceCount = remoteSourceCount
         self.ruleCount = ruleCount
         self.profileName = ExportFilePresentation.profileName(profileName)
         self.contentMode = contentMode
@@ -1712,7 +1862,8 @@ struct GeneratedConfiguration {
             ruleCount: ruleCount,
             profileName: value,
             contentMode: contentMode,
-            fileExtensionOverride: fileExtensionOverride
+            fileExtensionOverride: fileExtensionOverride,
+            remoteSourceCount: remoteSourceCount
         )
     }
 }

@@ -64,6 +64,8 @@ final class AnyTLSTests: XCTestCase {
         let node = try XCTUnwrap(parser.parseURI(uri))
         let expected: [ClientTarget: [String]] = [
             .clash: ["type: anytls", "password: \"pass-word-1234\"", "sni: \"cover.example.com\""],
+            .clashMi: ["type: anytls", "password: \"pass-word-1234\"", "sni: \"cover.example.com\""],
+            .karing: ["type: anytls", "password: \"pass-word-1234\"", "sni: \"cover.example.com\""],
             .surge: ["anytls, node.example.com, 40500", "password=pass-word-1234", "sni=cover.example.com"],
             .shadowrocket: ["type: anytls", "password: \"pass-word-1234\"", "client-fingerprint: \"chrome\""],
             // Loon takes the password as a quoted positional field and names
@@ -89,6 +91,8 @@ final class AnyTLSTests: XCTestCase {
         let node = try XCTUnwrap(parser.parseURI(uri))
         let expected: [ClientTarget: String] = [
             .clash: "skip-cert-verify: true",
+            .clashMi: "skip-cert-verify: true",
+            .karing: "skip-cert-verify: true",
             .surge: "skip-cert-verify=true",
             .shadowrocket: "skip-cert-verify: true",
             .loon: "skip-cert-verify=true",

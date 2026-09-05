@@ -29,7 +29,7 @@ struct RulesView: View {
                     PrimaryActionLabel(title: "继续选择客户端", symbol: "arrow.right")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
-                .disabled(model.enabledNodes.isEmpty)
+                .disabled(!model.hasExportableSources)
                 .accessibilityIdentifier("continue-to-export")
             }
             .padding(.horizontal, TowerTheme.pagePadding)

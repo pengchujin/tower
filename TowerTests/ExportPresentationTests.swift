@@ -182,7 +182,7 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertNotNil(UIImage(named: "ClientClashOfficial"))
         XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
         XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
-        XCTAssertEqual(ClientTarget.allCases.dropLast().last, target)
+        XCTAssertEqual(ClientTargetOrder.defaultOrder.firstIndex(of: target), 5)
     }
 
     func testSingBoxMTUsesOfficialIdentityAndOnlyOffersFullProfileImport() throws {
@@ -196,7 +196,28 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(target.supportedContentModes, [.fullConfiguration])
         XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
         XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
-        XCTAssertEqual(ClientTarget.allCases.last, target)
+        XCTAssertEqual(ClientTargetOrder.defaultOrder.firstIndex(of: target), 7)
+    }
+
+    func testClashMiAndKaringUseOfficialIdentitiesAndStayLast() throws {
+        let clashMi = try XCTUnwrap(ClientTarget(rawValue: "clash-mi"))
+        let karing = try XCTUnwrap(ClientTarget(rawValue: "karing"))
+
+        XCTAssertEqual(clashMi.name, "Clash Mi")
+        XCTAssertEqual(clashMi.subtitle, "Mihomo YAML")
+        XCTAssertEqual(clashMi.fileExtension, "yaml")
+        XCTAssertEqual(clashMi.appIconAssetName, "ClientClashMi")
+        XCTAssertNotNil(UIImage(named: "ClientClashMi"))
+        XCTAssertTrue(clashMi.supportsDirectImport(mode: .fullConfiguration))
+
+        XCTAssertEqual(karing.name, "Karing")
+        XCTAssertEqual(karing.subtitle, "Clash YAML")
+        XCTAssertEqual(karing.fileExtension, "yaml")
+        XCTAssertEqual(karing.appIconAssetName, "ClientKaring")
+        XCTAssertNotNil(UIImage(named: "ClientKaring"))
+        XCTAssertTrue(karing.supportsDirectImport(mode: .fullConfiguration))
+
+        XCTAssertEqual(Array(ClientTargetOrder.defaultOrder.suffix(2)), [.clashMi, .karing])
     }
 
     func testV2BoxOnlyOffersNodeSubscription() throws {

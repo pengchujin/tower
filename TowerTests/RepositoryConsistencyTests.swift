@@ -680,20 +680,86 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("struct LANSharingDestinationCard"))
     }
 
-    func testLANSharingUsesTheSameSortableDestinationPathWithoutBecomingAClientFormat() throws {
+    func testClientSortingMovedIntoFilterWithoutMakingLANSharingAClientFormat() throws {
         let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let filter = try sourceText("Tower/Features/Export/ClientFilterView.swift")
         let models = try sourceText("Tower/Models/DomainModels.swift")
 
         XCTAssertTrue(export.contains("LANExportTargetCard"))
         XCTAssertTrue(export.contains("LANSharingDestinationCard()"))
         XCTAssertTrue(export.contains("case .lanSharing: \"client-lan-sharing\""))
         let picker = try XCTUnwrap(export.range(of: "private struct ClientPicker"))
-        let pickerSource = String(export[picker.lowerBound...])
-        XCTAssertTrue(pickerSource.contains("ForEach(model.exportDestinationOrder)"))
-        XCTAssertTrue(pickerSource.contains(".draggable(destination.id)"))
-        XCTAssertTrue(pickerSource.contains("moveExportDestination(source, across: destination)"))
-        XCTAssertTrue(pickerSource.contains("moveExportDestination(destination, by: -1)"))
-        XCTAssertFalse(pickerSource.contains("if index == 3"))
+        let pickerEnd = try XCTUnwrap(
+            export.range(
+                of: "private struct ClientPickerDragSession",
+                range: picker.upperBound..<export.endIndex
+            )
+        )
+        let pickerSource = String(export[picker.lowerBound..<pickerEnd.lowerBound])
+        XCTAssertTrue(
+            pickerSource.contains(
+                "ClientFilterView(isLANSharingSelected: $isLANSharingSelected)"
+            )
+        )
+        XCTAssertTrue(pickerSource.contains("Text(\"客户端筛选\")"))
+        XCTAssertTrue(pickerSource.contains("ForEach(displayedDestinations)"))
+        XCTAssertTrue(pickerSource.contains("ClientPickerReorderGestureBridge("))
+        XCTAssertTrue(pickerSource.contains("minimumPressDuration: 0.18"))
+        XCTAssertTrue(pickerSource.contains("allowableMovement: 12"))
+        XCTAssertTrue(
+            pickerSource.contains("guard dragSession == nil, !suppressSelection else { return }"),
+            "A completed long press must not also fire the Button action for the same touch"
+        )
+        XCTAssertTrue(
+            pickerSource.contains("releaseSelectionSuppressionAfterTouchDelivery()"),
+            "Selection suppression must be released after the reorder touch has been delivered"
+        )
+        XCTAssertTrue(pickerSource.contains("ReorderPlanner.insertionIndex"))
+        XCTAssertTrue(pickerSource.contains("model.setExportDestinationOrder(orderedDestinations)"))
+        XCTAssertTrue(pickerSource.contains("ReorderAutoScroller("))
+        XCTAssertTrue(
+            pickerSource.contains("sourceFrame.minX + dragSession.translation")
+        )
+        XCTAssertTrue(
+            pickerSource.contains(".opacity(visualSessions.contains(where: { $0.source == destination }) ? 0 : 1)")
+        )
+        XCTAssertTrue(pickerSource.contains("completionCriteria: .removed"))
+        XCTAssertFalse(pickerSource.contains(".onDrag("))
+        XCTAssertFalse(pickerSource.contains(".onDrop("))
+        XCTAssertFalse(pickerSource.contains(".dropDestination(for:"))
+        XCTAssertFalse(pickerSource.contains(".scrollTargetBehavior(.viewAligned"))
+        XCTAssertTrue(filter.contains("ScrollView {"))
+        XCTAssertFalse(filter.contains("List {"))
+        XCTAssertTrue(filter.contains("ForEach(displayedRows)"))
+        XCTAssertTrue(filter.contains("ForEach(hiddenRows)"))
+        XCTAssertTrue(filter.contains("model.setExportDestination(destination, isVisible: true)"))
+        XCTAssertTrue(filter.contains("model.setExportDestination(destination, isVisible: false)"))
+        XCTAssertTrue(filter.contains("Image(systemName: \"line.3.horizontal\")"))
+        XCTAssertTrue(filter.contains("Image(systemName: \"plus.circle.fill\")"))
+        XCTAssertTrue(filter.contains("ClientPickerReorderGestureBridge("))
+        XCTAssertTrue(filter.contains("handleDestination(at:"))
+        XCTAssertFalse(filter.contains(".highPriorityGesture("))
+        XCTAssertTrue(filter.contains("DestinationRowFramePreferenceKey"))
+        XCTAssertTrue(filter.contains("ReorderPlanner.insertionIndex"))
+        XCTAssertTrue(filter.contains("model.setExportDestinationOrder(orderedDestinations)"))
+        XCTAssertTrue(filter.contains("ClientFilterRowPresentation"))
+        XCTAssertTrue(filter.contains("role: .displayed"))
+        XCTAssertTrue(filter.contains("role: .hidden"))
+        XCTAssertTrue(filter.contains("sourceFrame.minY + dragSession.translation"))
+        XCTAssertTrue(filter.contains("let isLifted = !isPreview && visualSessions.contains"))
+        XCTAssertTrue(filter.contains("ReorderAutoScroller("))
+        XCTAssertTrue(filter.contains("completionCriteria: .removed"))
+        XCTAssertFalse(filter.contains("Task.sleep"))
+        XCTAssertFalse(filter.contains(".scrollDisabled("))
+        XCTAssertTrue(filter.contains("@Environment(\\.accessibilityReduceMotion)"))
+        XCTAssertTrue(filter.contains("withAnimation(TowerMotion.disclosure(reduceMotion: false))"))
+        XCTAssertTrue(filter.contains(".transition(.opacity)"))
+        XCTAssertTrue(filter.contains(".sensoryFeedback(.selection"))
+        XCTAssertFalse(filter.contains(".onMove("))
+        XCTAssertFalse(filter.contains("editMode"))
+        XCTAssertTrue(filter.contains(".frame(maxWidth: .infinity, alignment: .leading)"))
+        XCTAssertTrue(filter.contains(".frame(width: 44, height: 44)"))
+        XCTAssertTrue(filter.contains("case .lanSharing:"))
 
         let clientStart = try XCTUnwrap(models.range(of: "enum ClientTarget:"))
         let clientEnd = try XCTUnwrap(
@@ -704,6 +770,125 @@ final class RepositoryConsistencyTests: XCTestCase {
             clientTarget.contains("case lan"),
             "局域网是传输目的地，不是生成器可以直接输出的一种客户端格式"
         )
+    }
+
+    func testClientPickerReorderBridgeLeavesCardTapsAndScrollingNative() throws {
+        let export = try sourceText("Tower/Features/Export/ExportView.swift")
+        let bridge = try sourceText("Tower/Design/ClientPickerReorderGestureBridge.swift")
+        let pickerStart = try XCTUnwrap(export.range(of: "private struct ClientPicker"))
+        let pickerEnd = try XCTUnwrap(
+            export.range(
+                of: "private struct ClientPickerDragSession",
+                range: pickerStart.upperBound..<export.endIndex
+            )
+        )
+        let pickerSource = String(export[pickerStart.lowerBound..<pickerEnd.lowerBound])
+        let cardsStart = try XCTUnwrap(pickerSource.range(of: "ForEach(displayedDestinations)"))
+        let cardsEnd = try XCTUnwrap(
+            pickerSource.range(
+                of: ".padding(.vertical, 8)",
+                range: cardsStart.upperBound..<pickerSource.endIndex
+            )
+        )
+        let cards = String(pickerSource[cardsStart.lowerBound..<cardsEnd.lowerBound])
+
+        XCTAssertTrue(cards.contains("Button {"), "Client cards must remain native buttons")
+        XCTAssertFalse(
+            cards.contains(".gesture("),
+            "A whole-card SwiftUI gesture competes with the Button and horizontal ScrollView"
+        )
+        XCTAssertFalse(
+            cards.contains(".simultaneousGesture("),
+            "Even a simultaneous SwiftUI long press can prevent native tap and pan delivery"
+        )
+        XCTAssertFalse(
+            cards.contains(".highPriorityGesture("),
+            "A high-priority card gesture intercepts both selection and horizontal scrolling"
+        )
+        XCTAssertFalse(pickerSource.contains("private func reorderGesture("))
+        XCTAssertFalse(pickerSource.contains("LongPressGesture("))
+        XCTAssertFalse(pickerSource.contains("DragGesture("))
+
+        XCTAssertTrue(pickerSource.contains("shouldReceiveTouch: isTouchInsideDestination"))
+        XCTAssertTrue(pickerSource.contains("private func isTouchInsideDestination("))
+        XCTAssertTrue(bridge.contains("UILongPressGestureRecognizer("))
+        XCTAssertTrue(bridge.contains("scrollView.addGestureRecognizer(recognizer)"))
+        XCTAssertTrue(bridge.contains("recognizer.cancelsTouchesInView = true"))
+        XCTAssertTrue(bridge.contains("recognizer.delaysTouchesBegan = false"))
+        XCTAssertTrue(bridge.contains("return !(otherGestureRecognizer is UIPanGestureRecognizer)"))
+        XCTAssertFalse(
+            bridge.contains("panGestureRecognizer.isEnabled"),
+            "Manually toggling the scroll pan cancels an in-flight recognizer and causes reentrancy"
+        )
+        XCTAssertFalse(
+            bridge.contains("disableScrollPanGesture"),
+            "UIKit should arbitrate between the long press and its sibling scroll pan"
+        )
+
+        XCTAssertTrue(bridge.contains("shouldReceive touch: UITouch"))
+        XCTAssertTrue(bridge.contains("guard shouldReceiveTouch(viewportLocation) else"))
+        XCTAssertTrue(bridge.contains("initialWindowLocation = touch.location(in: scrollView.window)"))
+        XCTAssertTrue(bridge.contains("initialViewportLocation = viewportLocation"))
+        XCTAssertTrue(bridge.contains("func gestureRecognizerShouldBegin("))
+        XCTAssertTrue(
+            bridge.contains("initialWindowLocation != nil,")
+                && bridge.contains("let initialViewportLocation,")
+                && bridge.contains("shouldReceiveTouch(initialViewportLocation) else { return false }"),
+            "Only a card touch with both frozen hit point and translation origin may begin reordering"
+        )
+        XCTAssertTrue(
+            bridge.contains("case .began, .changed:") && bridge.contains("return false"),
+            "A scroll view whose pan already won must keep ownership of that touch"
+        )
+        XCTAssertTrue(bridge.contains("recognizer.state == .began"))
+        XCTAssertTrue(
+            bridge.contains("initialViewportLocation ?? currentViewportLocation"),
+            "The began event must use the card hit-tested point frozen at touch-down"
+        )
+
+        let beganStart = try XCTUnwrap(bridge.range(of: "case .began:"))
+        let changedStart = try XCTUnwrap(
+            bridge.range(of: "case .changed:", range: beganStart.upperBound..<bridge.endIndex)
+        )
+        let began = String(bridge[beganStart.lowerBound..<changedStart.lowerBound])
+        XCTAssertTrue(began.contains("isReordering = onBegan(event)"))
+
+        let endedStart = try XCTUnwrap(
+            bridge.range(of: "case .ended:", range: changedStart.upperBound..<bridge.endIndex)
+        )
+        let cancelledStart = try XCTUnwrap(
+            bridge.range(
+                of: "case .cancelled, .failed:",
+                range: endedStart.upperBound..<bridge.endIndex
+            )
+        )
+        let possibleStart = try XCTUnwrap(
+            bridge.range(of: "case .possible:", range: cancelledStart.upperBound..<bridge.endIndex)
+        )
+        let ended = String(bridge[endedStart.lowerBound..<cancelledStart.lowerBound])
+        let cancelled = String(bridge[cancelledStart.lowerBound..<possibleStart.lowerBound])
+        let endedClear = try XCTUnwrap(ended.range(of: "isReordering = false"))
+        let endedCallback = try XCTUnwrap(ended.range(of: "onEnded("))
+        let cancelledClear = try XCTUnwrap(cancelled.range(of: "isReordering = false"))
+        let cancelledCallback = try XCTUnwrap(cancelled.range(of: "onCancelled()"))
+        XCTAssertLessThan(
+            endedClear.lowerBound,
+            endedCallback.lowerBound,
+            "Clear active state before the callback can rebuild and dismantle the bridge"
+        )
+        XCTAssertLessThan(
+            cancelledClear.lowerBound,
+            cancelledCallback.lowerBound,
+            "Cancellation must also clear active state before reporting it"
+        )
+
+        // Preserve the insertion-slot implementation that fixed jumps to the
+        // first position while changing only the gesture arbitration layer.
+        XCTAssertTrue(pickerSource.contains("ReorderPlanner.insertionIndex"))
+        XCTAssertTrue(pickerSource.contains("ReorderPlanner.moving("))
+        XCTAssertTrue(pickerSource.contains("stabilizedInsertionIndex("))
+        XCTAssertTrue(pickerSource.contains("ReorderAutoScroller("))
+        XCTAssertTrue(pickerSource.contains("model.setExportDestinationOrder(orderedDestinations)"))
     }
 
     func testSelectingLANSharingStartsTheServiceWithoutASecondTap() throws {

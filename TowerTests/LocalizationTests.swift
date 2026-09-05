@@ -74,24 +74,70 @@ final class LocalizationTests: XCTestCase {
         )
     }
 
+    func testProxyProviderSettingIsConciseAndNamesUnsupportedClients() throws {
+        let catalog = try loadCatalog(named: "Localizable")
+        let expectedTitles = [
+            "ar": "موفرو الوكيل",
+            "de": "Proxy-Anbieter",
+            "en": "Proxy Providers",
+            "es": "Proveedores de proxy",
+            "fr": "Fournisseurs de proxy",
+            "id": "Penyedia proxy",
+            "ja": "プロキシプロバイダー",
+            "ko": "프록시 공급자",
+            "pt-BR": "Provedores de proxy",
+            "ru": "Провайдеры прокси",
+            "th": "ผู้ให้บริการพร็อกซี",
+            "tr": "Proxy sağlayıcıları",
+            "vi": "Nhà cung cấp proxy",
+            "zh-Hans": "代理集合",
+            "zh-Hant": "代理集合",
+        ]
+        let detailKey = "原始订阅链接直接写入配置文件，交由客户端更新。不支持 Shadowrocket、Hiddify、V2Box 和 sing-box MT。"
+
+        for locale in supportedLocales {
+            let expectedTitle = try XCTUnwrap(expectedTitles[locale])
+            XCTAssertEqual(
+                try value(for: "代理集合", locale: locale, in: catalog),
+                expectedTitle
+            )
+            let detail = try value(for: detailKey, locale: locale, in: catalog)
+            for unsupportedClient in ["Shadowrocket", "Hiddify", "V2Box", "sing-box MT"] {
+                XCTAssertTrue(
+                    detail.contains(unsupportedClient),
+                    "\(locale) omits unsupported client \(unsupportedClient)"
+                )
+            }
+        }
+
+        XCTAssertEqual(
+            try value(for: detailKey, locale: "en", in: catalog),
+            "Writes the original subscription URL directly into the configuration file for the client to update. Not supported: Shadowrocket, Hiddify, V2Box, and sing-box MT."
+        )
+        XCTAssertEqual(
+            try value(for: detailKey, locale: "zh-Hant", in: catalog),
+            "將原始訂閱連結直接寫入設定檔，交由客戶端更新。不支援 Shadowrocket、Hiddify、V2Box 和 sing-box MT。"
+        )
+    }
+
     func testPrimaryExportLabelsAreConciseAndHumanReviewed() throws {
         let catalog = try loadCatalog(named: "Localizable")
         let expected: [String: [String]] = [
-            "ar": ["التطبيق الهدف", "تصفية البروتوكولات", "تصدير إلى %@", "اضغط مطولاً لإعادة الترتيب", "لـ %@ فقط", "تصدير ملف إلى %@", "جاهز للتصدير"],
-            "de": ["Ziel-App", "Protokollfilter", "In %@ exportieren", "Zum Neuanordnen gedrückt halten", "Nur für %@", "Datei in %@ exportieren", "Bereit zum Exportieren"],
-            "en": ["Target App", "Protocol Filter", "Export to %@", "Touch and Hold to Reorder", "For %@ only", "Export File to %@", "Ready to Export"],
-            "es": ["App de destino", "Filtro de protocolos", "Exportar a %@", "Mantén pulsado para reordenar", "Solo para %@", "Exportar archivo a %@", "Listo para exportar"],
-            "fr": ["App cible", "Filtre de protocoles", "Exporter vers %@", "Maintenez le doigt pour réorganiser", "Pour %@ uniquement", "Exporter un fichier vers %@", "Prêt à exporter"],
-            "id": ["Aplikasi tujuan", "Filter protokol", "Ekspor ke %@", "Tekan lama untuk mengurutkan ulang", "Hanya untuk %@", "Ekspor file ke %@", "Siap diekspor"],
-            "ja": ["対象アプリ", "プロトコルフィルタ", "%@にエクスポート", "長押しして並べ替え", "%@ のみ", "%@にファイルをエクスポート", "エクスポートの準備完了"],
-            "ko": ["대상 앱", "프로토콜 필터", "%@로 내보내기", "길게 눌러 순서 변경", "%@에만 적용", "%@로 파일 내보내기", "내보낼 준비 완료"],
-            "pt-BR": ["App de destino", "Filtro de protocolos", "Exportar para %@", "Mantenha pressionado para reordenar", "Somente para %@", "Exportar arquivo para %@", "Pronto para exportar"],
-            "ru": ["Целевое приложение", "Фильтр протоколов", "Экспортировать в %@", "Удерживайте для изменения порядка", "Только для %@", "Экспортировать файл в %@", "Готово к экспорту"],
-            "th": ["แอปเป้าหมาย", "ตัวกรองโปรโตคอล", "ส่งออกไปยัง %@", "แตะค้างไว้เพื่อจัดลำดับใหม่", "สำหรับ %@ เท่านั้น", "ส่งออกไฟล์ไปยัง %@", "พร้อมส่งออก"],
-            "tr": ["Hedef Uygulama", "Protokol Filtresi", "%@ Uygulamasına Dışa Aktar", "Yeniden sıralamak için basılı tutun", "Yalnızca %@ için", "Dosyayı %@ Uygulamasına Dışa Aktar", "Dışa Aktarmaya Hazır"],
-            "vi": ["Ứng dụng đích", "Bộ lọc giao thức", "Xuất sang %@", "Chạm và giữ để sắp xếp lại", "Chỉ áp dụng cho %@", "Xuất tệp sang %@", "Sẵn sàng xuất"],
-            "zh-Hans": ["目标客户端", "协议筛选", "一键导出到 %@", "长按拖动排序", "只影响 %@", "用文件导出到 %@", "转换已就绪"],
-            "zh-Hant": ["目標客戶端", "協定篩選", "一鍵匯出到 %@", "按住以重新排序", "僅影響 %@", "用檔案匯出到 %@", "轉換已就緒"],
+            "ar": ["التطبيق الهدف", "تصفية البروتوكولات", "تصدير إلى %@", "تصفية التطبيقات", "لـ %@ فقط", "تصدير ملف إلى %@", "جاهز للتصدير"],
+            "de": ["Ziel-App", "Protokollfilter", "In %@ exportieren", "App-Filter", "Nur für %@", "Datei in %@ exportieren", "Bereit zum Exportieren"],
+            "en": ["Target App", "Protocol Filter", "Export to %@", "Client Filter", "For %@ only", "Export File to %@", "Ready to Export"],
+            "es": ["App de destino", "Filtro de protocolos", "Exportar a %@", "Filtro de clientes", "Solo para %@", "Exportar archivo a %@", "Listo para exportar"],
+            "fr": ["App cible", "Filtre de protocoles", "Exporter vers %@", "Filtre des clients", "Pour %@ uniquement", "Exporter un fichier vers %@", "Prêt à exporter"],
+            "id": ["Aplikasi tujuan", "Filter protokol", "Ekspor ke %@", "Filter klien", "Hanya untuk %@", "Ekspor file ke %@", "Siap diekspor"],
+            "ja": ["対象アプリ", "プロトコルフィルタ", "%@にエクスポート", "クライアントフィルタ", "%@ のみ", "%@にファイルをエクスポート", "エクスポートの準備完了"],
+            "ko": ["대상 앱", "프로토콜 필터", "%@로 내보내기", "클라이언트 필터", "%@에만 적용", "%@로 파일 내보내기", "내보낼 준비 완료"],
+            "pt-BR": ["App de destino", "Filtro de protocolos", "Exportar para %@", "Filtro de clientes", "Somente para %@", "Exportar arquivo para %@", "Pronto para exportar"],
+            "ru": ["Целевое приложение", "Фильтр протоколов", "Экспортировать в %@", "Фильтр клиентов", "Только для %@", "Экспортировать файл в %@", "Готово к экспорту"],
+            "th": ["แอปเป้าหมาย", "ตัวกรองโปรโตคอล", "ส่งออกไปยัง %@", "ตัวกรองไคลเอนต์", "สำหรับ %@ เท่านั้น", "ส่งออกไฟล์ไปยัง %@", "พร้อมส่งออก"],
+            "tr": ["Hedef Uygulama", "Protokol Filtresi", "%@ Uygulamasına Dışa Aktar", "İstemci Filtresi", "Yalnızca %@ için", "Dosyayı %@ Uygulamasına Dışa Aktar", "Dışa Aktarmaya Hazır"],
+            "vi": ["Ứng dụng đích", "Bộ lọc giao thức", "Xuất sang %@", "Bộ lọc ứng dụng", "Chỉ áp dụng cho %@", "Xuất tệp sang %@", "Sẵn sàng xuất"],
+            "zh-Hans": ["目标客户端", "协议筛选", "一键导出到 %@", "客户端筛选", "只影响 %@", "用文件导出到 %@", "转换已就绪"],
+            "zh-Hant": ["目標客戶端", "協定篩選", "一鍵匯出到 %@", "客戶端篩選", "僅影響 %@", "用檔案匯出到 %@", "轉換已就緒"],
         ]
 
         for locale in supportedLocales {
@@ -99,7 +145,7 @@ final class LocalizationTests: XCTestCase {
             XCTAssertEqual(try value(for: "目标客户端", locale: locale, in: catalog), translations[0])
             XCTAssertEqual(try value(for: "协议筛选", locale: locale, in: catalog), translations[1])
             XCTAssertEqual(try value(for: "一键导出到 %@", locale: locale, in: catalog), translations[2])
-            XCTAssertEqual(try value(for: "长按拖动排序", locale: locale, in: catalog), translations[3])
+            XCTAssertEqual(try value(for: "客户端筛选", locale: locale, in: catalog), translations[3])
             XCTAssertEqual(try value(for: "只影响 %@", locale: locale, in: catalog), translations[4])
             XCTAssertEqual(try value(for: "用文件导出到 %@", locale: locale, in: catalog), translations[5])
             XCTAssertEqual(try value(for: "转换已就绪", locale: locale, in: catalog), translations[6])

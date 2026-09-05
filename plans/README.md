@@ -1,9 +1,6 @@
-# Animation plans
+# 维护计划
 
-This directory records reviewed motion changes before implementation. Plans
-are intentionally narrow so animation never becomes a substitute for clear
-state, layout, or feedback.
+- [项目审查与修复验证](2026-09-05-project-audit.md)
+- 尚未实施的需求统一记录在 [docs/TODO.md](../docs/TODO.md)。
 
-## Status
-
-- [Home metrics and map markers](./2026-08-09-home-metrics-map-markers.md)
+已完成且内容进入代码或维护文档的临时计划不再保留；需要追溯时查看 Git 历史。

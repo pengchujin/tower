@@ -328,6 +328,13 @@ private struct NodeAndExportSettingsCard: View {
         )
     }
 
+    private var embedRemoteSubscriptionLinksBinding: Binding<Bool> {
+        Binding(
+            get: { model.embedRemoteSubscriptionLinks },
+            set: model.setEmbedRemoteSubscriptionLinks
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeading(title: "节点与配置", detail: String(localized: "默认保持原始订阅"))
@@ -373,6 +380,18 @@ private struct NodeAndExportSettingsCard: View {
                 )
             }
             .accessibilityIdentifier("prefer-rule-sets-toggle")
+
+            Divider()
+
+            Toggle(isOn: embedRemoteSubscriptionLinksBinding) {
+                SettingsRowLabel(
+                    symbol: "arrow.triangle.2.circlepath.circle.fill",
+                    color: .green,
+                    title: "代理集合",
+                    detail: "原始订阅链接直接写入配置文件，交由客户端更新。不支持 Shadowrocket、Hiddify、V2Box 和 sing-box MT。"
+                )
+            }
+            .accessibilityIdentifier("embed-remote-subscription-links-toggle")
 
             Divider()
 
@@ -973,6 +992,8 @@ private struct URLPanel: View {
 }
 
 struct LANSharingGuide: View {
+    @Environment(AppModel.self) private var model
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "怎么使用", detail: "OpenClash · Windows · Mac")
@@ -981,9 +1002,16 @@ struct LANSharingGuide: View {
                 GuideRow(number: "2", text: "开启服务，优先复制“自动识别客户端”链接。")
                 GuideRow(number: "3", text: "把链接作为订阅地址添加到客户端，刷新时保持塔台在前台打开。")
                 Divider()
-                Label("高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。", systemImage: "lock.shield.fill")
+                Label(
+                    model.embedRemoteSubscriptionLinks
+                        ? String(localized: "原始订阅链接直接写入配置文件，交由客户端更新。不支持 Shadowrocket、Hiddify、V2Box 和 sing-box MT。")
+                        : String(localized: "高级机场仍由塔台使用您设置的 UA 和 DNS 获取；桌面端只读取塔台生成的结果，不会拿到机场订阅密钥。"),
+                    systemImage: model.embedRemoteSubscriptionLinks
+                        ? "exclamationmark.shield.fill"
+                        : "lock.shield.fill"
+                )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(model.embedRemoteSubscriptionLinks ? Color.orange : Color.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(17)

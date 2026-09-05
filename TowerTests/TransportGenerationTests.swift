@@ -44,14 +44,14 @@ final class TransportGenerationTests: XCTestCase {
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
 
-        for target in [ClientTarget.clash, .shadowrocket, .hiddify, .egern, .singBox] {
+        for target in [ClientTarget.clash, .clashMi, .karing, .shadowrocket, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "grpc", path: "tower.Telemetry")
             XCTAssertEqual(result.supportedNodeCount, 1, "\(target.name) 应保留 gRPC")
         }
     }
 
     func testXHTTPIsOnlyWrittenWhereTheClientCanExpressIt() {
-        for target in [ClientTarget.clash, .shadowrocket] {
+        for target in [ClientTarget.clash, .clashMi, .karing, .shadowrocket] {
             XCTAssertEqual(generate(target, transport: "xhttp", path: "/split").supportedNodeCount, 1)
         }
         for target in [ClientTarget.surge, .loon, .quanx, .hiddify, .egern, .singBox] {

@@ -5,6 +5,13 @@ struct NodeMapPresentation {
     let clusters: [NodeRegionCluster]
     let unlocatedCount: Int
 
+    static func revision(nodes: [ProxyNode], countryCodes: [UUID: String]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(nodes)
+        for node in nodes { hasher.combine(countryCodes[node.id]) }
+        return hasher.finalize()
+    }
+
     init(nodes: [ProxyNode], countryCodes: [UUID: String]) {
         clusters = NodeRegionResolver.clusters(for: nodes, countryCodes: countryCodes)
         let locatedCount = clusters.reduce(into: 0) { count, cluster in
@@ -20,14 +27,7 @@ struct NodeMapOverview: View {
     let nodes: [ProxyNode]
 
     @State private var selectedRegionCode: String?
-    @State private var presentation: NodeMapPresentation
-
-    init(nodes: [ProxyNode]) {
-        self.nodes = nodes
-        _presentation = State(
-            initialValue: NodeMapPresentation(nodes: nodes, countryCodes: [:])
-        )
-    }
+    @State private var presentation = NodeMapPresentation(nodes: [], countryCodes: [:])
 
     var body: some View {
         let clusters = presentation.clusters
@@ -57,10 +57,18 @@ struct NodeMapOverview: View {
             // state first, then rebuild the map's derived clusters.
             await Task.yield()
             guard !Task.isCancelled else { return }
-            presentation = NodeMapPresentation(
-                nodes: latestNodes,
-                countryCodes: countryCodes
-            )
+            // At 5,000 nodes this pure grouping pass can exceed a frame.
+            // Only immutable inputs cross executors; publish on the view task.
+            let worker = Task.detached(priority: .userInitiated) {
+                NodeMapPresentation(nodes: latestNodes, countryCodes: countryCodes)
+            }
+            let prepared = await withTaskCancellationHandler {
+                await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
+            guard !Task.isCancelled else { return }
+            presentation = prepared
         }
         .onChange(of: clusters.map(\.id)) { _, clusterIDs in
             // A collapsed list stays collapsed; only a selection that no longer
@@ -191,13 +199,7 @@ struct NodeMapOverview: View {
     }
 
     private var presentationTaskID: Int {
-        var hasher = Hasher()
-        hasher.combine(nodes.count)
-        for node in nodes {
-            hasher.combine(node.id)
-            hasher.combine(model.nodeIPCountryCodes[node.id])
-        }
-        return hasher.finalize()
+        NodeMapPresentation.revision(nodes: nodes, countryCodes: model.nodeIPCountryCodes)
     }
 
 }
@@ -292,7 +294,8 @@ struct CompactNodeRow: View {
             NodeLatencyBadge(node: node, showsUntestedState: false)
 
             Button {
-                sharePayload = SharePayloadFactory.node(presentedNode)
+                guard let latest = model.nodes.first(where: { $0.id == node.id }) else { return }
+                sharePayload = SharePayloadFactory.node(model.nodeForPresentation(latest))
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.body.weight(.medium))

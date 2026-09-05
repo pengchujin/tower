@@ -2,11 +2,7 @@
 
 塔台有两条正式版 Xcode 发布路径：出门使用的 MacBook Air M2 可以在当前 Aqua 会话中直接完成自动签名、归档和 App Store Connect / TestFlight 上传；家中 Mac mini M2 是固定发布机，也可从头完成归档和上传。家中 Mac mini M4 的 Xcode Beta 只用于开发调试，不参与正式发布。
 
-2026-09-01 已在 Air 上实测 `1.0.5 (38)`：Release 自动签名、Store 校验、`.xcarchive` 和上传全部成功。第一次上传立即停在 `Failed to Use Accounts`，实际原因是正式版 Xcode 没有登录 Apple Account；本地证书和描述文件仍足以完成归档，所以不能根据“归档成功”推断账号已登录。登录 Xcode 后复用同一份归档即可上传，不需要重新构建。
-
-2026-09-03 已在 Air 上完成 `1.0.6 (39)` 的 Release 自动签名、归档和上传，App Store Connect 返回 `Uploaded package is processing`。同一 build 最初使用 1.0.5 上传时，服务端以 1.0.5 已获批、预发布通道关闭为由拒绝；已获批版本后续必须递增 `MARKETING_VERSION`，不能只递增 build 号。
-
-2026-09-04 已在 Air 上完成 `1.0.6 (40)` 的 Release 自动签名、归档和上传，归档版本与签名核验通过，App Store Connect 返回 `Uploaded package is processing` 与 `Upload succeeded`。该构建包含来源固定排序和 Quantumult X `no-resolve` 兼容修复。
+最近已上传版本见 [HANDOFF](HANDOFF.md)。版本已获批、预发布通道关闭后必须递增 MARKETING_VERSION，不能只递增 build。
 
 备用远程流程会从开发机上的 Ghostty 通过 SSH 连接 Mac mini M2，再自动切换到该机的 Aqua 图形会话归档和上传，避免 SSH Background 安全域导致 `codesign` 报 `errSecInternalComponent`。登录钥匙串密码仅在当次终端由 macOS `security` 读取，不写入仓库、脚本、Shell 历史或命令参数。
 
@@ -62,7 +58,7 @@ MRS 与 SRS 最后都放到 `Rulesets/ACL4SSR/<提交号>/`，不随 App 打包�
    ```
 
    生成后 `ACL4SSR_manifest.json` 必须包含 `artifactCommit`】【，】【所有 MRS/SRS URL 都必须含该完整 SHA，不能再含 `/main/`。
-4. 推送引用清单和 App 代码的第二个提交后，全量回读所有远程 MRS/SRS（当前为 77 个）并校验 SHA-256：
+4. 推送引用清单和 App 代码的第二个提交后，全量回读所有远程 MRS/SRS并校验 SHA-256：
 
    ```sh
    python3 Scripts/update_acl4ssr_rules.py --verify-published
@@ -106,32 +102,16 @@ TOWER_RELEASE_HOST=用户名@另一台 Scripts/release_testflight.sh
 
 `Config/ExportOptions-TestFlight.plist` 因此**不含 `teamID`**；`Scripts/release_testflight_remote.sh` 会把它复制到发布目录再补上团队 ID，渲染结果始终落在仓库之外。
 
-## MacBook Air 本机归档与上传的已验证结果
+## 上传账号排错
 
-2026-09-01 在当前 Air 的 Aqua 会话中，用正式版 Xcode 26.6 对 `1.0.5 (38)` 完成了以下验证：
+归档成功只证明签名材料可用，不证明当前正式版 Xcode 已登录 Apple Account。出现 `Failed to Use Accounts` 时：
 
-1. 自动签名的 Release 真机构建成功。
-2. `.xcarchive` 成功生成到 `~/Builds/Tower-TestFlight-1.0.5-38-时间/`。
-3. 归档内版本、构建号、Bundle ID 和签名均正确，Store 校验通过。
-4. Xcode 未登录 Apple Account 时，上传在 `IDEDistributionUploadAccountStep` 以 `Failed to Use Accounts` 停止。
-5. 在 Xcode **Settings ▸ Accounts** 登录原账号后，不重新归档，直接复用同一 `.xcarchive` 上传成功，App Store Connect 开始处理 build 38。
+1. 检查实际使用的 Xcode → Settings → Accounts 中的账号和团队。
+2. 完成登录后，构建号尚未成功上传时可复用原归档重新分发，无需重打包。
+3. 账号正常仍失败，再检查 App Store Connect 权限、协议或 API Key。
+4. 不擅自退出其他 Xcode、撤销证书或切换全局 xcode-select。
 
-这次故障的根因是“正式版 Xcode 未登录账号”，不是 App Store Connect 角色、证书、描述文件、Bundle ID 或归档错误。以后遇到相同错误按以下顺序处理：
-
-1. 打开当前实际使用的那一份 Xcode，进入 **Settings ▸ Accounts**，确认 Apple Account 和目标团队存在。
-2. 若账号不存在或要求重新认证，先完成登录；不要退出另一份 Xcode、撤销证书或切换全局 `xcode-select`。
-3. 登录后直接重新分发已有归档。只要构建号尚未成功上传，无需重新归档。
-4. 账号已经正常登录仍报相同错误时，才检查 App Store Connect 用户角色、待接受协议或改用 API Key／家中 Mac mini M2。
-
-本机检查基线：
-
-```sh
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-xcodebuild -version
-launchctl managername  # 本机终端应为 Aqua
-```
-
-不要因为本机能签名、能装真机或能归档，就推断当前正式版 Xcode 已经登录；签名材料可以在账号退出后继续存在。
+本机终端应处于 Aqua 会话；签名和上传用正式版 Xcode。普通真机安装另见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## Mac mini M2 备用发布：一条命令
 
@@ -146,7 +126,7 @@ Scripts/release_testflight.sh
 需要明确约束目标版本时：
 
 ```sh
-Scripts/release_testflight.sh --version 1.0.3 --build 30
+Scripts/release_testflight.sh --version <版本号> --build <构建号>
 ```
 
 只做校验、不连接 Mac mini：

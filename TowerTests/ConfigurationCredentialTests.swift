@@ -188,8 +188,7 @@ final class ConfigurationCredentialTests: XCTestCase {
             }
             // Both YAML formats quote the name, so the injected text survives
             // inside the scalar and only the line count proves it stayed put.
-            guard target != .clash,
-                  target != .clashApple,
+            guard !target.usesClashFormat,
                   target != .shadowrocket,
                   target != .egern else {
                 XCTAssertTrue(
@@ -275,7 +274,7 @@ final class ConfigurationCredentialTests: XCTestCase {
 
             XCTAssertEqual(
                 content.contains("GEOSITE,CN,DIRECT"),
-                [.clash, .clashApple].contains(target),
+                target.usesClashFormat,
                 "\(target.name) 的 GEOSITE 支持矩阵不正确：\(content)"
             )
         }

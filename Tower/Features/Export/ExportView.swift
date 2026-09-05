@@ -34,7 +34,9 @@ struct ExportView: View {
                     ConversionSummary(configuration: configuration)
                     ImportPrivacyNote(
                         target: model.selectedTarget,
-                        contentMode: model.exportContentMode(for: model.selectedTarget)
+                        contentMode: model.exportContentMode(for: model.selectedTarget),
+                        embedsRemoteSubscriptions: model.embedRemoteSubscriptionLinks
+                            && model.selectedTarget.supportsEmbeddedRemoteSubscriptions
                     )
                     ConfigurationPreview(configuration: configuration) {
                         previewPayload = ConfigurationPreviewPayload(configuration: configuration)
@@ -53,7 +55,8 @@ struct ExportView: View {
                     configurationNameDraft = ConfigurationNameDraft(text: model.configurationName)
                     isSettingsPresented = true
                 } label: {
-                    Label("设置", systemImage: "gearshape")
+                    Text("高级设置")
+                        .font(.body.weight(.semibold))
                 }
                 .accessibilityIdentifier("open-settings")
             }
@@ -64,7 +67,7 @@ struct ExportView: View {
                     target: model.selectedTarget,
                     contentMode: configuration.contentMode,
                     isImporting: isImporting,
-                    isDisabled: configuration.supportedNodeCount == 0,
+                    isDisabled: !configuration.hasExportableProxies,
                     importAction: {
                         Task { await importConfiguration(configuration) }
                     },
@@ -233,65 +236,481 @@ private struct ConfigurationPreviewPayload: Identifiable {
 
 private struct ClientPicker: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var isLANSharingSelected: Bool
     let activateLANSharing: () -> Void
+    @State private var orderedDestinations: [ExportDestination] = []
+    @State private var dragSession: ClientPickerDragSession?
+    @State private var settlingSession: ClientPickerDragSession?
+    @ScaledMetric(relativeTo: .caption) private var pickerHeight: CGFloat = 128
+    private var visualSessions: [ClientPickerDragSession] {
+        [settlingSession, dragSession].compactMap { $0 }
+    }
+    private var currentDestination: ExportDestination {
+        isLANSharingSelected ? .lanSharing : .client(model.selectedTarget)
+    }
+    @State private var dragLifted = false
+    @State private var suppressSelection = false
+    @State private var reorderFeedback = 0
+    @State private var destinationFrames: [String: CGRect] = [:]
+    @State private var autoScroller = ReorderAutoScroller(
+        axis: .horizontal,
+        maximumSpeed: 430
+    )
+
+    private var displayedDestinations: [ExportDestination] {
+        orderedDestinations.isEmpty ? model.exportDestinationOrder : orderedDestinations
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "目标客户端", detail: String(localized: "长按拖动排序"))
-            ScrollView(.horizontal) {
-                HStack(spacing: 12) {
-                    ForEach(model.exportDestinationOrder) { destination in
-                        destinationButton(destination)
-                            .buttonStyle(ResponsivePressButtonStyle())
-                            .accessibilityIdentifier(accessibilityIdentifier(for: destination))
-                            .draggable(destination.id)
-                            .dropDestination(for: String.self) { values, _ in
-                                guard let identifier = values.first,
-                                      let source = ExportDestination(identifier: identifier) else {
-                                    return false
+            HStack(alignment: .firstTextBaseline) {
+                Text("目标客户端")
+                    .font(.title3.weight(.semibold))
+                Spacer()
+                NavigationLink {
+                    ClientFilterView(isLANSharingSelected: $isLANSharingSelected)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("客户端筛选")
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                }
+                .accessibilityIdentifier("open-client-filter")
+            }
+            GeometryReader { viewport in
+                ZStack(alignment: .topLeading) {
+                    ScrollViewReader { scrollProxy in
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 12) {
+                                ForEach(displayedDestinations) { destination in
+                                    Button {
+                                        select(destination)
+                                    } label: {
+                                        destinationCard(destination)
+                                            .opacity(visualSessions.contains(where: { $0.source == destination }) ? 0 : 1)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(ResponsivePressButtonStyle())
+                                    .accessibilityIdentifier(accessibilityIdentifier(for: destination))
+                                    .accessibilityAddTraits(currentDestination == destination ? .isSelected : [])
+                                    .id(destination.id)
+                                    .background {
+                                        GeometryReader { proxy in
+                                            Color.clear.preference(
+                                                key: ClientCardFramePreferenceKey.self,
+                                                value: [
+                                                    destination.id: proxy.frame(
+                                                        in: .named(ClientPickerCoordinateSpace.name)
+                                                    )
+                                                ]
+                                            )
+                                        }
+                                    }
+                                    .accessibilityAction(named: "向前移动") {
+                                        model.moveExportDestination(destination, by: -1)
+                                    }
+                                    .accessibilityAction(named: "向后移动") {
+                                        model.moveExportDestination(destination, by: 1)
+                                    }
                                 }
-                                model.moveExportDestination(source, across: destination)
-                                return true
                             }
-                            .accessibilityAction(named: "向前移动") {
-                                model.moveExportDestination(destination, by: -1)
+                            .padding(.vertical, 8)
+                            .background {
+                                ClientPickerReorderGestureBridge(
+                                    minimumPressDuration: 0.18,
+                                    allowableMovement: 12,
+                                    onScrollViewResolved: { scrollView in
+                                        autoScroller.attach(scrollView)
+                                    },
+                                    shouldReceiveTouch: isTouchInsideDestination,
+                                    onBegan: beginDragging,
+                                    onChanged: { event in
+                                        updateDragging(
+                                            event,
+                                            viewportWidth: viewport.size.width
+                                        )
+                                    },
+                                    onEnded: { event in
+                                        finishDragging(
+                                            event,
+                                            viewportWidth: viewport.size.width
+                                        )
+                                    },
+                                    onCancelled: cancelDragging
+                                )
                             }
-                            .accessibilityAction(named: "向后移动") {
-                                model.moveExportDestination(destination, by: 1)
-                            }
+                        }
+                        .scrollIndicators(.hidden)
+                        .onAppear { scrollProxy.scrollTo(currentDestination.id, anchor: .center) }
+                        .onChange(of: currentDestination) { _, destination in
+                            guard dragSession == nil, settlingSession == nil else { return }
+                            scrollProxy.scrollTo(destination.id, anchor: .center)
+                        }
+                    }
+
+                    ForEach(visualSessions, id: \.token) { dragSession in
+                        destinationCard(dragSession.source)
+                            .frame(
+                                width: dragSession.sourceFrame.width,
+                                height: dragSession.sourceFrame.height
+                            )
+                            .scaleEffect(
+                                dragSession.isSettling || reduceMotion
+                                    ? 1
+                                    : (dragLifted ? 1.025 : 0.97)
+                            )
+                            .opacity(reduceMotion || dragLifted ? 1 : 0.86)
+                            .shadow(
+                                color: .black.opacity(
+                                    reduceMotion ? 0.08 : (dragLifted ? 0.16 : 0)
+                                ),
+                                radius: reduceMotion ? 5 : (dragLifted ? 13 : 0),
+                                y: reduceMotion ? 2 : (dragLifted ? 7 : 0)
+                            )
+                            .offset(y: dragSession.sourceFrame.minY)
+                            .modifier(TrackedReorderOffset(value: dragSession.sourceFrame.minX + dragSession.translation,
+                                                          horizontal: true, recorder: dragSession.presentationOffset))
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                            .zIndex(2)
+                            .animation(.easeOut(duration: 0.12), value: dragLifted)
                     }
                 }
-                .scrollTargetLayout()
-                .padding(.vertical, 4)
+                .coordinateSpace(name: ClientPickerCoordinateSpace.name)
+                .onPreferenceChange(ClientCardFramePreferenceKey.self) { frames in
+                    guard frames != destinationFrames else { return }
+                    destinationFrames = frames
+                }
+                .onDisappear {
+                    autoScroller.stop()
+                    autoScroller.onScroll = nil
+                    resetDragState()
+                    suppressSelection = false
+                }
             }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .frame(height: pickerHeight)
         }
+        .onAppear(perform: synchronizeOrder)
+        .onChange(of: model.exportDestinationOrder) { _, destinations in
+            guard dragSession == nil else { return }
+            orderedDestinations = destinations
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active, dragSession != nil || settlingSession != nil else { return }
+            resetDragState()
+            suppressSelection = false
+        }
+        .sensoryFeedback(.selection, trigger: reorderFeedback)
     }
 
     @ViewBuilder
-    private func destinationButton(_ destination: ExportDestination) -> some View {
+    private func destinationCard(_ destination: ExportDestination) -> some View {
         switch destination {
         case .client(let target):
-            Button {
-                guard isLANSharingSelected || model.selectedTarget != target else { return }
-                isLANSharingSelected = false
-                model.selectTarget(target)
-            } label: {
-                ClientTargetCard(
-                    target: target,
-                    isSelected: !isLANSharingSelected && model.selectedTarget == target
-                )
-            }
+            ClientTargetCard(
+                target: target,
+                isSelected: !isLANSharingSelected && model.selectedTarget == target
+            )
         case .lanSharing:
-            Button {
-                activateLANSharing()
-            } label: {
-                LANExportTargetCard(isSelected: isLANSharingSelected)
+            LANExportTargetCard(isSelected: isLANSharingSelected)
+                .accessibilityLabel("局域网共享")
+                .accessibilityHint("自动识别客户端")
+        }
+    }
+
+    private func select(_ destination: ExportDestination) {
+        guard dragSession == nil, !suppressSelection else { return }
+        switch destination {
+        case .client(let target):
+            guard isLANSharingSelected || model.selectedTarget != target else { return }
+            isLANSharingSelected = false
+            model.selectTarget(target)
+        case .lanSharing:
+            activateLANSharing()
+        }
+    }
+
+    private func synchronizeOrder() {
+        guard dragSession == nil else { return }
+        orderedDestinations = model.exportDestinationOrder
+    }
+
+    private func isTouchInsideDestination(_ location: CGPoint) -> Bool {
+        let destinations = displayedDestinations
+        guard dragSession == nil,
+              destinations.allSatisfy({ destinationFrames[$0.id] != nil }) else {
+            return false
+        }
+        return destinations.contains { destination in
+            hitFrame(for: destination)?.contains(location) == true
+        }
+    }
+
+    private func hitFrame(for destination: ExportDestination) -> CGRect? {
+        guard let landing = settlingSession, landing.source == destination else { return destinationFrames[destination.id] }
+        var frame = landing.sourceFrame
+        frame.origin.x = landing.presentationOffset.value
+        return frame
+    }
+
+    private func beginDragging(_ event: ClientPickerReorderGestureBridge.Event) -> Bool {
+        let landingSource = settlingSession.flatMap { session in
+            hitFrame(for: session.source)?.contains(event.location) == true ? session.source : nil
+        }
+        guard dragSession == nil,
+              let destination = landingSource ?? displayedDestinations.first(where: { destination in
+                  hitFrame(for: destination)?.contains(event.location) == true
+              }) else { return false }
+        let order = displayedDestinations
+        guard order.contains(destination),
+              order.allSatisfy({ destinationFrames[$0.id] != nil }),
+              let sourceFrame = hitFrame(for: destination) else { return false }
+        if settlingSession?.source == destination { settlingSession = nil }
+
+        orderedDestinations = order
+        // UIKit leaves a failed long press entirely to the Button/ScrollView.
+        // Once the long press succeeds, keep this guard as a second layer
+        // against a selection action from that same touch sequence.
+        suppressSelection = true
+        dragSession = ClientPickerDragSession(
+            source: destination,
+            originalOrder: order,
+            frozenFrames: destinationFrames,
+            frozenMidpoints: Dictionary(
+                uniqueKeysWithValues: order.compactMap { item in
+                    destinationFrames[item.id].map { (item.id, item == destination ? sourceFrame.midX : $0.midX) }
+                }
+            ),
+            sourceFrame: sourceFrame,
+            presentationOffset: ReorderPresentationOffset(sourceFrame.minX),
+            translation: 0,
+            scrollDelta: 0,
+            insertionIndex: order.firstIndex(of: destination) ?? 0,
+            isSettling: false
+        )
+        autoScroller.onScroll = handleAutoScroll
+        dragLifted = reduceMotion
+        guard !reduceMotion else { return true }
+        DispatchQueue.main.async {
+            guard dragSession?.source == destination,
+                  dragSession?.isSettling == false else { return }
+            withAnimation(.easeOut(duration: 0.12)) {
+                dragLifted = true
             }
-            .accessibilityLabel("局域网共享")
-            .accessibilityHint("自动识别客户端")
+        }
+        return true
+    }
+
+    private func updateDragging(
+        _ event: ClientPickerReorderGestureBridge.Event,
+        viewportWidth: CGFloat
+    ) {
+        guard var session = dragSession,
+              !session.isSettling else { return }
+
+        session.translation = event.translation.width
+        updateInsertionIndex(in: &session)
+        store(session)
+        updateDraft(using: session)
+        autoScroller.update(pointer: event.location.x, viewportLength: viewportWidth)
+    }
+
+    private func finishDragging(
+        _ event: ClientPickerReorderGestureBridge.Event,
+        viewportWidth: CGFloat
+    ) {
+        guard let destination = dragSession?.source else {
+            releaseSelectionSuppressionAfterTouchDelivery()
+            return
+        }
+        updateDragging(event, viewportWidth: viewportWidth)
+        finishDragging(destination)
+        releaseSelectionSuppressionAfterTouchDelivery()
+    }
+
+    private func cancelDragging() {
+        guard let destination = dragSession?.source else {
+            releaseSelectionSuppressionAfterTouchDelivery()
+            return
+        }
+        cancelDragging(destination)
+        releaseSelectionSuppressionAfterTouchDelivery()
+    }
+
+    private func handleAutoScroll(_ delta: CGFloat) {
+        guard var session = dragSession, !session.isSettling else { return }
+        session.scrollDelta += delta
+        updateInsertionIndex(in: &session)
+        store(session)
+        updateDraft(using: session)
+    }
+
+    private func updateInsertionIndex(in session: inout ClientPickerDragSession) {
+        let effectiveTranslation = session.translation + session.scrollDelta
+        guard let proposedIndex = ReorderPlanner.insertionIndex(
+            sourceID: session.source.id,
+            orderedIDs: session.originalOrder.map(\.id),
+            frozenMidpoints: session.frozenMidpoints,
+            translation: effectiveTranslation,
+            activationThreshold: 8
+        ) else { return }
+
+        let stableIndex = stabilizedInsertionIndex(
+            proposedIndex,
+            horizontalPosition: session.sourceFrame.midX + effectiveTranslation,
+            session: session
+        )
+        guard stableIndex != session.insertionIndex else { return }
+        session.insertionIndex = stableIndex
+        reorderFeedback += 1
+    }
+
+    private func store(_ session: ClientPickerDragSession) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dragSession = session
+        }
+    }
+
+    private func updateDraft(using session: ClientPickerDragSession) {
+        let reordered = ReorderPlanner.moving(
+            session.originalOrder,
+            identifiedBy: \.id,
+            sourceID: session.source.id,
+            toInsertionIndex: session.insertionIndex
+        )
+        guard reordered != orderedDestinations else { return }
+        guard !reduceMotion else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                orderedDestinations = reordered
+            }
+            return
+        }
+        withAnimation(TowerMotion.disclosure(reduceMotion: false)) {
+            orderedDestinations = reordered
+        }
+    }
+
+    private func stabilizedInsertionIndex(
+        _ proposedIndex: Int,
+        horizontalPosition: CGFloat,
+        session: ClientPickerDragSession
+    ) -> Int {
+        let currentIndex = session.insertionIndex
+        guard proposedIndex != currentIndex else { return currentIndex }
+
+        let remainingMidpoints = session.originalOrder
+            .filter { $0 != session.source }
+            .compactMap { session.frozenMidpoints[$0.id] }
+        let hysteresis: CGFloat = 6
+
+        if proposedIndex > currentIndex,
+           currentIndex < remainingMidpoints.count,
+           horizontalPosition < remainingMidpoints[currentIndex] + hysteresis {
+            return currentIndex
+        }
+        if proposedIndex < currentIndex,
+           currentIndex > 0,
+           horizontalPosition > remainingMidpoints[currentIndex - 1] - hysteresis {
+            return currentIndex
+        }
+        return proposedIndex
+    }
+
+    private func finishDragging(_ destination: ExportDestination) {
+        autoScroller.stop()
+        autoScroller.onScroll = nil
+        guard var session = dragSession,
+              session.source == destination else {
+            resetDragState()
+            return
+        }
+
+        model.setExportDestinationOrder(orderedDestinations)
+        let landingX = ReorderPlanner.landingOrigin(
+            sourceID: session.source.id, originalIDs: session.originalOrder.map(\.id),
+            reorderedIDs: orderedDestinations.map(\.id), frames: session.frozenFrames,
+            horizontal: true) ?? session.sourceFrame.minX
+        session.translation = landingX - session.sourceFrame.minX - session.scrollDelta
+        session.isSettling = true
+
+        guard !reduceMotion else {
+            resetDragState()
+            return
+        }
+
+        settlingSession = dragSession
+        dragSession = nil
+        let token = session.token
+        withAnimation(
+            TowerMotion.disclosure(reduceMotion: false),
+            completionCriteria: .removed
+        ) {
+            settlingSession = session
+        } completion: {
+            guard settlingSession?.token == token else { return }
+            settlingSession = nil
+        }
+    }
+
+    private func cancelDragging(_ destination: ExportDestination) {
+        autoScroller.stop()
+        autoScroller.onScroll = nil
+        guard var session = dragSession,
+              session.source == destination else {
+            resetDragState()
+            return
+        }
+        session.translation = (session.frozenFrames[session.source.id]?.minX ?? session.sourceFrame.minX)
+            - session.sourceFrame.minX - session.scrollDelta
+        session.isSettling = true
+
+        guard !reduceMotion else {
+            orderedDestinations = session.originalOrder
+            resetDragState()
+            return
+        }
+
+        settlingSession = dragSession
+        dragSession = nil
+        let token = session.token
+        withAnimation(
+            TowerMotion.disclosure(reduceMotion: false),
+            completionCriteria: .removed
+        ) {
+            orderedDestinations = session.originalOrder
+            settlingSession = session
+        } completion: {
+            guard settlingSession?.token == token else { return }
+            settlingSession = nil
+        }
+    }
+
+    private func resetDragState() {
+        autoScroller.stop()
+        autoScroller.onScroll = nil
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dragSession = nil
+            settlingSession = nil
+            dragLifted = false
+            orderedDestinations = model.exportDestinationOrder
+        }
+    }
+
+    private func releaseSelectionSuppressionAfterTouchDelivery() {
+        guard suppressSelection else { return }
+        DispatchQueue.main.async {
+            suppressSelection = false
         }
     }
 
@@ -303,7 +722,36 @@ private struct ClientPicker: View {
     }
 }
 
+private struct ClientPickerDragSession {
+    let token = UUID()
+    let source: ExportDestination
+    let originalOrder: [ExportDestination]
+    let frozenFrames: [String: CGRect]
+    let frozenMidpoints: [String: CGFloat]
+    let sourceFrame: CGRect
+    let presentationOffset: ReorderPresentationOffset
+    var translation: CGFloat
+    var scrollDelta: CGFloat
+    var insertionIndex: Int
+    var isSettling: Bool
+}
+
+private enum ClientPickerCoordinateSpace {
+    static let name = "client-picker-reorder"
+}
+
+private struct ClientCardFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
 private struct LANExportTargetCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .caption) private var cardWidth: CGFloat = 82
+    @ScaledMetric(relativeTo: .caption) private var cardHeight: CGFloat = 94
     let isSelected: Bool
 
     var body: some View {
@@ -325,10 +773,11 @@ private struct LANExportTargetCard: View {
             .overlay(alignment: .bottomTrailing) {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.title3.weight(.semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white, Color.accentColor)
                         .background(.white, in: Circle())
                         .offset(x: 4, y: 4)
+                        .accessibilityHidden(true)
                 }
             }
             .shadow(color: Color.accentColor.opacity(0.18), radius: 5, y: 2)
@@ -339,7 +788,7 @@ private struct LANExportTargetCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }
-        .frame(width: 82, height: 94)
+        .frame(width: cardWidth, height: cardHeight)
         .padding(.horizontal, 7)
         .padding(.vertical, 9)
         .background(
@@ -355,12 +804,15 @@ private struct LANExportTargetCard: View {
                     lineWidth: isSelected ? 1.5 : 0.7
                 )
         }
-        .scaleEffect(isSelected ? 1 : 0.97)
+        .scaleEffect(reduceMotion || isSelected ? 1 : 0.97)
         .animation(.easeOut(duration: 0.16), value: isSelected)
     }
 }
 
 private struct ClientTargetCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .caption) private var cardWidth: CGFloat = 82
+    @ScaledMetric(relativeTo: .caption) private var cardHeight: CGFloat = 94
     let target: ClientTarget
     let isSelected: Bool
 
@@ -370,10 +822,11 @@ private struct ClientTargetCard: View {
                 .overlay(alignment: .bottomTrailing) {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.title3.weight(.semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(.white, Color.accentColor)
                             .background(.white, in: Circle())
                             .offset(x: 4, y: 4)
+                            .accessibilityHidden(true)
                     }
                 }
             Text(target.name)
@@ -382,7 +835,7 @@ private struct ClientTargetCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
         }
-        .frame(width: 82, height: 94)
+        .frame(width: cardWidth, height: cardHeight)
         .padding(.horizontal, 7)
         .padding(.vertical, 9)
         .background(isSelected ? Color.accentColor.opacity(0.105) : Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -390,12 +843,12 @@ private struct ClientTargetCard: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(isSelected ? Color.accentColor.opacity(0.75) : Color.secondary.opacity(0.13), lineWidth: isSelected ? 1.5 : 0.7)
         }
-        .scaleEffect(isSelected ? 1 : 0.97)
+        .scaleEffect(reduceMotion || isSelected ? 1 : 0.97)
         .animation(.easeOut(duration: 0.16), value: isSelected)
     }
 }
 
-private struct ClientAppIcon: View {
+struct ClientAppIcon: View {
     let target: ClientTarget
     let size: CGFloat
 
@@ -463,7 +916,9 @@ private struct ProtocolFilter: View {
                     }
                 }
                 .towerCard()
-                Text("关掉的协议不会写进 \(model.selectedTarget.name) 的配置，并计入“已跳过”。其他客户端不受影响。")
+                Text(model.embeddedRemoteSubscriptions(for: model.selectedTarget).isEmpty
+                     ? String(localized: "关掉的协议不会写进 \(model.selectedTarget.name) 的配置，并计入“已跳过”。其他客户端不受影响。")
+                     : String(localized: "仅筛选本地节点；代理集合中的节点由客户端获取，不受此处筛选影响。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -509,9 +964,9 @@ private struct ConversionSummary: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: configuration.supportedNodeCount > 0 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                Image(systemName: configuration.hasExportableProxies ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .font(.title2)
-                    .foregroundStyle(configuration.supportedNodeCount > 0 ? .green : .orange)
+                    .foregroundStyle(configuration.hasExportableProxies ? .green : .orange)
             }
             HStack(spacing: 16) {
                 MetricPill(
@@ -530,6 +985,12 @@ private struct ConversionSummary: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.orange)
+            }
+            if configuration.remoteSourceCount > 0 {
+                Label("\(configuration.remoteSourceCount) 个代理集合 · 节点由客户端更新，以上仅统计本地节点。", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(20)
@@ -621,6 +1082,7 @@ private struct ConfigurationPreviewSheet: View {
 private struct ImportPrivacyNote: View {
     let target: ClientTarget
     let contentMode: ExportContentMode
+    let embedsRemoteSubscriptions: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -653,6 +1115,9 @@ private struct ImportPrivacyNote: View {
     private var detail: String {
         if contentMode == .nodesOnly {
             return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
+        }
+        if embedsRemoteSubscriptions {
+            return String(localized: "生成的配置包含原始订阅链接，\(target.name) 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。")
         }
         if target.supportsDirectConfigurationImport {
             return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")

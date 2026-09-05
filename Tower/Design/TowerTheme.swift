@@ -309,6 +309,7 @@ struct CheckmarkToggleStyle: ToggleStyle {
             configuration.isOn.toggle()
         } label: {
             SelectionIndicator(isSelected: configuration.isOn)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(SelectionIndicatorButtonStyle())
