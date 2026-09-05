@@ -1,0 +1,34 @@
+Tower-generated ACL4SSR binary rule sets
+============================================
+
+Source:      ACL4SSR/ACL4SSR
+Source URL:  https://github.com/ACL4SSR/ACL4SSR
+Revision:    864e3f3856347f67f4125505365295a7cc0490e7
+Compilers:   Mihomo v1.19.30
+             sing-box 1.14.0 (source format v2)
+License:     CC BY-SA 4.0
+             https://creativecommons.org/licenses/by-sa/4.0/
+
+These MRS files are derived from the pinned ACL4SSR .list snapshots bundled
+with Tower. DOMAIN values are emitted as exact domains, DOMAIN-SUFFIX values as
+Mihomo +. suffix expressions, and IP-CIDR, IP-CIDR6 and IP6-CIDR values as
+canonical CIDRs only when every source CIDR declares no-resolve. All other rule
+types, including DOMAIN-WILDCARD, remain outside the binary artifacts and are
+emitted inline by Tower. IP artifacts are marked ``noResolve: true`` in the
+manifest, and are omitted if a CIDR lacks no-resolve or has another modifier.
+
+Each SRS combines the source list's losslessly convertible DOMAIN,
+DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 and IP6-CIDR lines in one
+sing-box source-format v2 rule set. CIDRs may have no modifier or exactly one
+no-resolve modifier; any other modifier leaves the complete IP family inline.
+Malformed source types also remain inline instead of being partially removed.
+The temporary source JSON and decompiled JSON are used only for semantic
+round-trip verification and are not published.
+
+The artifacts are hosted for compatible Clash/Stash and sing-box clients but
+are not bundled inside the Tower app. Source and artifact SHA-256 digests and
+converted/residual rule counts are recorded in
+Tower/Resources/ACL4SSR/ACL4SSR_manifest.json.
+
+These derived MRS and SRS rule sets remain under CC BY-SA 4.0 and are not
+covered by the MIT license that applies to Tower's source code.
