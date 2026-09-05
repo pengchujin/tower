@@ -346,10 +346,14 @@ private struct ClientPicker: View {
                             }
                         }
                         .scrollIndicators(.hidden)
-                        .onAppear { scrollProxy.scrollTo(currentDestination.id, anchor: .center) }
+                        .onAppear { scrollProxy.scrollTo(currentDestination.id) }
                         .onChange(of: currentDestination) { _, destination in
                             guard dragSession == nil, settlingSession == nil else { return }
-                            scrollProxy.scrollTo(destination.id, anchor: .center)
+                            // Without an anchor, ScrollViewReader only moves enough
+                            // to reveal a clipped card and leaves visible cards in place.
+                            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                                scrollProxy.scrollTo(destination.id)
+                            }
                         }
                     }
 

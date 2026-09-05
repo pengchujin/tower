@@ -1,29 +1,29 @@
 {
-  "artifactCommit": "a908d7052ce932b449a7f6d8058d25e9814e605b",
+  "artifactCommit": "33d386329fef4ceb08727ef378b11856d0aa8dd5",
   "configs": {
     "acl4ssr-default": {
       "file": "ACL4SSR_Online.ini",
       "name": "ACL4SSR 默认",
-      "sha256": "191ce264bd8778849b47110785e771106dd69d4bc6bfcbd8bf796b58b8b793ee",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/config/ACL4SSR_Online.ini",
+      "sha256": "d9c6692552f4bd94c46255c6e6a7a8998702c1d5588abd19c3840bf21d281414",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/config/ACL4SSR_Online.ini",
       "summary": "去广告、自动测速，含国外媒体、电报、微软和苹果分流。"
     },
     "acl4ssr-full": {
       "file": "ACL4SSR_Online_Full.ini",
       "name": "ACL4SSR 全分组",
-      "sha256": "72aed2884695e1a62b4b7ac2e40c55e32f1ccf77a3f89976105420731c2625fc",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/config/ACL4SSR_Online_Full.ini",
+      "sha256": "5e0e1377f0a2911378738effcf8be6f54392a635ea82d1f18750e32631ad215d",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/config/ACL4SSR_Online_Full.ini",
       "summary": "最完整的分组：流媒体、AI、游戏、音乐，并按节点名分出地区组。"
     },
     "acl4ssr-mini": {
       "file": "ACL4SSR_Online_Mini.ini",
       "name": "ACL4SSR 精简",
-      "sha256": "10c29ab8ea7d973f4fb3ee45caf43006943a2e49afb75c9a3d58180b08f3b12f",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/config/ACL4SSR_Online_Mini.ini",
+      "sha256": "540042dcce8ea03b89857749ed9816c15cbe20f45c46ec0542527b7f37cfc16d",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/config/ACL4SSR_Online_Mini.ini",
       "summary": "只保留节点选择、自动选择、直连与拦截，策略组最少。"
     }
   },
-  "revision": "a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a",
+  "revision": "864e3f3856347f67f4125505365295a7cc0490e7",
   "rulesets": {
     "ACL4SSR_Apple.list": {
       "mrs": {
@@ -33,7 +33,7 @@
           "ruleCount": 19,
           "sha256": "ddaf5a35f072204a8e66cddc0619d1159a5f8167fc26796cf51ffe96c38814c8",
           "sourceSha256": "7b2e60cd0bf3c4bfb1369890d39cc3783bdfcb016089b78acee0ff6f0d4e51c5",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Apple_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Apple_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -42,13 +42,13 @@
           "ruleCount": 10,
           "sha256": "9c3ac6e550ff760e7af78040ceac1711e4b6173876069926e40a492ad1683cb5",
           "sourceSha256": "7b2e60cd0bf3c4bfb1369890d39cc3783bdfcb016089b78acee0ff6f0d4e51c5",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Apple_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Apple_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 29,
       "sha256": "7b2e60cd0bf3c4bfb1369890d39cc3783bdfcb016089b78acee0ff6f0d4e51c5",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Apple.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Apple.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -61,7 +61,7 @@
         "sha256": "ebc39490a237d8676c2a960188f6201058541772eb082015b1af631c6394b863",
         "sourceFormatVersion": 2,
         "sourceSha256": "7b2e60cd0bf3c4bfb1369890d39cc3783bdfcb016089b78acee0ff6f0d4e51c5",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Apple_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Apple_singbox.srs"
       }
     },
     "ACL4SSR_BanAD.list": {
@@ -72,13 +72,13 @@
           "ruleCount": 564,
           "sha256": "311f142d9f28dba4a92caf8c7b0b3a344f6bb4e448e25e931d8aea04faed0560",
           "sourceSha256": "27a5f6d018d428409d8da5d9f390a46298d505ae4941bb8172f052055abe7262",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_BanAD_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_BanAD_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 24,
       "ruleCount": 588,
       "sha256": "27a5f6d018d428409d8da5d9f390a46298d505ae4941bb8172f052055abe7262",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/BanAD.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/BanAD.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -90,7 +90,7 @@
         "sha256": "cafb934c2119f5bf93c271b0cee0709f0f250ca7810a5fef25638e0c5d031202",
         "sourceFormatVersion": 2,
         "sourceSha256": "27a5f6d018d428409d8da5d9f390a46298d505ae4941bb8172f052055abe7262",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_BanAD_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_BanAD_singbox.srs"
       }
     },
     "ACL4SSR_BanProgramAD.list": {
@@ -101,7 +101,7 @@
           "ruleCount": 990,
           "sha256": "0e28b7fa507c537242f805aad80b8761001824bd650022422525a20ece8fcfe1",
           "sourceSha256": "35cefd7a4c01d2efa9b4c7928e21caa348f78a3f60b46d7d850f1e3334a5a766",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_BanProgramAD_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_BanProgramAD_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -110,13 +110,13 @@
           "ruleCount": 17,
           "sha256": "136febd6acc203f0e98612cf8a5bfba0d0056438baa8198488d6b595f3bba1b0",
           "sourceSha256": "35cefd7a4c01d2efa9b4c7928e21caa348f78a3f60b46d7d850f1e3334a5a766",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_BanProgramAD_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_BanProgramAD_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 1,
       "ruleCount": 1016,
       "sha256": "35cefd7a4c01d2efa9b4c7928e21caa348f78a3f60b46d7d850f1e3334a5a766",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/BanProgramAD.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/BanProgramAD.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -130,7 +130,7 @@
         "sha256": "6a02e1fa059f8bff1fe8bebc374c602cb507da423bd010a538ee44019b219fe2",
         "sourceFormatVersion": 2,
         "sourceSha256": "35cefd7a4c01d2efa9b4c7928e21caa348f78a3f60b46d7d850f1e3334a5a766",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_BanProgramAD_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_BanProgramAD_singbox.srs"
       }
     },
     "ACL4SSR_Bing.list": {
@@ -141,13 +141,13 @@
           "ruleCount": 3,
           "sha256": "6343a126e9755d1eb7476f87b3de8aa12e521cb0317530fc3d35f8b8b5a028c6",
           "sourceSha256": "b847948e128a0fc882e602c576f87334f7ebd67bbf4e6e3d25e93e28a5b1aeba",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Bing_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Bing_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 3,
       "sha256": "b847948e128a0fc882e602c576f87334f7ebd67bbf4e6e3d25e93e28a5b1aeba",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Bing.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Bing.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -158,7 +158,7 @@
         "sha256": "519d89e61c5e9559f4b72813306c4a02edebd2d52d20c17a186bf67cee012a60",
         "sourceFormatVersion": 2,
         "sourceSha256": "b847948e128a0fc882e602c576f87334f7ebd67bbf4e6e3d25e93e28a5b1aeba",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Bing_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Bing_singbox.srs"
       }
     },
     "ACL4SSR_ChinaCompanyIp.list": {
@@ -170,13 +170,13 @@
           "ruleCount": 208,
           "sha256": "8354e073407a645149c88844b6d5e52f4d9c0474fcebbb96a21789afd54fec89",
           "sourceSha256": "cbc63e3daee0c0467558394ce0cfdd342f28e6c0f903bc4b35b6a5f06279d160",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaCompanyIp_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaCompanyIp_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 208,
       "sha256": "cbc63e3daee0c0467558394ce0cfdd342f28e6c0f903bc4b35b6a5f06279d160",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ChinaCompanyIp.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ChinaCompanyIp.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -187,7 +187,7 @@
         "sha256": "682dd1196b6165ad0d64ab7c51e53db8d9e218a92981be4e33d9a3a34ff3ab37",
         "sourceFormatVersion": 2,
         "sourceSha256": "cbc63e3daee0c0467558394ce0cfdd342f28e6c0f903bc4b35b6a5f06279d160",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaCompanyIp_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaCompanyIp_singbox.srs"
       }
     },
     "ACL4SSR_ChinaDomain.list": {
@@ -198,7 +198,7 @@
           "ruleCount": 609,
           "sha256": "7dd6ae4636e298d7020f1b6c401c1c32aa08772bce2110f63b4c9ed0aa290651",
           "sourceSha256": "362edd1f605742b360eaf138f151d7eea96cc17f20ef12da73acbfb80c350e08",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaDomain_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaDomain_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -207,13 +207,13 @@
           "ruleCount": 9,
           "sha256": "8e2a592112e092ce6b28493674385196f6956a211bd8afdfaede78f05fbef4c2",
           "sourceSha256": "362edd1f605742b360eaf138f151d7eea96cc17f20ef12da73acbfb80c350e08",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaDomain_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaDomain_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 16,
       "ruleCount": 635,
       "sha256": "362edd1f605742b360eaf138f151d7eea96cc17f20ef12da73acbfb80c350e08",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ChinaDomain.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ChinaDomain.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -228,7 +228,7 @@
         "sha256": "4bf81ba30e81d656fe7d1bf367e50cf4b5a5c40fbf29c92f7046aaa7bfa0cd8a",
         "sourceFormatVersion": 2,
         "sourceSha256": "362edd1f605742b360eaf138f151d7eea96cc17f20ef12da73acbfb80c350e08",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaDomain_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaDomain_singbox.srs"
       }
     },
     "ACL4SSR_ChinaMedia.list": {
@@ -239,7 +239,7 @@
           "ruleCount": 30,
           "sha256": "fd8f67fe86c78b258c4431b9ff3aa1a90fba39587199bc87349ad95b4b8cba3b",
           "sourceSha256": "69c437c641bbbea0001f33ecf6e8a6333a72f53d537b19ac9fd564d6927a2b21",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaMedia_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaMedia_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -248,13 +248,13 @@
           "ruleCount": 7,
           "sha256": "c332e79ca7f6d26baa2d81d98a3023d6f2a119f7d0dc70c0281e38cd9361207d",
           "sourceSha256": "69c437c641bbbea0001f33ecf6e8a6333a72f53d537b19ac9fd564d6927a2b21",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaMedia_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaMedia_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 1,
       "ruleCount": 38,
       "sha256": "69c437c641bbbea0001f33ecf6e8a6333a72f53d537b19ac9fd564d6927a2b21",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ChinaMedia.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ChinaMedia.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -267,7 +267,7 @@
         "sha256": "14dcdd082c79b53a109f868856b3dec102e17c7505ff254bd7a43569fda47a02",
         "sourceFormatVersion": 2,
         "sourceSha256": "69c437c641bbbea0001f33ecf6e8a6333a72f53d537b19ac9fd564d6927a2b21",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ChinaMedia_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ChinaMedia_singbox.srs"
       }
     },
     "ACL4SSR_Download.list": {
@@ -278,13 +278,13 @@
           "ruleCount": 1,
           "sha256": "e98f34602834c67530f6658e868d81b4a941e3b51ed3cf0228675c5afa5dca20",
           "sourceSha256": "62b72d16b8f2bcbc80eb2c7af35dc03b31c4d82e732af6d227c2a311f04bdadc",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Download_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Download_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 21,
       "ruleCount": 22,
       "sha256": "62b72d16b8f2bcbc80eb2c7af35dc03b31c4d82e732af6d227c2a311f04bdadc",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Download.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Download.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -296,7 +296,7 @@
         "sha256": "56ffe2863ea343c8b2653a7ab76c3ba5e0a8e63f516360a83cbb37f8f4164879",
         "sourceFormatVersion": 2,
         "sourceSha256": "62b72d16b8f2bcbc80eb2c7af35dc03b31c4d82e732af6d227c2a311f04bdadc",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Download_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Download_singbox.srs"
       }
     },
     "ACL4SSR_GoogleCN.list": {
@@ -307,13 +307,13 @@
           "ruleCount": 29,
           "sha256": "791be3958e36cd0b8f4b9bb3a3e42b6f90e1db965d5d4277b97819f8ec7d2cda",
           "sourceSha256": "00ffcc16d0eb1898cba4f9c2cc2ce76a8f70bef7a03aea436dad79982b77c8ca",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_GoogleCN_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_GoogleCN_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 29,
       "sha256": "00ffcc16d0eb1898cba4f9c2cc2ce76a8f70bef7a03aea436dad79982b77c8ca",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/GoogleCN.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/GoogleCN.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -324,7 +324,7 @@
         "sha256": "c50dad00a6814efd0b7e3e0cd778f8f3b77fc4acb92856d29aefb30b50681e89",
         "sourceFormatVersion": 2,
         "sourceSha256": "00ffcc16d0eb1898cba4f9c2cc2ce76a8f70bef7a03aea436dad79982b77c8ca",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_GoogleCN_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_GoogleCN_singbox.srs"
       }
     },
     "ACL4SSR_LocalAreaNetwork.list": {
@@ -335,7 +335,7 @@
           "ruleCount": 24,
           "sha256": "ab75bad006a94b6dc72d6a325bd2481a9d33f5d787a026980947ff964afe75bf",
           "sourceSha256": "0789504d97d8f5b14513c529c61c06f4f862c5cfd20f7cb30bbcd38357e54468",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_LocalAreaNetwork_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_LocalAreaNetwork_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -344,13 +344,13 @@
           "ruleCount": 12,
           "sha256": "ca627db4d7b1e6bac837db8a9fef792bd81509b264f56ed81c1db191bb32aea5",
           "sourceSha256": "0789504d97d8f5b14513c529c61c06f4f862c5cfd20f7cb30bbcd38357e54468",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_LocalAreaNetwork_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_LocalAreaNetwork_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 37,
       "sha256": "0789504d97d8f5b14513c529c61c06f4f862c5cfd20f7cb30bbcd38357e54468",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/LocalAreaNetwork.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/LocalAreaNetwork.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -364,7 +364,7 @@
         "sha256": "21beccd0cf7e5d635a50bec51e375932bc41f51c520ba638ae15e51b239959bc",
         "sourceFormatVersion": 2,
         "sourceSha256": "0789504d97d8f5b14513c529c61c06f4f862c5cfd20f7cb30bbcd38357e54468",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_LocalAreaNetwork_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_LocalAreaNetwork_singbox.srs"
       }
     },
     "ACL4SSR_Microsoft.list": {
@@ -375,13 +375,13 @@
           "ruleCount": 77,
           "sha256": "6a2571ec8bd693e96598d797171c44eec6f52438d1e2b9bbf5a1906cf0c5037a",
           "sourceSha256": "b502566c1b86d5512111bd4a2bb5d808eda4e36aad3009a3ca05da354c09449e",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Microsoft_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Microsoft_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 2,
       "ruleCount": 79,
       "sha256": "b502566c1b86d5512111bd4a2bb5d808eda4e36aad3009a3ca05da354c09449e",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Microsoft.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Microsoft.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -393,7 +393,7 @@
         "sha256": "5d1b9adfd9bf1b554970defd0830457ca3c8af59d59c3ceb5d9bd331f6d26fff",
         "sourceFormatVersion": 2,
         "sourceSha256": "b502566c1b86d5512111bd4a2bb5d808eda4e36aad3009a3ca05da354c09449e",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Microsoft_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Microsoft_singbox.srs"
       }
     },
     "ACL4SSR_OneDrive.list": {
@@ -404,13 +404,13 @@
           "ruleCount": 12,
           "sha256": "85647382ecea466da6e9b3cc3e96a57ad893e819d2361d37e7884fe3b482f358",
           "sourceSha256": "798fe9b6ed2920a7caa5b75eb44a2e41e464878ff87b38ec962cc2ec13d8be3c",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_OneDrive_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_OneDrive_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 5,
       "ruleCount": 17,
       "sha256": "798fe9b6ed2920a7caa5b75eb44a2e41e464878ff87b38ec962cc2ec13d8be3c",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/OneDrive.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/OneDrive.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -422,7 +422,7 @@
         "sha256": "6197f506f9e311cf893e822f378e6ed761829b613bf204c13b8038789ad357b4",
         "sourceFormatVersion": 2,
         "sourceSha256": "798fe9b6ed2920a7caa5b75eb44a2e41e464878ff87b38ec962cc2ec13d8be3c",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_OneDrive_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_OneDrive_singbox.srs"
       }
     },
     "ACL4SSR_ProxyGFWlist.list": {
@@ -433,7 +433,7 @@
           "ruleCount": 6775,
           "sha256": "ce39e3e43ac2de85ac053b4a4028bdb6fa658a21e7b5d994dd01ae8923ceb09a",
           "sourceSha256": "72d5f97cb3adedd7ef632962effda4aa3b9953da20427cd6050d55d1184de5ea",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyGFWlist_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyGFWlist_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -442,13 +442,13 @@
           "ruleCount": 81,
           "sha256": "919e4d9ed6686dc56d38cd01d00f238a1add5587b30d54dd735d9b84ebb699bc",
           "sourceSha256": "72d5f97cb3adedd7ef632962effda4aa3b9953da20427cd6050d55d1184de5ea",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyGFWlist_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyGFWlist_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 26,
       "ruleCount": 6986,
       "sha256": "72d5f97cb3adedd7ef632962effda4aa3b9953da20427cd6050d55d1184de5ea",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ProxyGFWlist.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ProxyGFWlist.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -463,7 +463,7 @@
         "sha256": "91f9b327e70fbb8a99958434a01be98dbfd3cf5fb23ab573a7a909dcebec7e54",
         "sourceFormatVersion": 2,
         "sourceSha256": "72d5f97cb3adedd7ef632962effda4aa3b9953da20427cd6050d55d1184de5ea",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyGFWlist_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyGFWlist_singbox.srs"
       }
     },
     "ACL4SSR_ProxyLite.list": {
@@ -474,7 +474,7 @@
           "ruleCount": 313,
           "sha256": "a4934f6e57cfd2abb96fc8d9fa73482a1a6763bb38a7b92f2efff8e564fbe51a",
           "sourceSha256": "3792437f9641479c671ed57e4d3aa81505c5f7dc5d9087fdeabe76551ecda671",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyLite_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyLite_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -483,13 +483,13 @@
           "ruleCount": 81,
           "sha256": "919e4d9ed6686dc56d38cd01d00f238a1add5587b30d54dd735d9b84ebb699bc",
           "sourceSha256": "3792437f9641479c671ed57e4d3aa81505c5f7dc5d9087fdeabe76551ecda671",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyLite_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyLite_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 26,
       "ruleCount": 430,
       "sha256": "3792437f9641479c671ed57e4d3aa81505c5f7dc5d9087fdeabe76551ecda671",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ProxyLite.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ProxyLite.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -504,7 +504,7 @@
         "sha256": "d4237e43cd5fa21202589aeca4b16d2d94fa6af711b9286c4570c0cf4981ba3a",
         "sourceFormatVersion": 2,
         "sourceSha256": "3792437f9641479c671ed57e4d3aa81505c5f7dc5d9087fdeabe76551ecda671",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyLite_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyLite_singbox.srs"
       }
     },
     "ACL4SSR_ProxyMedia.list": {
@@ -515,7 +515,7 @@
           "ruleCount": 303,
           "sha256": "40a19ccabcee328f24328d4acad9262cbb66b0f62e541549fd6bae4186c2ac92",
           "sourceSha256": "fe886c6f537c0214446018f3f64291db8d500c58877d180d2a21a78c19c499e1",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyMedia_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyMedia_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -524,13 +524,13 @@
           "ruleCount": 18,
           "sha256": "23449cf057fd7851ba3557c270fb3968c564efebc942c28bd216c847dd089ef0",
           "sourceSha256": "fe886c6f537c0214446018f3f64291db8d500c58877d180d2a21a78c19c499e1",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyMedia_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyMedia_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 29,
       "ruleCount": 372,
       "sha256": "fe886c6f537c0214446018f3f64291db8d500c58877d180d2a21a78c19c499e1",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/ProxyMedia.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/ProxyMedia.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -544,7 +544,7 @@
         "sha256": "2768d8527a82d38c91a8f5b2d78885469e4fe5133a44f4663aaba82dccec0dfd",
         "sourceFormatVersion": 2,
         "sourceSha256": "fe886c6f537c0214446018f3f64291db8d500c58877d180d2a21a78c19c499e1",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_ProxyMedia_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_ProxyMedia_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_AI.list": {
@@ -555,13 +555,13 @@
           "ruleCount": 43,
           "sha256": "29c81bfd37c40f0e76b1bff8d4a0e3aa304beb21fcb893af5ee04d21ec9d68ea",
           "sourceSha256": "63e70895ac8c04c3b28965dc0b4ba9ceb3a1313a66b49487ed96005debc97e1e",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_AI_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_AI_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 3,
       "ruleCount": 49,
       "sha256": "63e70895ac8c04c3b28965dc0b4ba9ceb3a1313a66b49487ed96005debc97e1e",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/AI.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/AI.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -574,7 +574,7 @@
         "sha256": "9a73de19563f412dd81daa0927cddee6f899faf4f1ffa3e17ac916eb635af81d",
         "sourceFormatVersion": 2,
         "sourceSha256": "63e70895ac8c04c3b28965dc0b4ba9ceb3a1313a66b49487ed96005debc97e1e",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_AI_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_AI_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Bahamut.list": {
@@ -585,13 +585,13 @@
           "ruleCount": 5,
           "sha256": "341f0f76e84450ebed333ee9016e1e25f3fe27add74a0181f79604a2aaea36f0",
           "sourceSha256": "5c2b875abd3cec4d11612af639163a9b9f68c5828ad42793e7f21bc50f75169c",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Bahamut_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Bahamut_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 5,
       "sha256": "5c2b875abd3cec4d11612af639163a9b9f68c5828ad42793e7f21bc50f75169c",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Bahamut.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Bahamut.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -603,7 +603,7 @@
         "sha256": "7029d7b647b24b7dec9766a155400b4472c49f5697f6d6aad22c3a2116fc2075",
         "sourceFormatVersion": 2,
         "sourceSha256": "5c2b875abd3cec4d11612af639163a9b9f68c5828ad42793e7f21bc50f75169c",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Bahamut_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Bahamut_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Bilibili.list": {
@@ -614,13 +614,13 @@
           "ruleCount": 20,
           "sha256": "c3e6157efa6c379028d884a59699965650baa7ac10448edc1d5acb86e995d426",
           "sourceSha256": "3d111a3c69cb332cdec9c6283acbc9e0c17a62cc25abf43a3390e1667c6861dc",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Bilibili_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Bilibili_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 20,
       "sha256": "3d111a3c69cb332cdec9c6283acbc9e0c17a62cc25abf43a3390e1667c6861dc",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Bilibili.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Bilibili.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -632,7 +632,7 @@
         "sha256": "ea3a25c71f8a2c5f49d1b0101c17bd785187a820ef965331ec2d32fc27f7995b",
         "sourceFormatVersion": 2,
         "sourceSha256": "3d111a3c69cb332cdec9c6283acbc9e0c17a62cc25abf43a3390e1667c6861dc",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Bilibili_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Bilibili_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_BilibiliHMT.list": {
@@ -643,7 +643,7 @@
           "ruleCount": 8,
           "sha256": "15d7205d836cd5a2296bd0aece4b849e51259b6e9102bb84176cb3b3c233e5ed",
           "sourceSha256": "074d94bc66219f7a229a0ddc7150e3befb088b4fbbe3312dc3f95456b2fef96c",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_BilibiliHMT_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_BilibiliHMT_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -652,13 +652,13 @@
           "ruleCount": 12,
           "sha256": "cecd59785b2c0716f0e6006f65b8da71fb631ae6a36db180b5f3dd8329a13031",
           "sourceSha256": "074d94bc66219f7a229a0ddc7150e3befb088b4fbbe3312dc3f95456b2fef96c",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_BilibiliHMT_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_BilibiliHMT_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 21,
       "sha256": "074d94bc66219f7a229a0ddc7150e3befb088b4fbbe3312dc3f95456b2fef96c",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/BilibiliHMT.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/BilibiliHMT.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -671,7 +671,7 @@
         "sha256": "8a412ec0b4b6f9d906888d9e174018f1ca140fe5be857afb992c5b1153eb69c0",
         "sourceFormatVersion": 2,
         "sourceSha256": "074d94bc66219f7a229a0ddc7150e3befb088b4fbbe3312dc3f95456b2fef96c",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_BilibiliHMT_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_BilibiliHMT_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Epic.list": {
@@ -682,13 +682,13 @@
           "ruleCount": 6,
           "sha256": "04981335ea734e9aa55f779aa11195b14bea19897a298013e53898c2108ae126",
           "sourceSha256": "b0288addbceed03366cc793b4254168fe9e6e7c9fa54875026fb772adb5ba31d",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Epic_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Epic_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 6,
       "sha256": "b0288addbceed03366cc793b4254168fe9e6e7c9fa54875026fb772adb5ba31d",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Epic.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Epic.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -699,7 +699,7 @@
         "sha256": "e76f8327ed901d2db50fa931c2f9fdeca177838ae3fd99c1c8ca264c8bc50e7e",
         "sourceFormatVersion": 2,
         "sourceSha256": "b0288addbceed03366cc793b4254168fe9e6e7c9fa54875026fb772adb5ba31d",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Epic_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Epic_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_GoogleFCM.list": {
@@ -710,7 +710,7 @@
           "ruleCount": 18,
           "sha256": "6625787f79f93a01bed2e803a276be1b5d962a383a395c4c9fff567c6ceca057",
           "sourceSha256": "f115f84bef66a5aa931fd20f23d6914cdfdfe3d07795d65549d578b91a0f0c48",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_GoogleFCM_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_GoogleFCM_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -719,13 +719,13 @@
           "ruleCount": 26,
           "sha256": "b949967cb3fb796c8c7c456634f3c67167cc9a536425f2946a5c9425cb41c267",
           "sourceSha256": "f115f84bef66a5aa931fd20f23d6914cdfdfe3d07795d65549d578b91a0f0c48",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_GoogleFCM_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_GoogleFCM_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 44,
       "sha256": "f115f84bef66a5aa931fd20f23d6914cdfdfe3d07795d65549d578b91a0f0c48",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/GoogleFCM.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/GoogleFCM.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -737,7 +737,7 @@
         "sha256": "f3ea9481e87be7bf7b6c89588b69a61b1e16f34fd3df5800615bae19449dd37b",
         "sourceFormatVersion": 2,
         "sourceSha256": "f115f84bef66a5aa931fd20f23d6914cdfdfe3d07795d65549d578b91a0f0c48",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_GoogleFCM_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_GoogleFCM_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_NetEaseMusic.list": {
@@ -748,7 +748,7 @@
           "ruleCount": 6,
           "sha256": "03a4db2b96e5b00d048aa565675bdfc4fe629071e1962a49e5716cc14059a227",
           "sourceSha256": "8254e2518082103b7b3f88063562cefc3e04350b74aa411aad0ee4a66e8a9338",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_NetEaseMusic_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_NetEaseMusic_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -757,13 +757,13 @@
           "ruleCount": 27,
           "sha256": "01d86c289ad92f9b081ce63e78a3ea59de03bf159d4230af5061cde4537e7db7",
           "sourceSha256": "8254e2518082103b7b3f88063562cefc3e04350b74aa411aad0ee4a66e8a9338",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_NetEaseMusic_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_NetEaseMusic_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 37,
       "sha256": "8254e2518082103b7b3f88063562cefc3e04350b74aa411aad0ee4a66e8a9338",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/NetEaseMusic.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/NetEaseMusic.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -775,7 +775,7 @@
         "sha256": "91c508f92c4fa9998c8f0ab546216cb90811b1179b4a6b946c87cfb3d2728a26",
         "sourceFormatVersion": 2,
         "sourceSha256": "8254e2518082103b7b3f88063562cefc3e04350b74aa411aad0ee4a66e8a9338",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_NetEaseMusic_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_NetEaseMusic_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Netflix.list": {
@@ -786,7 +786,7 @@
           "ruleCount": 19,
           "sha256": "9d29240eeeee190df9333d38ee367500b2695b589f1e5bb079c5446d8e85081c",
           "sourceSha256": "eb09e16b5aa228230e5770bfc04f2eb25261454a0b2e16f05fd3e9d2ab5202b5",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Netflix_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Netflix_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -795,13 +795,13 @@
           "ruleCount": 18,
           "sha256": "23449cf057fd7851ba3557c270fb3968c564efebc942c28bd216c847dd089ef0",
           "sourceSha256": "eb09e16b5aa228230e5770bfc04f2eb25261454a0b2e16f05fd3e9d2ab5202b5",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Netflix_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Netflix_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 3,
       "ruleCount": 40,
       "sha256": "eb09e16b5aa228230e5770bfc04f2eb25261454a0b2e16f05fd3e9d2ab5202b5",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Netflix.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Netflix.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -815,7 +815,7 @@
         "sha256": "bad9a5d20b134410ed0ccac4868259f9b78aed1a31e08a359797ddad1a10af76",
         "sourceFormatVersion": 2,
         "sourceSha256": "eb09e16b5aa228230e5770bfc04f2eb25261454a0b2e16f05fd3e9d2ab5202b5",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Netflix_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Netflix_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Nintendo.list": {
@@ -826,13 +826,13 @@
           "ruleCount": 15,
           "sha256": "dd50c973209608232842947a58c99fad5b9714de275fbe57e3e571825e6469bb",
           "sourceSha256": "9c87d2656c1b1e74494f3f9acc72a0fbb4170d3915f533f78775bd2a20b7e7d4",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Nintendo_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Nintendo_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 15,
       "sha256": "9c87d2656c1b1e74494f3f9acc72a0fbb4170d3915f533f78775bd2a20b7e7d4",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Nintendo.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Nintendo.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -843,7 +843,7 @@
         "sha256": "3dd3c741ace009f5ef2a4f241a5308c1908f18f8acb55f0e3c51f7fb9d0d11c6",
         "sourceFormatVersion": 2,
         "sourceSha256": "9c87d2656c1b1e74494f3f9acc72a0fbb4170d3915f533f78775bd2a20b7e7d4",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Nintendo_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Nintendo_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_OpenAi.list": {
@@ -854,13 +854,13 @@
           "ruleCount": 16,
           "sha256": "ea94f4d5047662ed902863b6ef771e74a094db2e58e4ced5addd9e65a69c542a",
           "sourceSha256": "c4f839e4dda6cb96e4373349c72b4e5f848b8ae03564c0d0eae0873955310129",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_OpenAi_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_OpenAi_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 1,
       "ruleCount": 17,
       "sha256": "c4f839e4dda6cb96e4373349c72b4e5f848b8ae03564c0d0eae0873955310129",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/OpenAi.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/OpenAi.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -872,7 +872,7 @@
         "sha256": "c27d73bd1566aee1374fb95d7b68c58c94df55ad03d30949d8592fa9b21b7270",
         "sourceFormatVersion": 2,
         "sourceSha256": "c4f839e4dda6cb96e4373349c72b4e5f848b8ae03564c0d0eae0873955310129",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_OpenAi_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_OpenAi_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Origin.list": {
@@ -883,13 +883,13 @@
           "ruleCount": 7,
           "sha256": "3420039bdfb08f5dcca034d7c69450422a6a5b5e5d525b9310018a2885bfcb11",
           "sourceSha256": "f8629e362757a0437696b8df896f4fee0d24c8bca166a076a2b8fa9c179542ff",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Origin_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Origin_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 7,
       "sha256": "f8629e362757a0437696b8df896f4fee0d24c8bca166a076a2b8fa9c179542ff",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Origin.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Origin.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -901,7 +901,7 @@
         "sha256": "a7518be454985e8168f3abda429ea75ba8f3cbac613cb921a47332a923fef679",
         "sourceFormatVersion": 2,
         "sourceSha256": "f8629e362757a0437696b8df896f4fee0d24c8bca166a076a2b8fa9c179542ff",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Origin_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Origin_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Sony.list": {
@@ -912,13 +912,13 @@
           "ruleCount": 5,
           "sha256": "bd704f67e696e99cc6d5fd9e6ab7e83af9e811c8509a45b98d46f34aff8c58fb",
           "sourceSha256": "26cf715208bc562ba8d8e8d55c880336b5d6662b44b71418978e159148c776cb",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Sony_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Sony_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 5,
       "sha256": "26cf715208bc562ba8d8e8d55c880336b5d6662b44b71418978e159148c776cb",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Sony.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Sony.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -929,7 +929,7 @@
         "sha256": "c7a89daf68d86477b8712137533d0f0335a30897c13af1f7255753a3346984f6",
         "sourceFormatVersion": 2,
         "sourceSha256": "26cf715208bc562ba8d8e8d55c880336b5d6662b44b71418978e159148c776cb",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Sony_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Sony_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_Steam.list": {
@@ -940,13 +940,13 @@
           "ruleCount": 18,
           "sha256": "4686c0182500b376f7905510792c2d5bf9e40c5e8f5f9a4ab48cd534933485cd",
           "sourceSha256": "0abad0ae490ec9b7bf0cf880f83c5229949b14cc5df448c00a0516225a16b011",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Steam_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Steam_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 18,
       "sha256": "0abad0ae490ec9b7bf0cf880f83c5229949b14cc5df448c00a0516225a16b011",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/Steam.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/Steam.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -958,7 +958,7 @@
         "sha256": "1828a16349d47d0ecf20654060947fd2bef8b09d0b4fccc683759afa590fc056",
         "sourceFormatVersion": 2,
         "sourceSha256": "0abad0ae490ec9b7bf0cf880f83c5229949b14cc5df448c00a0516225a16b011",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_Steam_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_Steam_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_SteamCN.list": {
@@ -969,13 +969,13 @@
           "ruleCount": 16,
           "sha256": "5ec9f91ee32dbd1e3a47489763a678f1ae7b0c58699a10c728f95d6f0da85854",
           "sourceSha256": "bf135f78199fbadcb663a047d70eb59ec81bead3a04cfe050036e2921c2ea607",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_SteamCN_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_SteamCN_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 16,
       "sha256": "bf135f78199fbadcb663a047d70eb59ec81bead3a04cfe050036e2921c2ea607",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/SteamCN.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/SteamCN.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -987,7 +987,7 @@
         "sha256": "cf53b36e895f4fad35bebdafc5729dd13794b31a0abb3b21c298cc6c13d397a3",
         "sourceFormatVersion": 2,
         "sourceSha256": "bf135f78199fbadcb663a047d70eb59ec81bead3a04cfe050036e2921c2ea607",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_SteamCN_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_SteamCN_singbox.srs"
       }
     },
     "ACL4SSR_Ruleset_YouTube.list": {
@@ -998,13 +998,13 @@
           "ruleCount": 13,
           "sha256": "3ccf0566365aa7d96e943e6a5cb6f560df33a5e11516f2bb699c29879fb193e1",
           "sourceSha256": "5e9d81d4615d993fb899d11f761ff5272465bf11e52233c656c3c3e4ab9cd800",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_YouTube_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_YouTube_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 1,
       "ruleCount": 14,
       "sha256": "5e9d81d4615d993fb899d11f761ff5272465bf11e52233c656c3c3e4ab9cd800",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Ruleset/YouTube.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Ruleset/YouTube.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -1017,7 +1017,7 @@
         "sha256": "945269e647163f8c9d1d195f8567d964ce91fae032067725dc6ec3dbaacfcd27",
         "sourceFormatVersion": 2,
         "sourceSha256": "5e9d81d4615d993fb899d11f761ff5272465bf11e52233c656c3c3e4ab9cd800",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Ruleset_YouTube_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Ruleset_YouTube_singbox.srs"
       }
     },
     "ACL4SSR_Telegram.list": {
@@ -1028,7 +1028,7 @@
           "ruleCount": 6,
           "sha256": "875780b835338484ce8de478503cf9f68dde0cbecb6a540accfd41b66204a5f4",
           "sourceSha256": "483f613b31a1c054ddfffa6584b449f4447944ea58b8c1fc06b67eb13c09db89",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Telegram_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Telegram_domain.mrs"
         },
         "ipcidr": {
           "compilerVersion": "v1.19.30",
@@ -1037,13 +1037,13 @@
           "ruleCount": 7,
           "sha256": "5889670d3973c036a9f020e984603963da5f51a556caa64b8c4b1d96ed516550",
           "sourceSha256": "483f613b31a1c054ddfffa6584b449f4447944ea58b8c1fc06b67eb13c09db89",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Telegram_ipcidr.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Telegram_ipcidr.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 13,
       "sha256": "483f613b31a1c054ddfffa6584b449f4447944ea58b8c1fc06b67eb13c09db89",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/Telegram.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/Telegram.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -1056,7 +1056,7 @@
         "sha256": "d374cce0e66b157300693eebb6640199112e678fc9ab123edaa64b33dccfaec8",
         "sourceFormatVersion": 2,
         "sourceSha256": "483f613b31a1c054ddfffa6584b449f4447944ea58b8c1fc06b67eb13c09db89",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_Telegram_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_Telegram_singbox.srs"
       }
     },
     "ACL4SSR_UnBan.list": {
@@ -1067,13 +1067,13 @@
           "ruleCount": 31,
           "sha256": "df2f889a43f045d75aa98bb389f30dbb62942934987da65c4c7f4b4b72058fd0",
           "sourceSha256": "016837560f1f0eeb576f81600c95b547bd82e27ba27a175a3b5010de9bd18ffa",
-          "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_UnBan_domain.mrs"
+          "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_UnBan_domain.mrs"
         }
       },
       "mrsResidualRuleCount": 0,
       "ruleCount": 31,
       "sha256": "016837560f1f0eeb576f81600c95b547bd82e27ba27a175a3b5010de9bd18ffa",
-      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/Clash/UnBan.list",
+      "source": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/Clash/UnBan.list",
       "srs": {
         "compilerVersion": "1.14.0",
         "coveredRuleTypes": [
@@ -1085,7 +1085,7 @@
         "sha256": "3bcc47693a09488e8cda4fb4e7639b29a6226c495a6a43a5b4300f9671545fc5",
         "sourceFormatVersion": 2,
         "sourceSha256": "016837560f1f0eeb576f81600c95b547bd82e27ba27a175a3b5010de9bd18ffa",
-        "url": "https://raw.githubusercontent.com/pengchujin/tower/a908d7052ce932b449a7f6d8058d25e9814e605b/Rulesets/ACL4SSR/a32b0cb86b8f14deb0599e99c2b29383b0a4ca6a/ACL4SSR_UnBan_singbox.srs"
+        "url": "https://raw.githubusercontent.com/pengchujin/tower/33d386329fef4ceb08727ef378b11856d0aa8dd5/Rulesets/ACL4SSR/864e3f3856347f67f4125505365295a7cc0490e7/ACL4SSR_UnBan_singbox.srs"
       }
     }
   }
