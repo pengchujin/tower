@@ -572,6 +572,8 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// proxy entries. Keeping the marker optional preserves old snapshots while
     /// letting Settings decide whether those entries remain visible/exported.
     var isSubscriptionMetadata: Bool?
+    /// User-selected region. Optional for existing snapshots; never changes credentials.
+    var countryOverride: String? = nil
 
     init(
         id: UUID = UUID(),
@@ -1640,6 +1642,7 @@ struct AppSnapshot: Codable {
     /// country forever.
     var resolvedHostCountryCodes: [String: String]?
     var resolvedHostCountryCodeUpdatedAt: [String: Date]?
+    var resolvedHostCountryDatabaseVersion: String?
 
     init(
         subscriptions: [SubscriptionSource],
@@ -1671,6 +1674,7 @@ struct AppSnapshot: Codable {
         exportContentModes: [String: String]? = nil,
         resolvedHostCountryCodes: [String: String]? = nil,
         resolvedHostCountryCodeUpdatedAt: [String: Date]? = nil,
+        resolvedHostCountryDatabaseVersion: String? = nil,
         updatedAt: Date? = nil
     ) {
         self.subscriptions = subscriptions
@@ -1702,6 +1706,7 @@ struct AppSnapshot: Codable {
         self.exportContentModes = exportContentModes
         self.resolvedHostCountryCodes = resolvedHostCountryCodes
         self.resolvedHostCountryCodeUpdatedAt = resolvedHostCountryCodeUpdatedAt
+        self.resolvedHostCountryDatabaseVersion = resolvedHostCountryDatabaseVersion
         self.updatedAt = updatedAt
     }
 }

@@ -358,7 +358,7 @@ final class SubscriptionInteractionTests: XCTestCase {
     func testMapOffersTopTrailingLatencyButtonAndLongPressModePicker() throws {
         XCTAssertEqual(
             NodeLatencyTestMode.allCases.map(\.rawValue),
-            ["自动", "ICMP", "TCP", "HTTP"]
+            ["自动", "ICMP", "TCP"]
         )
 
         #if targetEnvironment(simulator)
@@ -630,8 +630,8 @@ final class SubscriptionInteractionTests: XCTestCase {
             "紧凑行右侧应直接提供分享"
         )
         XCTAssertFalse(
-            rowSource.contains("isExpanded") || rowSource.contains("info.circle"),
-            "紧凑节点行不应再提供第二层详情展开"
+            rowSource.contains("isExpanded"),
+            "紧凑节点行保持静态；地区设置和网络详情使用独立弹层"
         )
         #else
         throw XCTSkip("该测试检查订阅展开区的 SwiftUI 层级，只在模拟器构建环境运行")

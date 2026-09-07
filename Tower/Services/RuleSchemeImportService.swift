@@ -63,6 +63,7 @@ struct RuleSchemeImportService {
         // of failing with a confusing "no policy groups" error.
         let url = Self.rawFileURL(for: entered)
 
+        let generation = store.writeGeneration
         let payload = try await fetch(url)
         guard !Self.looksLikeWebPage(payload) else {
             throw RuleImportError.receivedWebPage
@@ -77,7 +78,8 @@ struct RuleSchemeImportService {
             isBundled: false
         )
 
-        let failed = await downloadRulesets(scheme.remoteRulesetURLs)
+        let failed = await downloadRulesets(scheme.remoteRulesetURLs, generation: generation)
+        try Task.checkCancellation()
         guard failed < scheme.remoteRulesetURLs.count || scheme.remoteRulesetURLs.isEmpty else {
             throw RuleImportError.noRulesetsDownloaded
         }
@@ -98,7 +100,8 @@ struct RuleSchemeImportService {
 
     /// Returns how many lists failed. Batched for the same reason the latency
     /// probes are: a config can reference dozens of files.
-    private func downloadRulesets(_ urls: [URL]) async -> Int {
+    private func downloadRulesets(_ urls: [URL], generation: UUID? = nil) async -> Int {
+        let generation = generation ?? store.writeGeneration
         var failed = 0
         for start in stride(from: 0, to: urls.count, by: Self.batchSize) {
             if Task.isCancelled { return failed + (urls.count - start) }
@@ -107,7 +110,7 @@ struct RuleSchemeImportService {
 
             await withTaskGroup(of: Bool.self) { group in
                 for url in batch {
-                    group.addTask { await download(url) }
+                    group.addTask { await download(url, generation: generation) }
                 }
                 for await succeeded in group where !succeeded {
                     failed += 1
@@ -117,14 +120,15 @@ struct RuleSchemeImportService {
         return failed
     }
 
-    private func download(_ url: URL) async -> Bool {
+    private func download(_ url: URL, generation: UUID) async -> Bool {
         guard let payload = try? await fetch(url),
               let content = String(data: payload, encoding: .utf8)
                 ?? String(data: payload, encoding: .isoLatin1) else {
             return false
         }
         do {
-            try store.store(content, for: url)
+            try Task.checkCancellation()
+            try store.store(content, for: url, generation: generation)
             return true
         } catch {
             return false

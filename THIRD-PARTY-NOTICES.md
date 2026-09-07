@@ -26,14 +26,15 @@
 
 App 和本仓库不再包含 Self-Configuration 的配置、规则列表或图标。规则页只提供指向项目上游的手动下载入口；下载由用户明确触发，内容保存在用户设备的 Application Support 中并可随时删除。因此它不属于 `Tower/Resources/` 下随 App 再分发的第三方资源。
 
-## IP 国家数据库
+## IP 国家与网络组织数据库
 
-- **来源**：https://github.com/sapics/ip-location-db（`geo-whois-asn-country`）
-- **固定版本**：`2.3.2026061719`
+- **来源**：https://github.com/sapics/ip-location-db（`server-country`、`origin-asn`）
+- **固定快照**：`2026-09-06T22:31Z`；各源文件固定 asset ID 与 SHA-256 见 `IPCountryManifest.json`
 - **本地路径**：`Tower/Resources/IPCountry/`
-- **许可证**：**CC0 1.0**（公共领域贡献）
-- **更新脚本**：`Scripts/update_ip_country_db.py`
+- **许可证**：**Open Data Commons PDDL 1.0**（https://opendatacommons.org/licenses/pddl/1-0/）
+- **更新脚本**：`Scripts/update_ip_country_db.py`；只接受哈希匹配的源文件，支持 `--source-dir` 离线重建
 - **说明文件**：`Tower/Resources/IPCountry/NOTICE.txt`
+- **边界**：服务器 IP 地区不是代理出口检测；ASN 组织名称不必然等于零售运营商。所有查询在本机完成，不发送节点 IP 到第三方查询接口。
 
 ## 世界地图点阵
 

@@ -332,6 +332,7 @@ private struct EditSubscriptionSheet: View {
     @State private var userAgent: String
     @State private var dnsOverHTTPSURL: String
     @State private var isSaving = false
+    @State private var requestsDiscard = false
     @State private var errorMessage: String?
     /// Held so 取消 stops the refetch instead of letting it finish unseen.
     @State private var saveTask: Task<Void, Never>?
@@ -379,8 +380,7 @@ private struct EditSubscriptionSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
-                        saveTask?.cancel()
-                        dismiss()
+                        requestsDiscard = true
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -390,7 +390,12 @@ private struct EditSubscriptionSheet: View {
                     .disabled(isSaving || urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .interactiveDismissDisabled(isSaving)
+            .confirmDiscardChanges(
+                hasChanges: nameDraft.text != source.name || urlString != source.urlString
+                    || userAgent != (source.requestOptions?.userAgent ?? "")
+                    || dnsOverHTTPSURL != (source.requestOptions?.dnsOverHTTPSURL ?? ""),
+                isBusy: isSaving, requested: $requestsDiscard
+            ) { saveTask?.cancel() }
             .onDisappear { saveTask?.cancel() }
         }
     }

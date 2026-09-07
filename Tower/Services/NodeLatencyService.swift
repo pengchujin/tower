@@ -5,14 +5,12 @@ import Network
 enum NodeProbeMethod: String, Equatable, Sendable {
     case icmp = "ICMP"
     case tcp = "TCP"
-    case http = "HTTP"
 }
 
 enum NodeLatencyTestMode: String, CaseIterable, Identifiable, Sendable {
     case automatic = "自动"
     case icmp = "ICMP"
     case tcp = "TCP"
-    case http = "HTTP"
 
     var id: Self { self }
 
@@ -21,7 +19,6 @@ enum NodeLatencyTestMode: String, CaseIterable, Identifiable, Sendable {
         case .automatic: String(localized: "自动")
         case .icmp: "ICMP"
         case .tcp: "TCP"
-        case .http: "HTTP"
         }
     }
 
@@ -30,7 +27,6 @@ enum NodeLatencyTestMode: String, CaseIterable, Identifiable, Sendable {
         case .automatic: "gauge.with.dots.needle.50percent"
         case .icmp: "dot.radiowaves.left.and.right"
         case .tcp: "cable.connector"
-        case .http: "globe"
         }
     }
 }
@@ -40,6 +36,7 @@ struct NodeLatencyMeasurement: Equatable, Sendable {
     let method: NodeProbeMethod?
     let testedAt: Date
     let errorMessage: String?
+    var isApplicable = true
 
     static func success(milliseconds: Int, method: NodeProbeMethod) -> Self {
         .init(
@@ -63,7 +60,6 @@ enum LatencyProbeError: LocalizedError {
     case sendFailed(Int32)
     case timeout
     case connectionFailed(String)
-    case invalidResponse
 
     var errorDescription: String? {
         switch self {
@@ -75,7 +71,6 @@ enum LatencyProbeError: LocalizedError {
         case .sendFailed: String(localized: "无法发送 ICMP 探测")
         case .timeout: String(localized: "探测超时")
         case .connectionFailed: String(localized: "节点端口不可达")
-        case .invalidResponse: String(localized: "没有收到 HTTP 响应")
         }
     }
 }
@@ -84,24 +79,19 @@ actor NodeLatencyService {
     typealias ICMPReliabilityCheck = @Sendable (_ host: String) -> Bool
     typealias ICMPProbe = @Sendable (_ host: String, _ timeout: TimeInterval) async throws -> Int
     typealias TCPProbe = @Sendable (_ host: String, _ port: Int, _ timeout: TimeInterval) async throws -> Int
-    typealias HTTPProbe = @Sendable (_ node: ProxyNode, _ timeout: TimeInterval) async throws -> Int
 
     private let icmpTimeout: TimeInterval
     private let tcpTimeout: TimeInterval
-    private let httpTimeout: TimeInterval
     private let isICMPReliable: ICMPReliabilityCheck
     private let icmpProbe: ICMPProbe
     private let tcpProbe: TCPProbe
-    private let httpProbe: HTTPProbe
 
     init(
         icmpTimeout: TimeInterval = 1.2,
-        tcpTimeout: TimeInterval = 1.8,
-        httpTimeout: TimeInterval = 2.5
+        tcpTimeout: TimeInterval = 1.8
     ) {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
-        self.httpTimeout = httpTimeout
         isICMPReliable = { host in
             ICMPRouteReliability.isReliable(host: host)
         }
@@ -111,29 +101,20 @@ actor NodeLatencyService {
         tcpProbe = { host, port, timeout in
             try await TCPConnectProbe.measure(host: host, port: port, timeout: timeout)
         }
-        httpProbe = { node, timeout in
-            try await HTTPResponseProbe.measure(node: node, timeout: timeout)
-        }
     }
 
     init(
         icmpTimeout: TimeInterval = 1.2,
         tcpTimeout: TimeInterval = 1.8,
-        httpTimeout: TimeInterval = 2.5,
         isICMPReliable: @escaping ICMPReliabilityCheck = { _ in true },
         icmpProbe: @escaping ICMPProbe,
-        tcpProbe: @escaping TCPProbe,
-        httpProbe: @escaping HTTPProbe = { node, timeout in
-            try await HTTPResponseProbe.measure(node: node, timeout: timeout)
-        }
+        tcpProbe: @escaping TCPProbe
     ) {
         self.icmpTimeout = icmpTimeout
         self.tcpTimeout = tcpTimeout
-        self.httpTimeout = httpTimeout
         self.isICMPReliable = isICMPReliable
         self.icmpProbe = icmpProbe
         self.tcpProbe = tcpProbe
-        self.httpProbe = httpProbe
     }
 
     func measure(
@@ -147,8 +128,6 @@ actor NodeLatencyService {
             return try await measureICMP(node)
         case .tcp:
             return try await measureTCP(node)
-        case .http:
-            return try await measureHTTP(node)
         }
     }
 
@@ -163,6 +142,9 @@ actor NodeLatencyService {
         } catch is CancellationError {
             throw CancellationError()
         } catch let icmpError {
+            guard supportsTCP(node) else {
+                return .unavailable("ICMP：\(icmpError.localizedDescription)")
+            }
             do {
                 let milliseconds = try await tcpProbe(node.server, node.port, tcpTimeout)
                 return .success(milliseconds: milliseconds, method: .tcp)
@@ -193,6 +175,7 @@ actor NodeLatencyService {
     }
 
     private func measureTCP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
+        guard supportsTCP(node) else { return tcpNotApplicable }
         do {
             return .success(
                 milliseconds: try await tcpProbe(node.server, node.port, tcpTimeout),
@@ -205,18 +188,19 @@ actor NodeLatencyService {
         }
     }
 
-    private func measureHTTP(_ node: ProxyNode) async throws -> NodeLatencyMeasurement {
-        do {
-            return .success(
-                milliseconds: try await httpProbe(node, httpTimeout),
-                method: .http
-            )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            return .unavailable("HTTP：\(error.localizedDescription)")
+    private func supportsTCP(_ node: ProxyNode) -> Bool {
+        switch node.kind {
+        case .hysteria, .hysteria2, .tuic, .wireguard: false
+        default: true
         }
     }
+
+    private var tcpNotApplicable: NodeLatencyMeasurement {
+        var result = NodeLatencyMeasurement.unavailable(String(localized: "UDP 节点不适用 TCP 测试"))
+        result.isApplicable = false
+        return result
+    }
+
 }
 
 private enum ICMPRouteReliability {
@@ -248,41 +232,6 @@ private enum ICMPRouteReliability {
             }
         }
         return true
-    }
-}
-
-private enum HTTPResponseProbe {
-    static func measure(node: ProxyNode, timeout: TimeInterval) async throws -> Int {
-        guard !node.server.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw LatencyProbeError.invalidHost
-        }
-        guard (1 ... 65_535).contains(node.port) else {
-            throw LatencyProbeError.invalidPort
-        }
-
-        var components = URLComponents()
-        components.scheme = node.tls || node.port == 443 ? "https" : "http"
-        components.host = node.server
-        components.port = node.port
-        components.path = "/"
-        guard let url = components.url else { throw LatencyProbeError.invalidHost }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
-        request.timeoutInterval = timeout
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = timeout
-        configuration.timeoutIntervalForResource = timeout
-        configuration.waitsForConnectivity = false
-        let session = URLSession(configuration: configuration)
-        defer { session.finishTasksAndInvalidate() }
-
-        let startedAt = ProcessInfo.processInfo.systemUptime
-        let (_, response) = try await session.data(for: request)
-        guard response is HTTPURLResponse else { throw LatencyProbeError.invalidResponse }
-        return max(Int((ProcessInfo.processInfo.systemUptime - startedAt) * 1_000), 1)
     }
 }
 

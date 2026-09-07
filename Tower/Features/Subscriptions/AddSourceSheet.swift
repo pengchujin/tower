@@ -2,12 +2,16 @@ import SwiftUI
 import UIKit
 
 struct AddSourceSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     private let editingNode: ProxyNode?
     @State private var name = ""
     @State private var sourceValue = ""
     @State private var isSaving = false
+    @State private var requestsDiscard = false
+    @State private var initialSourceValue = ""
+    @State private var scanGeneration = UUID()
     @State private var errorMessage: String?
     @State private var didReadPasteboard = false
     @State private var entryMode: EntryMode = .paste
@@ -25,7 +29,8 @@ struct AddSourceSheet: View {
 
     private let detector = SourceInputDetector()
 
-    private enum Field {
+    private enum Field: Hashable {
+        case manual(String)
         case name
         case source
     }
@@ -73,11 +78,11 @@ struct AddSourceSheet: View {
 
                 switch entryMode {
                 case .paste:
-                    pasteSections
+                    pasteSections.transition(.opacity)
                 case .scan:
-                    scanSections
+                    scanSections.transition(.opacity)
                 case .manual:
-                    manualSections
+                    manualSections.transition(.opacity)
                 }
 
                 if let errorMessage {
@@ -101,8 +106,7 @@ struct AddSourceSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
-                        saveTask?.cancel()
-                        dismiss()
+                        requestsDiscard = true
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -118,7 +122,8 @@ struct AddSourceSheet: View {
                     Button("完成") { focusedField = nil }
                 }
             }
-            .interactiveDismissDisabled(isSaving)
+            .confirmDiscardChanges(hasChanges: hasChanges, isBusy: isSaving, requested: $requestsDiscard) { saveTask?.cancel() }
+            .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: entryMode)
             .onAppear {
                 if editingNode == nil { requestClipboardContent() }
             }
@@ -137,6 +142,7 @@ struct AddSourceSheet: View {
         HStack(spacing: 8) {
             ForEach(EntryMode.allCases) { mode in
                 Button {
+                    focusedField = nil
                     entryMode = mode
                 } label: {
                     VStack(spacing: 6) {
@@ -195,9 +201,11 @@ struct AddSourceSheet: View {
         Section {
             DisclosureGroup("高级请求设置") {
                 TextField("自定义 User-Agent（可选）", text: $customUserAgent)
+                    .focused($focusedField, equals: .manual("userAgent"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("DNS-over-HTTPS 地址（可选）", text: $dnsOverHTTPSURL)
+                    .focused($focusedField, equals: .manual("dns"))
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -215,7 +223,14 @@ struct AddSourceSheet: View {
                 sourceValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 errorMessage = nil
             }
+            .id(scanGeneration)
             .accessibilityIdentifier("scan-node-qr")
+
+            Button("重新扫描", systemImage: "arrow.clockwise") {
+                sourceValue = ""
+                errorMessage = nil
+                scanGeneration = UUID()
+            }
 
             if !sourceValue.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -254,11 +269,15 @@ struct AddSourceSheet: View {
 
         Section("节点") {
             TextField("名称（可选）", text: $manualDraft.name)
+                .focused($focusedField, equals: .manual("name"))
             TextField("服务器，例如 hk.example.com", text: $manualDraft.server)
+                .focused($focusedField, equals: .manual("server"))
+                .accessibilityIdentifier("manual-server")
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             TextField("端口", text: $manualDraft.port)
+                .focused($focusedField, equals: .manual("port"))
                 .keyboardType(.numberPad)
         }
 
@@ -278,11 +297,13 @@ struct AddSourceSheet: View {
             }
             if [.socks5, .http].contains(manualDraft.kind) {
                 TextField("用户名（可选）", text: $manualDraft.username)
+                    .focused($focusedField, equals: .manual("username"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
             if [.vmess, .vless, .tuic].contains(manualDraft.kind) {
                 TextField("UUID", text: $manualDraft.secret)
+                    .focused($focusedField, equals: .manual("secret"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
@@ -290,16 +311,19 @@ struct AddSourceSheet: View {
             // protocol that needs both fields rather than either one.
             if manualDraft.kind == .tuic {
                 SecureField("密码", text: $manualDraft.password)
+                    .focused($focusedField, equals: .manual("password"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
             if ![.vmess, .vless, .tuic, .wireguard].contains(manualDraft.kind) {
                 SecureField(secretPrompt, text: $manualDraft.secret)
+                    .focused($focusedField, equals: .manual("secret"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
             if manualDraft.kind == .vmess {
                 TextField("Alter ID", text: $manualDraft.alterID)
+                    .focused($focusedField, equals: .manual("alterID"))
                     .keyboardType(.numberPad)
             }
             if manualDraft.kind == .snell {
@@ -319,6 +343,7 @@ struct AddSourceSheet: View {
                     }
                 }
                 TextField("协议参数（可选）", text: $manualDraft.protocolParam)
+                    .focused($focusedField, equals: .manual("protocolParam"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 Picker("混淆", selection: $manualDraft.obfs) {
@@ -327,6 +352,7 @@ struct AddSourceSheet: View {
                     }
                 }
                 TextField("混淆参数（可选）", text: $manualDraft.obfsParam)
+                    .focused($focusedField, equals: .manual("obfsParam"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
@@ -341,6 +367,7 @@ struct AddSourceSheet: View {
                 }
                 if manualDraft.obfs != "none" {
                     TextField("混淆 Host", text: $manualDraft.obfsParam)
+                        .focused($focusedField, equals: .manual("obfsParam"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -355,6 +382,7 @@ struct AddSourceSheet: View {
                 }
                 if manualDraft.obfs != "none" {
                     SecureField("混淆密码", text: $manualDraft.obfsParam)
+                        .focused($focusedField, equals: .manual("obfsParam"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -368,8 +396,10 @@ struct AddSourceSheet: View {
         if manualDraft.kind == .hysteria {
             Section {
                 TextField("上行带宽（Mbps）", text: $manualDraft.upMbps)
+                    .focused($focusedField, equals: .manual("upMbps"))
                     .keyboardType(.numberPad)
                 TextField("下行带宽（Mbps）", text: $manualDraft.downMbps)
+                    .focused($focusedField, equals: .manual("downMbps"))
                     .keyboardType(.numberPad)
                 Picker("传输协议", selection: $manualDraft.protocolName) {
                     Text("UDP").tag("udp")
@@ -377,6 +407,7 @@ struct AddSourceSheet: View {
                     Text("faketcp").tag("faketcp")
                 }
                 TextField("混淆字符串（可选）", text: $manualDraft.obfs)
+                    .focused($focusedField, equals: .manual("obfs"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } header: {
@@ -409,12 +440,15 @@ struct AddSourceSheet: View {
         if manualDraft.kind == .wireguard {
             Section {
                 SecureField("客户端私钥", text: $manualDraft.wireGuardPrivateKey)
+                    .focused($focusedField, equals: .manual("wireGuardPrivateKey"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("服务端公钥", text: $manualDraft.wireGuardPublicKey)
+                    .focused($focusedField, equals: .manual("wireGuardPublicKey"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 SecureField("预共享密钥（可选）", text: $manualDraft.wireGuardPreSharedKey)
+                    .focused($focusedField, equals: .manual("wireGuardPreSharedKey"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } header: {
@@ -425,22 +459,29 @@ struct AddSourceSheet: View {
 
             Section {
                 TextField("本机 IPv4，例如 10.0.0.2/32", text: $manualDraft.wireGuardIPv4)
+                    .focused($focusedField, equals: .manual("wireGuardIPv4"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("本机 IPv6（可选）", text: $manualDraft.wireGuardIPv6)
+                    .focused($focusedField, equals: .manual("wireGuardIPv6"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("允许的网段", text: $manualDraft.wireGuardAllowedIPs)
+                    .focused($focusedField, equals: .manual("wireGuardAllowedIPs"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("DNS（可选）", text: $manualDraft.wireGuardDNS)
+                    .focused($focusedField, equals: .manual("wireGuardDNS"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("Reserved，例如 1,2,3（可选）", text: $manualDraft.wireGuardReserved)
+                    .focused($focusedField, equals: .manual("wireGuardReserved"))
                     .keyboardType(.numbersAndPunctuation)
                 TextField("MTU", text: $manualDraft.wireGuardMTU)
+                    .focused($focusedField, equals: .manual("wireGuardMTU"))
                     .keyboardType(.numberPad)
                 TextField("保活间隔（秒）", text: $manualDraft.wireGuardPersistentKeepalive)
+                    .focused($focusedField, equals: .manual("wireGuardPersistentKeepalive"))
                     .keyboardType(.numberPad)
             } header: {
                 Text("WireGuard 隧道")
@@ -452,10 +493,13 @@ struct AddSourceSheet: View {
         if manualDraft.kind == .anytls {
             Section {
                 TextField("检查间隔（秒）", text: $manualDraft.idleSessionCheckInterval)
+                    .focused($focusedField, equals: .manual("idleSessionCheckInterval"))
                     .keyboardType(.numberPad)
                 TextField("空闲超时（秒）", text: $manualDraft.idleSessionTimeout)
+                    .focused($focusedField, equals: .manual("idleSessionTimeout"))
                     .keyboardType(.numberPad)
                 TextField("保留空闲会话数", text: $manualDraft.minIdleSession)
+                    .focused($focusedField, equals: .manual("minIdleSession"))
                     .keyboardType(.numberPad)
             } header: {
                 Text("会话维护")
@@ -474,11 +518,13 @@ struct AddSourceSheet: View {
                 }
                 if ["ws", "h2"].contains(manualDraft.transport) {
                     TextField("Host（可选）", text: $manualDraft.hostHeader)
+                        .focused($focusedField, equals: .manual("hostHeader"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
                 if ["ws", "h2", "grpc"].contains(manualDraft.transport) {
                     TextField(manualDraft.transport == "grpc" ? "Service Name" : "路径，例如 /proxy", text: $manualDraft.path)
+                        .focused($focusedField, equals: .manual("path"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -501,9 +547,11 @@ struct AddSourceSheet: View {
 
                 if usesTLSSettings {
                     TextField("SNI（可选）", text: $manualDraft.sni)
+                        .focused($focusedField, equals: .manual("sni"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     TextField("ALPN（可选，如 h2,http/1.1）", text: $manualDraft.alpn)
+                        .focused($focusedField, equals: .manual("alpn"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Toggle("允许不安全证书", isOn: $manualDraft.skipCertificateVerification)
@@ -511,9 +559,11 @@ struct AddSourceSheet: View {
 
                 if manualDraft.kind == .vless && manualDraft.security == "reality" {
                     TextField("REALITY 服务器公钥", text: $manualDraft.realityPublicKey)
+                        .focused($focusedField, equals: .manual("realityPublicKey"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     TextField("Short ID（可选）", text: $manualDraft.realityShortID)
+                        .focused($focusedField, equals: .manual("realityShortID"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Picker("客户端指纹", selection: $manualDraft.fingerprint) {
@@ -585,6 +635,11 @@ struct AddSourceSheet: View {
             Label("等待有效的订阅链接或节点协议", systemImage: "questionmark.circle")
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var hasChanges: Bool {
+        name != "" || sourceValue != initialSourceValue || !customUserAgent.isEmpty || !dnsOverHTTPSURL.isEmpty
+            || manualDraft != (editingNode.map { ManualNodeDraft(node: $0) } ?? ManualNodeDraft())
     }
 
     private var saveButtonTitle: String {
@@ -662,6 +717,7 @@ struct AddSourceSheet: View {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if detector.detect(clipboardValue).isSupported {
             sourceValue = clipboardValue
+            initialSourceValue = clipboardValue
             focusedField = nil
         } else {
             focusedField = .source
@@ -680,6 +736,7 @@ struct AddSourceSheet: View {
     }
 
     private func save() async {
+        guard !isSaving else { return }
         focusedField = nil
         isSaving = true
         errorMessage = nil

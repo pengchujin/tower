@@ -5,6 +5,126 @@ import SwiftUI
 /// The home map is a flat dot grid rather than a MapKit globe. The grid ships
 /// as a text bitmap, so the parse and the projection onto it are what can break.
 final class WorldDotMapTests: XCTestCase {
+    func testCountryLatencyUsesMedianAndWaitsBeforeDeclaringFailure() {
+        let nodes = (0..<3).map { ProxyNode(kind: .trojan, name: "US \($0)", server: "example.com", port: 443, rawURI: "") }
+        var results: [UUID: NodeLatencyMeasurement] = [:]
+        XCTAssertEqual(MapLatencySummary(nodes: nodes, measurements: results, testingIDs: []).band, .untested)
+        results[nodes[0].id] = .unavailable("timeout")
+        XCTAssertEqual(MapLatencySummary(nodes: nodes, measurements: results, testingIDs: [nodes[1].id]).band, .untested)
+        results[nodes[1].id] = .success(milliseconds: 80, method: .icmp)
+        results[nodes[2].id] = .success(milliseconds: 320, method: .tcp)
+        let measured = MapLatencySummary(nodes: nodes, measurements: results, testingIDs: [])
+        XCTAssertEqual(measured.median, 200)
+        XCTAssertEqual(measured.band, .normal)
+        XCTAssertEqual(MapLatencySummary(nodes: nodes, measurements: results, testingIDs: Set(nodes.map(\.id))).band, measured.band)
+        for node in nodes { results[node.id] = .unavailable("timeout") }
+        XCTAssertEqual(MapLatencySummary(nodes: nodes, measurements: results, testingIDs: []).band, .unreachable)
+        results[nodes[0].id]?.isApplicable = false
+        XCTAssertEqual(MapLatencySummary(nodes: nodes, measurements: results, testingIDs: []).band, .untested)
+    }
+
+    func testCountryWithOneReachableNodeExcludesUnreachableNodesFromMedianAndPaint() {
+        let nodes = (0..<3).map {
+            ProxyNode(kind: .shadowsocks, name: "Israel \($0)", server: "example.com", port: 443, rawURI: "")
+        }
+        let measurements: [UUID: NodeLatencyMeasurement] = [
+            nodes[0].id: .unavailable("timeout"),
+            nodes[1].id: .success(milliseconds: 32, method: .tcp),
+            nodes[2].id: .unavailable("timeout")
+        ]
+        let summary = MapLatencySummary(nodes: nodes, measurements: measurements, testingIDs: [])
+        XCTAssertEqual(summary.median, 32)
+        XCTAssertEqual(summary.band, .fast)
+        let marker = WorldDotMarker(id: "IL", title: "以色列", latitude: 30.9111,
+                                    longitude: 34.8479, weight: 3, isSelected: true,
+                                    latencyBand: summary.band)
+        let grid = WorldDotGrid.shared
+        let paint = WorldDotPaint(grid: grid, markers: [marker])
+        let cells = grid.coveredCellIndexes(for: [marker])
+        XCTAssertFalse(cells.isEmpty)
+        XCTAssertTrue(cells.allSatisfy { paint.latencyBands[$0] == .fast })
+    }
+
+    func testLatencyThresholdsKeepSlowDistinctFromUnreachable() {
+        XCTAssertEqual([100, 101, 200, 201, 350, 351].map(MapLatencyBand.measured), [.fast, .normal, .normal, .slow, .slow, .verySlow])
+        for band in MapLatencyBand.allCases {
+            XCTAssertNotEqual(band.color(), band.color(selected: true))
+            XCTAssertNotEqual(band.color(dark: true), band.color(selected: true, dark: true))
+        }
+    }
+
+    @MainActor
+    func testLatencyMapPaletteVisuals() throws {
+        let countries: [(String, String, Double, Double)] = [
+            ("US", "美国", 38, -97), ("GB", "英国", 54, -2),
+            ("DE", "德国", 51, 10), ("JP", "日本", 36, 138),
+            ("AU", "澳大利亚", -25, 134), ("BR", "巴西", -14, -52)
+        ]
+        for selected in [false, true] {
+            for dark in [false, true] {
+                let markers = zip(countries, MapLatencyBand.allCases).map { country, band in
+                    WorldDotMarker(id: country.0, title: country.1, latitude: country.2, longitude: country.3, weight: 1, isSelected: selected, latencyBand: band)
+                }
+                let renderer = ImageRenderer(content: WorldDotMapView(markers: markers, initialPaint: WorldDotPaint(grid: .shared, markers: markers)) { _ in }
+                    .frame(width: 390, height: 280)
+                    .background(dark ? Color.black : Color.white)
+                    .environment(\.colorScheme, dark ? .dark : .light))
+                renderer.scale = 3
+                let image = try XCTUnwrap(renderer.uiImage)
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "latency-map-\(selected)-\(dark)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+            }
+        }
+    }
+
+    func testCountryCoverageLookupBenchmark() {
+        let grid = WorldDotGrid.shared
+        let codes = Array(Set(grid.countryCodes.compactMap { $0 })).sorted().prefix(60)
+        let markers = codes.map { WorldDotMarker(id: $0, title: $0, latitude: 0, longitude: 0, weight: 1, isSelected: false) }
+        let start = ContinuousClock.now
+        var count = 0
+        for _ in 0..<100 {
+            for band in 0..<6 {
+                count += grid.coveredCellIndexes(for: markers.enumerated().filter { $0.offset % 6 == band }.map(\.element)).count
+            }
+        }
+        print("MAP_COVERAGE_100=\(ContinuousClock.now - start)")
+        XCTAssertGreaterThan(count, 0)
+    }
+
+    func testExpandedLabelsFitMoreCountriesWithoutOverlap() {
+        let markers = ["香港", "台湾", "澳门", "日本"].enumerated().map {
+            WorldDotMarker(id: String($0.offset), title: $0.element, latitude: 0, longitude: 0, weight: 1, isSelected: false)
+        }
+        let positions = Dictionary(uniqueKeysWithValues: markers.map { ($0.id, CGPoint(x: 180, y: 140)) })
+        let bounds = CGRect(x: 0, y: 0, width: 390, height: 280)
+        let overview = WorldDotMapView.LabelPlanner.plan(markers: markers, positions: positions, bounds: bounds)
+        let expanded = WorldDotMapView.LabelPlanner.plan(markers: markers, positions: positions, bounds: bounds, expanded: true)
+        XCTAssertGreaterThan(expanded.count, overview.count)
+        XCTAssertEqual(expanded.count, markers.count)
+        let frames = markers.compactMap { marker in expanded[marker.id].map { WorldDotMapView.LabelPlanner.estimatedFrame(for: marker, at: $0) } }
+        for i in frames.indices {
+            XCTAssertTrue(bounds.contains(frames[i]))
+            for j in frames.indices where j > i { XCTAssertFalse(frames[i].intersects(frames[j])) }
+        }
+    }
+
+    func testPaintIdentityIgnoresTestingProgressButTracksColorAndSelection() {
+        var marker = WorldDotMarker(id: "US", title: "美国", latitude: 38, longitude: -97, weight: 1, isSelected: false)
+        let original = WorldDotPaint.Input(marker)
+        marker.isTesting = true
+        XCTAssertEqual(original, WorldDotPaint.Input(marker))
+        marker.latencyBand = .fast
+        XCTAssertNotEqual(original, WorldDotPaint.Input(marker))
+        let grid = WorldDotGrid(columns: 2, rows: 1, land: [true, true], countryCodes: ["US", "JP"])
+        let paint = WorldDotPaint(grid: grid, markers: [marker])
+        XCTAssertEqual(paint.coveredCells, [0])
+        XCTAssertEqual(paint.latencyBands, [0: .fast])
+        XCTAssertEqual(Set(MapLatencyBand.allCases.flatMap { band in [WorldDotPaint.key(band: band, selected: false), WorldDotPaint.key(band: band, selected: true)] }).count, 12)
+    }
+
     // MARK: - Parsing
 
     func testParsesGridWithHeaderAndComments() throws {
@@ -699,6 +819,16 @@ final class WorldDotMapTests: XCTestCase {
         XCTAssertEqual(visiblePoint.y, size.height / 2, accuracy: 0.001)
     }
 
+    func testSelectingCountryPreservesAnExistingCountryZoom() {
+        let size = CGSize(width: 360, height: 240)
+        let original = WorldDotMapView.Viewport(scale: 1.6)
+        let selected = original.centeredOnSelection(CGPoint(x: 230, y: 140), in: size)
+        XCTAssertEqual(original.level, .countries)
+        XCTAssertEqual(selected.scale, original.scale)
+        XCTAssertEqual(selected.transform(CGPoint(x: 230, y: 140), in: size),
+                       CGPoint(x: 180, y: 120))
+    }
+
     func testSelectingCountryPreservesAnExistingDetailZoom() {
         let size = CGSize(width: 360, height: 240)
         let countryPoint = CGPoint(x: 318, y: 176)
@@ -735,31 +865,30 @@ final class WorldDotMapTests: XCTestCase {
         }
     }
 
-    func testDetailCanvasKeepsScreenSpaceDotsDuringRecentering() throws {
-        XCTAssertTrue(WorldDotMapView.RenderPlanner.usesDetailCanvas(
-            detailLevel: .detail,
-            isManipulatingViewport: false,
-            isRecenteringSelection: false
-        ))
-        XCTAssertTrue(WorldDotMapView.RenderPlanner.usesDetailCanvas(
-            detailLevel: .detail,
-            isManipulatingViewport: false,
-            isRecenteringSelection: true
-        ))
-        XCTAssertFalse(WorldDotMapView.RenderPlanner.usesDetailCanvas(
-            detailLevel: .detail,
-            isManipulatingViewport: true,
-            isRecenteringSelection: false
-        ))
+    func testSelectionKeepsCrispRendererAtBothZoomLevels() {
+        for level in [WorldDotMapView.DetailLevel.countries, .detail] {
+            for recentring in [true, false] {
+                XCTAssertTrue(WorldDotMapView.RenderPlanner.usesDetailCanvas(detailLevel: level, isManipulatingViewport: false, isRecenteringSelection: recentring))
+                XCTAssertFalse(WorldDotMapView.RenderPlanner.usesDetailCanvas(detailLevel: level, isManipulatingViewport: true, isRecenteringSelection: recentring))
+            }
+        }
+        let size = CGSize(width: 390, height: 280)
+        let point = CGPoint(x: 240, y: 90)
+        for scale in [CGFloat(1.8), 2.8, 4.2] {
+            for offset in [CGSize.zero, CGSize(width: -120, height: 75)] {
+                let origin = WorldDotMapView.RenderPlanner.rasterOrigin(size: size, scale: scale, offset: offset)
+                let expected = WorldDotMapView.Viewport(scale: scale, offset: offset).transform(point, in: size)
+                XCTAssertEqual(point.x * scale + origin.width, expected.x, accuracy: 0.001)
+                XCTAssertEqual(point.y * scale + origin.height, expected.y, accuracy: 0.001)
+            }
+        }
+    }
 
-        let sourceURL = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Tower/Features/Subscriptions/WorldDotMapView.swift")
-        let source = try String(contentsOf: sourceURL, encoding: .utf8)
-
-        XCTAssertTrue(source.contains("private struct WorldDotDetailCanvas: View, Animatable"))
-        XCTAssertTrue(source.contains("var animatableData: AnimatablePair<CGFloat, CGFloat>"))
+    func testTestingProgressDoesNotResizeCountryLabels() {
+        var marker = WorldDotMarker(id: "JP", title: "日本", latitude: 36, longitude: 138, weight: 1, isSelected: false)
+        let frame = WorldDotMapView.LabelPlanner.estimatedFrame(for: marker, at: .zero)
+        marker.isTesting = true
+        XCTAssertEqual(frame, WorldDotMapView.LabelPlanner.estimatedFrame(for: marker, at: .zero))
     }
 
     func testMaximumZoomSubdividesCoarseCellsIntoCrispMicroDots() {

@@ -6,7 +6,7 @@
 
 - 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S)。
 - 管理订阅、自有节点和单节点勾选；刷新保留排除状态，勾选不改变首页顺序。
-- 名称优先识别地区，无法判断时回退离线 IP 国家库；点阵地图、ICMP 测速及明确标注的端口测试。
+- 支持手动指定地区，否则名称优先识别、再回退离线 IP 国家库；详情显示离线 ASN 网络组织；点阵地图、ICMP 测速及明确标注的端口测试。
 - 内置 ACL4SSR 默认、精简、全分组三套离线规则；手动导入 HTTPS 规则方案、添加自定义规则流。Self-Configuration 仅提供手动下载，不随 App 分发。
 - 预览、分享或一键交给客户端；筛选客户端、拖动排序，局域网共享可一起显示/隐藏和排序。
 - 支持 15 种界面语言，以及默认关闭的到期提醒、打开时刷新订阅、iCloud 同步和代理集合。
@@ -54,4 +54,4 @@ SS 插件仅支持 simple-obfs；WireGuard 多 Peer 不做有损压缩；Snell �
 
 ## 许可证
 
-源码以 [MIT](LICENSE) 发布。第三方资源不适用源码 MIT：ACL4SSR 为 CC BY-SA 4.0，离线 IP 国家库为 CC0；其他来源与版本见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) 和资源目录 NOTICE。不得删除或改写原许可义务。
+源码以 [MIT](LICENSE) 发布。第三方资源不适用源码 MIT：ACL4SSR 为 CC BY-SA 4.0，离线 IP 国家库和 ASN 库为 PDDL 1.0；其他来源与版本见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) 和资源目录 NOTICE。不得删除或改写原许可义务。

@@ -251,6 +251,7 @@ struct ToastView: View {
         }
         .shadow(color: accentColor.opacity(toast.tone == .success ? 0.2 : 0.1), radius: 14, y: 7)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tower-toast")
         .sensoryFeedback(toast.tone == .success ? .success : .selection, trigger: toast.id)
         .padding(.horizontal)
     }

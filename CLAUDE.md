@@ -25,7 +25,7 @@
 5. 国家/地区组默认使用延迟优选，同时保留父级策略中的手动选择入口；不要让地区组互相引用或引用包含自己的上级组。
 6. 策略组名称只显示一个前置 Logo。生成配置时可附带各客户端支持的图标字段，但不要把同一个 Emoji 再拼进可见名称。
 7. 首页订阅展开不使用从顶部滑入的过渡；节点列表不再提供“显示更多节点”。
-8. 首页使用自绘的点阵世界地图（`WorldDotMapView`），不用 MapKit。地图数据是 `Tower/Resources/WorldMap/WorldDotMap.txt` 陆地点阵和 `WorldDotCountries.txt` 国家归属层，用 `Scripts/update_world_dot_map.py` 一并重新生成；有节点覆盖的国家直接显示绿色地图点，选中国家使用更深、更密的绿色且名称保持中性文字；覆盖国家的整个点阵轮廓必须可直接点击，不再叠加独立绿色定位点。
+8. 首页使用自绘的点阵世界地图（`WorldDotMapView`），不用 MapKit。地图数据是 `Tower/Resources/WorldMap/WorldDotMap.txt` 陆地点阵和 `WorldDotCountries.txt` 国家归属层，用 `Scripts/update_world_dot_map.py` 一并重新生成；有节点覆盖的国家按延迟状态显示地图点，未测试为灰蓝色，选中国家保持同色系加深、加密且名称保持中性文字；覆盖国家的整个点阵轮廓必须可直接点击，不再叠加独立绿色定位点。
 9. 节点名来自机场 remark，属于不可信输入。写进配置前必须经过 `confName`（INI 系）或 `yaml()`（Clash），两者都会折掉换行；不要新增绕过它们的名称输出路径。
 10. 写到磁盘的凭据类文件一律使用 `.completeFileProtection`，临时目录必须有清理逻辑。这包括导出配置和二维码 PNG，不只是 `state.json`。
 11. 打开添加面板时自动发起一次系统剪贴板读取请求；只在内容是受支持的订阅或节点链接时自动填充，同一次面板展示不要重复读取。保留“从剪贴板粘贴”按钮作为手动入口。
@@ -36,7 +36,7 @@
 16. 只有用户主动导入或刷新规则链接时才允许联网取规则；内置快照任何情况下都不联网。规则地址只接受 HTTPS。
 17. **本仓库是公开的**（https://github.com/pengchujin/tower）。设备 UDID、团队 ID、描述文件 UUID、App Store Connect App ID、构建机地址、个人邮箱一律不写进任何文件，需要时用 `<设备 UDID>` 这类占位符。提交前先检查新增文档有没有把这些写回去。
 18. 套餐流量按 `subscription-userinfo` 响应头 → 内容里的 `STATUS=` 行 → 节点列表里的公告行取值。**节点始终以订阅原地址的返回体为准**：机场的 `flag=clash` 转换器会丢掉它表达不了的协议（实测有机场因此少 12 个 AnyTLS 节点），所以 `flag=clash` 只在缺结构化配额时补发一次、且只读响应头，不用它的返回体。
-19. 节点地区**先按节点名判断**（国旗 Emoji → 中英文国名/别名/城市 → 大写国家代码），名字看不出来才查内置离线 IP 库；策略分组和界面用同一个顺序，不要让两边给出不同的国家。国家表由 `Scripts/update_country_table.py` 生成到 `Tower/Services/CountryTable.swift`，不要手改。
+19. 节点地区**用户手动指定优先，否则先按节点名判断**（国旗 Emoji → 中英文国名/别名/城市 → 大写国家代码），名字看不出来才查内置离线 IP 库；不要从服务器域名后缀或词语猜国家。网络组织按服务器 IP 查内置 ASN 库，不表示实际代理出口；策略分组和界面用同一个顺序，不要让两边给出不同的国家。国家表由 `Scripts/update_country_table.py` 生成到 `Tower/Services/CountryTable.swift`，不要手改。
 20. 国旗一律用 Emoji 正常渲染，不要为个别地区自绘图形；iOS 没有字形的（例如 TW）就显示成两个字母，这是系统行为。列表里国旗外面不加圆形底。
 21. `Tower/Resources/` 下的第三方数据不适用源码的 MIT 许可。新增或更新打包资源时，必须同步更新 `THIRD-PARTY-NOTICES.md` 和对应目录的 NOTICE，注明来源、固定版本和许可证。`LICENSE` 里「仅覆盖源码」那段说明不要删除，即使 GitHub 因此把许可证识别成 `Other`。
 22. 刷新订阅必须保住用户「取消勾选」的节点。节点 id 每次解析都会重新生成，机场又常把剩余流量、倍率写进 remark，塔台自己也会给纯国旗节点重编号——所以不能只按含 name 的精确 identity 匹配。`AppModel.carriedOverExclusions` 是唯一的判定入口：先精确匹配，失配再用去掉 remark 的宽松键，且只有该键在刷新前后都唯一时才认。丢失排除的后果是静默的——节点直接回到每一份导出配置里。

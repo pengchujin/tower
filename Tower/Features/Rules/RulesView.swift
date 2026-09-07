@@ -227,7 +227,8 @@ private struct RulesOverviewCard: View {
         return model.currentRuleCount
     }
     private var groupCount: Int {
-        model.selectedScheme?.groups.count ?? model.selectedPreset.assignments.count
+        guard let scheme = model.selectedScheme else { return model.selectedPreset.assignments.count }
+        return model.customizableScheme(for: scheme).groups.count
     }
     private var sourceName: String {
         guard let scheme = model.selectedScheme else { return String(localized: "本机规则") }
@@ -386,7 +387,7 @@ private struct RuleSchemeCard: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .accessibilityIdentifier("rule-customization-\(scheme.id)")
                 .accessibilityLabel("编辑 \(scheme.name)")
 
@@ -499,6 +500,7 @@ private struct RuleSchemeCard: View {
 private struct ImportedRuleSchemeEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     @State private var name: String
     @State private var summary: String
@@ -522,9 +524,10 @@ private struct ImportedRuleSchemeEditor: View {
             }
             .navigationTitle("编辑规则方案")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: name != scheme.name || summary != scheme.localizedSummary(), requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
@@ -547,10 +550,12 @@ private struct ImportedRuleSchemeEditor: View {
 private struct ImportRuleSchemeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     @State private var urlString = ""
     @State private var name = ""
     @State private var errorMessage: String?
     @State private var isSaving = false
+    @State private var saveTask: Task<Void, Never>?
     @FocusState private var isURLFocused: Bool
 
     var body: some View {
@@ -584,15 +589,16 @@ private struct ImportRuleSchemeSheet: View {
             }
             .navigationTitle("导入规则")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: !urlString.isEmpty || !name.isEmpty, isBusy: isSaving, requested: $requestsDiscard) { saveTask?.cancel(); if isSaving { model.cancelRuleImport() } }
+            .onDisappear { saveTask?.cancel(); if isSaving { model.cancelRuleImport() } }
             .scrollDismissesKeyboard(.interactively)
-            .interactiveDismissDisabled(isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "正在下载…" : "导入") {
-                        Task { await save() }
+                        saveTask = Task { await save() }
                     }
                     .disabled(urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                     .accessibilityIdentifier("save-scheme")
@@ -612,6 +618,7 @@ private struct ImportRuleSchemeSheet: View {
             try await model.importScheme(name: name, urlString: urlString)
             dismiss()
         } catch {
+            guard !Task.isCancelled, !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -693,7 +700,6 @@ private struct RuleCustomizationSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let scheme: RuleScheme
-    @State private var ruleEditMode: EditMode = .inactive
     @State private var editingGroups: [RuleSchemeGroup] = []
     @State private var initialEditingGroupNames: [String] = []
     @State private var searchText = ""
@@ -718,7 +724,7 @@ private struct RuleCustomizationSheet: View {
         let groups = editingGroups.isEmpty
             ? model.customizableRuleGroups(for: scheme)
             : editingGroups
-        guard !ruleEditMode.isEditing, !trimmedSearch.isEmpty else { return groups }
+        guard !trimmedSearch.isEmpty else { return groups }
         return groups.filter {
             $0.name.localizedCaseInsensitiveContains(trimmedSearch)
                 || groupModeTitle($0).localizedCaseInsensitiveContains(trimmedSearch)
@@ -751,7 +757,7 @@ private struct RuleCustomizationSheet: View {
                 localRuleSetsSection
                 catalogSections
             }
-            .environment(\.editMode, $ruleEditMode)
+            .environment(\.editMode, .constant(.active))
             .navigationTitle("规则定制")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(
@@ -760,7 +766,7 @@ private struct RuleCustomizationSheet: View {
                 // Not "在线搜索": this filters the bundled catalog and the
                 // user's own local library. Nothing here reaches the network,
                 // which is the whole promise of the screen.
-                prompt: "在线搜索规则：如 YouTube OpenAI"
+                prompt: "搜索规则：如 YouTube OpenAI"
             )
             .scrollDismissesKeyboard(.interactively)
             .accessibilityIdentifier("rule-customization-list")
@@ -795,24 +801,12 @@ private struct RuleCustomizationSheet: View {
                             Label("恢复初始规则", systemImage: "arrow.counterclockwise")
                         }
                     } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.title2.weight(.bold))
+                        Text("编辑")
                             .foregroundStyle(.tint)
-                            .accessibilityLabel("更多")
                     }
                     .accessibilityIdentifier("rule-actions-menu")
                 }
                 ToolbarItemGroup(placement: .confirmationAction) {
-                    Button {
-                        toggleRuleEditing()
-                    } label: {
-                        if ruleEditMode.isEditing {
-                            Image(systemName: "checkmark")
-                        } else {
-                            Text("编辑")
-                        }
-                    }
-                    .accessibilityLabel(ruleEditMode.isEditing ? "结束编辑" : "编辑规则")
                     Button("完成") {
                         commitEditingGroupOrder()
                         dismiss()
@@ -893,14 +887,12 @@ private struct RuleCustomizationSheet: View {
             synchronizeGroupDraft(with: model.customizableRuleGroups(for: scheme))
         }
         .onChange(of: model.customizableRuleGroups(for: scheme)) { _, groups in
-            guard !ruleEditMode.isEditing else { return }
             synchronizeGroupDraft(with: groups)
         }
         .onDisappear { commitEditingGroupOrder() }
     }
 
     private func restoreInitialRules() {
-        ruleEditMode = .inactive
         searchText = ""
         selectedCategory = nil
         model.resetRuleCustomization(for: scheme)
@@ -920,26 +912,6 @@ private struct RuleCustomizationSheet: View {
         }
     }
 
-    private func toggleRuleEditing() {
-        if ruleEditMode.isEditing {
-            finishRuleEditing()
-        } else {
-            beginRuleEditing()
-        }
-    }
-
-    private func beginRuleEditing() {
-        searchText = ""
-        editingGroups = model.customizableRuleGroups(for: scheme)
-        initialEditingGroupNames = editingGroups.map(\.name)
-        withAnimation { ruleEditMode = .active }
-    }
-
-    private func finishRuleEditing() {
-        commitEditingGroupOrder()
-        withAnimation { ruleEditMode = .inactive }
-    }
-
     private func commitEditingGroupOrder() {
         guard !editingGroups.isEmpty else { return }
         let names = editingGroups.map(\.name)
@@ -949,7 +921,6 @@ private struct RuleCustomizationSheet: View {
     }
 
     private func reloadEditingGroupsIfNeeded() {
-        guard ruleEditMode.isEditing else { return }
         synchronizeGroupDraft(with: model.customizableRuleGroups(for: scheme))
     }
 
@@ -957,20 +928,6 @@ private struct RuleCustomizationSheet: View {
         guard editingGroups != groups else { return }
         editingGroups = groups
         initialEditingGroupNames = groups.map(\.name)
-    }
-
-    private func moveRuleGroupsInNormalMode(
-        fromOffsets source: IndexSet,
-        toOffset destination: Int
-    ) {
-        guard trimmedSearch.isEmpty else { return }
-        if editingGroups.isEmpty {
-            editingGroups = model.customizableRuleGroups(for: scheme)
-        }
-        editingGroups.move(fromOffsets: source, toOffset: destination)
-        let names = editingGroups.map(\.name)
-        initialEditingGroupNames = names
-        model.setRuleGroupOrder(names, for: scheme)
     }
 
     private var categoryPicker: some View {
@@ -1063,48 +1020,33 @@ private struct RuleCustomizationSheet: View {
     private var customRuleGroupsSection: some View {
         if !visibleGroups.isEmpty {
             Section {
-                if ruleEditMode.isEditing {
-                    ForEach(editingGroups, id: \.name) { group in
-                        customRuleGroupActionRow(group)
-                            .listRowInsets(compactRuleRowInsets)
-                    }
-                    .onMove { source, destination in
-                        editingGroups.move(fromOffsets: source, toOffset: destination)
-                    }
-                } else {
-                    ForEach(visibleGroups, id: \.name) { group in
-                        customRuleGroupActionRow(group)
-                            .listRowInsets(compactRuleRowInsets)
-                            .moveDisabled(!trimmedSearch.isEmpty)
-                            .contextMenu {
-                                if let flow = userCreatedFlow(for: group) {
-                                    if let ruleSet = localRuleSet(for: flow) {
-                                        Button {
-                                            manualEditor = LocalRuleSetEditorRequest(ruleSet: ruleSet)
-                                        } label: {
-                                            Label("编辑规则内容", systemImage: "doc.text.magnifyingglass")
-                                        }
-                                    }
-                                }
-                                Button(role: .destructive) {
-                                    requestDeletion(of: group)
+                ForEach(visibleGroups, id: \.name) { group in
+                    customRuleGroupActionRow(group)
+                        .listRowInsets(compactRuleRowInsets)
+                        .moveDisabled(!trimmedSearch.isEmpty)
+                        .contextMenu {
+                            if let flow = userCreatedFlow(for: group), let ruleSet = localRuleSet(for: flow) {
+                                Button {
+                                    manualEditor = LocalRuleSetEditorRequest(ruleSet: ruleSet)
                                 } label: {
-                                    Label("删除", systemImage: "trash")
+                                    Label("编辑规则内容", systemImage: "doc.text.magnifyingglass")
                                 }
                             }
-                    }
-                    .onMove { source, destination in
-                        moveRuleGroupsInNormalMode(
-                            fromOffsets: source,
-                            toOffset: destination
-                        )
-                    }
+                            Button(role: .destructive) { requestDeletion(of: group) } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        }
+                }
+                .onMove { source, destination in
+                    guard trimmedSearch.isEmpty else { return }
+                    editingGroups.move(fromOffsets: source, toOffset: destination)
+                    commitEditingGroupOrder()
                 }
             } header: {
                 HStack {
                     Text("当前规则")
                     Spacer()
-                    Text("\(ruleEditMode.isEditing ? editingGroups.count : model.customizableRuleGroups(for: scheme).count) 组")
+                    Text("\(visibleGroups.count) 组")
                 }
             }
         }
@@ -1182,41 +1124,22 @@ private struct RuleCustomizationSheet: View {
         )
     }
 
-    private func customRuleGroupRow(
-        _ group: RuleSchemeGroup
-    ) -> some View {
-        HStack(spacing: 10) {
-            visibleRuleGroupEmoji(group)
-            Text(RulePolicyPresentation.nameWithoutLeadingEmoji(group.name))
-                .foregroundStyle(Color.primary)
-            Spacer()
-            Text(groupSelectionSummary(group))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .contentShape(Rectangle())
-    }
-
-    @ViewBuilder
     private func customRuleGroupActionRow(_ group: RuleSchemeGroup) -> some View {
-        if ruleEditMode.isEditing {
-            HStack(spacing: 10) {
-                editableRuleIdentityButton(group)
-                Spacer(minLength: 8)
-                Text(groupSelectionSummary(group))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        } else {
+        HStack(spacing: 10) {
+            editableRuleIdentityButton(group)
+            Spacer(minLength: 8)
             Button {
                 groupEditor = RuleGroupEditorRequest(scheme: scheme, group: group)
             } label: {
-                customRuleGroupRow(group)
+                HStack(spacing: 4) {
+                    Text(groupSelectionSummary(group))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .font(.subheadline)
+                .foregroundStyle(Color.accentColor)
+                .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
         }
@@ -1239,6 +1162,7 @@ private struct RuleCustomizationSheet: View {
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("修改 \(group.name) 的 Emoji 和名称")
+        .accessibilityIdentifier("rule-group-identity-\(group.name)")
     }
 
     private func visibleRuleGroupEmoji(_ group: RuleSchemeGroup) -> some View {
@@ -1330,6 +1254,7 @@ private struct RuleCustomizationSheet: View {
         .buttonStyle(.plain)
         .disabled(isInstalling)
         .listRowInsets(compactRuleRowInsets)
+        .accessibilityIdentifier("catalog-entry-\(entry.id)")
         .accessibilityValue(installed == nil ? "未添加" : "已添加")
         .accessibilityHint(installed == nil ? "添加到自定义规则" : "从自定义规则移除")
         .contextMenu {
@@ -1394,8 +1319,10 @@ private struct RuleCustomizationSheet: View {
 }
 
 private struct RuleSchemeNetworkSettingsEditor: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     @State private var draft: RuleSchemeNetworkSettingsDraft
     @State private var latencyTestPreset: RuleSchemeLatencyTestPreset
@@ -1577,7 +1504,7 @@ private struct RuleSchemeNetworkSettingsEditor: View {
 
                 Section {
                     Button {
-                        withAnimation(.smooth(duration: 0.2)) {
+                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
                             draft = RuleSchemeNetworkSettingsDraft(settings: nil)
                             latencyTestPreset = RuleSchemeLatencyTestPreset.selection(
                                 for: draft.proxyTestURLString
@@ -1592,12 +1519,13 @@ private struct RuleSchemeNetworkSettingsEditor: View {
             }
             .navigationTitle("DNS 与网络")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: draft != originalDraft, requested: $requestsDiscard)
             .scrollDismissesKeyboard(.interactively)
             .sensoryFeedback(.selection, trigger: latencyTestPreset)
             .accessibilityIdentifier("rule-network-settings-editor")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
@@ -1658,6 +1586,7 @@ private struct RuleSchemeNetworkSettingsEditor: View {
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "minus.circle.fill")
                     .symbolRenderingMode(.hierarchical)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("删除 DNS 服务器")
@@ -1699,8 +1628,10 @@ private struct RuleSchemeLatencyTestBrandLogoView: View {
 }
 
 private struct RuleSchemeConfigurationEditor: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     let onSaved: () -> Void
     @State private var text: String
@@ -1727,7 +1658,7 @@ private struct RuleSchemeConfigurationEditor: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     Button {
-                        withAnimation(.smooth(duration: 0.22)) {
+                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.22)) {
                             showsHelp.toggle()
                         }
                     } label: {
@@ -1781,10 +1712,10 @@ private struct RuleSchemeConfigurationEditor: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("手动编辑配置")
             .navigationBarTitleDisplayMode(.inline)
-            .interactiveDismissDisabled(text != originalText)
+            .confirmDiscardChanges(hasChanges: text != originalText, isBusy: isSaving, requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
@@ -1826,6 +1757,7 @@ private struct RuleSchemeConfigurationEditor: View {
 private struct RuleGroupIdentityEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     let group: RuleSchemeGroup
     @State private var emoji: String
@@ -1872,9 +1804,10 @@ private struct RuleGroupIdentityEditor: View {
             }
             .navigationTitle("修改规则名称")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: emoji != RulePolicyPresentation.emoji(for: group.name, kind: group.kind) || name != RulePolicyPresentation.nameWithoutLeadingEmoji(group.name), requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
@@ -1911,10 +1844,13 @@ private struct RuleGroupIdentityEditor: View {
 private struct RuleGroupEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     let group: RuleSchemeGroup
     @State private var selectedReferences: [String]
     @State private var selectedNodePatterns: Set<String>
+    private let initialReferences: [String]
+    private let initialNodePatterns: Set<String>
     @State private var selectedKind: RuleSchemeGroup.Kind
 
     init(scheme: RuleScheme, group: RuleSchemeGroup) {
@@ -1926,6 +1862,10 @@ private struct RuleGroupEditor: View {
             guard case .reference(let name) = member else { return nil }
             return name
         }.filter { seenReferences.insert($0).inserted }
+        initialReferences = references
+        initialNodePatterns = Set(group.members.compactMap { member in
+            guard case .nodePattern(let pattern) = member else { return nil }; return pattern
+        })
         _selectedReferences = State(initialValue: references)
         _selectedNodePatterns = State(initialValue: Set(group.members.compactMap { member in
             guard case .nodePattern(let pattern) = member else { return nil }
@@ -1999,9 +1939,10 @@ private struct RuleGroupEditor: View {
             }
             .navigationTitle(RulePolicyPresentation.nameWithoutLeadingEmoji(group.name))
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: selectedReferences != initialReferences || selectedNodePatterns != initialNodePatterns || selectedKind != group.kind, requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
@@ -2148,14 +2089,17 @@ private struct OrderedPolicyCandidateSections: View {
 private struct SaveCustomizedSchemeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     let onSaved: () -> Void
+    private let initialName: String
     @State private var name: String
 
     init(scheme: RuleScheme, onSaved: @escaping () -> Void) {
         self.scheme = scheme
         self.onSaved = onSaved
-        _name = State(initialValue: "\(scheme.name) · \(String(localized: "自定义"))")
+        initialName = "\(scheme.name) · \(String(localized: "自定义"))"
+        _name = State(initialValue: initialName)
     }
 
     var body: some View {
@@ -2170,9 +2114,10 @@ private struct SaveCustomizedSchemeSheet: View {
             }
             .navigationTitle("另存为新方案")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: name != initialName, requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
@@ -2241,8 +2186,10 @@ enum RulePolicyPresentation {
 private struct CatalogRuleRouteEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let scheme: RuleScheme
     let flow: CustomRuleFlow
+    private let initialReferences: [String]
     @State private var selectedReferences: [String]
 
     init(scheme: RuleScheme, flow: CustomRuleFlow) {
@@ -2254,9 +2201,8 @@ private struct CatalogRuleRouteEditor: View {
             return name
         } ?? [flow.policyName]
         var seenReferences = Set<String>()
-        _selectedReferences = State(
-            initialValue: initialReferences.filter { seenReferences.insert($0).inserted }
-        )
+        self.initialReferences = initialReferences.filter { seenReferences.insert($0).inserted }
+        _selectedReferences = State(initialValue: self.initialReferences)
     }
 
     private var policyOptions: [String] {
@@ -2285,9 +2231,10 @@ private struct CatalogRuleRouteEditor: View {
             }
             .navigationTitle("规则流向")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: selectedReferences != initialReferences, requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
@@ -2353,10 +2300,12 @@ private struct LocalRuleSetEditor: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var requestsDiscard = false
     let existingRuleSet: LocalRuleSet?
     @State private var name: String
     @State private var rulesText: String
     @State private var isSaving = false
+    @State private var saveTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @FocusState private var focusedField: Field?
 
@@ -2446,15 +2395,16 @@ private struct LocalRuleSetEditor: View {
                 ? String(localized: "新建规则集")
                 : String(localized: "编辑规则集"))
             .navigationBarTitleDisplayMode(.inline)
+            .confirmDiscardChanges(hasChanges: name != (existingRuleSet?.name ?? "") || rulesText != (existingRuleSet?.ruleInputText ?? ""), isBusy: isSaving, requested: $requestsDiscard) { saveTask?.cancel() }
+            .onDisappear { saveTask?.cancel() }
             .scrollDismissesKeyboard(.interactively)
-            .interactiveDismissDisabled(false)
             .accessibilityIdentifier("custom-rule-flow-editor")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
+                    Button(isSaving ? "正在保存…" : "保存") { save() }
                         .disabled(
                             name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 || !draft.hasRuleContent
@@ -2484,12 +2434,13 @@ private struct LocalRuleSetEditor: View {
         focusedField = nil
         let ruleSet = draft
         isSaving = true
-        Task { @MainActor in
+        saveTask = Task { @MainActor in
             do {
                 try await model.saveLocalRuleSet(ruleSet)
                 dismiss()
             } catch {
                 isSaving = false
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
                 errorMessage = error.localizedDescription
             }
         }

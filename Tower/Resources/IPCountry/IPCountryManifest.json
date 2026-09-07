@@ -1,0 +1,73 @@
+{
+  "version": "2026-09-06T22:31Z",
+  "license": "PDDL-1.0",
+  "licenseURL": "https://opendatacommons.org/licenses/pddl/1-0/",
+  "sources": [
+    {
+      "filename": "server-country-ipv4-num.csv",
+      "assetID": 547763171,
+      "url": "https://api.github.com/repos/sapics/ip-location-db/releases/assets/547763171",
+      "sha256": "eb2c4c86552733887c961dd6becbc656d431c5522457d3c8be50146a2c12e4be"
+    },
+    {
+      "filename": "server-country-ipv6.csv",
+      "assetID": 547763145,
+      "url": "https://api.github.com/repos/sapics/ip-location-db/releases/assets/547763145",
+      "sha256": "f9dc817d658c76ef1a79641766000e4d1f07414629b0bf2d572fe673a75f7583"
+    },
+    {
+      "filename": "origin-asn-ipv4-num.csv",
+      "assetID": 547763211,
+      "url": "https://api.github.com/repos/sapics/ip-location-db/releases/assets/547763211",
+      "sha256": "bb78b53c852e1bdb97c6681f27995af632c2bbcfcdd3228fc20820c1c128390e"
+    },
+    {
+      "filename": "origin-asn-ipv6.csv",
+      "assetID": 547763156,
+      "url": "https://api.github.com/repos/sapics/ip-location-db/releases/assets/547763156",
+      "sha256": "a863695b77b7e73b8dab5cbc243e6cac011c24e82bbcdba161d2a8303ee1c8d2"
+    }
+  ],
+  "format": {
+    "endianness": "big",
+    "countryIPv4RecordBytes": 10,
+    "countryIPv6RecordBytes": 34,
+    "asnIPv4RecordBytes": 18,
+    "asnIPv6RecordBytes": 42,
+    "asnFields": "start IP, end IP, uint32 ASN, uint32 name offset, uint16 name byte length",
+    "names": "shared UTF-8 pool, no terminators"
+  },
+  "artifacts": {
+    "IPCountryIPv4.bin": {
+      "bytes": 2753020,
+      "sha256": "cdd073dd4ecd88609a33059e5fdc7886dd926a4a1fb3e464a6dc0b5bf31cf984",
+      "zlib9Bytes": 1602906
+    },
+    "IPCountryIPv6.bin": {
+      "bytes": 8599212,
+      "sha256": "0c52e16d398fddafec30fe07752463b09305a25e616685ecfe41c66f4511c97e",
+      "zlib9Bytes": 1591794
+    },
+    "IPASNIPv4.bin": {
+      "bytes": 7955190,
+      "sha256": "f92036d762ffaa0324c3153f011c81c7a74a1c8b5528d4c7dfbf06994476fcc2",
+      "zlib9Bytes": 4014915
+    },
+    "IPASNIPv6.bin": {
+      "bytes": 5277048,
+      "sha256": "cd5f187980c85cab472bd8128a29d29142d99f09db3c30121e0da523123e4ae9",
+      "zlib9Bytes": 1272003
+    },
+    "IPASNNames.bin": {
+      "bytes": 2408232,
+      "sha256": "45328b35a365dab816cde631e5a3daa0efbc2a86ec87d0b28e6b1f0c07e42afa",
+      "zlib9Bytes": 1002001
+    },
+    "IPCountryVersion.txt": {
+      "bytes": 18,
+      "sha256": "cdb80c91153e1f2afb8267ff2f6fe8f01e7b2520429eeed00955817579424b06",
+      "zlib9Bytes": 26
+    }
+  },
+  "uniqueOrganizationNames": 83457
+}

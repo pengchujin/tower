@@ -35,22 +35,23 @@ struct NodeCountryResolutionBatch: Sendable {
     }
 }
 
-/// Latency counterpart to `NodeCountryResolutionBatch`. Failed probes are
-/// intentionally represented by a completed id with no measurement so the UI
-/// can clear its spinner without publishing one observable mutation per node.
+/// Latency results publish incrementally with burst coalescing. Cancellation
+/// clears the spinner without fabricating a failed measurement.
 struct NodeLatencyResultBatch: Sendable {
     let completedIDs: Set<UUID>
     let measurements: [UUID: NodeLatencyMeasurement]
 
     static func resolve(
         nodes: [ProxyNode],
+        concurrency: Int = 32,
+        onProgress: @escaping @MainActor @Sendable (Self) -> Void = { _ in },
         operation: @escaping @Sendable (ProxyNode) async -> NodeLatencyMeasurement?
     ) async -> Self {
         await withTaskGroup(of: (UUID, NodeLatencyMeasurement?).self) { group in
-            for node in nodes {
-                group.addTask {
-                    (node.id, await operation(node))
-                }
+            var remaining = nodes.makeIterator()
+            for _ in 0..<min(max(1, concurrency), nodes.count) {
+                guard !Task.isCancelled, let node = remaining.next() else { break }
+                group.addTask { (node.id, await operation(node)) }
             }
 
             var completedIDs: Set<UUID> = []
@@ -58,13 +59,37 @@ struct NodeLatencyResultBatch: Sendable {
             completedIDs.reserveCapacity(nodes.count)
             measurements.reserveCapacity(nodes.count)
 
+            var pendingIDs: Set<UUID> = []
+            var pendingMeasurements: [UUID: NodeLatencyMeasurement] = [:]
+            var lastPublished: ContinuousClock.Instant?
             for await (id, measurement) in group {
+                guard !Task.isCancelled else {
+                    group.cancelAll()
+                    break
+                }
+                if let node = remaining.next() {
+                    group.addTask { (node.id, await operation(node)) }
+                }
                 completedIDs.insert(id)
+                pendingIDs.insert(id)
                 if let measurement {
                     measurements[id] = measurement
+                    pendingMeasurements[id] = measurement
+                }
+                let now = ContinuousClock.now
+                // Publish the first result immediately; coalesce bursts to
+                // avoid redrawing the map once per node in large subscriptions.
+                if lastPublished == nil || now - lastPublished! >= .milliseconds(100) {
+                    await onProgress(Self(completedIDs: pendingIDs, measurements: pendingMeasurements))
+                    pendingIDs.removeAll(keepingCapacity: true)
+                    pendingMeasurements.removeAll(keepingCapacity: true)
+                    lastPublished = now
                 }
             }
 
+            if !pendingIDs.isEmpty {
+                await onProgress(Self(completedIDs: pendingIDs, measurements: pendingMeasurements))
+            }
             return Self(completedIDs: completedIDs, measurements: measurements)
         }
     }

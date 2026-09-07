@@ -2,6 +2,13 @@ import Darwin
 import Foundation
 
 struct IPCountryDatabase: @unchecked Sendable {
+    static let dataVersion: String = {
+        guard let url = Bundle.main.url(forResource: "IPCountryVersion", withExtension: "txt")
+            ?? Bundle.main.url(forResource: "IPCountryVersion", withExtension: "txt", subdirectory: "IPCountry"),
+              let version = try? String(contentsOf: url, encoding: .utf8) else { return "unversioned-v2" }
+        return version.trimmingCharacters(in: .whitespacesAndNewlines)
+    }()
+
     private static let ipv4RecordSize = 10
     private static let ipv6RecordSize = 34
 
@@ -104,48 +111,85 @@ struct IPCountryDatabase: @unchecked Sendable {
     }
 }
 
-actor IPCountryLookupService {
-    private enum CachedResult: Sendable {
-        case found(String)
-        case missing
+struct HostNetworkInfo: Sendable {
+    let countryCode: String?
+    let addresses: [String]
+    let hasCountryConflict: Bool
+}
 
-        var countryCode: String? {
-            switch self {
-            case .found(let code): code
-            case .missing: nil
-            }
-        }
+actor IPCountryLookupService {
+    private struct CachedResult {
+        let info: HostNetworkInfo
+        let expiresAt: Date
     }
 
     private let database: IPCountryDatabase
+    private let successTTL: TimeInterval
+    private let failureTTL: TimeInterval
+    private let resolver: @Sendable (String) async -> [String]
     private var cache: [String: CachedResult] = [:]
+    private var inFlight: [String: Task<HostNetworkInfo, Never>] = [:]
+    private var asnDatabase: IPASNDatabase?
 
-    init(database: IPCountryDatabase = IPCountryDatabase()) {
+    init(
+        database: IPCountryDatabase = IPCountryDatabase(),
+        successTTL: TimeInterval = 3600,
+        failureTTL: TimeInterval = 30,
+        resolver: (@Sendable (String) async -> [String])? = nil
+    ) {
         self.database = database
+        self.successTTL = successTTL
+        self.failureTTL = failureTTL
+        self.resolver = resolver ?? { host in
+            await Task.detached(priority: .utility) { Self.resolveIPAddresses(for: host) }.value
+        }
     }
 
     func countryCode(forHost host: String) async -> String? {
-        let normalizedHost = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalizedHost.isEmpty else { return nil }
-        if let cached = cache[normalizedHost] { return cached.countryCode }
+        await info(forHost: host).countryCode
+    }
 
-        if let direct = database.countryCode(forIPAddress: normalizedHost) {
-            cache[normalizedHost] = .found(direct)
-            return direct
-        }
+    func organizations(forHost host: String) async -> [NetworkOrganization] {
+        let info = await info(forHost: host)
+        if asnDatabase == nil { asnDatabase = IPASNDatabase() }
+        return Set(info.addresses.compactMap { asnDatabase?.organization(forIPAddress: $0) })
+            .sorted { $0.asn < $1.asn }
+    }
 
-        let addresses = await Task.detached(priority: .utility) {
-            Self.resolveIPAddresses(for: normalizedHost)
-        }.value
-        for address in addresses {
-            if let countryCode = database.countryCode(forIPAddress: address) {
-                cache[normalizedHost] = .found(countryCode)
-                return countryCode
+    func info(forHost host: String) async -> HostNetworkInfo {
+        let normalized = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let cached = cache[normalized], cached.expiresAt > .now { return cached.info }
+        if let task = inFlight[normalized] { return await task.value }
+        let database = database
+        let resolver = resolver
+        let task = Task<HostNetworkInfo, Never> {
+            let addresses: [String]
+            var v4 = in_addr()
+            var v6 = in6_addr()
+            if inet_pton(AF_INET, normalized, &v4) == 1 || inet_pton(AF_INET6, normalized, &v6) == 1 {
+                addresses = [normalized]
+            } else if normalized.isEmpty {
+                addresses = []
+            } else {
+                addresses = Array(Set(await resolver(normalized))).sorted()
             }
+            let codes = addresses.map { database.countryCode(forIPAddress: $0) }
+            let known = Set(codes.compactMap { $0 })
+            return HostNetworkInfo(
+                countryCode: known.count == 1 && codes.allSatisfy({ $0 != nil }) ? known.first : nil,
+                addresses: addresses,
+                hasCountryConflict: known.count > 1
+            )
         }
-
-        cache[normalizedHost] = .missing
-        return nil
+        inFlight[normalized] = task
+        let info = await task.value
+        inFlight[normalized] = nil
+        if cache.count >= 8000 { cache = cache.filter { $0.value.expiresAt > .now } }
+        if cache.count >= 8000 { cache.removeAll(keepingCapacity: true) }
+        cache[normalized] = CachedResult(info: info, expiresAt: .now.addingTimeInterval(
+            info.countryCode == nil ? failureTTL : successTTL
+        ))
+        return info
     }
 
     nonisolated private static func resolveIPAddresses(for host: String) -> [String] {

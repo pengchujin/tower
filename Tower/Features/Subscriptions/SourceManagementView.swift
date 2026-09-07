@@ -212,6 +212,12 @@ struct SourceManagementView: View {
                     }
                 }
 
+                if hiddenSelectedCount > 0 {
+                    Text("含 \(hiddenSelectedCount) 项不在当前搜索结果中")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 switch tab {
                 case .subscriptions:
                     subscriptionActions
@@ -311,6 +317,14 @@ struct SourceManagementView: View {
 
     private var selectedLocalNodes: [ProxyNode] {
         model.localNodes.filter { selectedLocalNodeIDs.contains($0.id) }
+    }
+
+    private var hiddenSelectedCount: Int {
+        switch tab {
+        case .subscriptions: selectedSubscriptionIDs.subtracting(filteredSubscriptions.map(\.id)).count
+        case .localNodes: selectedLocalNodeIDs.subtracting(filteredLocalNodes.map(\.id)).count
+        case .exportFilter: 0
+        }
     }
 
     private var selectedItemCount: Int {
@@ -501,10 +515,10 @@ private enum SourceManagementDeletion: Hashable {
 
     var message: String {
         switch self {
-        case .subscriptions:
-            String(localized: "所选订阅及其已经读取的节点会从这台设备移除。")
-        case .localNodes:
-            String(localized: "所选自有节点会从这台设备移除，此操作无法撤销。")
+        case .subscriptions(let sources):
+            String(localized: "所选订阅及其已经读取的节点会从这台设备移除。") + "\n\n" + sources.prefix(8).map(\.name).joined(separator: "\n")
+        case .localNodes(let nodes):
+            String(localized: "所选自有节点会从这台设备移除，此操作无法撤销。") + "\n\n" + nodes.prefix(8).map { NodeRegionResolver.displayName(for: $0) }.joined(separator: "\n")
         }
     }
 }

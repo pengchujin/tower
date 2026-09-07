@@ -4,32 +4,46 @@ import SwiftUI
 struct NodeMapPresentation {
     let clusters: [NodeRegionCluster]
     let unlocatedCount: Int
+    let pendingCount: Int
 
-    static func revision(nodes: [ProxyNode], countryCodes: [UUID: String]) -> Int {
+    static func revision(nodes: [ProxyNode], countryCodes: [UUID: String], completedNodeIDs: Set<UUID> = []) -> Int {
         var hasher = Hasher()
         hasher.combine(nodes)
-        for node in nodes { hasher.combine(countryCodes[node.id]) }
+        for node in nodes {
+            hasher.combine(countryCodes[node.id])
+            hasher.combine(completedNodeIDs.contains(node.id))
+        }
         return hasher.finalize()
     }
 
-    init(nodes: [ProxyNode], countryCodes: [UUID: String]) {
+    init(nodes: [ProxyNode], countryCodes: [UUID: String], completedNodeIDs: Set<UUID>? = nil) {
         clusters = NodeRegionResolver.clusters(for: nodes, countryCodes: countryCodes)
         let locatedCount = clusters.reduce(into: 0) { count, cluster in
             count += cluster.nodes.count
         }
-        unlocatedCount = max(nodes.count - locatedCount, 0)
+        let locatedIDs = Set(clusters.flatMap { $0.nodes.map(\.id) })
+        pendingCount = nodes.reduce(into: 0) { count, node in
+            if !locatedIDs.contains(node.id), let completedNodeIDs, !completedNodeIDs.contains(node.id) {
+                count += 1
+            }
+        }
+        unlocatedCount = max(nodes.count - locatedCount - pendingCount, 0)
     }
 }
 
 struct NodeMapOverview: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     let nodes: [ProxyNode]
 
     @State private var selectedRegionCode: String?
+    @State private var preparedRevision: Int?
     @State private var presentation = NodeMapPresentation(nodes: [], countryCodes: [:])
 
     var body: some View {
+        let revision = presentationTaskID
+        let isCurrent = preparedRevision == revision
         let clusters = presentation.clusters
         let selectedCluster = clusters.first { $0.id == selectedRegionCode }
 
@@ -37,10 +51,11 @@ struct NodeMapOverview: View {
             map(clusters: clusters)
                 .id(SubscriptionScrollTarget.regions)
                 .accessibilityIdentifier("regions-section")
+            latencyLegend
             regionDetail(
                 clusters: clusters,
                 selectedCluster: selectedCluster,
-                unlocatedCount: presentation.unlocatedCount
+                canShowUnavailable: isCurrent && presentation.pendingCount == 0
             )
             .padding(.horizontal, 4)
             .id(SubscriptionScrollTarget.nodes)
@@ -50,9 +65,10 @@ struct NodeMapOverview: View {
         .task(id: ipCountryTaskID) {
             await model.resolveIPCountries(for: nodes)
         }
-        .task(id: presentationTaskID) {
+        .task(id: revision) {
             let latestNodes = nodes
             let countryCodes = model.nodeIPCountryCodes
+            let completedNodeIDs = model.countryResolutionCompletedNodeIDs
             // Keep subscription selection responsive: render its selected
             // state first, then rebuild the map's derived clusters.
             await Task.yield()
@@ -60,7 +76,7 @@ struct NodeMapOverview: View {
             // At 5,000 nodes this pure grouping pass can exceed a frame.
             // Only immutable inputs cross executors; publish on the view task.
             let worker = Task.detached(priority: .userInitiated) {
-                NodeMapPresentation(nodes: latestNodes, countryCodes: countryCodes)
+                NodeMapPresentation(nodes: latestNodes, countryCodes: countryCodes, completedNodeIDs: completedNodeIDs)
             }
             let prepared = await withTaskCancellationHandler {
                 await worker.value
@@ -69,6 +85,7 @@ struct NodeMapOverview: View {
             }
             guard !Task.isCancelled else { return }
             presentation = prepared
+            preparedRevision = revision
         }
         .onChange(of: clusters.map(\.id)) { _, clusterIDs in
             // A collapsed list stays collapsed; only a selection that no longer
@@ -101,7 +118,8 @@ struct NodeMapOverview: View {
     private var latencyButton: some View {
         Button {
             guard !nodes.isEmpty else { return }
-            Task { await model.testLatencies(nodes, force: true) }
+            if isTestingAnyNode { model.cancelLatencyTests() }
+            else { Task { await model.testLatencies(nodes, force: true) } }
         } label: {
             HStack(spacing: 7) {
                 if isTestingAnyNode {
@@ -112,7 +130,9 @@ struct NodeMapOverview: View {
                     Image(systemName: model.selectedLatencyTestMode.symbol)
                         .font(.subheadline.weight(.bold))
                 }
-                Text(isTestingAnyNode ? String(localized: "测速中") : String(localized: "测速"))
+                Text(isTestingAnyNode
+                     ? "\(nodes.count - nodes.filter { model.latencyTestingNodeIDs.contains($0.id) }.count)/\(nodes.count) · \(String(localized: "停止"))"
+                     : String(localized: "测速"))
                     .font(.subheadline.weight(.bold))
             }
             .foregroundStyle(.white)
@@ -131,13 +151,13 @@ struct NodeMapOverview: View {
             .contentShape(Capsule())
         }
         .buttonStyle(ResponsivePressButtonStyle())
-        .disabled(nodes.isEmpty || isTestingAnyNode)
+        .disabled(nodes.isEmpty)
         .accessibilityLabel(
             isTestingAnyNode
-                ? String(localized: "正在测试全部节点")
+                ? String(localized: "停止测试全部节点")
                 : String(localized: "测试全部节点，当前方式为 \(model.selectedLatencyTestMode.title)")
         )
-        .accessibilityHint("轻点开始测试；长按选择测试方式")
+        .accessibilityHint(isTestingAnyNode ? "轻点停止测试，保留已有结果" : "轻点开始测试；长按选择测试方式")
         .accessibilityIdentifier("test-all-latencies")
         .contextMenu {
             ForEach(NodeLatencyTestMode.allCases) { mode in
@@ -155,15 +175,44 @@ struct NodeMapOverview: View {
     }
 
     private func markers(from clusters: [NodeRegionCluster]) -> [WorldDotMarker] {
-        clusters.map {
-            WorldDotMarker(
-                id: $0.id,
-                title: $0.region.localizedName,
-                latitude: $0.region.latitude,
-                longitude: $0.region.longitude,
-                weight: $0.nodes.count,
-                isSelected: selectedRegionCode == $0.id
+        clusters.map { cluster in
+            let summary = MapLatencySummary(nodes: cluster.nodes, measurements: model.nodeLatencies, testingIDs: model.latencyTestingNodeIDs)
+            return WorldDotMarker(
+                id: cluster.id,
+                title: cluster.region.localizedName,
+                latitude: cluster.region.latitude,
+                longitude: cluster.region.longitude,
+                weight: cluster.nodes.count,
+                isSelected: selectedRegionCode == cluster.id,
+                latencyBand: summary.band,
+                isTesting: summary.testing
             )
+        }
+    }
+
+    private var latencyLegend: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) { legendItems }.fixedSize(horizontal: true, vertical: false)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 85))], alignment: .leading, spacing: 6) { legendItems }
+        }
+        .font(.system(size: 10, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 4)
+    }
+
+    @ViewBuilder private var legendItems: some View {
+        legendItem(.untested, title: String(localized: "待测试"))
+        legendItem(.fast, title: "≤100 ms")
+        legendItem(.normal, title: "101–200 ms")
+        legendItem(.slow, title: "201–350 ms")
+        legendItem(.verySlow, title: ">350 ms")
+        legendItem(.unreachable, title: String(localized: "不可达"))
+    }
+
+    private func legendItem(_ band: MapLatencyBand, title: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(band.color(dark: colorScheme == .dark)).frame(width: 6, height: 6)
+            Text(verbatim: title)
         }
     }
 
@@ -171,27 +220,22 @@ struct NodeMapOverview: View {
     private func regionDetail(
         clusters: [NodeRegionCluster],
         selectedCluster: NodeRegionCluster?,
-        unlocatedCount: Int
+        canShowUnavailable: Bool
     ) -> some View {
         if let cluster = selectedCluster {
             SelectedRegionNodes(cluster: cluster) {
                 withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { selectedRegionCode = nil }
             }
             .id(cluster.id)
-        } else if clusters.isEmpty && !nodes.isEmpty {
+        } else if canShowUnavailable && clusters.isEmpty && !nodes.isEmpty {
             ContentUnavailableView(
                 "还不能定位节点",
                 systemImage: "mappin.slash",
-                description: Text("正在根据节点 IP 判断国家和地区；无法解析时会参考节点名称。")
+                description: Text("优先使用手动地区和节点名称；未标注时查询离线 IP 国家库。")
             )
             .frame(minHeight: 130)
         }
 
-        if unlocatedCount > 0 {
-            Label("另有 \(unlocatedCount) 个节点暂时无法按 IP 或名称定位，仍可正常测试与导出。", systemImage: "info.circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
     }
 
     private var ipCountryTaskID: String {
@@ -199,7 +243,7 @@ struct NodeMapOverview: View {
     }
 
     private var presentationTaskID: Int {
-        NodeMapPresentation.revision(nodes: nodes, countryCodes: model.nodeIPCountryCodes)
+        NodeMapPresentation.revision(nodes: nodes, countryCodes: model.nodeIPCountryCodes, completedNodeIDs: model.countryResolutionCompletedNodeIDs)
     }
 
 }
@@ -227,7 +271,7 @@ private struct SelectedRegionNodes: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    if let value = bestLatency {
+                    if let value = regionMedianLatency {
                         Label("\(value) ms", systemImage: "speedometer")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(latencyColor(milliseconds: value))
@@ -253,8 +297,8 @@ private struct SelectedRegionNodes: View {
         .padding(.top, 2)
     }
 
-    private var bestLatency: Int? {
-        cluster.nodes.compactMap { model.nodeLatencies[$0.id]?.milliseconds }.min()
+    private var regionMedianLatency: Int? {
+        MapLatencySummary(nodes: cluster.nodes, measurements: model.nodeLatencies, testingIDs: model.latencyTestingNodeIDs).median
     }
 }
 
@@ -263,6 +307,7 @@ struct CompactNodeRow: View {
     let node: ProxyNode
     let resolvesRegionOnAppear: Bool
     @State private var sharePayload: SharePayload?
+    @State private var showsDetails = false
 
     init(node: ProxyNode, resolvesRegionOnAppear: Bool = true) {
         self.node = node
@@ -309,6 +354,19 @@ struct CompactNodeRow: View {
         .frame(minHeight: 54)
         .padding(.horizontal, 2)
         .padding(.vertical, 3)
+        .contextMenu {
+            Button("节点详情", systemImage: "info.circle") { showsDetails = true }
+        }
+        .sheet(isPresented: $showsDetails) {
+            NavigationStack {
+                ScrollView {
+                    ExpandableNodeRow(node: model.nodes.first(where: { $0.id == node.id }) ?? node, initiallyExpanded: true)
+                        .padding()
+                }
+                .navigationTitle("节点详情")
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { showsDetails = false } } }
+            }
+        }
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
         }
@@ -323,18 +381,21 @@ struct ExpandableNodeRow: View {
     let usesInsetBackground: Bool
     let showsInclusionToggle: Bool
     @State private var isExpanded = false
+    @State private var showsCountryPicker = false
     @State private var sharePayload: SharePayload?
 
     init(
         node: ProxyNode,
         resolvesRegionOnAppear: Bool = true,
         usesInsetBackground: Bool = true,
-        showsInclusionToggle: Bool = false
+        showsInclusionToggle: Bool = false,
+        initiallyExpanded: Bool = false
     ) {
         self.node = node
         self.resolvesRegionOnAppear = resolvesRegionOnAppear
         self.usesInsetBackground = usesInsetBackground
         self.showsInclusionToggle = showsInclusionToggle
+        self._isExpanded = State(initialValue: initiallyExpanded)
     }
 
     var body: some View {
@@ -385,7 +446,7 @@ struct ExpandableNodeRow: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.caption.weight(.semibold))
-                        .frame(width: 32, height: 38)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
@@ -412,11 +473,26 @@ struct ExpandableNodeRow: View {
                 VStack(alignment: .leading, spacing: 9) {
                     NodeDetailLine(label: "协议", value: node.protocolSummary)
                     NodeDetailLine(label: "服务器", value: node.endpoint)
-                    if let countryCode = NodeRegionResolver.countryCode(for: node) {
+                    if let countryCode = node.countryOverride {
+                        NodeCountryDetailLine(label: "手动地区", countryCode: countryCode)
+                    } else if let countryCode = NodeRegionResolver.countryCode(for: node) {
                         NodeCountryDetailLine(label: "名称地区", countryCode: countryCode)
                     } else if let countryCode = model.ipCountryCode(for: node) {
                         NodeCountryDetailLine(label: "IP 地区", countryCode: countryCode)
+                    } else {
+                        NodeDetailLine(label: "IP 地区", value: String(localized: "未知"))
                     }
+                    if let organizations = model.nodeNetworkOrganizations[node.id] {
+                        NodeDetailLine(label: "网络组织", value: organizations.isEmpty
+                            ? String(localized: "未知")
+                            : organizations.map { "AS\($0.asn) · \($0.name)" }.joined(separator: "\n"))
+                    }
+                    Text("IP 地区和网络组织来自服务器地址，不代表实际出口。")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Button("设置地区") { showsCountryPicker = true }
+                        .font(.caption.weight(.semibold))
+                        .frame(minHeight: 44)
                     if let measurement = model.nodeLatencies[node.id] {
                         NodeDetailLine(
                             label: "测试方式",
@@ -446,6 +522,12 @@ struct ExpandableNodeRow: View {
             usesInsetBackground ? Color.primary.opacity(0.045) : Color.clear,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
+        .task(id: "\(node.server)|\(isExpanded)") {
+            if isExpanded { await model.resolveNetworkDetails(for: node) }
+        }
+        .sheet(isPresented: $showsCountryPicker) {
+            NodeCountryPicker(node: node)
+        }
         .sensoryFeedback(.selection, trigger: isExpanded)
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
@@ -615,9 +697,10 @@ private struct NodeLatencyBadge: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Text("不可达")
+                    Text(verbatim: measurement.isApplicable ? String(localized: "不可达") : "—")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(measurement.isApplicable ? MapLatencyBand.unreachable.color() : .secondary)
+                        .accessibilityLabel(measurement.errorMessage ?? String(localized: "不可达"))
                 }
             } else if showsUntestedState {
                 Text("待测试")
@@ -648,9 +731,5 @@ private struct NodeDetailLine: View {
 
 private func latencyColor(milliseconds: Int?) -> Color {
     guard let milliseconds else { return .secondary }
-    switch milliseconds {
-    case ...100: return .green
-    case ...220: return .orange
-    default: return .red
-    }
+    return MapLatencyBand.measured(milliseconds).color()
 }

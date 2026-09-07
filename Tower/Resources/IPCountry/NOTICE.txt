@@ -1,11 +1,34 @@
-IP country data
-===============
+Offline IP country and network organization data
+================================================
 
-Source: sapics/ip-location-db, geo-whois-asn-country
-Version: 2.3.2026061719
-Source URL: https://github.com/sapics/ip-location-db/tree/main/geo-whois-asn-country
-License: Creative Commons Zero (CC0)
+Source: sapics/ip-location-db, server-country and origin-asn
+Snapshot: 2026-09-06T22:31Z
+Project: https://github.com/sapics/ip-location-db
+License: Open Data Commons Public Domain Dedication and License (PDDL) v1.0
+License URL: https://opendatacommons.org/licenses/pddl/1-0/
 
-The source project states that these files may be used without attribution for
-any purpose. This notice is retained to make the bundled data provenance and
-update path clear.
+The upstream project publishes these original datasets under PDDL. They are
+compiled from public RIR/NRO, BGP, WHOIS and geofeed data. server-country aims
+at server location; origin-asn describes the originating autonomous system.
+Organization names identify network organizations, not necessarily a user's
+retail ISP. IP-based country data is an estimate, not proof of proxy exit
+location. Tower only queries these bundled databases locally.
+
+The exact source asset IDs, HTTPS download URLs, source SHA-256 hashes, and
+output SHA-256 hashes are recorded in IPCountryManifest.json. Upstream daily
+release assets may expire: retain the four source CSVs when regenerating, and
+use Scripts/update_ip_country_db.py --source-dir <retained CSV directory>.
+The generator refuses any source whose pinned hash differs.
+
+Binary format (all integers big-endian, sorted non-overlapping ranges):
+- IPCountryIPv4.bin: 4-byte start, 4-byte end, 2 ASCII country bytes (10 bytes).
+- IPCountryIPv6.bin: 16-byte start, 16-byte end, 2 country bytes (34 bytes).
+- IPASNIPv4.bin: 4-byte start, 4-byte end, uint32 ASN, uint32 organization byte
+  offset, uint16 organization byte length (18 bytes).
+- IPASNIPv6.bin: 16-byte start, 16-byte end, uint32 ASN, uint32 organization byte
+  offset, uint16 organization byte length (42 bytes).
+- IPASNNames.bin: shared, deduplicated UTF-8 byte pool, without terminators.
+- IPCountryVersion.txt: snapshot version used to invalidate local lookup caches.
+
+No city, coordinates, timezone, or private node data is included. Adjacent
+ranges with identical values are merged without changing lookup semantics.

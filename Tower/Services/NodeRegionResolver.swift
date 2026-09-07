@@ -134,10 +134,10 @@ enum NodeRegionResolver {
     /// Where a node is, decided from what it is called.
     ///
     /// The name comes first because the airport wrote it and it is what the
-    /// user reads; the hostname is consulted only when the name says nothing.
-    /// The IP database is a further fallback still, applied by the caller.
+    /// user reads. Domain suffixes and hostname tokens never locate a server.
+    /// The offline IP database is the fallback, applied by the caller.
     static func region(for node: ProxyNode) -> NodeRegion? {
-        nameRegion(for: node.name) ?? serverRegion(for: node.server)
+        node.countryOverride.flatMap(region(countryCode:)) ?? nameRegion(for: node.name)
     }
 
     static func nameRegion(for name: String) -> NodeRegion? {
@@ -181,31 +181,6 @@ enum NodeRegionResolver {
 
     private static let curatedRegions: [String: NodeRegion] =
         Dictionary(definitions.map { ($0.region.code, $0.region) }, uniquingKeysWith: { first, _ in first })
-
-    private static let serverCache = RegionCache()
-
-    private static func serverRegion(for server: String) -> NodeRegion? {
-        serverCache.value(for: server) { uncachedServerRegion(for: server) }
-    }
-
-    private static func uncachedServerRegion(for server: String) -> NodeRegion? {
-        let host = server.lowercased()
-        if let definition = definitions.first(where: { definition in
-            definition.domainSuffixes.contains { host.hasSuffix($0) }
-        }) {
-            return definition.region
-        }
-
-        let tokens = Set(
-            host.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
-        )
-        if let definition = definitions.first(where: { !$0.tokens.isDisjoint(with: tokens) }) {
-            return definition.region
-        }
-        // Hostnames are all lowercase, so the capitals rule cannot apply to
-        // them; only spelled-out names are safe to read out of a hostname.
-        return matchedCode(in: server, allowCodes: false).flatMap(region(countryCode:))
-    }
 
     /// The country a piece of text names, preferring the longest match.
     ///

@@ -71,7 +71,7 @@ struct ExportView: View {
                     importAction: {
                         Task { await importConfiguration(configuration) }
                     },
-                    shareAction: export,
+                    shareAction: { export(configuration) },
                     copyAction: { copy(configuration) }
                 )
             }
@@ -114,9 +114,9 @@ struct ExportView: View {
         Task { await model.startLANSharing() }
     }
 
-    private func export() {
+    private func export(_ configuration: GeneratedConfiguration) {
         do {
-            sharePayload = ExportPayload(url: try model.makeExportURL())
+            sharePayload = ExportPayload(url: try model.makeExportURL(configuration: configuration))
         } catch {
             model.showToast(String(localized: "生成失败：\(error.localizedDescription)"), symbol: "exclamationmark.triangle.fill")
         }
@@ -126,7 +126,7 @@ struct ExportView: View {
     private func importConfiguration(_ configuration: GeneratedConfiguration) async {
         guard !isImporting else { return }
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
-            export()
+            export(configuration)
             return
         }
 
@@ -147,12 +147,12 @@ struct ExportView: View {
             } else {
                 directImportService.stop()
                 model.showToast(String(localized: "未找到 \(configuration.target.name)，请从分享列表选择"), symbol: "exclamationmark.circle.fill")
-                export()
+                export(configuration)
             }
         } catch {
             directImportService.stop()
             model.showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
-            export()
+            export(configuration)
         }
     }
 
@@ -961,7 +961,7 @@ private struct ConversionSummary: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("转换已就绪")
+                    Text(configuration.hasExportableProxies ? "转换已就绪" : "暂时无法导出")
                         .font(.title3.weight(.semibold))
                     Text(summarySubtitle)
                         .font(.subheadline)
@@ -972,6 +972,11 @@ private struct ConversionSummary: View {
                     .font(.title2)
                     .foregroundStyle(configuration.hasExportableProxies ? .green : .orange)
             }
+            if !configuration.hasExportableProxies && !model.hasExportableSources {
+                Text("请先添加或启用订阅和节点，再生成配置。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 16) {
                 MetricPill(
                     value: configuration.supportedNodeCount,
@@ -981,20 +986,6 @@ private struct ConversionSummary: View {
                 MetricPill(value: configuration.ruleCount, label: "本地规则")
                 Divider().frame(height: 38)
                 MetricPill(value: configuration.skippedNodeCount, label: "已跳过")
-            }
-            ForEach(configuration.diagnostics, id: \.self) { message in
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if configuration.skippedNodeCount > 0 {
-                Label(
-                    "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。",
-                    systemImage: "info.circle.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(.orange)
             }
             if configuration.remoteSourceCount > 0 {
                 Label("\(configuration.remoteSourceCount) 个代理集合 · 节点由客户端更新，以上仅统计本地节点。", systemImage: "arrow.triangle.2.circlepath")
@@ -1035,6 +1026,7 @@ private struct ConfigurationPreview: View {
             Button(action: onOpen) {
                 Label("全屏预览", systemImage: "arrow.up.left.and.arrow.down.right")
             }
+            .accessibilityIdentifier("preview-config")
             .font(.subheadline.weight(.semibold))
         }
         .padding(16)
@@ -1073,8 +1065,10 @@ private struct ConfigurationPreviewSheet: View {
                         UIPasteboard.general.string = configuration.content
                         model.showToast(String(localized: "配置已复制"), symbol: "doc.on.doc.fill")
                     }
+                    .accessibilityIdentifier("preview-copy")
                 }
             }
+            .towerToast()
             // Scanning a full configuration is measured in tenths of a second
             // on a phone. Yielding first only moved the freeze one runloop
             // turn later — long enough to show the progress view, not long

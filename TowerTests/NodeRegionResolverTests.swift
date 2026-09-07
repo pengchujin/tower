@@ -9,9 +9,10 @@ final class NodeRegionResolverTests: XCTestCase {
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "🇺🇸 Los Angeles 02"))?.code, "US")
     }
 
-    func testRecognizesAirportCodesAndDomainSuffixes() {
+    func testRecognizesAirportCodesWithoutGuessingFromDomainSuffixes() {
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "Premium HKG"))?.code, "HK")
-        XCTAssertEqual(NodeRegionResolver.region(for: node(name: "Premium", server: "edge.example.jp"))?.code, "JP")
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "Premium", server: "edge.example.jp")))
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "01-socks5-TLS · qx-test", server: "edge.example.uk")))
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "LHR-01"))?.code, "GB")
     }
 
@@ -76,6 +77,27 @@ final class NodeRegionResolverTests: XCTestCase {
 
         XCTAssertEqual(Set(presentation.clusters.map(\.region.code)), ["HK", "US"])
         XCTAssertEqual(presentation.unlocatedCount, 1)
+    }
+
+    func testMapDoesNotReportPendingLookupAsUnlocated() {
+        let unknown = node(name: "Premium", server: "203.0.113.8")
+        let nodes = [unknown]
+        let pending = NodeMapPresentation(nodes: nodes, countryCodes: [:], completedNodeIDs: [])
+        XCTAssertEqual(pending.pendingCount, 1)
+        XCTAssertEqual(pending.unlocatedCount, 0)
+
+        let failed = NodeMapPresentation(nodes: nodes, countryCodes: [:], completedNodeIDs: [unknown.id])
+        XCTAssertEqual(failed.pendingCount, 0)
+        XCTAssertEqual(failed.unlocatedCount, 1)
+        XCTAssertNotEqual(
+            NodeMapPresentation.revision(nodes: nodes, countryCodes: [:]),
+            NodeMapPresentation.revision(nodes: nodes, countryCodes: [:], completedNodeIDs: [unknown.id])
+        )
+
+        let resolved = NodeMapPresentation(nodes: nodes, countryCodes: [unknown.id: "SG"], completedNodeIDs: [unknown.id])
+        XCTAssertEqual(resolved.pendingCount, 0)
+        XCTAssertEqual(resolved.unlocatedCount, 0)
+        XCTAssertEqual(resolved.clusters.first?.region.code, "SG")
     }
 
     func testNodeNameOutranksTheIPDatabaseWhenClustering() {

@@ -150,15 +150,9 @@ final class ImportHardeningTests: XCTestCase {
         XCTAssertEqual(NodeRegionResolver.region(for: node(name: "MY Kuala 03"))?.code, "MY")
     }
 
-    func testLowercaseCountryCodeInServerHostnameStillResolves() {
-        XCTAssertEqual(
-            NodeRegionResolver.region(for: node(name: "Premium", server: "us.example.com"))?.code,
-            "US"
-        )
-        XCTAssertEqual(
-            NodeRegionResolver.region(for: node(name: "Premium", server: "de-01.example.com"))?.code,
-            "DE"
-        )
+    func testHostnameCountryTokensDoNotOverrideOfflineLocation() {
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "Premium", server: "us.example.com")))
+        XCTAssertNil(NodeRegionResolver.region(for: node(name: "Premium", server: "de-01.example.com")))
     }
 
     func testFrankfurtCodeStaysWithGermany() {

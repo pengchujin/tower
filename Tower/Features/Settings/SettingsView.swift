@@ -71,7 +71,7 @@ private struct ResetAllConfigurationRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(ResponsivePressButtonStyle())
-        .disabled(model.isCloudSyncing || isResetting)
+        .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot || isResetting)
         .accessibilityIdentifier("reset-all-configuration")
         .alert("重置所有配置？", isPresented: $isConfirmingReset) {
             Button("重置所有配置", role: .destructive) {
@@ -126,6 +126,7 @@ private struct CloudSyncControls: View {
     @Environment(AppModel.self) private var model
     @State private var isConfirming = false
     @State private var isConfirmingDisable = false
+    @State private var isConfirmingRemoval = false
 
     private var binding: Binding<Bool> {
         Binding(
@@ -158,7 +159,7 @@ private struct CloudSyncControls: View {
                         }
                     }
                 }
-                .disabled(model.isCloudSyncing)
+                .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
 
                 Divider()
 
@@ -174,16 +175,17 @@ private struct CloudSyncControls: View {
                         .frame(maxWidth: .infinity, minHeight: 32)
                         .contentShape(Rectangle())
                     }
-                    .disabled(model.isCloudSyncing)
+                    .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
                 } else {
                     Button(role: .destructive) {
-                        Task { await model.removeCloudSnapshot() }
+                        isConfirmingRemoval = true
                     } label: {
-                        Label("删除 iCloud 上的副本", systemImage: "trash")
+                        Label(model.isRemovingCloudSnapshot ? "正在删除…" : "删除 iCloud 上的副本", systemImage: "trash")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity, minHeight: 32)
                             .contentShape(Rectangle())
                     }
+                    .disabled(model.isRemovingCloudSnapshot || model.isCloudSyncing)
                     .accessibilityIdentifier("remove-cloud-snapshot")
                 }
             }
@@ -195,6 +197,12 @@ private struct CloudSyncControls: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4)
+        }
+        .alert("删除 iCloud 上的副本？", isPresented: $isConfirmingRemoval) {
+            Button("删除", role: .destructive) { Task { await model.removeCloudSnapshot() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除副本不影响这台设备上的配置，但无法从 iCloud 恢复这份副本。此操作无法撤销。")
         }
         .alert("开启 iCloud 同步？", isPresented: $isConfirming) {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }

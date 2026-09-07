@@ -45,11 +45,7 @@ final class NodeLatencyServiceTests: XCTestCase {
                 XCTFail("明确选择 TCP 时不应先探测 ICMP")
                 throw LatencyProbeError.timeout
             },
-            tcpProbe: { _, _, _ in 27 },
-            httpProbe: { _, _ in
-                XCTFail("明确选择 TCP 时不应探测 HTTP")
-                throw LatencyProbeError.timeout
-            }
+            tcpProbe: { _, _, _ in 27 }
         )
         let node = ProxyNode(
             kind: .trojan,
@@ -65,34 +61,38 @@ final class NodeLatencyServiceTests: XCTestCase {
         XCTAssertEqual(result.milliseconds, 27)
     }
 
-    func testExplicitHTTPModeUsesHTTPProbe() async throws {
-        let service = NodeLatencyService(
-            icmpProbe: { _, _ in
-                XCTFail("明确选择 HTTP 时不应探测 ICMP")
-                throw LatencyProbeError.timeout
-            },
-            tcpProbe: { _, _, _ in
-                XCTFail("明确选择 HTTP 时不应探测 TCP")
-                throw LatencyProbeError.timeout
-            },
-            httpProbe: { node, _ in
-                XCTAssertEqual(node.server, "web.example.com")
-                return 46
+    @MainActor
+    func testModesExcludeHTTPAndDefaultToAutomatic() {
+        XCTAssertEqual(NodeLatencyTestMode.allCases, [.automatic, .icmp, .tcp])
+        XCTAssertEqual(AppModel(arguments: ["--demo"]).selectedLatencyTestMode, .automatic)
+    }
+
+    func testUDPProtocolsNeverUseTCP() async throws {
+        for kind in [ProxyKind.hysteria, .hysteria2, .tuic, .wireguard] {
+            let node = ProxyNode(kind: kind, name: "UDP", server: "example.com", port: 443, rawURI: "")
+            for reliable in [true, false] {
+                let service = NodeLatencyService(
+                    isICMPReliable: { _ in reliable },
+                    icmpProbe: { _, _ in throw LatencyProbeError.timeout },
+                    tcpProbe: { _, _, _ in
+                        XCTFail("UDP-only protocols must not be probed with TCP")
+                        return 1
+                    }
+                )
+                for mode in NodeLatencyTestMode.allCases {
+                    let result = try await service.measure(node, mode: mode)
+                    XCTAssertNil(result.milliseconds)
+                    XCTAssertNotNil(result.errorMessage)
+                }
             }
-        )
-        let node = ProxyNode(
-            kind: .http,
-            name: "HTTPS",
-            server: "web.example.com",
-            port: 443,
-            tls: true,
-            rawURI: "https://web.example.com"
-        )
-
-        let result = try await service.measure(node, mode: .http)
-
-        XCTAssertEqual(result.method, .http)
-        XCTAssertEqual(result.milliseconds, 46)
+            let service = NodeLatencyService(icmpProbe: { _, _ in 23 }, tcpProbe: { _, _, _ in
+                XCTFail("Must keep the ICMP result")
+                return 1
+            })
+            let result = try await service.measure(node)
+            XCTAssertEqual(result.method, .icmp)
+            XCTAssertEqual(result.milliseconds, 23)
+        }
     }
 
     func testExplicitICMPModeFallsBackToTCPWhenVPNInterceptsTheRoute() async throws {

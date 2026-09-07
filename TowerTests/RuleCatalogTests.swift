@@ -1,3 +1,4 @@
+import Observation
 import XCTest
 @testable import Tower
 
@@ -235,6 +236,26 @@ final class RuleCatalogTests: XCTestCase {
         model.upsertCustomRuleFlow(try entry.makeCustomization(for: scheme))
 
         XCTAssertTrue(model.isCatalogEntryAdded(entry, to: scheme))
+    }
+
+    @MainActor
+    func testCachedRuleGroupsNotifyObserversWhenCatalogMembershipChanges() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: directory.appendingPathComponent("state.json")), arguments: [])
+        let scheme = makeScheme(includeAIGroup: false)
+        let entry = makeAIEntry()
+        model.upsertCustomRuleFlow(try entry.makeCustomization(for: scheme))
+        let before = model.customizableRuleGroups(for: scheme)
+        let changed = expectation(description: "Cached rule presentation invalidated")
+        withObservationTracking {
+            _ = model.customizableRuleGroups(for: scheme)
+        } onChange: {
+            changed.fulfill()
+        }
+        model.removeCatalogEntry(entry, from: scheme)
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertNotEqual(model.customizableRuleGroups(for: scheme), before)
     }
 
     @MainActor

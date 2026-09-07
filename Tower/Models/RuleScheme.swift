@@ -167,7 +167,10 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         let regionalTargets = SupplementalRoutingRegion.allCases.map { region in
             declaredRegions[region] ?? region.canonicalName
         }
-        return (declaredCore + regionalTargets + ["DIRECT", "REJECT"])
+        let manualTargets = candidateGroups.contains { Self.isManualRoutingTarget($0.name) }
+            || excludedName.map(Self.isManualRoutingTarget) == true
+            ? [] : ["🚀 手动切换"]
+        return (declaredCore + manualTargets + regionalTargets + ["DIRECT", "REJECT"])
             .filter { seen.insert($0).inserted }
     }
 
@@ -191,7 +194,7 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             insertedGeneratedRuleSetIDs.insert(flow.id)
         }
         availableGroups = groupCustomization?.applying(to: availableGroups) ?? availableGroups
-        availableGroups = Self.injectMissingRegionalGroups(into: availableGroups)
+        availableGroups = Self.injectMissingRoutingGroups(into: availableGroups)
 
         let groupNames = Set(availableGroups.map(\.name))
         let validPolicies = groupNames.union(["DIRECT", "REJECT", "direct", "reject"])
@@ -442,7 +445,12 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             "manual", "manual switch", "manual select",
             "auto", "auto select", "automatic", "automatic selection",
         ]
-        return coreNames.contains(key)
+        return coreNames.contains(key) || Self.isManualRoutingTarget(name)
+    }
+
+    private static func isManualRoutingTarget(_ name: String) -> Bool {
+        ["手动切换", "手动选择", "manual", "manual switch", "manual select", "manual selection"]
+            .contains(normalizedPolicyName(name))
     }
 
     private static func normalizedPolicyName(_ name: String) -> String {
@@ -513,7 +521,7 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         }
     }
 
-    private static func injectMissingRegionalGroups(
+    private static func injectMissingRoutingGroups(
         into groups: [RuleSchemeGroup]
     ) -> [RuleSchemeGroup] {
         var result = groups
@@ -523,8 +531,13 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             return name
         }
         for reference in references {
-            guard !names.contains(reference),
-                  let region = routingRegion(for: reference),
+            guard !names.contains(reference) else { continue }
+            if isManualRoutingTarget(reference) {
+                names.insert(reference)
+                result.append(RuleSchemeGroup(name: reference, kind: .select, members: [.nodePattern(".*")]))
+                continue
+            }
+            guard let region = routingRegion(for: reference),
                   names.insert(reference).inserted else { continue }
             result.append(
                 RuleSchemeGroup(

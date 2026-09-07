@@ -29,7 +29,7 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertFalse(textView.isEditable)
         XCTAssertTrue(textView.isSelectable)
         XCTAssertTrue(textView.isScrollEnabled)
-        XCTAssertTrue(textView.layoutManager.allowsNonContiguousLayout)
+        XCTAssertNotNil(textView.textLayoutManager)
         XCTAssertTrue(textView.textContainer.widthTracksTextView)
     }
 
@@ -144,6 +144,8 @@ final class ExportPresentationTests: XCTestCase {
         ConfigurationTextViewFactory.render(content, in: textView)
 
         XCTAssertEqual(textView.text, content)
+        XCTAssertEqual(textView.accessibilityAttributedValue?.string, content)
+        XCTAssertNil(textView.accessibilityAttributedValue?.attribute(.foregroundColor, at: 0, effectiveRange: nil))
         XCTAssertGreaterThan(textView.attributedText.length, 0)
         XCTAssertTrue(textView.isSelectable)
         XCTAssertEqual(

@@ -19,6 +19,7 @@ struct WorldDotGrid {
     /// covered-country scan used to walk all 32,780 cells to find them —
     /// including the detail canvas, once per frame of a pan or a spring.
     let landCells: [Int]
+    let countryCells: [String: [Int]]
 
     init(columns: Int, rows: Int, land: [Bool], countryCodes: [String?] = []) {
         self.columns = columns
@@ -28,6 +29,11 @@ struct WorldDotGrid {
             ? countryCodes
             : Array(repeating: nil, count: land.count)
         landCells = land.indices.filter { land[$0] }
+        var indexes: [String: [Int]] = [:]
+        for index in landCells {
+            if let code = self.countryCodes[index] { indexes[code, default: []].append(index) }
+        }
+        countryCells = indexes
     }
 
     /// Must match the bounds the generator wrote.
@@ -66,18 +72,11 @@ struct WorldDotGrid {
     func coveredCellIndexes(for markers: [WorldDotMarker]) -> Set<Int> {
         guard !isEmpty, !markers.isEmpty else { return [] }
 
-        let requestedCodes = Set(markers.map { $0.id.uppercased() })
         var covered: Set<Int> = []
-        var representedCodes: Set<String> = []
-
-        for index in landCells {
-            guard let code = countryCodes[index], requestedCodes.contains(code) else { continue }
-            covered.insert(index)
-            representedCodes.insert(code)
-        }
-
-        for marker in markers where !representedCodes.contains(marker.id.uppercased()) {
-            if let nearest = nearestLandCell(to: marker) {
+        for marker in markers {
+            if let indexes = countryCells[marker.id.uppercased()] {
+                covered.formUnion(indexes)
+            } else if let nearest = nearestLandCell(to: marker) {
                 covered.insert(nearest)
             }
         }
@@ -241,6 +240,63 @@ struct WorldDotGrid {
     }
 }
 
+/// Shared by the map and node latency badges. Selection retains the hue.
+enum MapLatencyBand: Int, CaseIterable, Sendable {
+    case untested, fast, normal, slow, verySlow, unreachable
+
+    static func measured(_ milliseconds: Int) -> Self {
+        switch milliseconds {
+        case ...100: .fast
+        case ...200: .normal
+        case ...350: .slow
+        default: .verySlow
+        }
+    }
+
+    func color(selected: Bool = false, dark: Bool = false) -> Color {
+        let rgb: (Double, Double, Double)
+        switch self {
+        case .untested: rgb = (0.48, 0.59, 0.69)
+        case .fast: rgb = (0.06, 0.65, 0.49)
+        case .normal: rgb = (0.20, 0.53, 0.84)
+        case .slow: rgb = (0.83, 0.58, 0.14)
+        case .verySlow: rgb = (0.89, 0.36, 0.24)
+        case .unreachable: rgb = (0.68, 0.28, 0.48)
+        }
+        func component(_ value: Double) -> Double {
+            let base = dark ? value + (1 - value) * 0.24 : value
+            return selected ? base * (dark ? 0.82 : 0.68) : base
+        }
+        return Color(red: component(rgb.0), green: component(rgb.1), blue: component(rgb.2))
+    }
+}
+
+struct MapLatencySummary: Equatable {
+    let band: MapLatencyBand
+    let median: Int?
+    let testing: Bool
+
+    init(nodes: [ProxyNode], measurements: [UUID: NodeLatencyMeasurement], testingIDs: Set<UUID>) {
+        testing = nodes.contains { testingIDs.contains($0.id) }
+        let values = nodes.compactMap { measurements[$0.id]?.milliseconds }.sorted()
+        if !values.isEmpty {
+            let middle = values.count / 2
+            let value = values.count.isMultiple(of: 2)
+                ? values[middle - 1] + (values[middle] - values[middle - 1]) / 2
+                : values[middle]
+            median = value
+            band = .measured(value)
+        } else {
+            median = nil
+            let allFailed = !nodes.isEmpty && nodes.allSatisfy {
+                guard let result = measurements[$0.id] else { return false }
+                return result.isApplicable && result.milliseconds == nil
+            }
+            band = allFailed ? .unreachable : .untested
+        }
+    }
+}
+
 struct WorldDotMarker: Identifiable, Equatable {
     let id: String
     let title: String
@@ -249,6 +305,8 @@ struct WorldDotMarker: Identifiable, Equatable {
     /// Higher wins when two labels would overlap.
     let weight: Int
     let isSelected: Bool
+    var latencyBand: MapLatencyBand = .untested
+    var isTesting: Bool = false
 }
 
 /// A flat dot-matrix world map. Replaces the MapKit globe, which was heavy to
@@ -268,18 +326,13 @@ struct WorldDotMapView: View {
     @State private var selectionRecenterToken: UUID?
     @State private var frozenLabels: [FrozenLabel]?
 
-    private let grid: WorldDotGrid
-    private let coveredCells: Set<Int>
-    private let selectedCells: Set<Int>
+    private let grid = WorldDotGrid.shared
+    @State private var paint = WorldDotPaint()
 
-    init(markers: [WorldDotMarker], onSelect: @escaping (String) -> Void) {
+    init(markers: [WorldDotMarker], initialPaint: WorldDotPaint = WorldDotPaint(), onSelect: @escaping (String) -> Void) {
         self.markers = markers
         self.onSelect = onSelect
-
-        let grid = WorldDotGrid.shared
-        self.grid = grid
-        coveredCells = grid.coveredCellIndexes(for: markers)
-        selectedCells = grid.coveredCellIndexes(for: markers.filter(\.isSelected))
+        _paint = State(initialValue: initialPaint)
     }
 
     var body: some View {
@@ -298,7 +351,8 @@ struct WorldDotMapView: View {
             let placements = LabelPlanner.plan(
                 markers: labelMarkers,
                 positions: markerPositions,
-                bounds: CGRect(origin: .zero, size: geometry.size)
+                bounds: CGRect(origin: .zero, size: geometry.size),
+                expanded: displayedLevel != .overview
             )
             let presentedLabels = labelsForPresentation(
                 displayItems: displayItems,
@@ -317,18 +371,22 @@ struct WorldDotMapView: View {
                         grid: grid,
                         layout: layout,
                         scale: viewport.scale,
-                        offset: viewport.offset,
-                        coveredCells: coveredCells,
-                        selectedCells: selectedCells,
+                        coveredCells: paint.coveredCells,
+                        selectedCells: paint.selectedCells,
+                        latencyBands: paint.latencyBands,
                         colorScheme: colorScheme
                     )
-                    .transition(.opacity)
+                    .equatable()
+                    .frame(width: geometry.size.width * viewport.scale, height: geometry.size.height * viewport.scale)
+                    .drawingGroup()
+                    .offset(RenderPlanner.rasterOrigin(size: geometry.size, scale: viewport.scale, offset: viewport.offset))
                 } else {
                     WorldDotCanvas(
                         grid: grid,
                         layout: layout,
-                        coveredCells: coveredCells,
-                        selectedCells: selectedCells,
+                        coveredCells: paint.coveredCells,
+                        selectedCells: paint.selectedCells,
+                        latencyBands: paint.latencyBands,
                         colorScheme: colorScheme
                     )
                     .equatable()
@@ -354,6 +412,18 @@ struct WorldDotMapView: View {
                     .position(item.position)
                 }
 
+                if displayedLevel != .overview {
+                    Canvas { context, _ in
+                        var lines = Path()
+                        for label in presentedLabels {
+                            guard let anchor = markerPositions[label.id], abs(anchor.x - label.position.x) > 12 else { continue }
+                            lines.move(to: anchor)
+                            lines.addLine(to: label.position)
+                        }
+                        context.stroke(lines, with: .color(.secondary.opacity(0.35)), lineWidth: 0.5)
+                    }
+                    .allowsHitTesting(false)
+                }
                 ForEach(presentedLabels) { label in
                     mapLabel(label.marker)
                         .position(label.position)
@@ -380,6 +450,7 @@ struct WorldDotMapView: View {
                     .zIndex(2)
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             .contentShape(Rectangle())
             .clipped()
             .simultaneousGesture(magnifyGesture(in: geometry.size))
@@ -414,6 +485,16 @@ struct WorldDotMapView: View {
         // Exactly the grid's own ratio, so width and height are constrained at
         // the same time and neither direction is left with a blank band.
         .aspectRatio(grid.aspectRatio, contentMode: .fit)
+        .task(id: isManipulatingViewport ? nil : markers.map(WorldDotPaint.Input.init)) {
+            guard !isManipulatingViewport else { return }
+            let snapshot = markers
+            let worker = Task.detached(priority: .userInitiated) {
+                WorldDotPaint(grid: grid, markers: snapshot)
+            }
+            let prepared = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+            guard !Task.isCancelled else { return }
+            paint = prepared
+        }
     }
 
     @ViewBuilder
@@ -477,7 +558,9 @@ struct WorldDotMapView: View {
                 latitude: primary.latitude,
                 longitude: primary.longitude,
                 weight: item.nodeCount,
-                isSelected: item.markers.contains(where: \.isSelected)
+                isSelected: item.markers.contains(where: \.isSelected),
+                latencyBand: primary.latencyBand,
+                isTesting: item.markers.contains(where: \.isTesting)
             )
         }
 
@@ -505,7 +588,7 @@ struct WorldDotMapView: View {
         if let frozenLabels {
             return frozenLabels.map { label in
                 PresentedLabel(
-                    marker: label.marker,
+                    marker: labelMarkers.first(where: { $0.id == label.id }) ?? label.marker,
                     position: label.position(viewport: viewport, in: size)
                 )
             }
@@ -755,7 +838,8 @@ struct WorldDotMapView: View {
         let placements = LabelPlanner.plan(
             markers: labelMarkers,
             positions: markerPositions,
-            bounds: CGRect(origin: .zero, size: size)
+            bounds: CGRect(origin: .zero, size: size),
+            expanded: displayedLevel != .overview
         )
 
         return displayItems.compactMap { item in
@@ -813,8 +897,12 @@ struct WorldDotMapView: View {
             isManipulatingViewport: Bool,
             isRecenteringSelection _: Bool
         ) -> Bool {
-            detailLevel == .detail
-                && !isManipulatingViewport
+            detailLevel != .overview && !isManipulatingViewport
+        }
+
+        static func rasterOrigin(size: CGSize, scale: CGFloat, offset: CGSize) -> CGSize {
+            CGSize(width: size.width * (1 - scale) / 2 + offset.width,
+                   height: size.height * (1 - scale) / 2 + offset.height)
         }
     }
 
@@ -940,7 +1028,7 @@ struct WorldDotMapView: View {
         func centeredOnSelection(_ point: CGPoint, in size: CGSize) -> Viewport {
             focused(
                 on: point,
-                scale: max(scale, Self.selectionScale),
+                scale: level == .overview ? Self.selectionScale : scale,
                 in: size
             )
         }
@@ -1251,17 +1339,8 @@ struct WorldDotMapView: View {
         }
     }
 
-    /// Places labels directly above or below their dots, dropping the ones
-    /// that cannot fit without overlap.
-    ///
-    /// East and Southeast Asia put a dozen regions within a few dots of each
-    /// other, so labels stacked on top of one another and became unreadable.
-    /// Heavier markers — more nodes — claim their spot first, and a label that
-    /// still collides is left out rather than drawn over its neighbour.
-    ///
-    /// The previous multi-ring planner could move a country name far enough to
-    /// look like a different location. Position accuracy wins here: a hidden
-    /// label is less misleading than a readable label over the wrong country.
+    /// Overview names stay close to their dots. Expanded views try additional
+    /// nearby slots, with leader lines for lateral offsets, before hiding a label.
     enum LabelPlanner {
         /// Roughly one em per CJK character, which is what these names are.
         private static let characterWidth: CGFloat = 10.5
@@ -1300,7 +1379,8 @@ struct WorldDotMapView: View {
         static func plan(
             markers: [WorldDotMarker],
             positions: [String: CGPoint],
-            bounds: CGRect
+            bounds: CGRect,
+            expanded: Bool = false
         ) -> [String: CGPoint] {
             var placed: [CGRect] = []
             var result: [String: CGPoint] = [:]
@@ -1318,11 +1398,22 @@ struct WorldDotMapView: View {
                 guard let anchor = positions[marker.id] else { continue }
                 let size = estimatedFrame(for: marker, at: .zero).size
                 let vertical = size.height / 2 + 7
-                let candidates = [
+                var candidates = [
                     CGPoint(x: anchor.x, y: anchor.y - vertical),
                     CGPoint(x: anchor.x, y: anchor.y + vertical)
                 ]
 
+                if expanded {
+                    let horizontal = size.width + 4
+                    candidates += [
+                        CGPoint(x: anchor.x - horizontal, y: anchor.y),
+                        CGPoint(x: anchor.x + horizontal, y: anchor.y),
+                        CGPoint(x: anchor.x - horizontal, y: anchor.y - vertical),
+                        CGPoint(x: anchor.x + horizontal, y: anchor.y - vertical),
+                        CGPoint(x: anchor.x - horizontal, y: anchor.y + vertical),
+                        CGPoint(x: anchor.x + horizontal, y: anchor.y + vertical)
+                    ]
+                }
                 for candidate in candidates {
                     let rect = estimatedFrame(for: marker, at: candidate)
                     guard bounds.contains(rect) else { continue }
@@ -1357,6 +1448,46 @@ struct WorldDotMapView: View {
                 )
             }
             return result
+        }
+    }
+}
+
+/// Country paint changes only when a band or selection changes, not on every
+/// millisecond result. Prepared off the UI executor; gestures keep the last paint.
+struct WorldDotPaint {
+    struct Input: Hashable {
+        let id: String
+        let latitude: Double
+        let longitude: Double
+        let selected: Bool
+        let band: MapLatencyBand
+        init(_ marker: WorldDotMarker) {
+            id = marker.id; latitude = marker.latitude; longitude = marker.longitude
+            selected = marker.isSelected; band = marker.latencyBand
+        }
+    }
+    var coveredCells: Set<Int> = []
+    var selectedCells: Set<Int> = []
+    var latencyBands: [Int: MapLatencyBand] = [:]
+
+    init() {}
+    init(grid: WorldDotGrid, markers: [WorldDotMarker]) {
+        for marker in markers {
+            let cells = grid.coveredCellIndexes(for: [marker])
+            coveredCells.formUnion(cells)
+            if marker.isSelected { selectedCells.formUnion(cells) }
+            for index in cells { latencyBands[index] = marker.latencyBand }
+        }
+    }
+    static func key(band: MapLatencyBand?, selected: Bool) -> Int {
+        guard let band else { return -1 }
+        return band.rawValue * 2 + (selected ? 1 : 0)
+    }
+    static func fill(_ paths: [Int: Path], in context: inout GraphicsContext, colorScheme: ColorScheme) {
+        for (key, path) in paths {
+            let color = key < 0 ? WorldDotCellStyle.uncovered.color(in: colorScheme)
+                : MapLatencyBand(rawValue: key / 2)!.color(selected: key % 2 == 1, dark: colorScheme == .dark)
+            context.fill(path, with: .color(color))
         }
     }
 }
@@ -1421,6 +1552,7 @@ private struct WorldDotCanvas: View, Equatable {
     let layout: WorldDotMapView.Layout
     let coveredCells: Set<Int>
     let selectedCells: Set<Int>
+    let latencyBands: [Int: MapLatencyBand]
     let colorScheme: ColorScheme
 
     static func == (lhs: WorldDotCanvas, rhs: WorldDotCanvas) -> Bool {
@@ -1430,6 +1562,7 @@ private struct WorldDotCanvas: View, Equatable {
             && lhs.layout.origin == rhs.layout.origin
             && lhs.layout.cell == rhs.layout.cell
             && lhs.coveredCells == rhs.coveredCells
+            && lhs.latencyBands == rhs.latencyBands
             && lhs.selectedCells == rhs.selectedCells
             && lhs.colorScheme == rhs.colorScheme
     }
@@ -1438,82 +1571,57 @@ private struct WorldDotCanvas: View, Equatable {
         Canvas { context, _ in
             guard !grid.isEmpty else { return }
 
+            var paths: [Int: Path] = [:]
             for index in grid.landCells {
                 let center = layout.center(
                     column: index % grid.columns,
                     row: index / grid.columns
                 )
-                let appearance = appearance(for: index)
-                context.fill(
-                    Path(
-                        ellipseIn: CGRect(
-                            x: center.x - appearance.diameter / 2,
-                            y: center.y - appearance.diameter / 2,
-                            width: appearance.diameter,
-                            height: appearance.diameter
-                        )
-                    ),
-                    with: .color(appearance.color)
-                )
+                let style = WorldDotCellStyle.resolve(index: index, coveredCells: coveredCells, selectedCells: selectedCells)
+                let diameter = style.overviewDiameter(cell: layout.cell)
+                let key = WorldDotPaint.key(band: latencyBands[index], selected: selectedCells.contains(index))
+                paths[key, default: Path()].addEllipse(in: CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2, width: diameter, height: diameter))
             }
+            WorldDotPaint.fill(paths, in: &context, colorScheme: colorScheme)
         }
     }
 
-    private func appearance(for index: Int) -> (color: Color, diameter: CGFloat) {
-        let style = WorldDotCellStyle.resolve(
-            index: index,
-            coveredCells: coveredCells,
-            selectedCells: selectedCells
-        )
-        return (style.color(in: colorScheme), style.overviewDiameter(cell: layout.cell))
-    }
+
 }
 
-/// Settled high-zoom rendering uses screen-space micro dots instead of
-/// magnifying the cached overview bitmap. Offscreen cells are discarded before
-/// subdivision, which keeps the clearer result affordable on iPad as well.
-private struct WorldDotDetailCanvas: View, Animatable {
+/// Render the full world at the current zoom once. Recentring translates this
+/// crisp cached layer instead of drawing micro dots for every animation frame.
+private struct WorldDotDetailCanvas: View, Equatable {
     let grid: WorldDotGrid
     let layout: WorldDotMapView.Layout
     let scale: CGFloat
-    var offset: CGSize
     let coveredCells: Set<Int>
     let selectedCells: Set<Int>
+    let latencyBands: [Int: MapLatencyBand]
     let colorScheme: ColorScheme
 
-    /// Country selection at the detail level only changes the viewport's
-    /// translation. Interpolating that translation inside the screen-space
-    /// renderer keeps every micro dot at a stable visual diameter throughout
-    /// the spring instead of temporarily magnifying the overview raster.
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(offset.width, offset.height) }
-        set {
-            offset = CGSize(width: newValue.first, height: newValue.second)
-        }
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.grid.columns == rhs.grid.columns && lhs.grid.rows == rhs.grid.rows
+            && lhs.layout.size == rhs.layout.size && lhs.layout.origin == rhs.layout.origin
+            && lhs.layout.cell == rhs.layout.cell && lhs.scale == rhs.scale
+            && lhs.coveredCells == rhs.coveredCells && lhs.selectedCells == rhs.selectedCells
+            && lhs.latencyBands == rhs.latencyBands && lhs.colorScheme == rhs.colorScheme
     }
 
     var body: some View {
-        Canvas { context, size in
+        Canvas { context, _ in
             guard !grid.isEmpty else { return }
 
-            let viewport = WorldDotMapView.Viewport(scale: scale, offset: offset)
             let screenCell = layout.cell * scale
             let subdivision = WorldDotMapView.DetailRenderer.subdivision(
                 forScreenCell: screenCell
             )
             let offsets = WorldDotMapView.DetailRenderer.offsets(forScreenCell: screenCell)
-            let visibleBounds = CGRect(origin: .zero, size: size)
-                .insetBy(dx: -screenCell, dy: -screenCell)
 
+            var paths: [Int: Path] = [:]
             for index in grid.landCells {
-                let base = viewport.transform(
-                    layout.center(
-                        column: index % grid.columns,
-                        row: index / grid.columns
-                    ),
-                    in: layout.size
-                )
-                guard visibleBounds.contains(base) else { continue }
+                let point = layout.center(column: index % grid.columns, row: index / grid.columns)
+                let base = CGPoint(x: point.x * scale, y: point.y * scale)
 
                 let style = WorldDotCellStyle.resolve(
                     index: index,
@@ -1525,24 +1633,16 @@ private struct WorldDotDetailCanvas: View, Animatable {
                     scale: scale,
                     subdivision: subdivision
                 )
-                let color = style.color(in: colorScheme)
+                let key = WorldDotPaint.key(band: latencyBands[index], selected: selectedCells.contains(index))
                 for offset in offsets {
                     let center = CGPoint(x: base.x + offset.width, y: base.y + offset.height)
-                    context.fill(
-                        Path(
-                            ellipseIn: CGRect(
-                                x: center.x - diameter / 2,
-                                y: center.y - diameter / 2,
-                                width: diameter,
-                                height: diameter
-                            )
-                        ),
-                        with: .color(color)
-                    )
+                    paths[key, default: Path()].addEllipse(in: CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2, width: diameter, height: diameter))
                 }
             }
+            WorldDotPaint.fill(paths, in: &context, colorScheme: colorScheme)
         }
     }
+
 }
 
 private struct WorldDotHitTarget: View {

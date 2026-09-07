@@ -15,6 +15,28 @@ final class RuleCustomizationTests: XCTestCase {
         )
     ]
 
+    func testMissingManualSwitchIsOfferedAndMaterializedOnlyWhenReferenced() throws {
+        var scheme = makeEditorRoleScheme()
+        scheme.groups.removeAll { $0.name == "🎛️ 手动切换" }
+        let manual = "🚀 手动切换"
+        XCTAssertTrue(scheme.routingTargetGroupNames().contains(manual))
+        let untouched = scheme.customized(enabledRuleGroupNames: nil, customRuleFlows: [])
+        XCTAssertFalse(untouched.groups.contains { $0.name == manual })
+        let customization = RuleSchemeCustomization(schemeID: scheme.id, groupOverrides: [
+            "🍎 苹果服务": RuleSchemeGroupOverride(kind: .select, members: [.reference(manual), .reference("DIRECT")])
+        ])
+        let result = scheme.customized(enabledRuleGroupNames: nil, customRuleFlows: [], groupCustomization: customization)
+        let group = try XCTUnwrap(result.groups.first { $0.name == manual })
+        XCTAssertEqual(group.kind, .select)
+        XCTAssertEqual(group.members, [.nodePattern(".*")])
+        XCTAssertFalse(result.routingTargetGroupNames(excluding: manual).contains(manual))
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
+            let output = ConfigurationGenerator().generate(nodes: nodes, scheme: result, target: target, preferRuleSets: false).content
+            XCTAssertTrue(output.contains("手动切换"), "\(target)")
+            XCTAssertTrue(output.contains("香港 01"), "\(target)")
+        }
+    }
+
     func testNetworkCustomizationOverridesImportedDNSWithoutChangingSource() {
         var scheme = makeScheme()
         let imported = RuleSchemeNetworkSettings(

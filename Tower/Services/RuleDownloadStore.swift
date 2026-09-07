@@ -9,6 +9,9 @@ import Foundation
 struct RuleDownloadStore {
     private let folderURL: URL
     private let fileManager: FileManager
+    private let writeLifetime = RuleCacheWriteLifetime()
+
+    var writeGeneration: UUID { writeLifetime.lock.withLock { writeLifetime.generation } }
 
     init(folderURL: URL? = nil, fileManager: FileManager = .default) {
         self.fileManager = fileManager
@@ -54,10 +57,13 @@ struct RuleDownloadStore {
         )
     }
 
-    func store(_ content: String, for url: URL) throws {
-        try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        let fileURL = folderURL.appendingPathComponent(Self.fileName(for: url), isDirectory: false)
-        try Data(content.utf8).write(to: fileURL, options: [.atomic, .completeFileProtection])
+    func store(_ content: String, for url: URL, generation: UUID? = nil) throws {
+        try writeLifetime.lock.withLock {
+            if let generation, generation != writeLifetime.generation { throw CancellationError() }
+            try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            let fileURL = folderURL.appendingPathComponent(Self.fileName(for: url), isDirectory: false)
+            try Data(content.utf8).write(to: fileURL, options: [.atomic, .completeFileProtection])
+        }
     }
 
     /// Drops every list a scheme referenced. Called when the user deletes an
@@ -76,6 +82,9 @@ struct RuleDownloadStore {
     /// built out of it: lists belonging to schemes deleted long ago have no
     /// URL left to name them.
     func removeAllRules() {
+        writeLifetime.lock.lock()
+        defer { writeLifetime.lock.unlock() }
+        writeLifetime.generation = UUID()
         guard let names = try? fileManager.contentsOfDirectory(atPath: folderURL.path) else {
             return
         }
@@ -165,4 +174,10 @@ private final class RuleFileCache: @unchecked Sendable {
             let size = values.fileSize else { return nil }
         return Stamp(modifiedAt: modifiedAt, size: size)
     }
+}
+
+/// Shared by value copies so a reset invalidates downloads already in flight.
+private final class RuleCacheWriteLifetime: @unchecked Sendable {
+    let lock = NSLock()
+    var generation = UUID()
 }

@@ -37,10 +37,11 @@ CloudSnapshotSyncing 为可注入依赖，CloudSyncStore 实现下载/上传/删
 
 - SourceInputDetector 区分输入；SubscriptionParser 处理 Base64、URI、Clash YAML 和受支持 Surge 行。拒绝的条目显式计数。
 - 配额取响应头、STATUS 行、公告节点；兼容请求只补配额，不能以转换后的正文替换原始节点。
-- NodeRegionResolver 使用**名称优先**，无法判断才查离线 IP 国家库。国家表与数据库由脚本生成。
+- NodeRegionResolver 在无手动指定时保持名称优先，完整顺序为**手动指定 → 名称 → 离线 IP 国家库**，不使用域名后缀/关键词推断地区。手动值存于 ProxyNode.countryOverride，刷新按唯一节点身份保留。国家表与数据库由脚本生成；国家和 ASN 数据固定版本、SHA-256 与许可证。
+- IPCountryLookupService 合并同 host DNS 请求，成功缓存一小时、失败/冲突30秒；多个地址国家冲突不取第一个。持久国家缓存按数据库版本失效。IPASNDatabase 按需映射固定记录及名称池，仅详情查询并显示网络组织；不建立代理隧道，不调用在线 IP 查询接口。
 - NodeMapOverview 按完整节点 revision 更新 NodeMapPresentation；不能只依赖 UUID/数量。分享再按 ID 读取最新节点，避免发送旧密码。
-- WorldDotMapView 使用 Canvas / 预计算国家点阵，不使用联网地图。presentation 不在每次 View 初始化时重复计算；聚类在后台准备，仅回主线程发布仍有效的结果。
-- NodeLatencyService 优先 ICMP，失败时明确标注端口握手；运行信息批量发布，国家解析按 host 复用缓存。
+- WorldDotMapView 使用 Canvas / 预计算国家点阵，不使用联网地图。国家点位索引一次建立，色阶数据后台准备；点阵按颜色合并绘制，手势期间复用底图并在结束后追上测速结果。二、三级选中保持倍率，平移缓存的清晰点阵，不在回中时切换概览与细节渲染器。presentation 不在每次 View 初始化时重复计算；聚类在后台准备，仅回主线程发布仍有效的结果。
+- NodeLatencyService 默认自动，仅提供自动、ICMP、TCP；自动优先 ICMP，失败时仅对支持 TCP 的协议回退并标注端口握手，UDP-only 协议不做 TCP 探测；运行信息批量发布，国家解析按 host 复用缓存。
 
 ## 规则
 

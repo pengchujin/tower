@@ -54,6 +54,61 @@ final class ReviewFixTests: XCTestCase {
             .appendingPathComponent("tower-review-fix-\(UUID().uuidString).json")
     }
 
+    @MainActor
+    func testBulkCountryResolutionAtFiveThousandNodes() async {
+        let service = IPCountryLookupService(database: IPCountryDatabase(
+            ipv4Data: Data([1,1,1,0,1,1,1,255] + Array("SG".utf8)), ipv6Data: Data()))
+        let model = AppModel(ipCountryLookupService: service, arguments: ["--demo"])
+        model.nodes = (0..<5_000).map { makeNode(name: "Node \($0)", server: "1.1.1.1") }
+        let start = ContinuousClock.now
+        await model.resolveIPCountries(for: model.nodes)
+        print("COUNTRY_5000_SECONDS \(start.duration(to: .now))")
+        XCTAssertEqual(model.nodeIPCountryCodes.count, 5_000)
+    }
+
+    @MainActor
+    func testSubscriptionSelectionPreservesRulePresentationCache() throws {
+        let model = AppModel(arguments: ["--demo"])
+        let scheme = try XCTUnwrap(model.selectedScheme)
+        _ = model.customizableScheme(for: scheme)
+        let count = model.ruleSchemeMaterializationCount
+        model.setSubscriptions(model.subscriptions, enabled: false)
+        _ = model.customizableScheme(for: scheme)
+        XCTAssertEqual(model.ruleSchemeMaterializationCount, count)
+    }
+
+    @MainActor
+    func testRetestKeepsPreviousMethodUntilNewMeasurementArrives() async {
+        let started = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        let service = NodeLatencyService(
+            icmpProbe: { _, _ in 1 },
+            tcpProbe: { _, _, _ in
+                started.continuation.yield(())
+                for await _ in release.stream { break }
+                return 42
+            }
+        )
+        let stateURL = temporaryStateURL()
+        defer { try? FileManager.default.removeItem(at: stateURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: stateURL), latencyService: service, arguments: [])
+        let node = makeNode(name: "Retest", server: "192.0.2.1")
+        let previous = NodeLatencyMeasurement.success(milliseconds: 80, method: .icmp)
+        model.nodeLatencies[node.id] = previous
+        model.selectedLatencyTestMode = .tcp
+        let task = Task { await model.testLatency(node) }
+        for await _ in started.stream { break }
+        XCTAssertTrue(model.latencyTestingNodeIDs.contains(node.id))
+        XCTAssertEqual(model.nodeLatencies[node.id], previous)
+        release.continuation.yield(())
+        await task.value
+        XCTAssertEqual(model.nodeLatencies[node.id]?.method, .tcp)
+        XCTAssertEqual(model.nodeLatencies[node.id]?.milliseconds, 42)
+        XCTAssertFalse(model.latencyTestingNodeIDs.contains(node.id))
+        started.continuation.finish()
+        release.continuation.finish()
+    }
+
     // MARK: - Export selection survives a refresh
 
     func testExclusionSurvivesTheProviderRewritingTheNodeName() {
@@ -125,6 +180,27 @@ final class ReviewFixTests: XCTestCase {
         )
 
         XCTAssertTrue(carried.isEmpty)
+    }
+
+    @MainActor
+    func testRefreshReusesFreshHostCountryBeforePublishingNewNodeIDs() async throws {
+        let url = "https://provider.example.com/sub"
+        let old = makeNode(name: "Premium", server: "203.0.113.5")
+        let fresh = makeNode(name: "Premium renamed", server: "203.0.113.5")
+        let stateURL = temporaryStateURL()
+        defer { try? FileManager.default.removeItem(at: stateURL) }
+        let store = PersistenceStore(fileURL: stateURL)
+        let first = AppModel(persistence: store, subscriptionService: ScriptedFetcher(nodesByURL: [url: [old]]),
+            ipCountryLookupService: makeIPCountryService(range: 0xCB00_7100...0xCB00_71FF, code: "SG"), arguments: [])
+        try await first.addSubscription(name: "机场", urlString: url)
+        await first.resolveIPCountries(for: first.nodes)
+        let model = AppModel(persistence: store, subscriptionService: ScriptedFetcher(nodesByURL: [url: [fresh]]), arguments: [])
+        await model.resolveIPCountries(for: model.nodes)
+        let source = try XCTUnwrap(model.subscriptions.first)
+        _ = await model.updateSubscription(id: source.id, showResult: false)
+        let refreshed = try XCTUnwrap(model.nodes.first)
+        XCTAssertNotEqual(refreshed.id, old.id)
+        XCTAssertEqual(model.countryCode(for: refreshed), "SG", "发布新节点时应已有同服务器的有效地区，不等待视图异步补回")
     }
 
     @MainActor

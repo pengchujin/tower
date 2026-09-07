@@ -511,7 +511,10 @@ struct ConfigurationSummaryView: View {
 @MainActor
 enum ConfigurationTextViewFactory {
     static func make(isScrollEnabled: Bool = true) -> UITextView {
-        let textView = UITextView()
+        // Keep TextKit 2's viewport layout for full configurations. Accessing
+        // layoutManager would opt back into TextKit 1 and lose that layout
+        // engine's viewport-based rendering.
+        let textView = UITextView(usingTextLayoutManager: true)
         textView.isEditable = false
         textView.isSelectable = true
         textView.isScrollEnabled = isScrollEnabled
@@ -523,7 +526,6 @@ enum ConfigurationTextViewFactory {
         textView.textContainer.lineFragmentPadding = 0
         textView.textContainer.widthTracksTextView = true
         textView.textContainer.lineBreakMode = .byWordWrapping
-        textView.layoutManager.allowsNonContiguousLayout = true
         textView.font = baseFont()
         textView.adjustsFontForContentSizeCategory = true
         return textView
@@ -541,6 +543,10 @@ enum ConfigurationTextViewFactory {
             spans: spans ?? ConfigurationSyntaxHighlighter.spans(in: text),
             baseFont: font
         )
+        // Syntax colours are visual only. Exposing every coloured run forces
+        // accessibility to resolve thousands of dynamic colours per snapshot.
+        // Keep the complete readable configuration without those attributes.
+        textView.accessibilityAttributedValue = NSAttributedString(string: text)
     }
 
     private static func baseFont() -> UIFont {
