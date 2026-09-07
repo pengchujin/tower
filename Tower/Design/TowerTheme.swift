@@ -77,7 +77,6 @@ struct TowerCardModifier: ViewModifier {
                     .stroke(Color.secondary.opacity(0.1), lineWidth: 0.75)
             }
             .shadow(color: .black.opacity(0.035), radius: 8, y: 3)
-            .geometryGroup()
     }
 }
 

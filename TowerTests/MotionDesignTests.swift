@@ -51,16 +51,16 @@ final class MotionDesignTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let source = try String(
-            contentsOf: root.appendingPathComponent("Tower/Design/TowerTheme.swift"),
+            contentsOf: root.appendingPathComponent("Tower/Features/Subscriptions/SubscriptionsView.swift"),
             encoding: .utf8
         )
-        let modifierStart = try XCTUnwrap(source.range(of: "struct TowerCardModifier: ViewModifier"))
-        let extensionStart = try XCTUnwrap(source.range(of: "extension View"))
-        let modifierSource = String(source[modifierStart.lowerBound..<extensionStart.lowerBound])
+        let cardStart = try XCTUnwrap(source.range(of: "private struct SubscriptionCard"))
+        let cardEnd = try XCTUnwrap(source.range(of: "private struct SubscriptionAnnouncementSection"))
+        let cardSource = String(source[cardStart.lowerBound..<cardEnd.lowerBound])
 
         XCTAssertTrue(
-            modifierSource.contains(".geometryGroup()"),
-            "卡片受祖先展开收起影响时，背景与内部文字必须作为同一几何单元移动"
+            cardSource.contains(".geometryGroup()"),
+            "地图节点收起时，订阅卡片背景与流量信息必须作为同一几何单元移动"
         )
     }
 

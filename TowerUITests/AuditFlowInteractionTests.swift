@@ -1,14 +1,10 @@
 import XCTest
+import UIKit
 
 @MainActor
 final class AuditFlowInteractionTests: XCTestCase {
     private func launch() -> XCUIApplication {
-        addUIInterruptionMonitor(withDescription: "Clipboard permission") { alert in
-            let deny = alert.buttons["不允许粘贴"]
-            guard deny.exists else { return false }
-            deny.tap()
-            return true
-        }
+        handleClipboardPermission()
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
         app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
@@ -16,9 +12,211 @@ final class AuditFlowInteractionTests: XCTestCase {
         return app
     }
 
+    private func handleClipboardPermission() {
+        addUIInterruptionMonitor(withDescription: "Clipboard permission") { alert in
+            let deny = alert.buttons["不允许粘贴"]
+            guard deny.exists else { return false }
+            deny.tap()
+            return true
+        }
+    }
+
+    private func openAddSource(_ app: XCUIApplication) {
+        app.buttons["add-source-button"].tap()
+        // iOS 27 may fail to route SpringBoard paste prompts through the
+        // interruption monitor. Handle the observed system button directly.
+        let deny = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            .alerts.buttons["不允许粘贴"]
+        if deny.waitForExistence(timeout: 3) { deny.tap() }
+    }
+
+    private func launchPerformanceFixture(disableTabHaptics: Bool = false) -> XCUIApplication {
+        handleClipboardPermission()
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchEnvironment["TOWER_PERFORMANCE_NODE_COUNT"] = "1000"
+        app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)"]
+        if disableTabHaptics { app.launchArguments.append("--disable-tab-haptics") }
+        app.launch()
+        // Leave a short unmeasured attach window for the device frame profiler.
+        Thread.sleep(forTimeInterval: 5)
+        XCTAssertTrue(app.buttons["add-source-button"].waitForExistence(timeout: 10))
+        print("PERF_DEVICE maxFPS=\(UIScreen.main.maximumFramesPerSecond) lowPower=\(ProcessInfo.processInfo.isLowPowerModeEnabled) thermal=\(ProcessInfo.processInfo.thermalState.rawValue)")
+        let fixtureImage = XCTAttachment(screenshot: app.screenshot())
+        fixtureImage.name = "performance-30-regions-16-subscriptions"
+        fixtureImage.lifetime = .keepAlways
+        add(fixtureImage)
+        return app
+    }
+
+    /// Repeatable local-only flows for Instruments / XCTest scroll metrics.
+    /// This exercises UI work, never refreshes subscriptions or exports to an app.
+    func testPerformanceAuditScroll() {
+        let app = launchPerformanceFixture()
+        measureScrolling(app)
+    }
+
+    func testPerformanceAuditExpandedNodes() {
+        let app = launchPerformanceFixture()
+        let expand = app.buttons["展开 云帆机场 的节点"]
+        for _ in 0..<3 where !expand.isHittable { app.swipeUp() }
+        XCTAssertTrue(expand.isHittable)
+        expand.tap()
+        measureScrolling(app)
+    }
+
+    func testMapRegionCollapseKeepsSubscriptionTrafficAligned() {
+        let app = launchPerformanceFixture()
+        let japan = app.buttons["日本"]
+        XCTAssertTrue(japan.waitForExistence(timeout: 5))
+        japan.tap()
+        let collapse = app.buttons["收起 日本 的节点"]
+        // The first map tap may zoom a cluster before selecting the country.
+        if !collapse.waitForExistence(timeout: 2) { japan.tap() }
+        XCTAssertTrue(collapse.waitForExistence(timeout: 3))
+        let edgeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.85))
+        let edgeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.55))
+        // Keep the map detail heading well above the bottom bar, so the
+        // subscription card's movement is visible during the collapse itself.
+        edgeStart.press(forDuration: 0.05, thenDragTo: edgeEnd, withVelocity: .slow, thenHoldForDuration: 0.1)
+        for _ in 0..<3 where !collapse.isHittable {
+            edgeStart.press(forDuration: 0.05, thenDragTo: edgeEnd)
+        }
+        XCTAssertTrue(collapse.isHittable)
+        collapse.tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: collapse)
+        waitForExpectations(timeout: 3)
+        let header = app.buttons["展开 云帆机场 的节点"]
+        for _ in 0..<3 where !header.isHittable {
+            edgeStart.press(forDuration: 0.05, thenDragTo: edgeEnd)
+        }
+        let traffic = app.descendants(matching: .any)["剩余流量"].firstMatch
+        XCTAssertTrue(header.isHittable)
+        XCTAssertTrue(traffic.exists)
+        XCTAssertGreaterThanOrEqual(traffic.frame.minY, header.frame.maxY)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "map-collapse-subscription-traffic"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    private func measureScrolling(_ app: XCUIApplication) {
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3
+        // Keep the deceleration baseline while also measuring finger tracking.
+        measure(metrics: [XCTOSSignpostMetric.scrollDecelerationMetric, XCTOSSignpostMetric.scrollingAndDecelerationMetric, XCTCPUMetric(application: app)], options: options) {
+            for _ in 0..<3 { app.swipeUp(); app.swipeDown() }
+        }
+    }
+
+    func testPerformanceAuditTabsWithHaptics() { measureTabSwitching(disableHaptics: false) }
+    func testPerformanceAuditTabsWithoutHaptics() { measureTabSwitching(disableHaptics: true) }
+
+    private func measureTabSwitching(disableHaptics: Bool) {
+        let app = launchPerformanceFixture(disableTabHaptics: disableHaptics)
+        // Warm the destinations before measuring repeated switching.
+        for title in ["规则", "导出", "订阅"] { app.tabBars.buttons[title].tap() }
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3
+        var metrics: [any XCTMetric] = [XCTCPUMetric(application: app)]
+        if #available(iOS 26.0, *) { metrics.append(XCTHitchMetric(application: app)) }
+        measure(metrics: metrics, options: options) {
+            for title in ["规则", "导出", "订阅"] { app.tabBars.buttons[title].tap() }
+        }
+    }
+
+    func testPerformanceAuditNavigation() {
+        let app = launchPerformanceFixture()
+        for _ in 0..<3 {
+            for title in ["规则", "导出", "订阅"] { app.tabBars.buttons[title].tap() }
+        }
+        openAddSource(app)
+        app.buttons["手动添加"].tap()
+        XCTAssertTrue(app.textFields["manual-server"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["取消"].tap()
+        let formDismissed = NSPredicate(format: "exists == false")
+        expectation(for: formDismissed, evaluatedWith: app.buttons["save-source"])
+        waitForExpectations(timeout: 5)
+        app.tabBars.buttons["规则"].tap()
+        app.swipeUp(); app.swipeDown()
+        app.buttons["编辑 ACL4SSR 默认"].tap()
+        app.swipeUp(); app.swipeDown()
+        app.buttons["完成"].tap()
+        app.tabBars.buttons["导出"].tap()
+        app.swipeUp(); app.swipeDown()
+        app.buttons["open-settings"].tap()
+        app.swipeUp(); app.swipeDown()
+        app.buttons["完成"].tap()
+        XCTAssertTrue(app.buttons["open-settings"].isHittable)
+    }
+
+    func testOnboardingPagesAndReplay() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["-hasSeenWelcome", "NO", "-AppleLanguages", "(zh-Hans)"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["你的订阅，一处打理"].waitForExistence(timeout: 10))
+        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.3))
+        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.3))
+        swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
+        XCTAssertTrue(app.staticTexts["先添加订阅或节点"].waitForExistence(timeout: 3))
+        swipeEnd.press(forDuration: 0.05, thenDragTo: swipeStart)
+        XCTAssertTrue(app.staticTexts["你的订阅，一处打理"].waitForExistence(timeout: 3))
+        let introduction = XCTAttachment(screenshot: app.screenshot())
+        introduction.name = "用途介绍"
+        introduction.lifetime = .keepAlways
+        add(introduction)
+        for title in ["先添加订阅或节点", "选一套分流规则", "交给你常用的客户端"] {
+            app.buttons["onboarding-next"].tap()
+            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 3))
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = title
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        let egern = app.buttons["onboarding-client-egern"]
+        XCTAssertTrue(egern.isHittable)
+        egern.tap()
+        XCTAssertTrue(egern.isSelected)
+        XCTAssertFalse(app.segmentedControls["onboarding-export-mode"].exists)
+        let preview = app.descendants(matching: .any)["onboarding-export-preview"].firstMatch
+        // The final page must fit without scrolling; do not scroll to make this pass.
+        XCTAssertTrue(preview.isHittable)
+        XCTAssertLessThanOrEqual(preview.frame.maxY, app.buttons["onboarding-next"].frame.minY)
+        XCTAssertTrue(app.staticTexts["交给你常用的客户端"].isHittable)
+        XCTAssertTrue(preview.label.contains("Egern"))
+        let exportPreview = XCTAttachment(screenshot: app.screenshot())
+        exportPreview.name = "交互导出预览"
+        exportPreview.lifetime = .keepAlways
+        add(exportPreview)
+        app.buttons["onboarding-back"].tap()
+        XCTAssertTrue(app.staticTexts["选一套分流规则"].exists)
+        app.buttons["onboarding-next"].tap()
+        app.buttons["onboarding-next"].tap()
+        // The launch argument overrides reads for this process. Relaunch without
+        // it to verify the completed flag in the persistent defaults domain.
+        app.terminate()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hans)"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["导出"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["onboarding-next"].exists)
+        app.tabBars.buttons["导出"].tap()
+        app.buttons["open-settings"].tap()
+        let replay = app.buttons["replay-onboarding"]
+        for _ in 0..<6 where !replay.isHittable { app.swipeUp() }
+        XCTAssertTrue(replay.isHittable)
+        replay.tap()
+        XCTAssertTrue(app.staticTexts["你的订阅，一处打理"].waitForExistence(timeout: 3))
+        app.buttons["onboarding-skip"].tap()
+        XCTAssertTrue(replay.waitForExistence(timeout: 3))
+        app.swipeUp()
+        app.swipeDown()
+        XCTAssertTrue(replay.isHittable)
+    }
+
     func testCancelPreservesDraftUntilExplicitDiscard() {
         let app = launch()
-        app.buttons["add-source-button"].tap()
+        openAddSource(app)
         let input = app.descendants(matching: .any)["source-value-field"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         input.tap()
@@ -32,16 +230,40 @@ final class AuditFlowInteractionTests: XCTestCase {
         XCTAssertTrue(app.buttons["add-source-button"].waitForExistence(timeout: 3))
     }
 
+    func testAutomaticClipboardFillFromSharedSubscription() {
+        let app = launch()
+        let share = app.buttons["分享 云帆机场"]
+        for _ in 0..<4 where !share.isHittable { app.swipeUp() }
+        XCTAssertTrue(share.isHittable)
+        share.tap()
+        XCTAssertTrue(app.buttons["复制链接"].waitForExistence(timeout: 5))
+        app.buttons["复制链接"].tap()
+        app.navigationBars.buttons["完成"].tap()
+        openAddSource(app)
+        let input = app.descendants(matching: .any)["source-value-field"].firstMatch
+        expectation(for: NSPredicate(format: "value == %@", "https://example.com/private-subscription"), evaluatedWith: input)
+        waitForExpectations(timeout: 5)
+        // Auto-filled content is the initial draft, so Cancel needs no discard.
+        app.navigationBars.buttons["取消"].tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["save-source"])
+        waitForExpectations(timeout: 5)
+    }
+
     func testManualDoneDismissesKeyboard() {
         let app = launch()
-        app.buttons["add-source-button"].tap()
+        openAddSource(app)
         app.buttons["手动添加"].tap()
         let server = app.textFields["manual-server"]
         XCTAssertTrue(server.waitForExistence(timeout: 5))
         server.tap()
-        server.typeText("example.invalid")
-        XCTAssertTrue(app.keyboards.firstMatch.exists)
-        app.buttons["完成"].tap()
+        // Third-party keyboards on device may live outside the app's AX tree.
+        // Test focus/dismissal without synthetic typing through that keyboard;
+        // draft text entry is covered independently by the cancellation test.
+        let done = app.buttons["完成"]
+        XCTAssertTrue(done.isHittable)
+        done.tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: done)
+        waitForExpectations(timeout: 3)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
     }
 

@@ -666,6 +666,10 @@ private struct SubscriptionCard: View {
         }
         .padding(14)
         .towerCard()
+        // A map region's node list can move this whole card by a large amount.
+        // Keep text and the progress bar in the same animated
+        // coordinate space, instead of independently interpolating their origins.
+        .geometryGroup()
         .sensoryFeedback(.selection, trigger: isExpanded)
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)

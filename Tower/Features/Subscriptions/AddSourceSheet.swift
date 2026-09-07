@@ -14,6 +14,8 @@ struct AddSourceSheet: View {
     @State private var scanGeneration = UUID()
     @State private var errorMessage: String?
     @State private var didReadPasteboard = false
+    @State private var clipboardProgress: Progress?
+    @State private var clipboardGeneration = UUID()
     @State private var entryMode: EntryMode = .paste
     @State private var manualDraft = ManualNodeDraft()
     @State private var customUserAgent = ""
@@ -127,11 +129,16 @@ struct AddSourceSheet: View {
             .onAppear {
                 if editingNode == nil { requestClipboardContent() }
             }
-            .onDisappear { saveTask?.cancel() }
+            .onDisappear {
+                saveTask?.cancel()
+                cancelClipboardRead()
+            }
             .onChange(of: sourceValue) {
+                cancelClipboardRead()
                 errorMessage = nil
             }
             .onChange(of: entryMode) {
+                cancelClipboardRead()
                 focusedField = nil
                 errorMessage = nil
             }
@@ -712,27 +719,54 @@ struct AddSourceSheet: View {
     private func requestClipboardContent() {
         guard !didReadPasteboard else { return }
         didReadPasteboard = true
-
-        let clipboardValue = UIPasteboard.general.string?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if detector.detect(clipboardValue).isSupported {
-            sourceValue = clipboardValue
-            initialSourceValue = clipboardValue
-            focusedField = nil
-        } else {
-            focusedField = .source
-        }
+        focusedField = .source
+        readClipboard(automatically: true)
     }
 
     private func pasteFromClipboard() {
-        let clipboardValue = UIPasteboard.general.string?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !clipboardValue.isEmpty else {
-            errorMessage = String(localized: "等待有效的订阅链接或节点协议")
+        readClipboard(automatically: false)
+    }
+
+    private func cancelClipboardRead() {
+        clipboardGeneration = UUID()
+        clipboardProgress?.cancel()
+        clipboardProgress = nil
+    }
+
+    private func readClipboard(automatically: Bool) {
+        cancelClipboardRead()
+        let generation = clipboardGeneration
+        let originalValue = sourceValue
+        // Synchronous UIPasteboard.string can wait for Universal Clipboard or
+        // system permission while holding SwiftUI's layout transaction open.
+        guard let provider = UIPasteboard.general.itemProviders.first(where: {
+            $0.canLoadObject(ofClass: NSString.self) || $0.canLoadObject(ofClass: NSURL.self)
+        }) else {
+            if !automatically { errorMessage = String(localized: "等待有效的订阅链接或节点协议") }
             return
         }
-        sourceValue = clipboardValue
-        focusedField = nil
+        let completion: @Sendable (NSItemProviderReading?, Error?) -> Void = { object, _ in
+            let text = (object as? String) ?? (object as? URL)?.absoluteString ?? ""
+            let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            Task { @MainActor in
+                // A late paste must not overwrite typing, another mode, or a
+                // dismissed panel. Cancellation alone does not guarantee this.
+                guard generation == clipboardGeneration, entryMode == .paste,
+                      sourceValue == originalValue else { return }
+                clipboardProgress = nil
+                guard !value.isEmpty else {
+                    if !automatically { errorMessage = String(localized: "等待有效的订阅链接或节点协议") }
+                    return
+                }
+                guard !automatically || detector.detect(value).isSupported else { return }
+                sourceValue = value
+                if automatically { initialSourceValue = value }
+                focusedField = nil
+            }
+        }
+        clipboardProgress = provider.canLoadObject(ofClass: NSString.self)
+            ? provider.loadObject(ofClass: NSString.self, completionHandler: completion)
+            : provider.loadObject(ofClass: NSURL.self, completionHandler: completion)
     }
 
     private func save() async {

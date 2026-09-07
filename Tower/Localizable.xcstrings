@@ -3298,7 +3298,6 @@
       }
     },
     "ACL4SSR 默认": {
-      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -3482,6 +3481,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "AES-128-GCM"
+          }
+        }
+      }
+    },
+    "AI 平台": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "منصة الذكاء الاصطناعي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KI-Plattform"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI platform"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "plataforma de inteligencia artificial"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plateforme d'IA"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "platform AI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIプラットフォーム"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 플랫폼"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plataforma de IA"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Платформа искусственного интеллекта"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แพลตฟอร์มเอไอ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yapay zeka platformu"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nền tảng AI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 平台"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 平台"
           }
         }
       }
@@ -6778,6 +6871,101 @@
         }
       }
     },
+    "QuanX 使用文件分享。修改节点或规则后，记得重新导出配置。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخدم QuanX مشاركة الملفات. بعد تعديل العقد أو القواعد، تذكر إعادة تصدير التكوين."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX nutzt File-Sharing. Denken Sie nach dem Ändern von Knoten oder Regeln daran, die Konfiguration erneut zu exportieren."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX uses file sharing. After modifying nodes or rules, remember to re-export the configuration."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX utiliza el intercambio de archivos. Después de modificar nodos o reglas, recuerde volver a exportar la configuración."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX utilise le partage de fichiers. Après avoir modifié des nœuds ou des règles, pensez à réexporter la configuration."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX menggunakan berbagi file. Setelah memodifikasi node atau aturan, ingatlah untuk mengekspor ulang konfigurasi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX はファイル共有を使用します。ノードまたはルールを変更した後は、必ず構成を再エクスポートしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX는 파일 공유를 사용합니다. 노드나 규칙을 수정한 후에는 구성을 다시 내보내야 합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX usa compartilhamento de arquivos. Após modificar nós ou regras, lembre-se de exportar novamente a configuração."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX использует обмен файлами. После изменения узлов или правил не забудьте повторно экспортировать конфигурацию."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX ใช้การแชร์ไฟล์ หลังจากแก้ไขโหนดหรือกฎแล้ว อย่าลืมส่งออกการกำหนดค่าอีกครั้ง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX dosya paylaşımını kullanır. Düğümleri veya kuralları değiştirdikten sonra yapılandırmayı yeniden dışa aktarmayı unutmayın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX sử dụng tính năng chia sẻ tập tin. Sau khi sửa đổi nút hoặc quy tắc, hãy nhớ xuất lại cấu hình."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX 使用文件分享。修改节点或规则后，记得重新导出配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuanX 使用檔案分享。修改節點或規則後，記得重新匯出配置。"
+          }
+        }
+      }
+    },
     "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。": {
       "localizations": {
         "ar": {
@@ -8848,6 +9036,101 @@
         }
       }
     },
+    "V2Box 仅导出节点，其他客户端可导出完整配置。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يقوم V2Box بتصدير العقد فقط، ويمكن للعملاء الآخرين تصدير التكوين الكامل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box exportiert nur Knoten, andere Clients können die komplette Konfiguration exportieren."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box only exports nodes, other clients can export the complete configuration."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box solo exporta nodos, otros clientes pueden exportar la configuración completa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box exporte uniquement les nœuds, les autres clients peuvent exporter la configuration complète."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box hanya mengekspor node, klien lain dapat mengekspor konfigurasi lengkap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box はノードのみをエクスポートしますが、他のクライアントは完全な構成をエクスポートできます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box는 노드만 내보냅니다. 다른 클라이언트는 전체 구성을 내보낼 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box exporta apenas nós, outros clientes podem exportar a configuração completa."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box экспортирует только узлы, другие клиенты могут экспортировать полную конфигурацию."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box ส่งออกเฉพาะโหนด ส่วนไคลเอ็นต์อื่นๆ สามารถส่งออกการกำหนดค่าทั้งหมดได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box yalnızca düğümleri dışa aktarır; diğer istemciler tüm yapılandırmayı dışa aktarabilir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box chỉ xuất các nút, các máy khách khác có thể xuất cấu hình hoàn chỉnh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box 仅导出节点，其他客户端可导出完整配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "V2Box 僅匯出節點，其他用戶端可匯出完整配置。"
+          }
+        }
+      }
+    },
     "WebSocket": {
       "localizations": {
         "ar": {
@@ -10447,6 +10730,100 @@
         }
       }
     },
+    "上一步": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخطوة السابقة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorheriger Schritt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paso anterior"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étape précédente"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langkah sebelumnya"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戻る"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이전 단계"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etapa anterior"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предыдущий шаг"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขั้นตอนก่อนหน้า"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önceki adım"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bước trước"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一步"
+          }
+        }
+      }
+    },
     "上次同步 %@": {
       "localizations": {
         "ar": {
@@ -10819,6 +11196,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "上面這些都可以自己去程式碼裡核對。"
+          }
+        }
+      }
+    },
+    "下一步": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخطوة التالية"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächster Schritt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siguiente paso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étape suivante"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langkah selanjutnya"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次へ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 단계"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próxima etapa"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Следующий шаг"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขั้นตอนต่อไป"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonraki adım"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bước tiếp theo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一步"
           }
         }
       }
@@ -11671,6 +12142,100 @@
         }
       }
     },
+    "交给你常用的客户端": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اترك الأمر لعميلك المفضل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überlassen Sie es Ihrem Lieblingskunden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave it to your favorite client"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déjalo en manos de tu cliente favorito"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laissez-le à votre client préféré"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serahkan pada klien favorit Anda"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りのクライアントにお任せください"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "좋아하는 고객에게 맡겨주세요"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deixe isso para seu cliente favorito"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оставьте это любимому клиенту"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปล่อยให้เป็นลูกค้าที่คุณชื่นชอบ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favori müşterinize bırakın"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Để lại nó cho khách hàng yêu thích của bạn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交给你常用的客户端"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交給你常用的客戶端"
+          }
+        }
+      }
+    },
     "仅导出节点到 %@": {
       "localizations": {
         "ar": {
@@ -12517,6 +13082,100 @@
         }
       }
     },
+    "代理": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وكيل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agent"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agent"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エージェント"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "대리인"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "агент"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตัวแทน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ajan"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "đại lý"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理商"
+          }
+        }
+      }
+    },
     "代理集合": {
       "localizations": {
         "ar": {
@@ -12795,6 +13454,101 @@
           "stringUnit": {
             "state": "translated",
             "value": "以下群組正在參照它：%@。繼續刪除後會同時移除這些參照；沒有候選項的群組會回退到 DIRECT。"
+          }
+        }
+      }
+    },
+    "以后也可以导入自己的规则方案，或按需要调整策略组。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكنك أيضًا استيراد نظام القواعد الخاص بك لاحقًا، أو ضبط مجموعة السياسات حسب الحاجة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie können auch später Ihr eigenes Regelschema importieren oder die Richtliniengruppe nach Bedarf anpassen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also import your own rule scheme later, or adjust the policy group as needed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "También puede importar su propio esquema de reglas más adelante o ajustar el grupo de políticas según sea necesario."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous pouvez également importer votre propre schéma de règles ultérieurement ou ajuster le groupe de stratégies selon vos besoins."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anda juga dapat mengimpor skema aturan Anda sendiri nanti, atau menyesuaikan grup kebijakan sesuai kebutuhan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "後で独自のルール スキームをインポートしたり、必要に応じてポリシー グループを調整したりすることもできます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에 자체 규칙 체계를 가져오거나 필요에 따라 정책 그룹을 조정할 수도 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você também pode importar seu próprio esquema de regras posteriormente ou ajustar o grupo de políticas conforme necessário."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вы также можете позже импортировать собственную схему правил или при необходимости настроить группу политик."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คุณยังสามารถนำเข้ารูปแบบกฎของคุณเองในภายหลัง หรือปรับกลุ่มนโยบายได้ตามต้องการ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayrıca daha sonra kendi kural şemanızı içe aktarabilir veya politika grubunu gerektiği gibi ayarlayabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bạn cũng có thể nhập sơ đồ quy tắc của riêng mình sau hoặc điều chỉnh nhóm chính sách nếu cần."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以后也可以导入自己的规则方案，或按需要调整策略组。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以後也可以匯入自己的規則方案，或依需求調整策略群組。"
           }
         }
       }
@@ -13646,6 +14400,100 @@
         }
       }
     },
+    "你的订阅，一处打理": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إدارة اشتراكاتك في مكان واحد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwalten Sie Ihre Abonnements an einem Ort"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage your subscriptions in one place"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestiona tus suscripciones en un solo lugar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gérez vos abonnements en un seul endroit"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kelola langganan Anda di satu tempat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションを 1 か所で管理"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한 곳에서 구독을 관리하세요"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerencie suas assinaturas em um só lugar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Управляйте своими подписками в одном месте"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "จัดการการสมัครของคุณในที่เดียว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aboneliklerinizi tek yerden yönetin"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quản lý đăng ký của bạn ở một nơi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的订阅，一处打理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的訂閱，一處打理"
+          }
+        }
+      }
+    },
     "使用 %@": {
       "localizations": {
         "ar": {
@@ -13925,6 +14773,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "使用加密 DNS、Fake-IP、節點網域專用解析和 no-resolve。"
+          }
+        }
+      }
+    },
+    "使用引导": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم الدليل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzen Sie den Leitfaden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting Started"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa la guía"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisez le guide"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gunakan panduan ini"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使い方ガイド"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가이드 사용"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use o guia"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Используйте руководство"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้คำแนะนำ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kılavuzu kullanın"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sử dụng hướng dẫn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用引导"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用引導"
           }
         }
       }
@@ -15622,6 +16564,101 @@
         }
       }
     },
+    "先把节点放进来": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ضع العقدة أولاً"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setzen Sie zuerst den Knoten ein"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put the node in first"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pon el nodo primero"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettez le nœud en premier"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masukkan nodenya terlebih dahulu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初にノードを入れます"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노드를 먼저 넣어주세요"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coloque o nó primeiro"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сначала поместите узел"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใส่โหนดเข้าไปก่อน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk önce düğümü koy"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đặt nút vào đầu tiên"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先把节点放进来"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先把節點放進來"
+          }
+        }
+      }
+    },
     "先添加一个来源": {
       "localizations": {
         "ar": {
@@ -15712,6 +16749,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "先加入一個來源"
+          }
+        }
+      }
+    },
+    "先添加订阅或节点": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف اشتراكًا أو عقدة أولاً"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügen Sie zuerst ein Abonnement oder einen Knoten hinzu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add subscription or node first"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregue primero la suscripción o el nodo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez d'abord un abonnement ou un nœud"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tambahkan langganan atau node terlebih dahulu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初にサブスクリプションまたはノードを追加します"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 또는 노드를 먼저 추가하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione assinatura ou nó primeiro"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сначала добавьте подписку или узел"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพิ่มการสมัครสมาชิกหรือโหนดก่อน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önce abonelik veya düğüm ekleyin"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm đăng ký hoặc nút trước"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先添加订阅或节点"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先新增訂閱或節點"
           }
         }
       }
@@ -17787,6 +18918,100 @@
         }
       }
     },
+    "内置方案": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحلول المضمنة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrierte Lösungen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built-in solutions"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soluciones integradas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solutions intégrées"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solusi bawaan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内蔵ソリューション"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내장 솔루션"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soluções integradas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Встроенные решения"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โซลูชั่นในตัว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerleşik çözümler"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giải pháp tích hợp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置方案"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內建方案"
+          }
+        }
+      }
+    },
     "准备您的节点": {
       "localizations": {
         "ar": {
@@ -18441,6 +19666,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "分享連結"
+          }
+        }
+      }
+    },
+    "分流示例": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مثال التحويل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispiel für eine Umleitung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diversion example"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ejemplo de desvío"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exemple de détournement"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contoh pengalihan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流用例"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환 예"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exemplo de desvio"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пример переадресации"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตัวอย่างการเบี่ยงเบน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yönlendirme örneği"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ví dụ chuyển hướng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分流示例"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分流範例"
           }
         }
       }
@@ -24851,6 +26170,7 @@
       }
     },
     "启用当前客户端的全部协议": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -25512,6 +26832,100 @@
         }
       }
     },
+    "国内网站": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الموقع المحلي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inländische Website"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domestic website"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sitio web nacional"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Site Web national"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Situs web dalam negeri"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "国内サイト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "국내 홈페이지"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Site nacional"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Внутренний сайт"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เว็บไซต์ในประเทศ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yurtiçi web sitesi"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang web trong nước"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "国内网站"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "國內網站"
+          }
+        }
+      }
+    },
     "国外媒体": {
       "localizations": {
         "ar": {
@@ -25884,6 +27298,288 @@
           "stringUnit": {
             "state": "translated",
             "value": "國際流量"
+          }
+        }
+      }
+    },
+    "在「导出」页选择客户端，导出完整配置或仅节点。导入完成后，前往客户端选择配置并开启连接。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدد العميل في صفحة التصدير لتصدير التكوين الكامل أو العقد فقط. بعد اكتمال الاستيراد، انتقل إلى العميل وحدد التكوين وافتح الاتصال."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie auf der Seite „Exportieren“ den Client aus, um die gesamte Konfiguration oder nur die Knoten zu exportieren. Nachdem der Import abgeschlossen ist, gehen Sie zum Client, wählen Sie die Konfiguration aus und öffnen Sie die Verbindung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select the client on the Export page to export the complete configuration or just the nodes. After the import is completed, go to the client, select the configuration and open the connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccione el cliente en la página Exportar para exportar la configuración completa o solo los nodos. Una vez completada la importación, vaya al cliente, seleccione la configuración y abra la conexión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez le client sur la page Exporter pour exporter la configuration complète ou uniquement les nœuds. Une fois l'importation terminée, accédez au client, sélectionnez la configuration et ouvrez la connexion."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pilih klien di halaman Ekspor untuk mengekspor konfigurasi lengkap atau hanya nodenya. Setelah impor selesai, buka klien, pilih konfigurasi dan buka koneksi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「エクスポート」ページでクライアントを選択して、構成全体をエクスポートするか、ノードのみをエクスポートします。インポートが完了したら、クライアントに移動し、構成を選択して接続を開きます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기 페이지에서 클라이언트를 선택하여 전체 구성을 내보내거나 노드만 내보냅니다. 가져오기가 완료된 후 클라이언트로 이동하여 구성을 선택하고 연결을 엽니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecione o cliente na página Exportar para exportar a configuração completa ou apenas os nós. Após a conclusão da importação, acesse o cliente, selecione a configuração e abra a conexão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите клиент на странице «Экспорт», чтобы экспортировать всю конфигурацию или только узлы. После завершения импорта заходим в клиент, выбираем конфигурацию и открываем соединение."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกไคลเอ็นต์ในหน้าส่งออกเพื่อส่งออกการกำหนดค่าทั้งหมดหรือเฉพาะโหนด หลังจากการนำเข้าเสร็จสิ้น ให้ไปที่ไคลเอนต์ เลือกการกำหนดค่า และเปิดการเชื่อมต่อ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yapılandırmanın tamamını veya yalnızca düğümleri dışa aktarmak için Dışa Aktarma sayfasında istemciyi seçin. İçe aktarma tamamlandıktan sonra istemciye gidin, yapılandırmayı seçin ve bağlantıyı açın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn ứng dụng khách trên trang Xuất để xuất cấu hình hoàn chỉnh hoặc chỉ các nút. Sau khi quá trình nhập hoàn tất, hãy truy cập máy khách, chọn cấu hình và mở kết nối."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「导出」页选择客户端，导出完整配置或仅节点。导入完成后，前往客户端选择配置并开启连接。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「匯出」頁面中選擇客戶端，匯出完整配置或僅節點。匯入完成後，前往客戶端選擇配置並開啟連線。"
+          }
+        }
+      }
+    },
+    "在「规则」页选择内置方案，就能决定哪些网站走代理、哪些直连。初次使用可以先选 ACL4SSR 默认。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدد الخطة المضمنة في صفحة \"القواعد\" لتحديد مواقع الويب التي تعتبر وكلاء وتلك المرتبطة مباشرة. للاستخدام لأول مرة، يمكنك تحديد ACL4SSR بشكل افتراضي."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie auf der Seite „Regeln“ den integrierten Plan aus, um zu entscheiden, welche Websites Proxys sind und welche direkt verbunden sind. Bei der ersten Verwendung können Sie standardmäßig ACL4SSR auswählen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select the built-in plan on the \"Rules\" page to decide which websites are proxies and which are directly connected. For first time use, you can select ACL4SSR by default."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccione el plan integrado en la página \"Reglas\" para decidir qué sitios web son servidores proxy y cuáles están conectados directamente. Para el uso por primera vez, puede seleccionar ACL4SSR de forma predeterminada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez le plan intégré sur la page « Règles » pour décider quels sites Web sont des proxys et lesquels sont directement connectés. Lors de la première utilisation, vous pouvez sélectionner ACL4SSR par défaut."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pilih paket bawaan di halaman \"Aturan\" untuk memutuskan situs web mana yang merupakan proxy dan mana yang terhubung langsung. Untuk penggunaan pertama kali, Anda dapat memilih ACL4SSR secara default."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[ルール] ページで組み込みプランを選択して、どの Web サイトがプロキシで、どの Web サイトが直接接続されているかを決定します。初めて使用する場合は、デフォルトで ACL4SSR を選択できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어떤 웹사이트가 프록시이고 어떤 웹사이트가 직접 연결되는지 결정하려면 \"규칙\" 페이지에서 기본 제공 계획을 선택하세요. 처음 사용하는 경우 기본적으로 ACL4SSR을 선택할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecione o plano integrado na página “Regras” para decidir quais sites são proxies e quais estão diretamente conectados. Na primeira utilização, você pode selecionar ACL4SSR por padrão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите встроенный план на странице «Правила», чтобы решить, какие сайты являются прокси, а какие напрямую подключены. При первом использовании вы можете выбрать ACL4SSR по умолчанию."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกแผนในตัวในหน้า \"กฎ\" เพื่อตัดสินใจว่าเว็บไซต์ใดเป็นพร็อกซีและเว็บไซต์ใดเชื่อมต่อโดยตรง สำหรับการใช้งานครั้งแรก คุณสามารถเลือก ACL4SSR เป็นค่าเริ่มต้นได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hangi web sitelerinin proxy olduğuna ve hangilerinin doğrudan bağlantılı olduğuna karar vermek için \"Kurallar\" sayfasındaki yerleşik planı seçin. İlk kullanımda varsayılan olarak ACL4SSR'yi seçebilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn gói tích hợp trên trang \"Quy tắc\" để quyết định trang web nào là proxy và trang web nào được kết nối trực tiếp. Trong lần sử dụng đầu tiên, bạn có thể chọn ACL4SSR theo mặc định."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「规则」页选择内置方案，就能决定哪些网站走代理、哪些直连。初次使用可以先选 ACL4SSR 默认。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「規則」頁選擇內建方案，就能決定哪些網站走代理、哪些直連。初次使用可以先選 ACL4SSR 預設。"
+          }
+        }
+      }
+    },
+    "在「订阅」页点右上角加号，粘贴订阅或节点链接，也可以扫码、手动添加。勾选你想导出的订阅和节点。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انقر فوق علامة الجمع الموجودة في الزاوية اليمنى العليا من صفحة \"الاشتراك\" والصق رابط الاشتراك أو العقدة. يمكنك أيضًا مسح رمز الاستجابة السريعة ضوئيًا وإضافته يدويًا. تحقق من الاشتراكات والعقد التي تريد تصديرها."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken Sie auf das Pluszeichen in der oberen rechten Ecke der Seite „Abonnement“ und fügen Sie den Abonnement- oder Knotenlink ein. Sie können den QR-Code auch scannen und manuell hinzufügen. Überprüfen Sie die Abonnements und Knoten, die Sie exportieren möchten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the plus sign in the upper right corner of the \"Subscription\" page and paste the subscription or node link. You can also scan the QR code and add it manually. Check the subscriptions and nodes you want to export."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haga clic en el signo más en la esquina superior derecha de la página \"Suscripción\" y pegue la suscripción o el enlace del nodo. También puedes escanear el código QR y agregarlo manualmente. Marque las suscripciones y los nodos que desea exportar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliquez sur le signe plus dans le coin supérieur droit de la page « Abonnement » et collez le lien d'abonnement ou de nœud. Vous pouvez également scanner le code QR et l'ajouter manuellement. Vérifiez les abonnements et les nœuds que vous souhaitez exporter."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klik tanda tambah di sudut kanan atas halaman \"Berlangganan\" dan tempel tautan berlangganan atau simpul. Anda juga dapat memindai kode QR dan menambahkannya secara manual. Periksa langganan dan node yang ingin Anda ekspor."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「サブスクリプション」ページの右上隅にあるプラス記号をクリックし、サブスクリプションまたはノードのリンクを貼り付けます。 QR コードをスキャンして手動で追加することもできます。エクスポートするサブスクリプションとノードを確認します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"구독\" 페이지 오른쪽 상단에 있는 더하기 기호를 클릭하고 구독 또는 노드 링크를 붙여넣습니다. QR 코드를 스캔하여 수동으로 추가할 수도 있습니다. 내보내려는 구독과 노드를 확인하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clique no sinal de mais no canto superior direito da página \"Assinatura\" e cole o link da assinatura ou do nó. Você também pode escanear o código QR e adicioná-lo manualmente. Verifique as assinaturas e os nós que você deseja exportar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите знак «плюс» в правом верхнем углу страницы «Подписка» и вставьте ссылку на подписку или узел. Вы также можете отсканировать QR-код и добавить его вручную. Проверьте подписки и узлы, которые вы хотите экспортировать."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คลิกเครื่องหมายบวกที่มุมขวาบนของหน้า \"สมัครสมาชิก\" และวางลิงก์สมัครสมาชิกหรือโหนด คุณยังสามารถสแกนโค้ด QR และเพิ่มด้วยตนเองได้ ตรวจสอบการสมัครสมาชิกและโหนดที่คุณต้องการส่งออก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Abonelik\" sayfasının sağ üst köşesindeki artı işaretine tıklayın ve abonelik veya düğüm bağlantısını yapıştırın. Ayrıca QR kodunu tarayıp manuel olarak da ekleyebilirsiniz. Dışa aktarmak istediğiniz abonelikleri ve düğümleri kontrol edin."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhấp vào dấu cộng ở góc trên bên phải của trang \"Đăng ký\" và dán liên kết đăng ký hoặc nút. Bạn cũng có thể quét mã QR và thêm thủ công. Kiểm tra các đăng ký và nút bạn muốn xuất."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「订阅」页点右上角加号，粘贴订阅或节点链接，也可以扫码、手动添加。勾选你想导出的订阅和节点。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「訂閱」頁點右上角加號，貼上訂閱或節點鏈接，也可以掃碼、手動添加。勾選你想匯出的訂閱和節點。"
           }
         }
       }
@@ -26925,6 +28621,101 @@
         }
       }
     },
+    "塔台不提供节点，也不建立代理连接。请准备自己的订阅和代理客户端。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يوفر البرج العقد ولا ينشئ اتصالات الوكيل. يرجى إعداد الاشتراك الخاص بك وعملاء الوكيل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Tower stellt keine Knoten bereit und stellt keine Proxy-Verbindungen her. Bitte bereiten Sie Ihre eigenen Abonnement- und Proxy-Clients vor."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tower does not provide nodes and does not establish proxy connections. Please prepare your own subscription and proxy clients."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La torre no proporciona nodos y no establece conexiones proxy. Prepare su propia suscripción y clientes proxy."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tour ne fournit pas de nœuds et n'établit pas de connexions proxy. Veuillez préparer vos propres clients d'abonnement et proxy."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menara tidak menyediakan node dan tidak membuat koneksi proxy. Harap persiapkan klien langganan dan proxy Anda sendiri."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タワーはノードを提供せず、プロキシ接続を確立しません。独自のサブスクリプションおよびプロキシ クライアントをご用意ください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타워는 노드를 제공하지 않으며 프록시 연결을 설정하지 않습니다. 구독과 프록시 클라이언트를 직접 준비해주세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A torre não fornece nós e não estabelece conexões proxy. Prepare seus próprios clientes de assinatura e proxy."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Башня не предоставляет узлы и не устанавливает прокси-соединения. Пожалуйста, подготовьте собственную подписку и прокси-клиенты."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ทาวเวอร์ไม่ได้จัดเตรียมโหนดและไม่สร้างการเชื่อมต่อพรอกซี โปรดเตรียมการสมัครสมาชิกและไคลเอนต์พร็อกซีของคุณเอง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kule, düğüm sağlamaz ve proxy bağlantıları kurmaz. Lütfen kendi aboneliğinizi ve proxy istemcilerinizi hazırlayın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tháp không cung cấp nút và không thiết lập kết nối proxy. Vui lòng chuẩn bị ứng dụng khách đăng ký và proxy của riêng bạn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台不提供节点，也不建立代理连接。请准备自己的订阅和代理客户端。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台不提供節點，也不建立代理連線。請準備自己的訂閱和代理客戶端。"
+          }
+        }
+      }
+    },
     "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。": {
       "localizations": {
         "ar": {
@@ -27114,6 +28905,7 @@
       }
     },
     "塔台在本机把订阅转换成各客户端配置，订阅地址和节点不会上传。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -27203,6 +28995,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "塔台在本機把訂閱轉換成各客戶端設定，訂閱網址和節點不會上傳。"
+          }
+        }
+      }
+    },
+    "塔台帮你管理订阅和自有节点，搭配分流规则，生成适合不同客户端的配置。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يساعدك البرج على إدارة الاشتراكات والعقد الخاصة، ويجمع بين قواعد التوزيع لإنشاء تكوينات مناسبة لمختلف العملاء."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Tower hilft Ihnen bei der Verwaltung von Abonnements und eigenen Knoten und kombiniert Verteilungsregeln, um Konfigurationen zu generieren, die für verschiedene Clients geeignet sind."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tower helps you manage subscriptions and own nodes, and combines distribution rules to generate configurations suitable for different clients."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La torre le ayuda a gestionar suscripciones y nodos propios, y combina reglas de distribución para generar configuraciones adecuadas para diferentes clientes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tour vous aide à gérer les abonnements et vos propres nœuds, et combine les règles de distribution pour générer des configurations adaptées aux différents clients."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menara ini membantu Anda mengelola langganan dan memiliki node, serta menggabungkan aturan distribusi untuk menghasilkan konfigurasi yang sesuai untuk klien berbeda."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タワーは、サブスクリプションと独自のノードの管理に役立ち、分散ルールを組み合わせてさまざまなクライアントに適した構成を生成します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타워는 구독 및 자체 노드를 관리하는 데 도움이 되며 배포 규칙을 결합하여 다양한 클라이언트에 적합한 구성을 생성합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A torre ajuda a gerenciar assinaturas e nós próprios, e combina regras de distribuição para gerar configurações adequadas para diferentes clientes."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Башня помогает вам управлять подписками и собственными узлами, а также объединяет правила распределения для создания конфигураций, подходящих для разных клиентов."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ทาวเวอร์ช่วยให้คุณจัดการการสมัครสมาชิกและโหนดของตัวเอง และรวมกฎการแจกจ่ายเพื่อสร้างการกำหนดค่าที่เหมาะสมสำหรับไคลเอนต์ที่แตกต่างกัน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kule, abonelikleri ve kendi düğümlerini yönetmenize yardımcı olur ve farklı istemcilere uygun yapılandırmalar oluşturmak için dağıtım kurallarını birleştirir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tháp giúp bạn quản lý đăng ký và các nút riêng, đồng thời kết hợp các quy tắc phân phối để tạo cấu hình phù hợp cho các khách hàng khác nhau."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台帮你管理订阅和自有节点，搭配分流规则，生成适合不同客户端的配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台幫你管理訂閱和自有節點，搭配分流規則，產生適合不同客戶端的配置。"
           }
         }
       }
@@ -28806,6 +30692,101 @@
         }
       }
     },
+    "客户端配置": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تكوين العميل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client-Konfiguration"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuración del cliente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration des clients"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfigurasi klien"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアント構成"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 구성"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuração do cliente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Конфигурация клиента"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การกำหนดค่าไคลเอ็นต์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemci yapılandırması"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cấu hình máy khách"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客戶端配置"
+          }
+        }
+      }
+    },
     "密码": {
       "localizations": {
         "ar": {
@@ -29554,6 +31535,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "匯出"
+          }
+        }
+      }
+    },
+    "导出使用": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير للاستخدام"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zur Verwendung exportieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export to use"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar para usar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter pour utiliser"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor untuk digunakan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エクスポートして使用する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기하여 사용"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar para usar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспортировать для использования"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งออกไปใช้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanmak için dışa aktar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất khẩu để sử dụng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出使用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "導出使用"
           }
         }
       }
@@ -34544,6 +36619,100 @@
         }
       }
     },
+    "广告请求": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "طلب إعلان"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeigenanfrage"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ad request"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "solicitud de anuncio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "demande d'annonce"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "permintaan iklan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告リクエスト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "광고 요청"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "solicitação de anúncio"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "запрос объявления"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คำขอโฆษณา"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "reklam isteği"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "yêu cầu quảng cáo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "广告请求"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "廣告請求"
+          }
+        }
+      }
+    },
     "延迟优选": {
       "localizations": {
         "ar": {
@@ -36521,6 +38690,7 @@
       }
     },
     "您的节点不会被泄露": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -39532,6 +41702,100 @@
         }
       }
     },
+    "拦截": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعتراض"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "abfangen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "intercept"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "interceptar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "intercepter"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mencegat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インターセプト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가로채기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "interceptar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "перехватывать"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สกัดกั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "engellemek"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chặn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拦截"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "攔截"
+          }
+        }
+      }
+    },
     "按国家地区筛选节点": {
       "localizations": {
         "ar": {
@@ -41702,6 +43966,100 @@
         }
       }
     },
+    "支持的客户端": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العملاء المدعومون"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützte Kunden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supported clients"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clientes apoyados"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clients pris en charge"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klien yang didukung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サポートされているクライアント"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지원되는 클라이언트"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clientes suportados"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поддерживаемые клиенты"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลูกค้าที่ได้รับการสนับสนุน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desteklenen istemciler"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khách hàng được hỗ trợ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持的客户端"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支援的客戶端"
+          }
+        }
+      }
+    },
     "支持订阅二维码，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria、TUIC、WireGuard、AnyTLS、SOCKS5、HTTP(S) 节点二维码。": {
       "localizations": {
         "ar": {
@@ -42544,6 +44902,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "資料加密"
+          }
+        }
+      }
+    },
+    "新加坡": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سنغافورة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Singapur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "singapore"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "singapur"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Singapour"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "singapura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シンガポール"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "싱가포르"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cingapura"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сингапур"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สิงคโปร์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Singapur"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "singapore"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新加坡"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新加坡"
           }
         }
       }
@@ -44331,6 +46783,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "無法辨識客戶端，請在連結末端指定 target=clash、surge、surfboard、loon、quanx、shadowrocket、sing-box、hiddify 或 egern"
+          }
+        }
+      }
+    },
+    "日本": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اليابان"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japan"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japan"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japón"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japon"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jepang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일본"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Япония"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ญี่ปุ่น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japonya"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhật Bản"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本"
           }
         }
       }
@@ -46311,6 +48857,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "最終兜底，始終保留"
+          }
+        }
+      }
+    },
+    "服务 → 策略": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخدمة → الإستراتيجية"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service → Strategie"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service → Strategy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servicio → Estrategia"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service → Stratégie"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layanan → Strategi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サービス → 戦略"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서비스 → 전략"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serviço → Estratégia"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сервис → Стратегия"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "บริการ → กลยุทธ์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hizmet → Strateji"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dịch vụ → Chiến lược"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务 → 策略"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服務 → 策略"
           }
         }
       }
@@ -53941,6 +56581,100 @@
         }
       }
     },
+    "添加订阅": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة الاشتراك"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnement hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add subscription"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar suscripción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un abonnement"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tambahkan langganan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションの追加"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 추가"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar assinatura"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить подписку"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพิ่มการสมัครสมาชิก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik ekle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加订阅"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增訂閱"
+          }
+        }
+      }
+    },
     "添加订阅或节点": {
       "localizations": {
         "ar": {
@@ -55164,6 +57898,100 @@
         }
       }
     },
+    "电报": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تلغراف"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telegraph"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telegraph"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "telégrafo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Télégraphe"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telegraf"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "電信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전신"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telégrafo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Телеграф"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โทรเลข"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telgraf"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Điện báo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "电报"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "電報"
+          }
+        }
+      }
+    },
     "留空则使用域名": {
       "extractionState": "stale",
       "localizations": {
@@ -55543,6 +58371,7 @@
       }
     },
     "目标客户端不支持、或您在协议筛选里关掉的节点不会写入配置，原节点仍保留在塔台中。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -55820,6 +58649,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "確認刪除"
+          }
+        }
+      }
+    },
+    "示例": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مثال"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispiel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ejemplo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exemple"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contoh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exemplo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пример"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตัวอย่าง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Örnek"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ví dụ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "示例"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "範例"
           }
         }
       }
@@ -57136,6 +60059,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "第 %lld 行重複定義了策略群組“%@”"
+          }
+        }
+      }
+    },
+    "第 %lld 页，共 4 页": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصفحة %lld من 4"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seite %lld von 4"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %lld of 4"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página %lld de 4"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %lld sur 4"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Halaman %lld dari 4"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ページ %lld/4"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페이지 %lld / 4"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página %lld de 4"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Страница %lld из 4"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หน้า %lld จาก 4"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sayfa %lld / 4"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang %lld trên 4"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 页，共 4 页"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 頁，共 4 頁"
           }
         }
       }
@@ -58457,6 +61474,7 @@
       }
     },
     "管理订阅和节点": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -66645,6 +69663,101 @@
         }
       }
     },
+    "订阅解析和配置生成都在本机完成，不经过第三方转换服务。iCloud 同步默认关闭。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتم إكمال تحليل الاشتراك وإنشاء التكوين محليًا دون المرور عبر خدمة تحويل تابعة لجهة خارجية. يتم إيقاف تشغيل مزامنة iCloud بشكل افتراضي."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Parsen des Abonnements und die Konfigurationsgenerierung werden lokal durchgeführt, ohne dass ein Konvertierungsdienst eines Drittanbieters in Anspruch genommen werden muss. Die iCloud-Synchronisierung ist standardmäßig deaktiviert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription parsing and configuration generation are completed locally without going through a third-party conversion service. iCloud sync is turned off by default."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El análisis de la suscripción y la generación de configuración se completan localmente sin pasar por un servicio de conversión de terceros. La sincronización de iCloud está desactivada de forma predeterminada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'analyse des abonnements et la génération de la configuration sont effectuées localement sans passer par un service de conversion tiers. La synchronisation iCloud est désactivée par défaut."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Penguraian langganan dan pembuatan konfigurasi diselesaikan secara lokal tanpa melalui layanan konversi pihak ketiga. Sinkronisasi iCloud dimatikan secara default."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションの解析と構成の生成は、サードパーティの変換サービスを介さずにローカルで完了します。 iCloud同期はデフォルトではオフになっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 구문 분석 및 구성 생성은 타사 변환 서비스를 거치지 않고 로컬로 완료됩니다. iCloud 동기화는 기본적으로 꺼져 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A análise de assinatura e a geração de configuração são concluídas localmente, sem passar por um serviço de conversão de terceiros. A sincronização do iCloud está desativada por padrão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Анализ подписки и создание конфигурации выполняются локально без использования сторонней службы преобразования. Синхронизация iCloud отключена по умолчанию."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การแยกวิเคราะห์การสมัครสมาชิกและการสร้างการกำหนดค่าจะเสร็จสิ้นภายในเครื่องโดยไม่ต้องผ่านบริการการแปลงของบุคคลที่สาม การซิงค์ iCloud จะถูกปิดตามค่าเริ่มต้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik ayrıştırma ve yapılandırma oluşturma, üçüncü taraf dönüştürme hizmetine gerek kalmadan yerel olarak tamamlanır. iCloud senkronizasyonu varsayılan olarak kapalıdır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Việc tạo cấu hình và phân tích cú pháp đăng ký được hoàn thành cục bộ mà không cần thông qua dịch vụ chuyển đổi của bên thứ ba. Đồng bộ hóa iCloud bị tắt theo mặc định."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅解析和配置生成都在本机完成，不经过第三方转换服务。iCloud 同步默认关闭。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訂閱解析和配置產生都在本機完成，且不經過第三方轉換服務。 iCloud 同步預設關閉。"
+          }
+        }
+      }
+    },
     "订阅解析和配置生成都在这台设备上，不经过第三方转换服务。": {
       "localizations": {
         "ar": {
@@ -68810,6 +71923,7 @@
       }
     },
     "请调整协议筛选或更换客户端，并检查下方提示。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -68998,6 +72112,7 @@
       }
     },
     "调整节点筛选": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -69651,6 +72766,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "跳到訂閱列表"
+          }
+        }
+      }
+    },
+    "跳过": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تخطي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "überspringen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "saltar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sauter"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "lewati"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキップ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "건너뛰기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pular"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "пропустить"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ข้าม"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "atlamak"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bỏ qua"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳過"
           }
         }
       }
@@ -71255,6 +74464,100 @@
         }
       }
     },
+    "选一套分流规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر مجموعة من قواعد التحويل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie eine Reihe von Umleitungsregeln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a set of diversion rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elija un conjunto de reglas de desvío"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez un ensemble de règles de déjudiciarisation"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pilih seperangkat aturan pengalihan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "転送ルールのセットを選択する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환 규칙 세트를 선택하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha um conjunto de regras de desvio"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите набор правил переадресации"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกชุดกฎการเบี่ยงเบน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir dizi yönlendirme kuralı seçin"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn một bộ quy tắc chuyển hướng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选一套分流规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選一套分流規則"
+          }
+        }
+      }
+    },
     "选择常用服务，或完全手动填写 HTTP/HTTPS 测试地址。": {
       "localizations": {
         "ar": {
@@ -71345,6 +74648,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇常用服務，或完全手動輸入 HTTP/HTTPS 測試網址。"
+          }
+        }
+      }
+    },
+    "选择方案后，还可以按需调整策略组。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بعد تحديد الخطة، يمكنك أيضًا ضبط مجموعة السياسات حسب الحاجة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nachdem Sie einen Plan ausgewählt haben, können Sie auch die Richtliniengruppe nach Bedarf anpassen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After selecting a plan, you can also adjust the policy group as needed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de seleccionar un plan, también puede ajustar el grupo de políticas según sea necesario."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après avoir sélectionné un plan, vous pouvez également ajuster le groupe de stratégies selon vos besoins."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setelah memilih rencana, Anda juga dapat menyesuaikan grup kebijakan sesuai kebutuhan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プランを選択した後、必要に応じてポリシー グループを調整することもできます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계획을 선택한 후 필요에 따라 정책 그룹을 조정할 수도 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depois de selecionar um plano, você também pode ajustar o grupo de políticas conforme necessário."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После выбора плана вы также можете при необходимости настроить группу политик."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หลังจากเลือกแผนแล้ว คุณยังปรับเปลี่ยนกลุ่มนโยบายได้ตามต้องการอีกด้วย"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir plan seçtikten sonra politika grubunu da gerektiği gibi ayarlayabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sau khi chọn gói, bạn cũng có thể điều chỉnh nhóm chính sách nếu cần."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择方案后，还可以按需调整策略组。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇方案後，也可以按需調整策略群組。"
+          }
+        }
+      }
+    },
+    "选择规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدد القواعد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie Regeln aus"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccionar reglas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez les règles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pilih aturan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールの選択"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙 선택"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecione regras"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกกฎ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kuralları seçin"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn quy tắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇規則"
           }
         }
       }
@@ -73887,6 +77378,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "預共享金鑰（可選）"
+          }
+        }
+      }
+    },
+    "香港": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هونج كونج"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hongkong"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hong Kong"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hong kong"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hong Kong"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hongkong"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "香港"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홍콩"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hong Kong"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Гонконг"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ฮ่องกง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hong Kong"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hồng Kông"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "香港"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "香港"
           }
         }
       }

@@ -4,9 +4,23 @@ import UIKit
 struct SettingsView: View {
     @Binding var configurationNameDraft: ConfigurationNameDraft
 
+    @State private var showsOnboarding = false
+
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 22) {
+            VStack(spacing: 22) {
+                Button {
+                    showsOnboarding = true
+                } label: {
+                    HStack {
+                        Label("使用引导", systemImage: "book.closed")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                    }
+                    .padding(18).towerCard()
+                }
+                .buttonStyle(ResponsivePressButtonStyle())
+                .accessibilityIdentifier("replay-onboarding")
                 NodeAndExportSettingsCard(configurationNameDraft: $configurationNameDraft)
                 ConfigurationManagementCard(configurationNameDraft: $configurationNameDraft)
                 SettingsFooter()
@@ -17,6 +31,9 @@ struct SettingsView: View {
         }
         .background(TowerTheme.background.ignoresSafeArea())
         .navigationTitle("设置")
+        .fullScreenCover(isPresented: $showsOnboarding) {
+            WelcomeView { showsOnboarding = false }
+        }
     }
 }
 

@@ -237,7 +237,38 @@ final class AppModel {
         if let value = ProcessInfo.processInfo.environment["TOWER_UI_TEST_RUN"], let id = UUID(uuidString: value) {
             let fixture = PersistenceStore(fileURL: FileManager.default.temporaryDirectory
                 .appendingPathComponent("tower-ui-\(id.uuidString).json"))
-            if (try? fixture.load()) == nil { try? fixture.save(Self.demoSnapshot) }
+            if (try? fixture.load()) == nil {
+                var snapshot = Self.demoSnapshot
+                if let count = Int(ProcessInfo.processInfo.environment["TOWER_PERFORMANCE_NODE_COUNT"] ?? ""),
+                   (1...5000).contains(count) {
+                    let regions = ["🇭🇰 香港", "🇯🇵 日本", "🇸🇬 新加坡", "🇹🇼 台湾", "🇺🇸 美国", "🇨🇦 加拿大",
+                                   "🇬🇧 英国", "🇩🇪 德国", "🇫🇷 法国", "🇳🇱 荷兰", "🇨🇭 瑞士", "🇸🇪 瑞典",
+                                   "🇫🇮 芬兰", "🇮🇹 意大利", "🇪🇸 西班牙", "🇦🇺 澳大利亚", "🇳🇿 新西兰", "🇰🇷 韩国",
+                                   "🇮🇳 印度", "🇮🇩 印度尼西亚", "🇹🇭 泰国", "🇻🇳 越南", "🇵🇭 菲律宾", "🇲🇾 马来西亚",
+                                   "🇧🇷 巴西", "🇲🇽 墨西哥", "🇦🇷 阿根廷", "🇿🇦 南非", "🇹🇷 土耳其", "🇦🇪 阿联酋"]
+                    let sourceCount = min(16, max(1, count / 30))
+                    snapshot.subscriptions = (0..<sourceCount).map { index in
+                        SubscriptionSource(
+                            name: index == 0 ? "云帆机场" : "测试订阅 \(index + 1)",
+                            urlString: "https://example.invalid/performance/\(index)", lastUpdatedAt: .now,
+                            usage: SubscriptionUsage(uploadBytes: Int64(index + 1) * 1_073_741_824,
+                                                     downloadBytes: Int64(index + 1) * 4_294_967_296,
+                                                     totalBytes: 214_748_364_800,
+                                                     expiresAt: .now.addingTimeInterval(Double(index + 7) * 86_400)))
+                    }
+                    let kinds: [ProxyKind] = [.shadowsocks, .trojan, .vmess, .vless, .hysteria2, .anytls]
+                    snapshot.nodes = (0..<count).map { index in
+                        ProxyNode(sourceID: index < count - count / 25
+                                    ? snapshot.subscriptions[(index / regions.count) % sourceCount].id : nil,
+                                  kind: kinds[(index / regions.count) % kinds.count],
+                                  name: "\(regions[index % regions.count]) · Perf \(index)",
+                                  server: "192.0.2.1", port: 443,
+                                  cipher: "chacha20-ietf-poly1305", password: "fixture",
+                                  uuid: "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e", tls: true, rawURI: "ss://fixture")
+                    }
+                }
+                try? fixture.save(snapshot)
+            }
             self.persistence = fixture
             self.iCloudSyncEnabled = false
         } else {

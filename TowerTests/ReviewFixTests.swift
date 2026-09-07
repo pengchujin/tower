@@ -55,6 +55,22 @@ final class ReviewFixTests: XCTestCase {
     }
 
     @MainActor
+    func testWarmConfigurationPerformanceAudit() {
+        let model = AppModel(arguments: ["--demo"])
+        model.nodes = (0..<1_000).map {
+            makeNode(name: "香港 · Perf \($0)", server: "192.0.2.1")
+        }
+        let coldStart = ContinuousClock.now
+        _ = model.configuration()
+        print("PERF_COLD_CONFIGURATION_1000_NODES \(coldStart.duration(to: .now))")
+        let generations = model.configurationGenerationCount
+        let start = ContinuousClock.now
+        for _ in 0..<100 { _ = model.configuration() }
+        print("PERF_WARM_CONFIGURATION_100_CALLS \(start.duration(to: .now))")
+        XCTAssertEqual(model.configurationGenerationCount, generations)
+    }
+
+    @MainActor
     func testBulkCountryResolutionAtFiveThousandNodes() async {
         let service = IPCountryLookupService(database: IPCountryDatabase(
             ipv4Data: Data([1,1,1,0,1,1,1,255] + Array("SG".utf8)), ipv6Data: Data()))

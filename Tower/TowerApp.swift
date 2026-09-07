@@ -50,20 +50,22 @@ struct AppRootView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
 
     var body: some View {
-        mainInterface
-            .overlay {
-                if !hasSeenWelcome {
-                    WelcomeView {
-                        withAnimation(
-                            reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 1)
-                        ) {
-                            hasSeenWelcome = true
-                        }
+        ZStack {
+            if hasSeenWelcome {
+                mainInterface
+            } else {
+                WelcomeView {
+                    withAnimation(
+                        reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 1)
+                    ) {
+                        hasSeenWelcome = true
                     }
-                    .background(Color(uiColor: .systemBackground))
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.04)))
                 }
+                .background(Color(uiColor: .systemBackground))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.04)))
+                .zIndex(1)
             }
+        }
     }
 
     private var mainInterface: some View {
@@ -89,8 +91,30 @@ struct AppRootView: View {
             .tag(AppTab.export)
         }
         .tint(.accentColor)
-        .sensoryFeedback(.selection, trigger: model.selectedTab)
+        .background { TabSelectionFeedback() }
         .towerToast()
+    }
+}
+
+/// Keep the haptic trigger's observation out of the complete tab hierarchy.
+/// The feedback dependency no longer invalidates the root on each selection.
+private struct TabSelectionFeedback: View {
+    @Environment(AppModel.self) private var model
+    // Development-only A/B control for device haptics profiling. Default UI
+    // behavior is unchanged; a simulator cannot measure Taptic Engine cost.
+    private var tabHapticsEnabled: Bool {
+        #if DEBUG
+        !ProcessInfo.processInfo.arguments.contains("--disable-tab-haptics")
+        #else
+        true
+        #endif
+    }
+
+    var body: some View {
+        Color.clear.frame(width: 0, height: 0)
+            .sensoryFeedback(.selection, trigger: model.selectedTab) { _, _ in tabHapticsEnabled }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
