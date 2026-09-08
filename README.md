@@ -16,12 +16,6 @@
 
 </div>
 
-## 下载
-
-| Mac 免费版 | iPhone / iPad |
-| :--- | :--- |
-| **[下载最新 DMG](https://github.com/pengchujin/tower/releases/download/v1.0.9/Tower-1.0.9-47-macOS-universal.dmg)** | **[前往 App Store](https://apps.apple.com/app/id6797458927)** |
-
 Mac 也可以通过 Homebrew 安装：
 
 ```sh
