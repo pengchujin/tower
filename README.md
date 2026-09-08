@@ -27,7 +27,9 @@ QuanX 使用系统文件分享；其他目标通过客户端 URL Scheme 导入�
 
 远端来源必须返回目标兼容的格式；远端节点不受塔台的逐节点勾选、协议筛选、名称追加和自定义 DoH 控制。协议筛选与节点计数只作用于本地输出；摘要另外列出远端来源数。塔台规则或自有节点变化后仍需重新导出。
 
-## Mac 开发版
+## Mac 版
+
+**[免费下载 Mac 版](https://github.com/pengchujin/tower/releases/latest)**：打开 DMG，将 Tower 拖入 Applications（应用程序）。支持 macOS 14 及以上，兼容 Apple 芯片与 Intel Mac；应用使用 Developer ID 签名并通过 Apple 公证，无需 TestFlight。暂不提供应用内自动更新，下载新版覆盖安装即可。
 
 工程支持 Mac Catalyst，沿用原来的图标卡片、横向滚动、筛选和排序。`Surge` 保留手机版身份，`Surge Mac` 使用桌面版专用导入入口；新增 `Clash Verge`、`ClashMac`、`FlClash` 和 `Mihomo Party`，生成完整 Clash / Mihomo YAML。
 
@@ -35,7 +37,7 @@ Mac 默认顺序为 Shadowrocket、局域网共享、Surge Mac、Clash Verge、C
 
 Surge Mac 6.7+ 和 Clash Verge 支持一键导入；旧版 Surge Mac 找不到导入入口时复制订阅，ClashMac 同样复制订阅并显示具体导入步骤。FlClash、Mihomo Party 使用各自的专用导入入口。Mac 局域网共享支持 Wi-Fi 与有线网络，切到其他 App 后继续提供服务，退出塔台或停止共享后失效。本机一键导入仍为 45 秒的独立临时服务。
 
-构建与验证见 [开发文档](docs/DEVELOPMENT.md)。这是 Mac 适配的开发构建，尚未进行 Mac App Store 发布、公证或 iCloud 签名验收。
+构建与验证见 [开发文档](docs/DEVELOPMENT.md)。1.0.9（47）已通过直接分发签名、公证、Gatekeeper 和启动检查；iCloud 签名授权已核对，跨设备同步尚未进行直接分发包专项实测。Mac App Store 尚未正式发布。
 
 ## 隐私与网络边界
 

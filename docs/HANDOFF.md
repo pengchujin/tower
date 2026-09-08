@@ -484,3 +484,9 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - 855 条本地化检查、发布脚本测试、最新 ACL4SSR 检查和远程规则摘要校验通过；1.0.9（47）已在实体 iPhone 安装并启动。上传与处理状态需另行核对。
 - 后续完成：提交 `7654b21` 已推送；iOS 与 Mac Catalyst 均由正式版 Xcode 26.6 分别归档、上传并完成 Apple 处理，自动关联内部测试组，两个平台的测试说明均已保存。用户自行提交外部测试；没有提交新的 App Store 正式审核。
 - 完整回归：iOS 1,022 项 XCTest（3 跳过）与 52 项 Swift Testing，Mac 1,022 项 XCTest（33 跳过）与 52 项 Swift Testing，均无失败。
+
+### 2026-09-08 — Mac 直接下载版 1.0.9（47）
+
+- 复用提交 `7654b21` 的正式版 Xcode 26.6 Mac 归档，使用 Developer ID 自动签名导出；启用 Hardened Runtime，保留沙盒、网络、用户选择文件和 iCloud 签名授权。最低 macOS 14，包含 arm64 / x86_64。
+- Apple 公证完成，公证凭证附加及验证通过。发布机实际启动并确认进程持续运行；开发机和 DMG 挂载内容均经 codesign strict/deep、Gatekeeper（Notarized Developer ID）及 stapler 验证。iCloud 跨设备同步未进行本次分发包专项实测。
+- GitHub Release `v1.0.9` 已公开，含 `Tower-1.0.9-47-macOS-universal.dmg` 与 `SHA256SUMS.txt`；上传后回下载的 DMG 哈希校验通过。下载地址：https://github.com/pengchujin/tower/releases/tag/v1.0.9 。暂不含应用内自动更新。
