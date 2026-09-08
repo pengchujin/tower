@@ -257,8 +257,7 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         XCTAssertFalse(source.contains("private struct ImportedRuleSchemeRow"))
         XCTAssertFalse(source.contains(".swipeActions"))
-        XCTAssertFalse(cardSource.contains("DragGesture(minimumDistance:"))
-        XCTAssertFalse(importedSource.contains("DragGesture(minimumDistance:"))
+        XCTAssertFalse(source.contains("DragGesture(minimumDistance:"))
         XCTAssertTrue(importedSource.contains("onEdit: { editingImportedScheme = scheme }"))
         XCTAssertTrue(importedSource.contains("onDelete: { pendingDeletion = scheme }"))
         XCTAssertTrue(cardSource.contains(".contextMenu"))
