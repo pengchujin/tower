@@ -482,3 +482,5 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - 用户授权推送代码，分别归档 iOS / Mac Catalyst 并上传 TestFlight；不提交新的 App Store 正式审核。更新日志见 releases/1.0.9.md。
 - Mac 使用独立 entitlement 文件启用 App Sandbox、出站/入站网络与用户选择文件读写；iOS entitlement 保持不变。归档使用发布机正式版 Xcode。
 - 855 条本地化检查、发布脚本测试、最新 ACL4SSR 检查和远程规则摘要校验通过；1.0.9（47）已在实体 iPhone 安装并启动。上传与处理状态需另行核对。
+- 后续完成：提交 `7654b21` 已推送；iOS 与 Mac Catalyst 均由正式版 Xcode 26.6 分别归档、上传并完成 Apple 处理，自动关联内部测试组，两个平台的测试说明均已保存。用户自行提交外部测试；没有提交新的 App Store 正式审核。
+- 完整回归：iOS 1,022 项 XCTest（3 跳过）与 52 项 Swift Testing，Mac 1,022 项 XCTest（33 跳过）与 52 项 Swift Testing，均无失败。
