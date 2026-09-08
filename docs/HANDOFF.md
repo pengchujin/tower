@@ -491,9 +491,15 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - Apple 公证完成，公证凭证附加及验证通过。发布机实际启动并确认进程持续运行；开发机和 DMG 挂载内容均经 codesign strict/deep、Gatekeeper（Notarized Developer ID）及 stapler 验证。iCloud 跨设备同步未进行本次分发包专项实测。
 - GitHub Release `v1.0.9` 已公开，含 `Tower-1.0.9-47-macOS-universal.dmg` 与 `SHA256SUMS.txt`；上传后回下载的 DMG 哈希校验通过。下载地址：https://github.com/pengchujin/tower/releases/tag/v1.0.9 。暂不含应用内自动更新。
 
-### Mac 规则整行排序修正（未发布）
+### Mac 规则整行排序修正（1.0.11）
 
 - 已回退两次仅在右侧把手绑定 SwiftUI 拖动的实现。规则列表与候选策略列表保留原生 `onMove`，Mac 鼠标从整行发起 UIKit 交互移动；iOS 继续使用原生触摸排序。
 - Catalyst 系统拖拽会抢占并取消列表移动。只在这两类 Mac 列表禁用外部拖拽，以鼠标手势驱动原生移动；在按下时记录偏移，松开时补交目标位置，覆盖快速拖动没有中间事件的情况。
 - Mac 实际 App 回归：名称、空白、右侧策略文字和把手连续往返拖动；候选策略非编辑和编辑状态；保存后默认项、放弃更改、完成后重启持久化均已核对。最终交付包另做整行拖动复测。自动化只拖把手不再作为整行排序验收。
 - Mac TowerTests：1023 项 XCTest（33 跳过，0 失败），52 项 Swift Testing 通过；iOS 候选策略交互回归 1 项通过；实体 iPhone 已安装并启动。独立 Mac 测试包已本机构建，未归档或发布。
+
+### 1.0.11（49）发布准备
+
+- 包含 Mac 整行排序、内置规则自定义副本下载就绪状态修复，以及空策略组 DIRECT 回退。
+- 本轮仅上传 iPhone / Mac TestFlight 构建，不操作内外测群组和审核；直接分发 Mac 版走 Developer ID、公证、GitHub Release 与 Homebrew。
+- 当前源码 Mac / iOS 全量测试通过，ACL4SSR 最新版本检查与 77 个远程产物回读通过。正式归档与上传状态以发布完成记录为准。
