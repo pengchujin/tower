@@ -1,5 +1,13 @@
 # TestFlight 发布流程
 
+## Mac Homebrew 分发
+
+独立 tap 仓库为 https://github.com/pengchujin/homebrew-tap ，安装命令为 `brew install --cask pengchujin/tap/tower`。
+
+新的 Mac DMG 完成 Developer ID 签名、公证并公开到 GitHub Releases 后，同步更新 tap 中 `Casks/tower.rb` 的版本、构建号与该文件的 SHA-256。执行 `brew style --cask pengchujin/tap/tower`、`brew audit --cask pengchujin/tap/tower` 并验证安装后推送；仅发布 GitHub Release 不会自动更新 cask。用户运行 `brew update` 和 `brew upgrade --cask pengchujin/tap/tower` 获取新包。
+
+Cask 将应用安装为「塔台.app」，区分同名 Tower Git 客户端；不删除用户订阅、设置或 iCloud 数据。
+
 塔台有两条正式版 Xcode 发布路径：出门使用的 MacBook Air M2 可以在当前 Aqua 会话中直接完成自动签名、归档和 App Store Connect / TestFlight 上传；家中 Mac mini M2 是固定发布机，也可从头完成归档和上传。家中 Mac mini M4 的 Xcode Beta 只用于开发调试，不参与正式发布。
 
 最近已上传版本见 [HANDOFF](HANDOFF.md)。版本已获批、预发布通道关闭后必须递增 MARKETING_VERSION，不能只递增 build。
