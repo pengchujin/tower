@@ -62048,6 +62048,100 @@
         }
       }
     },
+    "策略组“%@”没有匹配节点，已回退为直连。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم تطابق مجموعة السياسات «%@» أي عقدة؛ تم الرجوع إلى الاتصال المباشر."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Richtliniengruppe „%@“ hat keine passenden Knoten; als Ersatz wird direkt verbunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Policy group “%@” matched no nodes and has fallen back to a direct connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El grupo de políticas «%@» no encontró nodos coincidentes y usará una conexión directa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun nœud ne correspond au groupe de politiques « %@ » ; une connexion directe sera utilisée."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grup kebijakan “%@” tidak cocok dengan node mana pun dan beralih ke koneksi langsung."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポリシーグループ「%@」に一致するノードがないため、直接接続に切り替えました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정책 그룹 “%@”에 일치하는 노드가 없어 직접 연결로 전환했습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O grupo de políticas “%@” não encontrou nós correspondentes e usará uma conexão direta."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для группы политик «%@» не найдено подходящих узлов; используется прямое соединение."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กลุ่มนโยบาย “%@” ไม่มีโหนดที่ตรงกัน จึงใช้การเชื่อมต่อโดยตรงแทน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” ilke grubuyla eşleşen düğüm bulunamadı; doğrudan bağlantıya geçildi."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm chính sách “%@” không có nút phù hợp nên đã chuyển sang kết nối trực tiếp."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "策略组“%@”没有匹配节点，已回退为直连。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "策略群組「%@」沒有符合的節點，已回退為直連。"
+          }
+        }
+      }
+    },
     "策略组“%@”没有匹配节点，已设为拒绝连接。": {
       "localizations": {
         "ar": {

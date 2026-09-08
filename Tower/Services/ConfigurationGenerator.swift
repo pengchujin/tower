@@ -249,9 +249,9 @@ struct ConfigurationGenerator {
             diagnostics.append(String(localized: "已忽略当前客户端不支持的通知设置。"))
         }
         for (source, group) in zip(scheme.groups, resolved) where group.kind == .select
-            && group.members == [builtinPolicyName("REJECT", target: target)]
-            && !(source.kind == .select && source.members == [.reference("REJECT")]) {
-            diagnostics.append(String(localized: "策略组“\(group.name)”没有匹配节点，已设为拒绝连接。"))
+            && group.members == [builtinPolicyName("DIRECT", target: target)]
+            && !(source.kind == .select && source.members == [.reference("DIRECT")]) {
+            diagnostics.append(String(localized: "策略组“\(group.name)”没有匹配节点，已回退为直连。"))
         }
         let knownPolicies = Set(scheme.groups.map(\.name)
             + supported.map { NodeRegionResolver.displayName(for: $0) }
@@ -963,7 +963,7 @@ struct ConfigurationGenerator {
             let hasRemotePool = !nodePatterns.isEmpty && preserveUnresolvedPatterns
                 && (sourceIDs == nil || !sourceIDs!.intersection(remoteSourceIDs).isEmpty)
             let empty = members.isEmpty && !hasRemotePool
-            if empty { members = [builtinPolicyName("REJECT", target: target)] }
+            if empty { members = [builtinPolicyName("DIRECT", target: target)] }
             return ResolvedSchemeGroup(
                 name: group.name,
                 kind: empty ? .select : group.kind,

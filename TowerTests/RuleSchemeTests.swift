@@ -28,7 +28,7 @@ final class RuleSchemeTests: XCTestCase {
         let clash = ConfigurationGenerator().generate(nodes: [node], scheme: scheme, target: .clash).content
         XCTAssertTrue(clash.contains("type: url-test"), clash)
         let empty = ConfigurationGenerator().generate(nodes: [], scheme: scheme, target: .surge).content
-        XCTAssertTrue(empty.contains("US = select, REJECT"), empty)
+        XCTAssertTrue(empty.contains("US = select, DIRECT"), empty)
     }
 
     func testSmartCopiesOnlyProxiesAndFiltersIncludedMembers() throws {
@@ -720,21 +720,30 @@ final class RuleSchemeTests: XCTestCase {
         }
     }
 
-    func testGroupWithNoMatchingNodesRejectsInsteadOfChangingTrafficToDirect() throws {
+    func testGroupWithNoMatchingNodesFallsBackToDirectAndPreservesExplicitReject() throws {
         let scheme = try parser.parse(
             text: """
             ruleset=A,[]FINAL
             custom_proxy_group=A`url-test`(完全匹配不到的名字)`http://x/y`300,,50
+            custom_proxy_group=Block`select`[]REJECT
             """,
             id: "t",
             name: "t",
             summary: "t"
         )
 
-        let result = ConfigurationGenerator().generate(nodes: nodes, scheme: scheme, target: .surge)
-        XCTAssertTrue(result.content.contains("A = select, REJECT"))
-        XCTAssertFalse(result.hasInvalidPolicyReferences)
-        XCTAssertFalse(result.diagnostics.isEmpty)
+        for target in [ClientTarget.surge, .surgeMac, .clash] {
+            let result = ConfigurationGenerator().generate(nodes: nodes, scheme: scheme, target: target)
+            if target == .clash {
+                XCTAssertTrue(result.content.contains("name: \"A\"\n    type: select\n    proxies:\n      - \"DIRECT\""))
+                XCTAssertTrue(result.content.contains("name: \"Block\"\n    type: select\n    proxies:\n      - \"REJECT\""))
+            } else {
+                XCTAssertTrue(result.content.contains("A = select, DIRECT"))
+                XCTAssertTrue(result.content.contains("Block = select, REJECT"))
+            }
+            XCTAssertFalse(result.hasInvalidPolicyReferences)
+            XCTAssertEqual(result.diagnostics.count, 1)
+        }
     }
 
     private func parse() throws -> RuleScheme {
