@@ -503,3 +503,10 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - 包含 Mac 整行排序、内置规则自定义副本下载就绪状态修复，以及空策略组 DIRECT 回退。
 - 本轮仅上传 iPhone / Mac TestFlight 构建，不操作内外测群组和审核；直接分发 Mac 版走 Developer ID、公证、GitHub Release 与 Homebrew。
 - 当前源码 Mac / iOS 全量测试通过，ACL4SSR 最新版本检查与 77 个远程产物回读通过。正式归档与上传状态以发布完成记录为准。
+
+### 1.0.11（49）发布完成
+
+- 发布源码提交 `b8cd487`。正式版 Xcode 26.6 分别归档并上传 iPhone / Mac，版本、构建号与 Bundle ID 核对通过；App Store Connect 两个平台均已出现 49，最后核对时仍在处理。本轮未操作内外测群组、Beta 审核或 App Store 审核。
+- Mac Developer ID 公证、stapler、Gatekeeper、arm64 / x86_64 与 DMG 回读 SHA-256 均通过；正式签名包已启动并验证整行和候选策略拖动。GitHub `v1.0.11` 已公开，README 下载入口及 Homebrew cask 已更新，issue #24 已回复。
+- Homebrew style 检查及实际升级、安装版本 / 签名验证通过；audit 被本机 Homebrew 对已安装正式版 Xcode 26.6 的版本检查阻止，不能记为 audit 通过。未更改全局 Xcode 选择或发布机工具链。
+- iOS 全量 1023 项 XCTest（3 跳过、0 失败）与 52 项 Swift Testing 通过；1.0.11（49）已安装到实体 iPhone，启动被锁屏状态拒绝。
