@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RulesView: View {
     @Environment(AppModel.self) private var model
@@ -1024,6 +1025,7 @@ private struct RuleCustomizationSheet: View {
             Section {
                 ForEach(visibleGroups, id: \.name) { group in
                     customRuleGroupActionRow(group)
+                        .background(MacListReorderBridge(enabled: trimmedSearch.isEmpty))
                         .listRowInsets(compactRuleRowInsets)
                         .moveDisabled(!trimmedSearch.isEmpty)
                         .contextMenu {
@@ -2042,6 +2044,7 @@ private struct OrderedPolicyCandidateSections: View {
                             .foregroundStyle(Color.accentColor)
                     }
                 }
+                .background(MacListReorderBridge(enabled: true))
             }
             .onMove { selected.move(fromOffsets: $0, toOffset: $1) }
             .onDelete { selected.remove(atOffsets: $0) }
@@ -2446,6 +2449,136 @@ private struct LocalRuleSetEditor: View {
                 isSaving = false
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+/// Add mouse recognition to the entire Catalyst cell while keeping List's native
+/// interactive movement, animation, accessibility actions and onMove callback.
+private struct MacListReorderBridge: UIViewRepresentable {
+    let enabled: Bool
+
+    func makeUIView(context: Context) -> AttachmentView {
+        let view = AttachmentView()
+        view.isUserInteractionEnabled = false
+        view.attach = { [weak coordinator = context.coordinator, weak view] in
+            guard let view else { return }
+            coordinator?.attach(from: view)
+        }
+        return view
+    }
+    func updateUIView(_ view: AttachmentView, context: Context) {
+        context.coordinator.enabled = enabled
+        context.coordinator.attach(from: view)
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    static func dismantleUIView(_ view: AttachmentView, coordinator: Coordinator) {
+        view.attach = nil
+        coordinator.detach()
+    }
+    final class AttachmentView: UIView {
+        var attach: (() -> Void)?
+        override func didMoveToWindow() { super.didMoveToWindow(); attach?() }
+        override func didMoveToSuperview() { super.didMoveToSuperview(); attach?() }
+    }
+    final class ReorderPanGestureRecognizer: UIPanGestureRecognizer {
+        // Once a mouse drag starts, the cell's button/reorder recognizers
+        // must not steal it. A click still fails the normal pan threshold.
+        override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+    }
+    @MainActor
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var enabled = true
+        private weak var cell: UICollectionViewCell?
+        private weak var collection: UICollectionView?
+        private var pan: UIPanGestureRecognizer?
+        private var moving = false
+        private var grabOffset: CGPoint = .zero
+
+        func attach(from view: UIView) {
+            #if targetEnvironment(macCatalyst)
+            var ancestor = view.superview
+            while let next = ancestor, !(next is UICollectionViewCell) { ancestor = next.superview }
+            guard let resolvedCell = ancestor as? UICollectionViewCell else { return }
+            ancestor = resolvedCell.superview
+            while let next = ancestor, !(next is UICollectionView) { ancestor = next.superview }
+            guard let resolvedCollection = ancestor as? UICollectionView,
+                  cell !== resolvedCell else { return }
+            detach()
+            cell = resolvedCell
+            collection = resolvedCollection
+            // Catalyst's external drag session otherwise cancels interactive
+            // reordering midway, including drags on the native accessory.
+            resolvedCollection.dragInteractionEnabled = false
+            let recognizer = ReorderPanGestureRecognizer(target: self, action: #selector(drag(_:)))
+            recognizer.delegate = self
+            recognizer.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+            recognizer.cancelsTouchesInView = true
+            resolvedCollection.addGestureRecognizer(recognizer)
+            resolvedCollection.panGestureRecognizer.require(toFail: recognizer)
+            pan = recognizer
+            #endif
+        }
+        func detach() {
+            let wasMoving = moving
+            moving = false
+            let recognizer = pan
+            pan = nil
+            if wasMoving { collection?.cancelInteractiveMovement() }
+            if let recognizer { recognizer.view?.removeGestureRecognizer(recognizer) }
+            cell = nil
+            collection = nil
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard enabled, let cell, let collection else { return false }
+            let pointer = touch.location(in: collection)
+            guard let index = collection.indexPath(for: cell),
+                  collection.indexPathForItem(at: pointer) == index else { return false }
+            grabOffset = CGPoint(x: cell.center.x - pointer.x, y: cell.center.y - pointer.y)
+            return true
+        }
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard enabled, let cell, let collection,
+                  let index = collection.indexPath(for: cell),
+                  collection.dataSource?.collectionView?(collection, canMoveItemAt: index) == true else { return false }
+            return true
+        }
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            // SwiftUI buttons track presses before a pan crosses its threshold.
+            // Let the pan start there too; movement cancels the button's tap.
+            otherGestureRecognizer !== collection?.panGestureRecognizer
+        }
+        private func updateTarget(_ recognizer: UIPanGestureRecognizer) {
+            guard moving, let collection else { return }
+            let pointer = recognizer.location(in: collection)
+            collection.updateInteractiveMovementTargetPosition(
+                CGPoint(x: pointer.x + grabOffset.x, y: pointer.y + grabOffset.y)
+            )
+        }
+        @objc private func drag(_ recognizer: UIPanGestureRecognizer) {
+            guard recognizer === pan, let collection else { return }
+            switch recognizer.state {
+            case .began:
+                guard let cell, let index = collection.indexPath(for: cell) else { return }
+                moving = collection.beginInteractiveMovementForItem(at: index)
+                updateTarget(recognizer)
+            case .changed:
+                updateTarget(recognizer)
+            case .ended:
+                // Fast mouse drags can coalesce all motion into began/ended.
+                updateTarget(recognizer)
+                let wasMoving = moving
+                moving = false
+                if wasMoving { collection.endInteractiveMovement() }
+            case .cancelled, .failed:
+                let wasMoving = moving
+                moving = false
+                if wasMoving { collection.cancelInteractiveMovement() }
+            default: break
             }
         }
     }
