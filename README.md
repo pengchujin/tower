@@ -8,7 +8,7 @@
 
 在 iPhone 和 Mac 上管理订阅与节点，选择规则，生成常用客户端配置。
 
-<a href="https://github.com/pengchujin/tower/releases/latest"><img src="docs/images/download-mac.svg" width="210" height="48" alt="免费下载 Mac 版"></a>
+<a href="https://github.com/pengchujin/tower/releases/download/v1.0.9/Tower-1.0.9-47-macOS-universal.dmg"><img src="docs/images/download-mac.svg" width="210" height="48" alt="免费下载 Mac 版"></a>
 &nbsp;
 <a href="https://apps.apple.com/app/id6797458927"><img src="docs/images/download-ios.svg" width="210" height="48" alt="前往 iOS App Store"></a>
 
@@ -20,7 +20,7 @@
 
 | Mac 免费版 | iPhone / iPad |
 | :--- | :--- |
-| **[下载最新 DMG](https://github.com/pengchujin/tower/releases/latest)** | **[前往 App Store](https://apps.apple.com/app/id6797458927)** |
+| **[下载最新 DMG](https://github.com/pengchujin/tower/releases/download/v1.0.9/Tower-1.0.9-47-macOS-universal.dmg)** | **[前往 App Store](https://apps.apple.com/app/id6797458927)** |
 
 Mac 也可以通过 Homebrew 安装：
 

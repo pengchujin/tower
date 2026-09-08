@@ -4,7 +4,7 @@
 
 独立 tap 仓库为 https://github.com/pengchujin/homebrew-tap ，安装命令为 `brew install --cask pengchujin/tap/tower`。
 
-新的 Mac DMG 完成 Developer ID 签名、公证并公开到 GitHub Releases 后，同步更新 tap 中 `Casks/tower.rb` 的版本、构建号与该文件的 SHA-256。执行 `brew style --cask pengchujin/tap/tower`、`brew audit --cask pengchujin/tap/tower` 并验证安装后推送；仅发布 GitHub Release 不会自动更新 cask。用户运行 `brew update` 和 `brew upgrade --cask pengchujin/tap/tower` 获取新包。
+新的 Mac DMG 完成 Developer ID 签名、公证并公开到 GitHub Releases 后，先将主仓库 README 的两个 Mac 下载链接更新为新版 DMG 的直接下载地址，再同步更新 tap 中 `Casks/tower.rb` 的版本、构建号与该文件的 SHA-256。执行 `brew style --cask pengchujin/tap/tower`、`brew audit --cask pengchujin/tap/tower` 并验证安装后推送；仅发布 GitHub Release 不会自动更新 cask。用户运行 `brew update` 和 `brew upgrade --cask pengchujin/tap/tower` 获取新包。
 
 Cask 将应用安装为「塔台.app」，区分同名 Tower Git 客户端；不删除用户订阅、设置或 iCloud 数据。
 
