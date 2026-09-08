@@ -2,6 +2,26 @@ import XCTest
 
 @MainActor
 final class RuleCustomizationInteractionTests: XCTestCase {
+    func testSaveSchemeCanCancelAndSaveFromNestedSheet() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        app.tabBars.buttons["规则"].tap()
+        app.buttons["编辑 ACL4SSR 默认"].tap()
+        app.buttons["rule-actions-menu"].tap()
+        app.buttons["另存为新方案"].tap()
+        XCTAssertTrue(app.textFields["方案名称"].waitForExistence(timeout: 5))
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.buttons["rule-actions-menu"].waitForExistence(timeout: 5))
+        app.buttons["rule-actions-menu"].tap()
+        app.buttons["另存为新方案"].tap()
+        XCTAssertTrue(app.textFields["方案名称"].waitForExistence(timeout: 5))
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.buttons["编辑 ACL4SSR 默认 · 自定义"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["编辑 ACL4SSR 默认"].exists)
+    }
+
     func testAddManualSwitchCandidate() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

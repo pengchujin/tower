@@ -91,7 +91,8 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(architecture.contains("Hiddify"))
         XCTAssertTrue(architecture.contains("sing-box MT"))
         XCTAssertTrue(architecture.contains("Egern"))
-        XCTAssertTrue(readme.contains("名称优先"))
+        // Resolution details live in the maintainer architecture document;
+        // the download-focused README intentionally keeps only a short overview.
         XCTAssertFalse(readme.contains("IP 优先国家地区聚合"))
     }
 

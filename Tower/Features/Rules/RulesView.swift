@@ -836,7 +836,7 @@ private struct RuleCustomizationSheet: View {
                 }
             }
             .sheet(isPresented: $showsSaveScheme) {
-                SaveCustomizedSchemeSheet(scheme: scheme) {
+                SaveCustomizedSchemeSheet(model: model, scheme: scheme) {
                     dismiss()
                 }
             }
@@ -2089,7 +2089,8 @@ private struct OrderedPolicyCandidateSections: View {
 }
 
 private struct SaveCustomizedSchemeSheet: View {
-    @Environment(AppModel.self) private var model
+    // Catalyst can lose the observable environment when a menu opens a nested sheet.
+    private let model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var requestsDiscard = false
     let scheme: RuleScheme
@@ -2097,7 +2098,8 @@ private struct SaveCustomizedSchemeSheet: View {
     private let initialName: String
     @State private var name: String
 
-    init(scheme: RuleScheme, onSaved: @escaping () -> Void) {
+    init(model: AppModel, scheme: RuleScheme, onSaved: @escaping () -> Void) {
+        self.model = model
         self.scheme = scheme
         self.onSaved = onSaved
         initialName = "\(scheme.name) · \(String(localized: "自定义"))"
