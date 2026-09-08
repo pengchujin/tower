@@ -1175,6 +1175,24 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertEqual(result.rulesets, saved.rulesets)
     }
 
+    func testCandidateMouseReorderingMovesBothDirectionsAndClampsAtEdges() {
+        var candidates = ["Proxy", "Auto", "DIRECT"]
+        PolicyCandidateOrdering.move("DIRECT", by: -2, in: &candidates)
+        XCTAssertEqual(candidates, ["DIRECT", "Proxy", "Auto"])
+        PolicyCandidateOrdering.move("DIRECT", by: 2, in: &candidates)
+        XCTAssertEqual(candidates, ["Proxy", "Auto", "DIRECT"])
+        PolicyCandidateOrdering.move("Auto", by: -100, in: &candidates)
+        XCTAssertEqual(candidates, ["Auto", "Proxy", "DIRECT"])
+        PolicyCandidateOrdering.move("Auto", by: 100, in: &candidates)
+        XCTAssertEqual(candidates, ["Proxy", "DIRECT", "Auto"])
+        PolicyCandidateOrdering.move("DIRECT", by: 0, in: &candidates)
+        PolicyCandidateOrdering.move("Missing", by: -1, in: &candidates)
+        XCTAssertEqual(candidates, ["Proxy", "DIRECT", "Auto"])
+        var empty: [String] = []
+        PolicyCandidateOrdering.move("DIRECT", by: 1, in: &empty)
+        XCTAssertTrue(empty.isEmpty)
+    }
+
     @MainActor
     func testAppModelPersistsGroupOrderingAndCandidateOverrides() throws {
         let fileURL = FileManager.default.temporaryDirectory

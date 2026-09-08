@@ -2017,6 +2017,15 @@ private struct RuleGroupEditor: View {
     }
 }
 
+enum PolicyCandidateOrdering {
+    static func move(_ policy: String, by distance: Int, in selected: inout [String]) {
+        guard let source = selected.firstIndex(of: policy) else { return }
+        let destination = min(max(source + distance, 0), selected.count - 1)
+        selected.move(fromOffsets: IndexSet(integer: source),
+                      toOffset: destination > source ? destination + 1 : destination)
+    }
+}
+
 /// Policy candidates are intentionally ordered: clients use the first member
 /// as the initial/default policy, while still exposing every later member for
 /// manual switching after import.
@@ -2041,15 +2050,40 @@ private struct OrderedPolicyCandidateSections: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.accentColor)
                     }
+                    #if targetEnvironment(macCatalyst)
+                    // The native Catalyst List reorder handle does not respond to mouse
+                    // dragging in this nested editor. Use a local gesture on its handle.
+                    Image(systemName: "line.3.horizontal")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 44)
+                        .contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 3).onEnded { value in
+                            let steps = Int((value.translation.height / 44).rounded())
+                            PolicyCandidateOrdering.move(policy, by: steps, in: &selected)
+                        })
+                        .accessibilityLabel(Text(policyTitle(policy)))
+                        .accessibilityAdjustableAction { direction in
+                            PolicyCandidateOrdering.move(
+                                policy, by: direction == .increment ? 1 : -1, in: &selected
+                            )
+                        }
+                    #endif
                 }
+                .contentShape(Rectangle())
+                #if targetEnvironment(macCatalyst)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 8))
+                #endif
             }
+            #if !targetEnvironment(macCatalyst)
             .onMove { selected.move(fromOffsets: $0, toOffset: $1) }
+            #endif
             .onDelete { selected.remove(atOffsets: $0) }
         } header: {
             HStack {
                 Text("候选策略")
                 Spacer()
                 EditButton()
+                    .accessibilityIdentifier("edit-policy-candidates")
             }
         } footer: {
             Text("第一项是默认策略。可拖动排序；导入客户端后仍可手动切换。")

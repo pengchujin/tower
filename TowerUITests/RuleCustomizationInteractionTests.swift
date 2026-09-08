@@ -2,6 +2,30 @@ import XCTest
 
 @MainActor
 final class RuleCustomizationInteractionTests: XCTestCase {
+    func testCandidateReorderingPersistsDefaultPolicy() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        app.tabBars.buttons["规则"].tap()
+        app.buttons["编辑 ACL4SSR 默认"].tap()
+        app.buttons.matching(NSPredicate(format: "label == %@", "节点选择")).firstMatch.tap()
+        app.buttons["edit-policy-candidates"].tap()
+        let direct = app.cells.containing(.staticText, identifier: "全球直连").allElementsBoundByIndex.last!
+        let proxy = app.cells.containing(.staticText, identifier: "节点选择").allElementsBoundByIndex.last!
+        XCTAssertTrue(direct.waitForExistence(timeout: 5))
+        direct.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+            .press(forDuration: 1, thenDragTo: proxy.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)))
+        XCTAssertLessThan(direct.frame.minY, proxy.frame.minY)
+        app.buttons["保存"].tap()
+        app.buttons.matching(NSPredicate(format: "label == %@", "全球直连")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["edit-policy-candidates"].waitForExistence(timeout: 5))
+        let savedDirect = try XCTUnwrap(app.cells.containing(.staticText, identifier: "全球直连").allElementsBoundByIndex.last)
+        let savedProxy = try XCTUnwrap(app.cells.containing(.staticText, identifier: "节点选择").allElementsBoundByIndex.last)
+        XCTAssertLessThan(savedDirect.frame.minY, savedProxy.frame.minY)
+        XCTAssertTrue(savedDirect.staticTexts["默认"].exists)
+    }
+
     func testSaveSchemeCanCancelAndSaveFromNestedSheet() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
