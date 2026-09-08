@@ -21,18 +21,12 @@
 | Mac 免费版 | iPhone / iPad |
 | :--- | :--- |
 | **[下载最新 DMG](https://github.com/pengchujin/tower/releases/latest)** | **[前往 App Store](https://apps.apple.com/app/id6797458927)** |
-| macOS 14+ · Apple 芯片 / Intel | iOS / iPadOS 17+ |
-| 已签名并通过 Apple 公证，打开后拖入「应用程序」 | 通过 App Store 安装和更新 |
 
 Mac 也可以通过 Homebrew 安装：
 
 ```sh
 brew install --cask pengchujin/tap/tower
 ```
-
-更新时运行 `brew update`，再运行 `brew upgrade --cask pengchujin/tap/tower`。安装后打开「应用程序」中的「塔台」。[Homebrew 安装说明](https://github.com/pengchujin/homebrew-tap)
-
-直接下载的 Mac 版暂不提供应用内自动更新，下载新版覆盖安装即可。
 
 ## 添加订阅 → 选择规则 → 导出使用
 
