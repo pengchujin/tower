@@ -709,6 +709,7 @@ private struct RuleCustomizationSheet: View {
     @State private var manualEditor: LocalRuleSetEditorRequest?
     @State private var catalogEditor: CatalogRuleEditorRequest?
     @State private var groupEditor: RuleGroupEditorRequest?
+    @State private var groupRowFrames: [String: CGRect] = [:]
     @State private var identityEditor: RuleGroupIdentityEditorRequest?
     @State private var networkSettingsEditor: RuleScheme?
     @State private var configurationEditor: RuleScheme?
@@ -1024,6 +1025,7 @@ private struct RuleCustomizationSheet: View {
             Section {
                 ForEach(visibleGroups, id: \.name) { group in
                     customRuleGroupActionRow(group)
+                        .background(PolicyRowFrameReader(name: group.name))
                         .listRowInsets(compactRuleRowInsets)
                         .moveDisabled(!trimmedSearch.isEmpty)
                         .contextMenu {
@@ -1039,11 +1041,14 @@ private struct RuleCustomizationSheet: View {
                             }
                         }
                 }
+                #if !targetEnvironment(macCatalyst)
                 .onMove { source, destination in
                     guard trimmedSearch.isEmpty else { return }
                     editingGroups.move(fromOffsets: source, toOffset: destination)
                     commitEditingGroupOrder()
                 }
+                #endif
+                .onPreferenceChange(PolicyRowFrames.self) { groupRowFrames = $0 }
             } header: {
                 HStack {
                     Text("当前规则")
@@ -1144,6 +1149,17 @@ private struct RuleCustomizationSheet: View {
                 .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
+            #if targetEnvironment(macCatalyst)
+            PolicyReorderHandle(name: group.name) { y in
+                guard trimmedSearch.isEmpty,
+                      let source = editingGroups.firstIndex(where: { $0.name == group.name }),
+                      let destination = PolicyRowFrames.destination(at: y, names: editingGroups.map(\.name), frames: groupRowFrames) else { return }
+                editingGroups.move(fromOffsets: IndexSet(integer: source),
+                                   toOffset: destination > source ? destination + 1 : destination)
+                commitEditingGroupOrder()
+            }
+            .disabled(!trimmedSearch.isEmpty)
+            #endif
         }
     }
 
@@ -2017,12 +2033,61 @@ private struct RuleGroupEditor: View {
     }
 }
 
+// Use measured row positions: candidate and rule rows have different heights,
+// and scrolling changes their window positions.
+struct PolicyRowFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] { [:] }
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+    static func destination(at y: CGFloat, names: [String], frames: [String: CGRect]) -> Int? {
+        names.indices.filter { frames[names[$0]] != nil }.min {
+            abs(frames[names[$0]]!.midY - y) < abs(frames[names[$1]]!.midY - y)
+        }
+    }
+}
+
+private struct PolicyRowFrameReader: View {
+    let name: String
+    var body: some View {
+        #if targetEnvironment(macCatalyst)
+        GeometryReader { geometry in
+            Color.clear.preference(key: PolicyRowFrames.self, value: [name: geometry.frame(in: .global)])
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+private struct PolicyReorderHandle: View {
+    let name: String
+    let onDrop: (CGFloat) -> Void
+    @GestureState private var translation: CGFloat = 0
+
+    var body: some View {
+        Image(systemName: "line.3.horizontal")
+            .foregroundStyle(translation == 0 ? Color.secondary : Color.accentColor)
+            .frame(width: 32, height: 44)
+            .contentShape(Rectangle())
+            .offset(y: translation)
+            .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .global)
+                .updating($translation) { value, state, _ in state = value.translation.height }
+                .onEnded { onDrop($0.location.y) })
+            .accessibilityLabel(Text(name))
+            .accessibilityIdentifier("policy-reorder-\(name)")
+    }
+}
+#endif
+
 /// Policy candidates are intentionally ordered: clients use the first member
 /// as the initial/default policy, while still exposing every later member for
 /// manual switching after import.
 private struct OrderedPolicyCandidateSections: View {
     @Binding var selected: [String]
     let options: [String]
+    @State private var rowFrames: [String: CGRect] = [:]
 
     private var available: [String] {
         options.filter { !selected.contains($0) }
@@ -2041,10 +2106,22 @@ private struct OrderedPolicyCandidateSections: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.accentColor)
                     }
+                    #if targetEnvironment(macCatalyst)
+                    PolicyReorderHandle(name: policy) { y in
+                        guard let source = selected.firstIndex(of: policy),
+                              let destination = PolicyRowFrames.destination(at: y, names: selected, frames: rowFrames) else { return }
+                        selected.move(fromOffsets: IndexSet(integer: source),
+                                      toOffset: destination > source ? destination + 1 : destination)
+                    }
+                    #endif
                 }
+                .background(PolicyRowFrameReader(name: policy))
             }
+            #if !targetEnvironment(macCatalyst)
             .onMove { selected.move(fromOffsets: $0, toOffset: $1) }
+            #endif
             .onDelete { selected.remove(atOffsets: $0) }
+            .onPreferenceChange(PolicyRowFrames.self) { rowFrames = $0 }
         } header: {
             HStack {
                 Text("候选策略")

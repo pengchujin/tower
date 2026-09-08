@@ -490,3 +490,9 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - 复用提交 `7654b21` 的正式版 Xcode 26.6 Mac 归档，使用 Developer ID 自动签名导出；启用 Hardened Runtime，保留沙盒、网络、用户选择文件和 iCloud 签名授权。最低 macOS 14，包含 arm64 / x86_64。
 - Apple 公证完成，公证凭证附加及验证通过。发布机实际启动并确认进程持续运行；开发机和 DMG 挂载内容均经 codesign strict/deep、Gatekeeper（Notarized Developer ID）及 stapler 验证。iCloud 跨设备同步未进行本次分发包专项实测。
 - GitHub Release `v1.0.9` 已公开，含 `Tower-1.0.9-47-macOS-universal.dmg` 与 `SHA256SUMS.txt`；上传后回下载的 DMG 哈希校验通过。下载地址：https://github.com/pengchujin/tower/releases/tag/v1.0.9 。暂不含应用内自动更新。
+
+### 2026-09-08 — 重新处理 Mac 两层排序
+
+- 按用户反馈回退上一版候选拖动修改。重新覆盖外层当前规则与内层候选策略：Mac 手柄按实际行坐标定位目标，支持不同高度和滚动后的位置，拖动时有手柄位置反馈；手机保留原生 onMove。
+- 使用独立 bundle 的本地“塔台排序测试”演示应用，避免多份同名应用干扰验证。实测外层国外媒体移到首位、内层全球直连变成默认，关闭重开及重启后顺序保留。用户原有应用和配置未覆盖。
+- Mac 全量 1,024 项 XCTest（33 跳过）和 52 项 Swift Testing 通过；iOS 候选编辑 UI 回归通过，实体 iPhone 1.0.10（48）覆盖安装并启动。未发布新包，测试版留给用户复核。

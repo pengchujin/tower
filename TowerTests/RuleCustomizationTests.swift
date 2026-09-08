@@ -1175,6 +1175,21 @@ final class RuleCustomizationTests: XCTestCase {
         XCTAssertEqual(result.rulesets, saved.rulesets)
     }
 
+    func testPolicyDropUsesActualRowFramesAfterScrolling() {
+        let names = ["Proxy", "Auto", "DIRECT"]
+        let frames: [String: CGRect] = [
+            "Proxy": CGRect(x: 0, y: -30, width: 300, height: 60),
+            "Auto": CGRect(x: 0, y: 30, width: 300, height: 100),
+            "DIRECT": CGRect(x: 0, y: 130, width: 300, height: 44)
+        ]
+        XCTAssertEqual(PolicyRowFrames.destination(at: 0, names: names, frames: frames), 0)
+        XCTAssertEqual(PolicyRowFrames.destination(at: 80, names: names, frames: frames), 1)
+        XCTAssertEqual(PolicyRowFrames.destination(at: 152, names: names, frames: frames), 2)
+        XCTAssertEqual(PolicyRowFrames.destination(at: -500, names: names, frames: frames), 0)
+        XCTAssertEqual(PolicyRowFrames.destination(at: 500, names: names, frames: frames), 2)
+        XCTAssertNil(PolicyRowFrames.destination(at: 0, names: names, frames: [:]))
+    }
+
     @MainActor
     func testAppModelPersistsGroupOrderingAndCandidateOverrides() throws {
         let fileURL = FileManager.default.temporaryDirectory
