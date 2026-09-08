@@ -3,6 +3,31 @@ import XCTest
 @testable import Tower
 
 final class RuleCatalogTests: XCTestCase {
+    @MainActor
+    func testSavedBundledSchemeRemainsReadyWithoutDownloadCacheAfterReload() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = RuleDownloadStore(folderURL: directory.appendingPathComponent("rules"))
+        let persistence = PersistenceStore(fileURL: directory.appendingPathComponent("state.json"))
+        let model = AppModel(persistence: persistence, downloadStore: store, arguments: [])
+        let scheme = try XCTUnwrap(RuleSchemeRepository().bundledSchemes().first { $0.id == "acl4ssr-default" })
+        let saved = model.saveCustomizedScheme(named: "Offline copy", from: scheme)
+        XCTAssertFalse(saved.remoteRulesetURLs.isEmpty)
+        XCTAssertTrue(saved.remoteRulesetURLs.allSatisfy { !store.hasCachedRules(for: $0) })
+        XCTAssertTrue(model.isSchemeReady(saved))
+        let restored = try JSONDecoder().decode(RuleScheme.self, from: JSONEncoder().encode(saved))
+        let reloaded = AppModel(persistence: persistence, downloadStore: store, arguments: [])
+        XCTAssertTrue(reloaded.isSchemeReady(restored))
+
+        let missing = URL(string: "https://rules.example.com/unique-unavailable-rule.list")!
+        var incomplete = restored
+        incomplete.rulesets.append(RuleSchemeRuleset(groupName: scheme.finalGroupName!, resource: .remote(missing)))
+        let fresh = AppModel(persistence: persistence, downloadStore: store, arguments: [])
+        XCTAssertFalse(fresh.isSchemeReady(incomplete))
+        try store.store("", for: missing)
+        XCTAssertTrue(fresh.isSchemeReady(incomplete))
+    }
+
     func testBuiltInCatalogContainsBothMaintainersAndRepresentativeRoutes() throws {
         let catalog = RuleCatalog.builtIn
 

@@ -75,6 +75,13 @@ struct RuleSchemeRepository {
         }
     }
 
+    /// Uses the same downloaded-or-bundled lookup as rule generation, including
+    /// saved copies whose scheme itself is no longer marked as bundled.
+    func hasLocalRules(for url: URL) -> Bool {
+        downloadStore?.hasCachedRules(for: url) == true
+            || bundledResourceURL(named: Self.bundledResourceName(for: url)) != nil
+    }
+
     func hasDomainSetContent(_ resource: RuleSchemeRuleset.Resource) -> Bool {
         guard let url = resource.domainSetURL else { return true }
         return downloadStore?.hasCachedRules(for: url) == true
@@ -138,11 +145,15 @@ struct RuleSchemeRepository {
     }
 
     private func bundledContent(named name: String) -> String? {
+        guard let url = bundledResourceURL(named: name) else { return nil }
+        return try? String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func bundledResourceURL(named name: String) -> URL? {
         let base = (name as NSString).deletingPathExtension
         let ext = (name as NSString).pathExtension
-        guard let url = bundle.url(forResource: base, withExtension: ext, subdirectory: "ACL4SSR")
-            ?? bundle.url(forResource: base, withExtension: ext) else { return nil }
-        return try? String(contentsOf: url, encoding: .utf8)
+        return bundle.url(forResource: base, withExtension: ext, subdirectory: "ACL4SSR")
+            ?? bundle.url(forResource: base, withExtension: ext)
     }
 
     /// Mirrors `local_name()` in the update script so a pinned URL resolves to

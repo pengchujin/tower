@@ -1063,10 +1063,7 @@ final class AppModel {
     /// True once every list a scheme references is available locally.
     func isSchemeReady(_ scheme: RuleScheme) -> Bool {
         let effectiveURLs = effectiveScheme(scheme).remoteRulesetURLs
-        let bundledURLs = scheme.isBundled ? Set(scheme.remoteRulesetURLs) : []
-        return effectiveURLs.allSatisfy { url in
-            bundledURLs.contains(url) || downloadStore.hasCachedRules(for: url)
-        }
+        return effectiveURLs.allSatisfy { schemeRepository.hasLocalRules(for: $0) }
     }
 
     func selectScheme(_ scheme: RuleScheme) {
