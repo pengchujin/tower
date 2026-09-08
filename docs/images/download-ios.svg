@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210" height="48" viewBox="0 0 210 48" role="img" aria-label="iOS APP Store">
+  <rect width="210" height="48" rx="24" fill="#18181B"/>
+  <g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="26" y="12" width="15" height="24" rx="3.5"/>
+    <path d="M31 16h5m-4 16h3"/>
+  </g>
+  <text x="56" y="30" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="17" font-weight="600">iOS APP Store</text>
+</svg>

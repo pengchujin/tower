@@ -8,9 +8,9 @@
 
 在 iPhone 和 Mac 上管理订阅与节点，选择规则，生成常用客户端配置。
 
-<a href="https://github.com/pengchujin/tower/releases/latest"><img src="https://img.shields.io/badge/Mac-%E5%85%8D%E8%B4%B9%E4%B8%8B%E8%BD%BD-007AFF?style=for-the-badge&amp;logo=apple&amp;logoColor=white" alt="免费下载 Mac 版"></a>
+<a href="https://github.com/pengchujin/tower/releases/latest"><img src="docs/images/download-mac.svg" width="210" height="48" alt="免费下载 Mac 版"></a>
 &nbsp;
-<a href="https://apps.apple.com/app/id6797458927"><img src="https://img.shields.io/badge/iOS-App%20Store-111111?style=for-the-badge&amp;logo=apple&amp;logoColor=white" alt="前往 iOS App Store"></a>
+<a href="https://apps.apple.com/app/id6797458927"><img src="docs/images/download-ios.svg" width="210" height="48" alt="前往 iOS App Store"></a>
 
 [使用指南](https://tower.shenqi.uk) · [更新日志](https://github.com/pengchujin/tower/releases) · [反馈问题](https://github.com/pengchujin/tower/issues)
 
