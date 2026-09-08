@@ -4,12 +4,42 @@ import XCTest
 @testable import Tower
 
 final class LANSubscriptionServerTests: XCTestCase {
+    func testCopiedMacSubscriptionsKeepExactClientInsteadOfGenericDialect() {
+        for target in [ClientTarget.surgeMac, .clashMac] {
+            var calledTarget: ClientTarget?
+            let response = LANSubscriptionHTTPRouter.response(
+                request: "GET /sub/test-token?target=\(target.rawValue) HTTP/1.1\r\n\r\n",
+                token: "test-token",
+                exactClientConfiguration: { client in
+                    calledTarget = client
+                    return GeneratedConfiguration(target: client, content: "exact-client", supportedNodeCount: 1, skippedNodeCount: 0, ruleCount: 0)
+                },
+                formatConfiguration: { format in
+                    XCTFail("Copied Mac subscriptions must retain client filters")
+                    return GeneratedConfiguration(target: format.generationTarget, content: "wrong", supportedNodeCount: 0, skippedNodeCount: 0, ruleCount: 0)
+                }
+            )
+            XCTAssertEqual(response.statusCode, 200)
+            XCTAssertEqual(calledTarget, target)
+            XCTAssertEqual(String(decoding: response.body, as: UTF8.self), "exact-client")
+        }
+    }
+
     func testProductionLANSharingKeepsAStablePort() {
         XCTAssertEqual(LANSubscriptionListenerEnvironment.fixedWiFiPort, 65_171)
     }
 
     /// On a phone the pin is what keeps the listener off cellular, where
     /// "local network" would mean the carrier's network rather than the room.
+    func testDesktopClientAliases() throws {
+        for alias in ["clash-verge", "clashverge", "clashmac"] {
+            XCTAssertEqual(try LANSubscriptionTargetResolver.resolveFormat(explicitTarget: alias, userAgent: nil), .clash)
+        }
+        for agent in ["ClashMac/27", "Clash-Verge/2.5"] {
+            XCTAssertEqual(try LANSubscriptionTargetResolver.resolveFormat(explicitTarget: nil, userAgent: agent), .clash)
+        }
+    }
+
     func testPhoneListenerStaysPinnedToWiFi() {
         let parameters = LANSubscriptionListenerEnvironment
             .networkListening(pinnedToWiFi: true)
@@ -145,7 +175,7 @@ final class LANSubscriptionServerTests: XCTestCase {
     func testClashLANFormatNamesItsCompatibleClientsInUserFacingOrder() {
         XCTAssertEqual(
             LANSubscriptionFormat.clash.displayName,
-            "Clash / Clash Mi / Karing / OpenClash / Nikki / Stash"
+            "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki / Stash"
         )
     }
 
@@ -373,6 +403,29 @@ final class LANSubscriptionServerTests: XCTestCase {
         XCTAssertEqual(http.statusCode, 200)
         XCTAssertEqual(http.value(forHTTPHeaderField: "X-Tower-Target"), ClientTarget.clash.rawValue)
         XCTAssertEqual(String(decoding: data, as: UTF8.self), "# clash")
+    }
+
+    func testListenerWaitsForFragmentedHTTPHeaders() async throws {
+        let server = LANSubscriptionServer(token: "fragment-token", listenerEnvironment: .loopback,
+                                           configurationProvider: configuration)
+        let url = try await server.start()
+        defer { server.stop() }
+        let connection = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: UInt16(url.port!))!, using: .tcp)
+        defer { connection.cancel() }
+        let received = expectation(description: "Complete response after second header fragment")
+        let queue = DispatchQueue(label: "tower.test.fragmented-http")
+        connection.start(queue: queue)
+        connection.send(content: Data("GET \(url.path) HTTP/1.1\r\nHost: localhost\r\n".utf8), completion: .contentProcessed { _ in
+            queue.asyncAfter(deadline: .now() + 0.1) {
+                connection.send(content: Data("User-Agent: ClashMac/27\r\n\r\n".utf8), completion: .contentProcessed { _ in })
+            }
+        })
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, error in
+            XCTAssertNil(error)
+            XCTAssertTrue(String(decoding: data ?? Data(), as: UTF8.self).hasPrefix("HTTP/1.1 200 OK"))
+            received.fulfill()
+        }
+        await fulfillment(of: [received], timeout: 5)
     }
 
     private func configuration(for format: LANSubscriptionFormat) -> GeneratedConfiguration {

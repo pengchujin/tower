@@ -1072,6 +1072,7 @@ struct RulePreset: Identifiable, Codable, Hashable {
 
 enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case surge
+    case surgeMac = "surge-mac"
     case clash
     case shadowrocket
     case loon
@@ -1082,6 +1083,10 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     case clashApple = "clash-apple"
     case singBox = "sing-box"
     case clashMi = "clash-mi"
+    case clashVerge = "clash-verge"
+    case clashMac = "clashmac"
+    case flClash = "flclash"
+    case mihomoParty = "mihomo-party"
     case karing
 
     var id: String { rawValue }
@@ -1089,8 +1094,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     var name: String {
         switch self {
         case .surge: "Surge"
+        case .surgeMac: "Surge Mac"
         case .clash: "Stash"
         case .clashApple: "Clash"
+        case .clashVerge: "Clash Verge"
+        case .clashMac: "ClashMac"
+        case .flClash: "FlClash"
+        case .mihomoParty: "Mihomo Party"
         case .shadowrocket: "Shadowrocket"
         case .loon: "Loon"
         case .quanx: "QuanX"
@@ -1105,9 +1115,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var subtitle: String {
         switch self {
-        case .surge: String(localized: "完整配置")
+        case .surge, .surgeMac: String(localized: "完整配置")
         case .clash: "Clash YAML"
-        case .clashApple: "Clash / mihomo"
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty: "Clash / mihomo"
         case .shadowrocket: String(localized: "本地配置")
         case .loon: String(localized: "完整配置")
         case .quanx: "Quantumult X"
@@ -1122,9 +1132,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var symbol: String {
         switch self {
-        case .surge: "wave.3.right.circle.fill"
+        case .surge, .surgeMac: "wave.3.right.circle.fill"
         case .clash: "square.3.layers.3d.top.filled"
-        case .clashApple: "point.3.connected.trianglepath.dotted"
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty: "point.3.connected.trianglepath.dotted"
         case .shadowrocket: "paperplane.circle.fill"
         case .loon: "moon.stars.circle.fill"
         case .quanx: "q.circle.fill"
@@ -1142,8 +1152,13 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     var appIconAssetName: String? {
         switch self {
         case .surge: "ClientSurge"
+        case .surgeMac: "ClientSurgeMac"
         case .clash: "ClientStash"
         case .clashApple: "ClientClashOfficial"
+        case .clashVerge: "ClientClashVerge"
+        case .clashMac: "ClientClashMac"
+        case .flClash: "ClientFlClash"
+        case .mihomoParty: "ClientMihomoParty"
         case .shadowrocket: "ClientShadowrocket"
         case .loon: "ClientLoon"
         case .quanx: "ClientQuantumultX"
@@ -1158,9 +1173,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var brandSymbol: String {
         switch self {
-        case .surge: "waveform.path.ecg"
+        case .surge, .surgeMac: "waveform.path.ecg"
         case .clash: "square.3.layers.3d.top.filled"
-        case .clashApple: "point.3.connected.trianglepath.dotted"
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty: "point.3.connected.trianglepath.dotted"
         case .shadowrocket: "paperplane.fill"
         case .loon: "moon.stars.fill"
         case .quanx: "q.circle.fill"
@@ -1175,9 +1190,9 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var brandColorHex: String {
         switch self {
-        case .surge: "3157D5"
+        case .surge, .surgeMac: "3157D5"
         case .clash: "1473E6"
-        case .clashApple: "2F82F7"
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty: "2F82F7"
         case .shadowrocket: "1B98F5"
         case .loon: "6B45D8"
         case .quanx: "14A69A"
@@ -1197,7 +1212,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     /// Tower sees REALITY on. Everything else carries it, Shadowrocket
     /// included.
     var expressesReality: Bool {
-        self != .surge
+        self != .surge && self != .surgeMac
     }
 
     /// Hiddify and sing-box MT both read complete sing-box JSON documents.
@@ -1207,7 +1222,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     /// Stash, Clash, Clash Mi and Karing all consume complete Clash YAML.
     var usesClashFormat: Bool {
-        [.clash, .clashApple, .clashMi, .karing].contains(self)
+        [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing].contains(self)
     }
 
     /// Clients that can reference an airport's node resource from inside a
@@ -1218,7 +1233,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     /// sing-box, so it must not be emitted for sing-box MT or Hiddify.
     var supportsEmbeddedRemoteSubscriptions: Bool {
         switch self {
-        case .clash, .clashApple, .clashMi, .karing, .surge, .loon, .quanx, .egern:
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .surge, .surgeMac, .loon, .quanx, .egern:
             true
         case .shadowrocket, .hiddify, .v2box, .singBox:
             false
@@ -1227,7 +1242,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var fileExtension: String {
         switch self {
-        case .clash, .clashApple, .clashMi, .karing, .egern: "yaml"
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .egern: "yaml"
         case .hiddify, .singBox: "json"
         case .v2box: "txt"
         default: "conf"
@@ -1239,7 +1254,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         // publishes only a node-subscription route, not a complete profile
         // schema with Tower's rules and policy groups.
         switch self {
-        case .quanx, .v2box: false
+        case .quanx, .v2box, .clashMac: false
         default: true
         }
     }
@@ -1273,7 +1288,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     func supports(_ kind: ProxyKind) -> Bool {
         switch self {
-        case .clash, .clashApple, .clashMi:
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi:
             kind != .unknown
         case .karing:
             // Karing documents these protocols for imported Clash profiles.
@@ -1281,7 +1296,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // nor its bundled sing-box-derived core claims support for it.
             [.shadowsocks, .shadowsocksR, .vmess, .vless, .trojan, .hysteria,
              .hysteria2, .tuic, .wireguard, .anytls, .socks5, .http].contains(kind)
-        case .surge:
+        case .surge, .surgeMac:
             // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
             // shipped a Hysteria 1 server type.
             [.shadowsocks, .vmess, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http].contains(kind)
@@ -1442,6 +1457,29 @@ enum ExportDestinationOrder {
     }
 }
 
+enum ClientPlatform {
+    case phone, mac
+
+    static var current: Self { TowerPlatform.isMac ? .mac : .phone }
+
+    var defaultOrder: [ClientTarget] {
+        let front: [ClientTarget] = self == .mac ? [.shadowrocket, .surgeMac, .clashVerge, .clashMac, .flClash, .mihomoParty, .singBox, .clashApple] : []
+        return front + ClientTargetOrder.defaultOrder.filter { !front.contains($0) }
+    }
+
+    var defaultVisibleTargets: Set<ClientTarget> {
+        Set(defaultOrder.filter { self == .mac || ![.surgeMac, .clashVerge, .clashMac, .flClash, .mihomoParty].contains($0) })
+    }
+}
+
+struct ClientPlatformPreferences: Codable {
+    var order: [String]
+    var visibleTargets: [String]
+    var lanSharingIndex: Int
+    var isLANSharingVisible: Bool
+    var selectedTarget: ClientTarget
+}
+
 enum ClientTargetOrder {
     static let currentMigrationVersion = 1
 
@@ -1457,7 +1495,12 @@ enum ClientTargetOrder {
         .hiddify,
         .egern,
         .clashMi,
-        .karing
+        .karing,
+        .clashVerge,
+        .clashMac,
+        .flClash,
+        .mihomoParty,
+        .surgeMac
     ]
 
     private static let previousDefaultOrders: [[ClientTarget]] = [
@@ -1554,6 +1597,7 @@ enum ClientTargetVisibility {
 }
 
 struct AppSnapshot: Codable {
+    var macClientPreferences: ClientPlatformPreferences?
     var subscriptions: [SubscriptionSource]
     var nodes: [ProxyNode]
     var selectedPresetID: String
@@ -1675,8 +1719,10 @@ struct AppSnapshot: Codable {
         resolvedHostCountryCodes: [String: String]? = nil,
         resolvedHostCountryCodeUpdatedAt: [String: Date]? = nil,
         resolvedHostCountryDatabaseVersion: String? = nil,
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        macClientPreferences: ClientPlatformPreferences? = nil
     ) {
+        self.macClientPreferences = macClientPreferences
         self.subscriptions = subscriptions
         self.nodes = nodes
         self.selectedPresetID = selectedPresetID

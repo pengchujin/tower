@@ -2,6 +2,74 @@ import XCTest
 @testable import Tower
 
 final class DirectImportServiceTests: XCTestCase {
+    func testMacSubscriptionFallbackUsesInstalledSurgeCapability() {
+        XCTAssertTrue(MacClientImportCapability.copiesSubscription(target: .surgeMac, isMac: true, surgeSchemeAvailable: false))
+        XCTAssertFalse(MacClientImportCapability.copiesSubscription(target: .surgeMac, isMac: true, surgeSchemeAvailable: true))
+        XCTAssertTrue(MacClientImportCapability.copiesSubscription(target: .clashMac, isMac: true, surgeSchemeAvailable: true))
+        XCTAssertFalse(MacClientImportCapability.copiesSubscription(target: .surge, isMac: false, surgeSchemeAvailable: false))
+        XCTAssertFalse(MacClientImportCapability.copiesSubscription(target: .clashVerge, isMac: true, surgeSchemeAvailable: false))
+    }
+
+    func testMihomoPartyDedicatedSchemePreservesURLAndName() throws {
+        let source = try XCTUnwrap(URL(string: "http://127.0.0.1:65172/test.yaml?token=a&name=b"))
+        let result = try ClientImportURLBuilder.make(target: .mihomoParty, configurationURL: source, displayName: "塔台 & Test")
+        let components = try XCTUnwrap(URLComponents(url: result, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(result.scheme, "mihomo")
+        XCTAssertEqual(result.host, "install-config")
+        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, source.absoluteString)
+        XCTAssertEqual(components.queryItems?.first { $0.name == "name" }?.value, "塔台 & Test")
+    }
+
+    @MainActor
+    func testFlClashUsesDedicatedSchemeAndPreservesNestedURL() throws {
+        let source = try XCTUnwrap(URL(string: "http://127.0.0.1:65172/test.yaml?token=a&name=b"))
+        let result = try ClientImportURLBuilder.make(target: .flClash, configurationURL: source)
+        XCTAssertEqual(result.scheme, "flclash")
+        XCTAssertEqual(result.host, "install-config")
+        XCTAssertEqual(URLComponents(url: result, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, source.absoluteString)
+    }
+
+    @MainActor
+    func testVergeRefreshReadsUpdatedContentFromOriginalURL() async throws {
+        let service = DirectImportService()
+        defer { service.stop() }
+        func configuration(_ content: String) -> GeneratedConfiguration {
+            GeneratedConfiguration(target: .clashVerge, content: content,
+                supportedNodeCount: 1, skippedNodeCount: 0, ruleCount: 0, profileName: "Tower Refresh Test")
+        }
+        let firstScheme = try await service.prepare(configuration("proxies: []\n# first"))
+        let components = try XCTUnwrap(URLComponents(url: firstScheme, resolvingAgainstBaseURL: false))
+        let originalURL = try XCTUnwrap(URL(string: try XCTUnwrap(components.queryItems?.first { $0.name == "url" }?.value)))
+        let (firstData, _) = try await URLSession.shared.data(from: originalURL)
+        XCTAssertTrue(String(decoding: firstData, as: UTF8.self).contains("# first"))
+        let secondScheme = try await service.prepare(configuration("proxies: []\n# updated"))
+        XCTAssertEqual(firstScheme, secondScheme)
+        let (updatedData, response) = try await URLSession.shared.data(from: originalURL)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue(String(decoding: updatedData, as: UTF8.self).contains("# updated"))
+    }
+
+    func testMacClientImportIdentityAndEncodedURL() throws {
+        let source = URL(string: "http://127.0.0.1:65172/config.yaml?token=a&target=clash")!
+        let url = try ClientImportURLBuilder.make(target: .clashVerge, configurationURL: source)
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.scheme, "clash-verge")
+        XCTAssertEqual(components.queryItems, [URLQueryItem(name: "url", value: source.absoluteString)])
+        XCTAssertTrue(ClientTarget.clashMac.usesClashFormat)
+        XCTAssertThrowsError(try ClientImportURLBuilder.make(target: .clashMac, configurationURL: source))
+        XCTAssertEqual(try ClientImportURLBuilder.make(target: .surgeMac, configurationURL: source).scheme, "surgeconfig")
+    }
+
+    func testLocalRouteAcceptsEquivalentUnicodeEscapesButNotDifferentTokens() {
+        let url = URL(string: "http://127.0.0.1:65172/塔台/private-token/塔台.yaml")!
+        let encoded = url.path(percentEncoded: true)
+        XCTAssertTrue(LocalConfigurationServer.matchesRequestPath(encoded, configurationURL: url))
+        XCTAssertTrue(LocalConfigurationServer.matchesRequestPath(encoded.lowercased(), configurationURL: url))
+        XCTAssertTrue(LocalConfigurationServer.matchesRequestPath(url.path(percentEncoded: false), configurationURL: url))
+        XCTAssertFalse(LocalConfigurationServer.matchesRequestPath(encoded.replacingOccurrences(of: "private-token", with: "other"), configurationURL: url))
+        XCTAssertFalse(LocalConfigurationServer.matchesRequestPath("/%invalid", configurationURL: url))
+    }
+
     private let localURL = URL(string: "http://127.0.0.1:7788/private/tower.conf")!
 
     func testBuildsDocumentedClientSchemes() throws {
@@ -359,9 +427,9 @@ extension DirectImportServiceTests {
         XCTAssertNotNil(hiddify.host)
     }
 
-    func testOnlyQuantumultXAndV2BoxLackAFullConfigurationScheme() {
+    func testFileOnlyClientsDoNotAdvertiseAFullConfigurationScheme() {
         let withoutScheme = ClientTarget.allCases.filter { !$0.supportsDirectConfigurationImport }
-        XCTAssertEqual(withoutScheme, [.quanx, .v2box])
+        XCTAssertEqual(withoutScheme, [.quanx, .v2box, .clashMac])
     }
 }
 

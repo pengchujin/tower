@@ -21,6 +21,7 @@ struct ClientPickerReorderGestureBridge: UIViewRepresentable {
     /// Vertical SwiftUI ScrollViews may extend under navigation/tab bars.
     /// Their UIKit viewport origin then differs from the parent's named space.
     var coordinateOriginInWindow: CGPoint? = nil
+    var mapsMouseWheelHorizontally = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(configuration: self)
@@ -87,8 +88,11 @@ struct ClientPickerReorderGestureBridge: UIViewRepresentable {
         private var initialWindowLocation: CGPoint?
         private var initialViewportLocation: CGPoint?
         private var isReordering = false
+        private var wheelHandler: HorizontalMouseWheelHandler?
+        private var mapsMouseWheelHorizontally: Bool
 
         init(configuration: ClientPickerReorderGestureBridge) {
+            mapsMouseWheelHorizontally = configuration.mapsMouseWheelHorizontally
             minimumPressDuration = configuration.minimumPressDuration
             allowableMovement = configuration.allowableMovement
             onScrollViewResolved = configuration.onScrollViewResolved
@@ -139,6 +143,8 @@ struct ClientPickerReorderGestureBridge: UIViewRepresentable {
             scrollView = nil
             initialWindowLocation = nil
             initialViewportLocation = nil
+            wheelHandler?.detach()
+            wheelHandler = nil
             if let recognizer, let recognizerView {
                 recognizerView.removeGestureRecognizer(recognizer)
             }
@@ -164,6 +170,9 @@ struct ClientPickerReorderGestureBridge: UIViewRepresentable {
             scrollView.addGestureRecognizer(recognizer)
             self.scrollView = scrollView
             longPressRecognizer = recognizer
+            if mapsMouseWheelHorizontally {
+                wheelHandler = HorizontalMouseWheelHandler(scrollView: scrollView)
+            }
         }
 
         @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
@@ -296,5 +305,50 @@ struct ClientPickerReorderGestureBridge: UIViewRepresentable {
             // by the picker after onBegan accepts the long press.
             return !(otherGestureRecognizer is UIPanGestureRecognizer)
         }
+    }
+}
+
+/// Translate ordinary mouse-wheel input only; touch and continuous trackpad
+/// scrolling stay with UIScrollView's native pan recognizer.
+@MainActor
+private final class HorizontalMouseWheelHandler: NSObject, UIGestureRecognizerDelegate {
+    private weak var scrollView: UIScrollView?
+    private var recognizer: UIPanGestureRecognizer!
+
+    init(scrollView: UIScrollView) {
+        self.scrollView = scrollView
+        super.init()
+        recognizer = UIPanGestureRecognizer(target: self, action: #selector(scroll(_:)))
+        recognizer.allowedScrollTypesMask = .discrete
+        recognizer.allowedTouchTypes = []
+        recognizer.delegate = self
+        scrollView.addGestureRecognizer(recognizer)
+    }
+
+    func detach() {
+        scrollView?.removeGestureRecognizer(recognizer)
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let scrollView else { return false }
+        let delta = recognizer.translation(in: scrollView)
+        return scrollView.contentSize.width > scrollView.bounds.width
+            && abs(delta.y) > abs(delta.x)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        otherGestureRecognizer is UIPanGestureRecognizer
+    }
+
+    @objc private func scroll(_ gesture: UIPanGestureRecognizer) {
+        guard let scrollView, gesture.state == .began || gesture.state == .changed else { return }
+        let delta = gesture.translation(in: scrollView)
+        gesture.setTranslation(.zero, in: scrollView)
+        let minimum = -scrollView.adjustedContentInset.left
+        let maximum = max(minimum, scrollView.contentSize.width - scrollView.bounds.width
+                          + scrollView.adjustedContentInset.right)
+        let next = min(maximum, max(minimum, scrollView.contentOffset.x - delta.y))
+        scrollView.setContentOffset(CGPoint(x: next, y: scrollView.contentOffset.y), animated: false)
     }
 }

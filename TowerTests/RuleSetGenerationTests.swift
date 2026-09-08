@@ -480,7 +480,7 @@ final class RuleSetGenerationTests: XCTestCase {
         XCTAssertTrue(shadowrocket.contains("format: yaml"), shadowrocket)
         XCTAssertTrue(shadowrocket.contains("https://rules.example.com/Streaming.yaml"), shadowrocket)
 
-        for target in [ClientTarget.surge, .loon, .quanx] {
+        for target in [ClientTarget.surge, .surgeMac, .loon, .quanx] {
             let content = fixture.generator.generate(
                 nodes: [],
                 scheme: fixture.scheme,
@@ -770,7 +770,7 @@ final class RuleSetGenerationTests: XCTestCase {
             ).content
 
             switch target {
-            case .clash, .clashApple, .clashMi, .karing, .surge, .shadowrocket, .loon:
+            case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .surge, .surgeMac, .shadowrocket, .loon:
                 XCTAssertTrue(content.contains("DOMAIN-SUFFIX,example.com,Proxy"), "\(target.name): \(content)")
             case .quanx:
                 XCTAssertTrue(content.contains("host-suffix, example.com, Proxy"), content)

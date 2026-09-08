@@ -62,3 +62,25 @@ zsh Scripts/install_device.zsh
 - 性能：使用 1,000 / 5,000 节点检查地图、切换目标和滚动；记录设备、数据规模和 Instruments 证据，不把模拟器耗时当成手机帧率。
 
 发布另见 [RELEASING.md](RELEASING.md)。只有用户要求发布时才递增版本、推送、归档或上传。
+
+## Mac Catalyst
+
+按本机规定设置 `DEVELOPER_DIR` 后，构建和运行测试：
+
+```sh
+xcodebuild -version
+xcodebuild -project Tower.xcodeproj -scheme Tower -configuration Debug \
+  -destination 'platform=macOS,variant=Mac Catalyst,arch=arm64' \
+  -derivedDataPath .artifacts/mac-adaptation/build CODE_SIGNING_ALLOWED=NO test
+```
+
+上面是本机开发验证，不是分发签名。正式 Mac 分发需要另行配置开发团队、描述文件和公证；本轮不更改已有 iOS 发布流程。macOS 不提供与实体 iPhone 相同的完整文件保护等级，源码仍请求完整保护，等级断言只在 iPhone 验收。
+
+导入入口参考：[Surge](https://manual.nssurge.com/tools/url-scheme.html)、[Clash Verge](https://www.clashverge.dev/guide/url_schemes.html)、[ClashMac](https://clashmac.app/guide/dashboard/profiles)。Surge 手机版使用 `surge`，Surge Mac 使用 `surgeconfig`，避免 Apple silicon 同时安装两版时打开错误客户端。Clash Verge 使用专用 `clash-verge`，ClashMac 27.1.4 没有注册配置导入 URL Scheme，走原生文件保存后由客户端导入。
+
+客户端偏好按平台隔离：AppSnapshot 原有顶层字段继续保存手机偏好，新增可选 macClientPreferences 保存 Mac 偏好；Mac 写回时保留手机字段，手机写回时保留 Mac 字段。旧快照首次在 Mac 打开使用 Mac 默认顺序，手机沿用原有自定义顺序并默认隐藏新增的 Mac 专用目标。两端交替读写回归在 ClientOrderTests 中覆盖。
+
+Mac 导入跟进依据：
+- Surge Mac 的 URL Scheme 最低版本见 https://manual.nssurge.com/tools/url-scheme.html 。
+- ClashMac 配置与 CLI 文档：https://clashmac.app/guide/dashboard/profiles 、https://clashmac.app/guide/cli 。本机 27.1.4 的 URL 注册和 CLI help 也已核对，未发现新增配置的公开自动化入口。
+- Clash Verge 2.5.2 的导入实现：https://github.com/clash-verge-rev/clash-verge-rev/blob/v2.5.2/src-tauri/src/utils/resolve/scheme.rs 。resolve_scheme 调用 import_subscription，再调用 profiles_append_item_safe；相同 URL 仍新增条目。曾试行的手动刷新更新选项已按用户反馈撤回，当前恢复直接调用 Scheme 新建配置。

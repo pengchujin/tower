@@ -20,6 +20,18 @@ struct QRCodeScannerSheet: View {
     }
 }
 
+#if targetEnvironment(macCatalyst)
+struct QRCodeScannerPreview: View {
+    let onScan: (String) -> Void
+    var body: some View {
+        ContentUnavailableView {
+            Label("无法使用相机扫码", systemImage: "camera.fill")
+        } description: {
+            Text("请检查相机权限，或切换到粘贴识别。")
+        }
+    }
+}
+#else
 struct QRCodeScannerPreview: View {
     @Environment(\.scenePhase) private var scenePhase
     let onScan: (String) -> Void
@@ -129,3 +141,5 @@ private struct QRCodeScannerView: UIViewControllerRepresentable {
         }
     }
 }
+
+#endif

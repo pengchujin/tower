@@ -2,6 +2,27 @@ import Foundation
 import Network
 import UIKit
 
+enum TowerPlatform {
+    static var isMac: Bool {
+        #if targetEnvironment(macCatalyst)
+        true
+        #else
+        ProcessInfo.processInfo.isiOSAppOnMac
+        #endif
+    }
+}
+
+enum MacClientImportCapability {
+    static func copiesSubscription(target: ClientTarget, isMac: Bool, surgeSchemeAvailable: Bool) -> Bool {
+        isMac && (target == .clashMac || (target == .surgeMac && !surgeSchemeAvailable))
+    }
+
+    @MainActor
+    static var surgeSchemeAvailable: Bool {
+        UIApplication.shared.canOpenURL(URL(string: "surgeconfig:///install-config")!)
+    }
+}
+
 enum DirectImportError: LocalizedError, Equatable {
     case unsupportedTarget(ClientTarget)
     case invalidSchemeURL
@@ -34,8 +55,19 @@ struct ClientImportURLBuilder {
         switch target {
         case .surge:
             value = "surge:///install-config?url=\(encodedURL)"
+        case .surgeMac:
+            // Mac 6.7+ registers this alias; it does not collide with Surge iOS.
+            value = "surgeconfig:///install-config?url=\(encodedURL)"
         case .clash:
             value = "stash://install-config?url=\(encodedURL)"
+        case .clashVerge:
+            value = "clash-verge://install-config?url=\(encodedURL)"
+        case .mihomoParty:
+            value = "mihomo://install-config?url=\(encodedURL)&name=\(encodedName)"
+        case .flClash:
+            value = "flclash://install-config?url=\(encodedURL)"
+        case .clashMac:
+            throw DirectImportError.unsupportedTarget(target)
         case .clashApple:
             value = "clashmeta://install-config?url=\(encodedURL)"
         case .clashMi:
@@ -132,7 +164,10 @@ final class DirectImportService {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     func prepare(_ configuration: GeneratedConfiguration) async throws -> URL {
+        let previousServer = server
+        server = nil
         stop()
+        await previousServer?.stopAndWait()
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
@@ -173,6 +208,7 @@ final class DirectImportService {
     }
 
     private func beginBackgroundExecution() {
+        guard !TowerPlatform.isMac else { return }
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "TowerDirectImport") { [weak self] in
             Task { @MainActor in
                 self?.stop()
@@ -253,7 +289,7 @@ final class LocalConfigurationServer: @unchecked Sendable {
                         guard !self.didResumeStart, listener.port != nil else { return }
                         self.didResumeStart = true
                         continuation.resume(returning: self.configurationURL)
-                    case .failed:
+                    case .failed, .cancelled:
                         guard !self.didResumeStart else { return }
                         self.didResumeStart = true
                         continuation.resume(throwing: DirectImportError.localServerFailed)
@@ -273,9 +309,29 @@ final class LocalConfigurationServer: @unchecked Sendable {
         listener = nil
     }
 
+    /// Wait for the fixed port to be released before preparing a new export.
+    func stopAndWait() async {
+        guard let listener else { return }
+        self.listener = nil
+        await withCheckedContinuation { continuation in
+            queue.async {
+                if case .cancelled = listener.state {
+                    continuation.resume()
+                    return
+                }
+                let previousHandler = listener.stateUpdateHandler
+                listener.stateUpdateHandler = { state in
+                    previousHandler?(state)
+                    if case .cancelled = state { continuation.resume() }
+                }
+                listener.cancel()
+            }
+        }
+    }
+
     private func serve(_ connection: NWConnection) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { [weak self] data, _, _, _ in
+        LocalHTTPRequestReader.read(connection, on: queue) { [weak self] data in
             guard let self else {
                 connection.cancel()
                 return
@@ -285,12 +341,9 @@ final class LocalConfigurationServer: @unchecked Sendable {
             let firstLine = request.components(separatedBy: "\r\n").first ?? ""
             let requestTarget = firstLine.split(separator: " ").dropFirst().first.map(String.init) ?? ""
             let requestPath = requestTarget.split(separator: "?", maxSplits: 1).first.map(String.init) ?? requestTarget
-            let expectedPath = URLComponents(
-                url: self.configurationURL,
-                resolvingAgainstBaseURL: false
-            )?.percentEncodedPath ?? self.configurationURL.path
-            let isHead = firstLine.hasPrefix("HEAD ") && requestPath == expectedPath
-            let isGet = firstLine.hasPrefix("GET ") && requestPath == expectedPath
+            let matchesPath = Self.matchesRequestPath(requestPath, configurationURL: self.configurationURL)
+            let isHead = firstLine.hasPrefix("HEAD ") && matchesPath
+            let isGet = firstLine.hasPrefix("GET ") && matchesPath
 
             guard isHead || isGet else {
                 self.send(
@@ -315,6 +368,13 @@ final class LocalConfigurationServer: @unchecked Sendable {
             if isGet { response.append(self.body) }
             self.send(response, on: connection)
         }
+    }
+
+    /// Clients may normalize percent escapes or send UTF-8 paths. Decode once,
+    /// then compare the complete path, including the private token and filename.
+    static func matchesRequestPath(_ path: String, configurationURL: URL) -> Bool {
+        guard let decoded = path.removingPercentEncoding else { return false }
+        return decoded == configurationURL.path(percentEncoded: false)
     }
 
     private func send(_ data: Data, on connection: NWConnection) {

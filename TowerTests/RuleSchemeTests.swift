@@ -63,7 +63,7 @@ final class RuleSchemeTests: XCTestCase {
         let scheme = try parser.parse(text: source, id: "clients", name: "Smart", summary: "")
         for target in ClientTarget.allCases where target != .v2box {
             let result = ConfigurationGenerator().generate(nodes: nodes, scheme: scheme, target: target)
-            let supportsSmart = target == .surge || target == .egern
+            let supportsSmart = target == .surge || target == .surgeMac || target == .egern
             XCTAssertFalse(result.content.isEmpty, target.rawValue)
             XCTAssertFalse(result.hasInvalidPolicyReferences, target.rawValue)
             XCTAssertEqual(result.diagnostics.isEmpty, supportsSmart, target.rawValue)

@@ -67,7 +67,7 @@ struct RuleSetEmissionPlanner {
         var remoteIndex = 0
 
         for ruleset in scheme.rulesets {
-            if ruleset.resource.domainSetURL != nil, !(target == .surge && preferRuleSets) {
+            if ruleset.resource.domainSetURL != nil, !([.surge, .surgeMac].contains(target) && preferRuleSets) {
                 entries.append(contentsOf: repository.lines(for: ruleset.resource).map {
                     .inline(InlineRule(policyName: ruleset.groupName, line: $0))
                 })
@@ -84,7 +84,7 @@ struct RuleSetEmissionPlanner {
             case .remote(let url):
                 let lines = repository.lines(for: ruleset.resource)
                 if preferRuleSets,
-                   [.clash, .clashApple, .clashMi].contains(target),
+                   [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target),
                    let optimized = optimizedClashEntries(
                     resource: ruleset.resource,
                     sourceURL: url,
@@ -235,10 +235,10 @@ struct RuleSetEmissionPlanner {
         isClashProviderYAML: Bool
     ) -> NativeFormat? {
         switch target {
-        case .clash, .clashApple, .clashMi, .karing:
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
             guard linesAreClassical(lines, allowedTypes: Self.clashRuleTypes) else { return nil }
             return isClashProviderYAML ? .clashProviderYAML : .classicalText
-        case .surge:
+        case .surge, .surgeMac:
             return !isClashProviderYAML && linesAreClassical(lines, allowedTypes: Self.surgeRuleTypes)
                 ? .classicalText
                 : nil

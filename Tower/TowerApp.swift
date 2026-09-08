@@ -13,6 +13,14 @@ struct TowerApp: App {
         WindowGroup {
             AppRootView()
                 .environment(model)
+                .onAppear {
+                    #if targetEnvironment(macCatalyst)
+                    for scene in UIApplication.shared.connectedScenes {
+                        guard let windowScene = scene as? UIWindowScene else { continue }
+                        windowScene.sizeRestrictions?.minimumSize = CGSize(width: 650, height: 650)
+                    }
+                    #endif
+                }
                 // The real use is "added a subscription on the other phone,
                 // now picked this one up", which is exactly a return to the
                 // foreground. Uploads were already automatic; without this the
@@ -29,6 +37,10 @@ struct TowerApp: App {
                         // close the coalescing window: iOS may stop the process
                         // from here without another chance to write.
                         model.flushPendingWrite()
+                        if phase == .background, !TowerPlatform.isMac,
+                           model.isLANSharingActive || model.isLANSharingStarting {
+                            model.stopLANSharing()
+                        }
                         return
                     }
                     guard hasSeenWelcome else { return }
@@ -53,6 +65,8 @@ struct AppRootView: View {
         ZStack {
             if hasSeenWelcome {
                 mainInterface
+                    .disabled(model.isReplayingMacOnboarding)
+                    .accessibilityHidden(model.isReplayingMacOnboarding)
             } else {
                 WelcomeView {
                     withAnimation(
@@ -64,6 +78,21 @@ struct AppRootView: View {
                 .background(Color(uiColor: .systemBackground))
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.04)))
                 .zIndex(1)
+            }
+            if model.isReplayingMacOnboarding {
+                GeometryReader { geometry in
+                    ZStack {
+                        Color.black.opacity(0.18).ignoresSafeArea()
+                        WelcomeView { model.isReplayingMacOnboarding = false }
+                            .frame(width: min(720, max(300, geometry.size.width - 48)),
+                                   height: min(960, max(300, geometry.size.height - 48)))
+                            .background(Color(uiColor: .systemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .zIndex(2)
             }
         }
     }

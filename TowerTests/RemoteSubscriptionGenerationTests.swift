@@ -6,8 +6,8 @@ final class RemoteSubscriptionGenerationTests: XCTestCase {
 
     func testCapabilityMatrixOnlyIncludesEmbeddedRemoteSourceFormats() {
         let supported: Set<ClientTarget> = [
-            .clash, .clashApple, .clashMi, .karing,
-            .surge, .loon, .quanx, .egern,
+            .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing,
+            .surge, .surgeMac, .loon, .quanx, .egern,
         ]
 
         XCTAssertEqual(
@@ -90,7 +90,7 @@ final class RemoteSubscriptionGenerationTests: XCTestCase {
         ).content
         XCTAssertTrue(stash.contains("headers:\n      User-Agent: \"Airport-UA\""), stash)
 
-        for target in [ClientTarget.clashApple, .clashMi, .karing] {
+        for target in [ClientTarget.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing] {
             let content = generator.generate(
                 nodes: fixture.nodes,
                 preset: preset,

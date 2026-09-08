@@ -70,7 +70,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     var displayName: String {
         switch self {
-        case .clash: "Clash / Clash Mi / Karing / OpenClash / Nikki / Stash"
+        case .clash: "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki / Stash"
         case .surge: "Surge"
         case .surfboard: "Surfboard"
         case .shadowrocket: "Shadowrocket"
@@ -114,8 +114,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     init?(target: ClientTarget) {
         switch target {
-        case .clash, .clashApple, .clashMi, .karing: self = .clash
-        case .surge: self = .surge
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing: self = .clash
+        case .surge, .surgeMac: self = .surge
         case .shadowrocket: self = .shadowrocket
         case .loon: self = .loon
         case .quanx: self = .quanx
@@ -167,11 +167,17 @@ enum LANSubscriptionTargetResolver {
         "clash-mi": .clash,
         "clashmi": .clash,
         "karing": .clash,
+        "clash-verge": .clash,
+        "clashverge": .clash,
+        "clashmac": .clash,
+        "flclash": .clash,
+        "mihomo-party": .clash,
         "openclash": .clash,
         "nikki": .clash,
         "mihomo": .clash,
         "stash": .clash,
         "surge": .surge,
+        "surge-mac": .surge,
         "surfboard": .surfboard,
         "shadowrocket": .shadowrocket,
         "shadow-rocket": .shadowrocket,
@@ -234,6 +240,7 @@ enum LANSubscriptionHTTPRouter {
     static func response(
         request: String,
         token: String,
+        exactClientConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
         formatConfiguration: (LANSubscriptionFormat) -> GeneratedConfiguration
     ) -> LANSubscriptionHTTPResponse {
         let lines = request.components(separatedBy: "\r\n")
@@ -281,7 +288,13 @@ enum LANSubscriptionHTTPRouter {
         }
 
         let target = format.generationTarget
-        let generated = formatConfiguration(format)
+        let exactClient = ClientTarget(rawValue: explicitTarget)
+        let generated: GeneratedConfiguration
+        if let exactClient, [.surgeMac, .clashMac].contains(exactClient), let exactClientConfiguration {
+            generated = exactClientConfiguration(exactClient)
+        } else {
+            generated = formatConfiguration(format)
+        }
         let payload = Data(generated.content.utf8)
         let responseBody = method == "HEAD" ? Data() : payload
         return LANSubscriptionHTTPResponse(
@@ -399,7 +412,7 @@ struct LANSubscriptionListenerEnvironment {
     /// "Designed for iPhone" is not Mac Catalyst — it is this exact iOS binary
     /// under the macOS sandbox — so the platform cannot be told apart at
     /// compile time and this has to be a runtime question.
-    static let wifi = networkListening(pinnedToWiFi: !ProcessInfo.processInfo.isiOSAppOnMac)
+    static let wifi = networkListening(pinnedToWiFi: !TowerPlatform.isMac)
 
     static let loopback = Self(
         advertisedAddress: { "127.0.0.1" },
@@ -421,6 +434,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
     let token: String
     private let queue = DispatchQueue(label: "com.jzb.tower.lan-subscription")
     private let configurationProvider: ConfigurationProvider
+    private let exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
     private let listenerEnvironment: LANSubscriptionListenerEnvironment
     private var listener: NWListener?
     private var didCompleteStart = false
@@ -428,11 +442,13 @@ final class LANSubscriptionServer: @unchecked Sendable {
     init(
         token: String,
         listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi,
+        exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
         configurationProvider: @escaping ConfigurationProvider
     ) {
         self.token = token
         self.listenerEnvironment = listenerEnvironment
         self.configurationProvider = configurationProvider
+        self.exactClientConfiguration = exactClientConfiguration
     }
 
     func start() async throws -> URL {
@@ -464,7 +480,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
                         } catch {
                             continuation.resume(throwing: error)
                         }
-                    case .failed:
+                    case .failed, .cancelled:
                         guard !self.didCompleteStart else { return }
                         self.didCompleteStart = true
                         continuation.resume(throwing: LANSubscriptionServerError.failedToStart)
@@ -486,7 +502,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
 
     private func serve(_ connection: NWConnection) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 32_768) { [weak self] data, _, _, _ in
+        LocalHTTPRequestReader.read(connection, on: queue) { [weak self] data in
             guard let self else {
                 connection.cancel()
                 return
@@ -500,6 +516,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
                 let response = LANSubscriptionHTTPRouter.response(
                     request: request,
                     token: self.token,
+                    exactClientConfiguration: self.exactClientConfiguration,
                     formatConfiguration: self.configurationProvider
                 )
                 self.send(response.serialized(), on: connection)
@@ -569,5 +586,27 @@ enum LANIPv4Address {
         if octets[0] == 172, (16...31).contains(octets[1]) { return true }
         if octets[0] == 192, octets[1] == 168 { return true }
         return false
+    }
+}
+
+/// TCP may split HTTP headers across packets. Bound both memory and idle time.
+enum LocalHTTPRequestReader {
+    static func read(_ connection: NWConnection, on queue: DispatchQueue, completion: @escaping (Data?) -> Void) {
+        queue.asyncAfter(deadline: .now() + 10) { [weak connection] in connection?.cancel() }
+        receive(connection, accumulated: Data(), completion: completion)
+    }
+
+    private static func receive(_ connection: NWConnection, accumulated: Data, completion: @escaping (Data?) -> Void) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 32_768 - accumulated.count) { data, _, finished, error in
+            var buffer = accumulated
+            if let data { buffer.append(data) }
+            if buffer.range(of: Data("\r\n\r\n".utf8)) != nil {
+                completion(buffer)
+            } else if finished || error != nil || buffer.count >= 32_768 {
+                completion(nil)
+            } else {
+                receive(connection, accumulated: buffer, completion: completion)
+            }
+        }
     }
 }

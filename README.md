@@ -2,6 +2,8 @@
 
 塔台是在 iPhone 本机管理订阅、自有节点与规则，并生成客户端配置的原生 SwiftUI App。它不建立网络隧道、不接管流量、不提供服务器或节点。
 
+中文图文文档：**[tower.shenqi.uk](https://tower.shenqi.uk)**。从首次使用到节点管理、规则定制、客户端导出、局域网共享和全部设置。官网源码已独立维护。
+
 ## 能做什么
 
 - 解析 SS、SSR、VMess、VLESS、Trojan、Hysteria、Hysteria 2、TUIC、WireGuard、AnyTLS、Snell、SOCKS5、HTTP(S)。
@@ -24,6 +26,16 @@ QuanX 使用系统文件分享；其他目标通过客户端 URL Scheme 导入�
 **代理集合**默认关闭。开启后，Stash、Clash、Clash Mi、Karing、Surge、Loon、QuanX、Egern 的完整配置可包含原始订阅 URL，由客户端自行更新远端节点。Shadowrocket、Hiddify、V2Box、sing-box MT 保持本地展开。
 
 远端来源必须返回目标兼容的格式；远端节点不受塔台的逐节点勾选、协议筛选、名称追加和自定义 DoH 控制。协议筛选与节点计数只作用于本地输出；摘要另外列出远端来源数。塔台规则或自有节点变化后仍需重新导出。
+
+## Mac 开发版
+
+工程支持 Mac Catalyst，沿用原来的图标卡片、横向滚动、筛选和排序。`Surge` 保留手机版身份，`Surge Mac` 使用桌面版专用导入入口；新增 `Clash Verge`、`ClashMac`、`FlClash` 和 `Mihomo Party`，生成完整 Clash / Mihomo YAML。
+
+Mac 默认顺序为 Shadowrocket、局域网共享、Surge Mac、Clash Verge、ClashMac、FlClash、Mihomo Party、sing-box MT、Clash，再接其余客户端。手机默认隐藏五个 Mac 专用客户端，可从筛选中手动添加；两端的排序、显示范围和当前客户端分别保存。
+
+Surge Mac 6.7+ 和 Clash Verge 支持一键导入；旧版 Surge Mac 找不到导入入口时复制订阅，ClashMac 同样复制订阅并显示具体导入步骤。FlClash、Mihomo Party 使用各自的专用导入入口。Mac 局域网共享支持 Wi-Fi 与有线网络，切到其他 App 后继续提供服务，退出塔台或停止共享后失效。本机一键导入仍为 45 秒的独立临时服务。
+
+构建与验证见 [开发文档](docs/DEVELOPMENT.md)。这是 Mac 适配的开发构建，尚未进行 Mac App Store 发布、公证或 iCloud 签名验收。
 
 ## 隐私与网络边界
 

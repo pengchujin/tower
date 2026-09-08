@@ -1,10 +1,18 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct ExportView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var surgeSchemeAvailable = false
+    @State private var preparedConfiguration: GeneratedConfiguration?
+    @State private var preparedRequest: ConfigurationRequest?
     @State private var sharePayload: ExportPayload?
     @State private var directImportService = DirectImportService()
+    @State private var macDocument: MacConfigurationDocument?
+    @State private var isSavingMacFile = false
+    @State private var macFileName = "Tower"
     @State private var isImporting = false
     @State private var isSettingsPresented = false
     @State private var isLANSharingSelected = false
@@ -16,7 +24,8 @@ struct ExportView: View {
         // requesting client chooses the format through its User-Agent or the
         // explicit target in the link. Avoid generating an unrelated client
         // profile while this destination is selected.
-        let configuration = isLANSharingSelected ? nil : model.configuration()
+        let request = isLANSharingSelected ? nil : model.configurationRequest()
+        let configuration = preparedRequest == request ? preparedConfiguration : nil
 
         ScrollView {
             LazyVStack(spacing: 22) {
@@ -28,24 +37,55 @@ struct ExportView: View {
                 if isLANSharingSelected {
                     LANSharingDestinationCard()
                     LANSharingGuide()
-                } else if let configuration {
+                } else {
                     ExportContentModePicker()
                     ProtocolFilter()
-                    ConversionSummary(configuration: configuration)
-                    ImportPrivacyNote(
-                        target: model.selectedTarget,
-                        contentMode: model.exportContentMode(for: model.selectedTarget),
-                        embedsRemoteSubscriptions: model.embedRemoteSubscriptionLinks
-                            && model.selectedTarget.supportsEmbeddedRemoteSubscriptions
-                    )
-                    ConfigurationPreview(configuration: configuration) {
-                        previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                    if let displayedConfiguration = configuration ?? preparedConfiguration {
+                        ConversionSummary(configuration: displayedConfiguration)
+                        ImportPrivacyNote(
+                            copiesSubscription: copiesSubscription,
+                            target: displayedConfiguration.target,
+                            contentMode: displayedConfiguration.contentMode,
+                            embedsRemoteSubscriptions: model.embedRemoteSubscriptionLinks
+                                && model.selectedTarget.supportsEmbeddedRemoteSubscriptions
+                        )
+                        ConfigurationPreview(configuration: displayedConfiguration) {
+                            guard let configuration else { return }
+                            previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                        }
+                        .disabled(configuration == nil)
+                    } else {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 160)
                     }
                 }
             }
-            .padding(.horizontal, TowerTheme.pagePadding)
+            .frame(maxWidth: TowerPlatform.isMac ? TowerTheme.macContentMaxWidth : .infinity)
+            .padding(.horizontal, TowerPlatform.isMac ? 28 : TowerTheme.pagePadding)
+            .frame(maxWidth: .infinity)
             .padding(.top, 12)
             .padding(.bottom, 18)
+        }
+        .task(id: request) {
+            guard let request else {
+                preparedConfiguration = nil
+                preparedRequest = nil
+                return
+            }
+            let result = await model.configuration(for: request)
+            guard !Task.isCancelled else { return }
+            preparedConfiguration = result
+            preparedRequest = request
+        }
+        .onAppear { surgeSchemeAvailable = MacClientImportCapability.surgeSchemeAvailable }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { surgeSchemeAvailable = MacClientImportCapability.surgeSchemeAvailable }
+        }
+        .fileExporter(isPresented: $isSavingMacFile, document: macDocument,
+                      contentType: .data, defaultFilename: macFileName) { result in
+            if case .failure(let error) = result {
+                model.showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
+            }
         }
         .background(TowerTheme.background.ignoresSafeArea())
         .navigationTitle("生成与导出")
@@ -62,17 +102,25 @@ struct ExportView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let configuration {
+            if !isLANSharingSelected {
                 ImportActionBar(
+                    copiesSubscription: copiesSubscription,
                     target: model.selectedTarget,
-                    contentMode: configuration.contentMode,
+                    contentMode: model.exportContentMode(for: model.selectedTarget),
                     isImporting: isImporting,
-                    isDisabled: !configuration.hasExportableProxies,
+                    isDisabled: configuration?.hasExportableProxies != true,
                     importAction: {
+                        guard let configuration else { return }
                         Task { await importConfiguration(configuration) }
                     },
-                    shareAction: { export(configuration) },
-                    copyAction: { copy(configuration) }
+                    shareAction: {
+                        guard let configuration else { return }
+                        export(configuration)
+                    },
+                    copyAction: {
+                        guard let configuration else { return }
+                        copy(configuration)
+                    }
                 )
             }
         }
@@ -116,15 +164,41 @@ struct ExportView: View {
 
     private func export(_ configuration: GeneratedConfiguration) {
         do {
-            sharePayload = ExportPayload(url: try model.makeExportURL(configuration: configuration))
+            if TowerPlatform.isMac {
+                macDocument = MacConfigurationDocument(content: configuration.content)
+                macFileName = configuration.fileName
+                isSavingMacFile = true
+            } else {
+                sharePayload = ExportPayload(url: try model.makeExportURL(configuration: configuration))
+            }
         } catch {
             model.showToast(String(localized: "生成失败：\(error.localizedDescription)"), symbol: "exclamationmark.triangle.fill")
         }
     }
 
+    private var copiesSubscription: Bool {
+        MacClientImportCapability.copiesSubscription(
+            target: model.selectedTarget, isMac: TowerPlatform.isMac,
+            surgeSchemeAvailable: surgeSchemeAvailable
+        )
+    }
+
+    private func copySubscription(for target: ClientTarget) async {
+        if !model.isLANSharingActive { await model.startLANSharing() }
+        guard let url = model.lanSubscriptionURL(target: target) else { return }
+        UIPasteboard.general.string = url.absoluteString
+        model.showToast(String(localized: "局域网订阅链接已复制"), symbol: "doc.on.doc.fill")
+    }
+
     @MainActor
     private func importConfiguration(_ configuration: GeneratedConfiguration) async {
         guard !isImporting else { return }
+        if copiesSubscription {
+            isImporting = true
+            defer { isImporting = false }
+            await copySubscription(for: configuration.target)
+            return
+        }
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             export(configuration)
             return
@@ -146,8 +220,15 @@ struct ExportView: View {
                 model.showToast(String(localized: "已交给 \(configuration.target.name) 导入"), symbol: "arrow.up.forward.app.fill")
             } else {
                 directImportService.stop()
-                model.showToast(String(localized: "未找到 \(configuration.target.name)，请从分享列表选择"), symbol: "exclamationmark.circle.fill")
-                export(configuration)
+                if !TowerPlatform.isMac {
+                    model.showToast(String(localized: "未找到 \(configuration.target.name)，请从分享列表选择"), symbol: "exclamationmark.circle.fill")
+                }
+                if TowerPlatform.isMac, configuration.target == .surgeMac {
+                    surgeSchemeAvailable = false
+                    await copySubscription(for: configuration.target)
+                } else {
+                    export(configuration)
+                }
             }
         } catch {
             directImportService.stop()
@@ -320,6 +401,7 @@ private struct ClientPicker: View {
                                 }
                             }
                             .padding(.vertical, 8)
+                            .padding(.bottom, TowerPlatform.isMac ? 16 : 0)
                             .background {
                                 ClientPickerReorderGestureBridge(
                                     minimumPressDuration: 0.18,
@@ -341,11 +423,12 @@ private struct ClientPicker: View {
                                             viewportWidth: viewport.size.width
                                         )
                                     },
-                                    onCancelled: cancelDragging
+                                    onCancelled: cancelDragging,
+                                    mapsMouseWheelHorizontally: TowerPlatform.isMac
                                 )
                             }
                         }
-                        .scrollIndicators(.hidden)
+                        .scrollIndicators(TowerPlatform.isMac ? .visible : .hidden)
                         .onAppear { scrollProxy.scrollTo(currentDestination.id) }
                         .onChange(of: currentDestination) { _, destination in
                             guard dragSession == nil, settlingSession == nil else { return }
@@ -397,7 +480,7 @@ private struct ClientPicker: View {
                     suppressSelection = false
                 }
             }
-            .frame(height: pickerHeight)
+            .frame(height: pickerHeight + (TowerPlatform.isMac ? 16 : 0))
         }
         .onAppear(perform: synchronizeOrder)
         .onChange(of: model.exportDestinationOrder) { _, destinations in
@@ -1084,6 +1167,7 @@ private struct ConfigurationPreviewSheet: View {
 }
 
 private struct ImportPrivacyNote: View {
+    var copiesSubscription = false
     let target: ClientTarget
     let contentMode: ExportContentMode
     let embedsRemoteSubscriptions: Bool
@@ -1111,12 +1195,19 @@ private struct ImportPrivacyNote: View {
     }
 
     private var title: String {
-        target.supportsDirectImport(mode: contentMode)
+        if copiesSubscription { return String(localized: "复制订阅") }
+        return target.supportsDirectImport(mode: contentMode)
             ? String(localized: "本机一键导出")
             : String(localized: "使用本地文件导出")
     }
 
     private var detail: String {
+        if copiesSubscription {
+            if target == .surgeMac {
+                return String(localized: "点击“复制订阅”，打开 Surge Mac，在“更多 → 配置 → 从 URL 安装配置”中粘贴链接并安装，然后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。")
+            }
+            return String(localized: "点击“复制订阅”，打开 ClashMac 的“配置”页面，点击右上角“＋ → 导入订阅”，粘贴链接、填写名称并点击“完成”。下载后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。")
+        }
         if contentMode == .nodesOnly {
             return String(localized: "塔台只会把节点订阅交给 \(target.name)，不会替换客户端现有的规则和策略组。订阅保留在这台 iPhone 的临时地址，不会上传。")
         }
@@ -1124,13 +1215,17 @@ private struct ImportPrivacyNote: View {
             return String(localized: "生成的配置包含原始订阅链接，\(target.name) 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。")
         }
         if target.supportsDirectConfigurationImport {
-            return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
+            return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
+        }
+        if target == .clashMac {
+            return String(localized: "导出 YAML 文件后，在 ClashMac 的配置文件页面导入；也可以添加局域网订阅链接。")
         }
         return String(localized: "Quantumult X 目前没有公开完整配置导入的 URL Scheme。点击下方按钮会立即打开系统文件分享，不上传您的订阅，也不会用不完整的远程资源替代本地规则。")
     }
 }
 
 private struct ImportActionBar: View {
+    var copiesSubscription = false
     let target: ClientTarget
     let contentMode: ExportContentMode
     let isImporting: Bool
@@ -1201,11 +1296,27 @@ private struct ImportActionBar: View {
     }
 
     private var importTitle: String {
+        if copiesSubscription { return String(localized: "复制订阅") }
         switch contentMode {
         case .nodesOnly:
             return String(localized: "仅导出节点到 \(target.name)")
         case .fullConfiguration:
             return target.primaryImportTitle
         }
+    }
+}
+
+private struct MacConfigurationDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.data] }
+    var content: String
+
+    init(content: String) { self.content = content }
+    init(configuration: ReadConfiguration) throws {
+        content = String(decoding: configuration.file.regularFileContents ?? Data(), as: UTF8.self)
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let wrapper = FileWrapper(regularFileWithContents: Data(content.utf8))
+        wrapper.fileAttributes[FileAttributeKey.protectionKey.rawValue] = FileProtectionType.complete
+        return wrapper
     }
 }

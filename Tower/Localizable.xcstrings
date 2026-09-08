@@ -10636,6 +10636,100 @@
         }
       }
     },
+    "一键导入需要 Surge Mac 6.7 或更新版本。旧版会改为保存配置文件；可在 Surge 中导入。配置只在本机临时提供 45 秒。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتطلب الاستيراد بنقرة واحدة Surge Mac 6.7 أو أحدث. الإصدارات الأقدم تحفظ ملفات التكوين بدلاً من ذلك؛ يمكن استيرادها في Surge. التكوين متاح مؤقتًا فقط محليًا لمدة 45 ثانية."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für den Ein-Klick-Import ist Surge Mac 6.7 oder neuer erforderlich. Ältere Versionen speichern stattdessen Konfigurationsdateien; Sie können in Surge importiert werden. Die Konfiguration ist nur vorübergehend für 45 Sekunden lokal verfügbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-click import requires Surge Mac 6.7 or newer. Older versions save configuration files instead; they can be imported in Surge. Configuration is only temporarily available locally for 45 seconds."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La importación con un clic requiere Surge Mac 6.7 o posterior. En su lugar, las versiones anteriores guardan archivos de configuración; se pueden importar en Surge. La configuración solo está disponible temporalmente de forma local durante 45 segundos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'importation en un clic nécessite Surge Mac 6.7 ou version ultérieure. Les anciennes versions enregistrent les fichiers de configuration à la place ; ils peuvent être importés dans Surge. La configuration n'est disponible que temporairement localement pendant 45 secondes."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impor sekali klik memerlukan Surge Mac 6.7 atau lebih baru. Versi yang lebih lama menyimpan file konfigurasi; mereka dapat diimpor di Surge. Konfigurasi hanya tersedia sementara secara lokal selama 45 detik."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワンクリックインポートには、Surge Mac 6.7 以降が必要です。古いバージョンでは、代わりに構成ファイルが保存されます。 Surge にインポートできます。構成はローカルで一時的に 45 秒間のみ使用できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원클릭 가져오기에는 Surge Mac 6.7 이상이 필요합니다. 이전 버전은 대신 구성 파일을 저장합니다. Surge로 가져올 수 있습니다. 구성은 45초 동안 로컬에서만 일시적으로 사용할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A importação com um clique requer Surge Mac 6.7 ou mais recente. Em vez disso, versões mais antigas salvam arquivos de configuração; eles podem ser importados no Surge. A configuração fica disponível localmente apenas temporariamente por 45 segundos."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для импорта в один клик требуется Surge Mac 6.7 или новее. Вместо этого более старые версии сохраняют файлы конфигурации; их можно импортировать в Surge. Конфигурация доступна локально только временно в течение 45 секунд."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การนำเข้าด้วยคลิกเดียวต้องใช้ Surge Mac 6.7 หรือใหม่กว่า เวอร์ชันเก่าจะบันทึกไฟล์การกำหนดค่าแทน สามารถนำเข้าใน Surge ได้ การกำหนดค่าจะพร้อมใช้งานชั่วคราวภายในเครื่องเป็นเวลา 45 วินาทีเท่านั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tek tıklamayla içe aktarma, Surge Mac 6.7 veya daha yenisini gerektirir. Eski sürümler bunun yerine yapılandırma dosyalarını kaydeder; Surge'e aktarılabilirler. Yapılandırma yalnızca yerel olarak 45 saniye boyunca geçici olarak kullanılabilir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập bằng một cú nhấp chuột yêu cầu Surge Mac 6.7 hoặc mới hơn. Thay vào đó, các phiên bản cũ hơn lưu tệp cấu hình; chúng có thể được nhập vào Surge. Cấu hình chỉ có sẵn cục bộ tạm thời trong 45 giây."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一键导入需要 Surge Mac 6.7 或更新版本。旧版会改为保存配置文件；可在 Surge 中导入。配置只在本机临时提供 45 秒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一鍵導入需要 Surge Mac 6.7 或更新版本。舊版會改為儲存設定檔；可在 Surge 中匯入。配置僅在本機臨時提供 45 秒。"
+          }
+        }
+      }
+    },
     "一键导出到 %@": {
       "localizations": {
         "ar": {
@@ -28716,7 +28810,102 @@
         }
       }
     },
+    "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيفتح البرج العميل من خلال مخطط URL الخاص بـ %@. يتم الاحتفاظ بالتكوين فقط على العنوان المؤقت 127.0.0.1 للجهاز المحلي لمدة 45 ثانية ولن يتم تحميله؛ عندما يحتاج إلى التحديث، ارجع إلى البرج وقم باستيراده مرة أخرى."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Tower öffnet den Client über das URL-Schema %@. Die Konfiguration bleibt nur 45 Sekunden lang an der temporären Adresse 127.0.0.1 des lokalen Computers erhalten und wird nicht hochgeladen. Wenn es aktualisiert werden muss, kehren Sie zum Tower zurück und importieren Sie es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tower will open the client through the URL Scheme of %@. The configuration is only retained at the local machine's 127.0.0.1 temporary address for 45 seconds and will not be uploaded; when it needs to be updated, return to the tower and import it again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La torre abrirá al cliente a través del esquema URL de %@. La configuración solo se conserva en la dirección temporal 127.0.0.1 de la máquina local durante 45 segundos y no se cargará; cuando sea necesario actualizarlo, regrese a la torre e impórtelo nuevamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tour ouvrira le client via le schéma d'URL %@. La configuration n'est conservée à l'adresse temporaire 127.0.0.1 de la machine locale que pendant 45 secondes et ne sera pas téléchargée ; lorsqu'il doit être mis à jour, revenez à la tour et importez-le à nouveau."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menara akan membuka klien melalui Skema URL %@. Konfigurasi hanya disimpan di alamat sementara 127.0.0.1 mesin lokal selama 45 detik dan tidak akan diunggah; bila perlu diperbarui, kembali ke menara dan impor lagi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タワーは、%@ の URL スキームを通じてクライアントを開きます。構成は、ローカル マシンの一時アドレス 127.0.0.1 に 45 秒間のみ保持され、アップロードされません。更新する必要がある場合は、タワーに戻って再度インポートしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타워는 %@의 URL Scheme을 통해 클라이언트를 엽니다. 구성은 로컬 시스템의 127.0.0.1 임시 주소에서만 45초 동안 유지되며 업로드되지 않습니다. 업데이트가 필요한 경우 타워로 돌아가서 다시 가져오세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A torre abrirá o cliente através do esquema de URL %@. A configuração é retida apenas no endereço temporário 127.0.0.1 da máquina local por 45 segundos e não será carregada; quando precisar ser atualizado, volte para a torre e importe-o novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Башня откроет клиент через схему URL %@. Конфигурация сохраняется по временному адресу 127.0.0.1 локального компьютера только в течение 45 секунд и не будет загружена; когда его нужно будет обновить, вернитесь в башню и импортируйте его снова."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หอคอยจะเปิดไคลเอ็นต์ผ่าน URL Scheme %@ การกำหนดค่าจะถูกเก็บไว้ที่ที่อยู่ชั่วคราว 127.0.0.1 ของเครื่องภายในเครื่องเป็นเวลา 45 วินาทีและจะไม่ถูกอัพโหลด เมื่อจำเป็นต้องอัปเดต ให้กลับไปที่หอคอยแล้วนำเข้าอีกครั้ง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kule, istemciyi %@ URL Şeması aracılığıyla açacaktır. Yapılandırma yalnızca yerel makinenin 127.0.0.1 geçici adresinde 45 saniye süreyle tutulur ve yüklenmez; güncellenmesi gerektiğinde kuleye dönün ve tekrar içe aktarın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower sẽ mở ứng dụng khách thông qua Lược đồ URL của %@. Cấu hình chỉ được giữ lại tại địa chỉ tạm thời 127.0.0.1 của máy cục bộ trong 45 giây và sẽ không được tải lên; khi cần cập nhật, hãy quay lại tháp và nhập lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台會透過 %@ 的 URL Scheme 開啟客戶端。配置只在本機的 127.0.0.1 臨時位址保留 45 秒，不會上傳；需要更新時回到塔台再次匯入。"
+          }
+        }
+      }
+    },
     "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -29372,6 +29561,289 @@
           "stringUnit": {
             "state": "translated",
             "value": "複製"
+          }
+        }
+      }
+    },
+    "复制订阅": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ الاشتراك"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnement kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy subscription"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar suscripción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier l'abonnement"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salin langganan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションをコピーする"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 복사"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar assinatura"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копировать подписку"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คัดลอกการสมัครสมาชิก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aboneliği kopyala"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制订阅"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製訂閱"
+          }
+        }
+      }
+    },
+    "复制订阅地址": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ عنوان الاشتراك"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnementadresse kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy subscription address"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar dirección de suscripción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier l'adresse d'abonnement"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salin alamat berlangganan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションアドレスをコピーする"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 주소 복사"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar endereço de assinatura"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировать адрес подписки"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คัดลอกที่อยู่การสมัครสมาชิก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik adresini kopyala"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép địa chỉ đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制订阅地址"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製訂閱位址"
+          }
+        }
+      }
+    },
+    "复制配置": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ التكوين"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfiguration kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar configuración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier la configuration"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salin konfigurasi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定のコピー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구성 복사"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar configuração"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копировать конфигурацию"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คัดลอกการกำหนดค่า"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yapılandırmayı kopyala"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép cấu hình"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製配置"
           }
         }
       }
@@ -30410,6 +30882,101 @@
         }
       }
     },
+    "客户端": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العميل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cliente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "client"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "klien"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアント"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cliente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "клиент"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลูกค้า"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "müşteri"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "khách hàng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客戶端"
+          }
+        }
+      }
+    },
     "客户端指纹": {
       "localizations": {
         "ar": {
@@ -31163,6 +31730,101 @@
         }
       }
     },
+    "导入到 %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد إلى %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importieren in %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import into %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar a %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importer dans %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impor ke %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にインポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@로 가져오기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar para %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Импортировать в %@."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "นำเข้าสู่ %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@'ye aktar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập vào %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入到 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "導入到 %@"
+          }
+        }
+      }
+    },
     "导入的规则": {
       "localizations": {
         "ar": {
@@ -31539,6 +32201,100 @@
         }
       }
     },
+    "导出 YAML 文件后，在 ClashMac 的配置文件页面导入；也可以添加局域网订阅链接。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بعد تصدير ملف YAML، قم باستيراده على صفحة ملف تكوين ClashMac؛ يمكنك أيضًا إضافة رابط اشتراك LAN."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nachdem Sie die YAML-Datei exportiert haben, importieren Sie sie auf der Konfigurationsdateiseite von ClashMac. Sie können auch einen LAN-Abonnement-Link hinzufügen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After exporting the YAML file, import it on ClashMac's configuration file page; you can also add a LAN subscription link."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de exportar el archivo YAML, impórtelo en la página del archivo de configuración de ClashMac; También puede agregar un enlace de suscripción LAN."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après avoir exporté le fichier YAML, importez-le sur la page du fichier de configuration de ClashMac ; vous pouvez également ajouter un lien d'abonnement LAN."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setelah mengekspor file YAML, imporlah ke halaman file konfigurasi ClashMac; Anda juga dapat menambahkan tautan berlangganan LAN."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YAML ファイルをエクスポートした後、ClashMac の構成ファイル ページにインポートします。 you can also add a LAN subscription link."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YAML 파일을 내보낸 후 ClashMac의 구성 파일 페이지에서 가져옵니다. LAN 구독 링크를 추가할 수도 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Após exportar o arquivo YAML, importe-o na página do arquivo de configuração do ClashMac; você também pode adicionar um link de assinatura de LAN."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После экспорта файла YAML импортируйте его на страницу файла конфигурации ClashMac; вы также можете добавить ссылку на подписку в локальной сети."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หลังจากส่งออกไฟล์ YAML แล้ว ให้นำเข้าไปที่หน้าไฟล์การกำหนดค่าของ ClashMac คุณสามารถเพิ่มลิงค์สมัครสมาชิก LAN ได้ด้วย"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YAML dosyasını dışa aktardıktan sonra ClashMac'in yapılandırma dosyası sayfasına içe aktarın; LAN aboneliği bağlantısını da ekleyebilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sau khi xuất tệp YAML, hãy nhập tệp đó vào trang tệp cấu hình của ClashMac; bạn cũng có thể thêm liên kết đăng ký mạng LAN."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出 YAML 文件后，在 ClashMac 的配置文件页面导入；也可以添加局域网订阅链接。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出 YAML 檔案後，在 ClashMac 的設定檔頁面匯入；也可以新增區域網路訂閱連結。"
+          }
+        }
+      }
+    },
     "导出使用": {
       "localizations": {
         "ar": {
@@ -31723,6 +32479,196 @@
           "stringUnit": {
             "state": "translated",
             "value": "匯出內容"
+          }
+        }
+      }
+    },
+    "导出到 Clash Verge": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير إلى كلاش فيرج"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export nach Clash Verge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export to Clash Verge"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar a Choque Verge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter vers Clash Verge"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor ke Clash Verge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash Verge へのエクスポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash Verge로 내보내기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar para Clash Verge"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорт в Clash Verge"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งออกไปยัง Clash Verge"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash Verge'a aktar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất sang Clash Verge"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出到 Clash Verge"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出至 Clash Verge"
+          }
+        }
+      }
+    },
+    "导出文件": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير الملف"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei exportieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export file"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar archivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter le fichier"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor berkas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エクスポートファイル"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일 내보내기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar arquivo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспортировать файл"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งออกไฟล์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosyayı dışa aktar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất tập tin"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出文件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出文件"
           }
         }
       }
@@ -33604,6 +34550,101 @@
           "stringUnit": {
             "state": "translated",
             "value": "已關閉 iCloud 同步"
+          }
+        }
+      }
+    },
+    "已准备好更新": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جاهز للتحديث"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit zum Aktualisieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to update"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo para actualizar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prêt à mettre à jour"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siap untuk memperbarui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新の準備ができました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "업데이트 준비 완료"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pronto para atualizar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готов обновить"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "พร้อมอัพเดท"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güncellemeye hazır"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sẵn sàng cập nhật"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已准备好更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已準備好更新"
           }
         }
       }
@@ -41327,6 +42368,7 @@
       }
     },
     "把链接作为订阅地址添加到客户端，刷新时保持塔台在前台打开。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -41416,6 +42458,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "把連結作為訂閱位址加入到客戶端，刷新時保持塔台在前台打開。"
+          }
+        }
+      }
+    },
+    "把链接作为订阅地址添加到客户端；Mac 上保持塔台运行，iPhone 上保持前台打开。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة الرابط إلى العميل كعنوان اشتراك؛ اجعل البرج يعمل على جهاز Mac والمقدمة مفتوحة على جهاز iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügen Sie den Link zum Client als Abonnementadresse hinzu; Lassen Sie den Turm auf einem Mac laufen und den Vordergrund auf einem iPhone geöffnet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add the link to the client as a subscription address; keep the tower running on a Mac and the foreground open on an iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregue el enlace al cliente como dirección de suscripción; mantenga la torre funcionando en una Mac y el primer plano abierto en un iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez le lien vers le client comme adresse d'abonnement ; laissez la tour fonctionner sur un Mac et le premier plan ouvert sur un iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tambahkan tautan ke klien sebagai alamat berlangganan; menjaga menara tetap berjalan di Mac dan latar depan tetap terbuka di iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リンクをサブスクリプション アドレスとしてクライアントに追加します。 Mac ではタワーを実行し、iPhone ではフォアグラウンドを開いたままにします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트에 대한 링크를 구독 주소로 추가하세요. Mac에서는 타워를 실행하고 iPhone에서는 전경을 열어두세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione o link para o cliente como endereço de assinatura; mantenha a torre funcionando em um Mac e o primeiro plano aberto em um iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте ссылку на клиент в качестве адреса подписки; оставьте башню работающей на Mac и передний план открытым на iPhone."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพิ่มลิงก์ไปยังไคลเอนต์เป็นที่อยู่การสมัครสมาชิก ให้ทาวเวอร์ทำงานบน Mac และเปิดพื้นหน้าบน iPhone ต่อไป"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantıyı istemciye abonelik adresi olarak ekleyin; Kuleyi Mac'te çalışır durumda tutun ve ön planı iPhone'da açık tutun."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm liên kết đến máy khách làm địa chỉ đăng ký; giữ cho tháp chạy trên máy Mac và nền trước mở trên iPhone."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把链接作为订阅地址添加到客户端；Mac 上保持塔台运行，iPhone 上保持前台打开。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將連結作為訂閱位址加入客戶端；Mac 上保持塔台運行，iPhone 上保持前台打開。"
           }
         }
       }
@@ -45283,6 +46419,101 @@
         }
       }
     },
+    "新建配置": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التكوين الجديد"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Konfiguration"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nueva configuración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle configuration"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfigurasi baru"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい構成"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로운 구성"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nova configuração"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая конфигурация"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การกำหนดค่าใหม่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni yapılandırma"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cấu hình mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新配置"
+          }
+        }
+      }
+    },
     "新订阅 %lld": {
       "localizations": {
         "ar": {
@@ -48384,6 +49615,101 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新失敗"
+          }
+        }
+      }
+    },
+    "更新已有配置": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحديث التكوين الحالي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorhandene Konfiguration aktualisieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update existing configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizar la configuración existente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre à jour la configuration existante"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perbarui konfigurasi yang ada"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存の構成を更新する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기존 구성 업데이트"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizar configuração existente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновить существующую конфигурацию"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตการกำหนดค่าที่มีอยู่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mevcut yapılandırmayı güncelle"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật cấu hình hiện có"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新已有配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新已有配置"
           }
         }
       }
@@ -56957,6 +58283,194 @@
         }
       }
     },
+    "点击“复制订阅”，打开 ClashMac 的“配置”页面，点击右上角“＋ → 导入订阅”，粘贴链接、填写名称并点击“完成”。下载后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انقر على \"نسخ الاشتراك\" لفتح صفحة \"التكوين\" الخاصة بـ ClashMac، وانقر على \"+ → استيراد الاشتراك\" في الزاوية اليمنى العليا، والصق الرابط، واملأ الاسم وانقر على \"إنهاء\". بعد التنزيل، حدد هذا التكوين الذي تريد استخدامه. يرجى إبقاء البرج قيد التشغيل عند تحديث اشتراكك؛ يمكنك إيقاف الخدمة في \"LAN Sharing\" الخاصة بالبرج."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken Sie auf „Abonnement kopieren“, um die Seite „Konfiguration“ von ClashMac zu öffnen, klicken Sie oben rechts auf „+ → Abonnement importieren“, fügen Sie den Link ein, geben Sie den Namen ein und klicken Sie auf „Fertig stellen“. Wählen Sie nach dem Herunterladen diese zu verwendende Konfiguration aus. Bitte lassen Sie den Tower laufen, wenn Sie Ihr Abonnement aktualisieren. Sie können den Dienst im „LAN Sharing“ des Towers stoppen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click \"Copy Subscription\" to open ClashMac's \"Configuration\" page, click \"+ → Import Subscription\" in the upper right corner, paste the link, fill in the name and click \"Finish\". After downloading, select this configuration to use. Please keep the tower running when updating your subscription; you can stop the service in the tower's \"LAN Sharing\"."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haga clic en \"Copiar suscripción\" para abrir la página \"Configuración\" de ClashMac, haga clic en \"+ → Importar suscripción\" en la esquina superior derecha, pegue el enlace, complete el nombre y haga clic en \"Finalizar\". Después de la descarga, seleccione esta configuración para usar. Mantenga la torre en funcionamiento cuando actualice su suscripción; Puedes detener el servicio en \"LAN Sharing\" de la torre."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliquez sur \"Copier l'abonnement\" pour ouvrir la page \"Configuration\" de ClashMac, cliquez sur \"+ → Importer l'abonnement\" dans le coin supérieur droit, collez le lien, remplissez le nom et cliquez sur \"Terminer\". Après le téléchargement, sélectionnez cette configuration à utiliser. Veuillez laisser la tour fonctionner lors de la mise à jour de votre abonnement ; vous pouvez arrêter le service dans le \"Partage LAN\" de la tour."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klik \"Salin Langganan\" untuk membuka halaman \"Konfigurasi\" ClashMac, klik \"+ → Impor Langganan\" di sudut kanan atas, tempel tautan, isi nama dan klik \"Selesai\". Setelah mengunduh, pilih konfigurasi ini untuk digunakan. Harap tetap menjalankan menara saat memperbarui langganan Anda; Anda dapat menghentikan layanan di \"Berbagi LAN\" menara."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「サブスクリプションのコピー」をクリックしてClashMacの「構成」ページを開き、右上隅の「+→サブスクリプションのインポート」をクリックしてリンクを貼り付け、名前を入力して「完了」をクリックします。ダウンロード後、この構成を選択して使用します。サブスクリプションを更新するときは、タワーを実行したままにしてください。タワーの「LAN共有」でサービスを停止できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"구독 복사\"를 클릭하여 ClashMac의 \"구성\" 페이지를 열고 오른쪽 상단의 \"+ → 구독 가져오기\"를 클릭한 후 링크를 붙여넣고 이름을 입력한 후 \"마침\"을 클릭합니다. 다운로드 후 이 구성을 선택하여 사용하세요. 구독을 업데이트할 때 타워를 계속 실행하세요. 타워의 \"LAN 공유\"에서 서비스를 중지할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clique em “Copiar Assinatura” para abrir a página “Configuração” do ClashMac, clique em “+ → Importar Assinatura” no canto superior direito, cole o link, preencha o nome e clique em “Concluir”. Após o download, selecione esta configuração para usar. Por favor, mantenha a torre funcionando ao atualizar sua assinatura; você pode interromper o serviço no \"Compartilhamento de LAN\" da torre."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите «Копировать подписку», чтобы открыть страницу «Конфигурация» ClashMac, нажмите «+ → Импортировать подписку» в правом верхнем углу, вставьте ссылку, введите имя и нажмите «Готово». После загрузки выберите эту конфигурацию для использования. Пожалуйста, не отключайте башню при обновлении подписки; Вы можете остановить службу в разделе «Общий доступ к локальной сети» вышки."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คลิก \"คัดลอกการสมัครสมาชิก\" เพื่อเปิดหน้า \"การกำหนดค่า\" ของ ClashMac คลิก \"+ → นำเข้าการสมัครสมาชิก\" ที่มุมขวาบน วางลิงก์ กรอกชื่อแล้วคลิก \"เสร็จสิ้น\" หลังจากดาวน์โหลด ให้เลือกการกำหนดค่านี้เพื่อใช้ โปรดให้หอคอยทำงานต่อไปเมื่ออัปเดตการสมัครของคุณ คุณสามารถหยุดบริการได้ใน \"LAN Sharing\" ของทาวเวอร์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ClashMac'in \"Yapılandırma\" sayfasını açmak için \"Aboneliği Kopyala\"ya tıklayın, sağ üst köşedeki \"+ → Aboneliği İçe Aktar\"a tıklayın, bağlantıyı yapıştırın, adı girin ve \"Son\"a tıklayın. İndirdikten sonra kullanılacak bu yapılandırmayı seçin. Lütfen aboneliğinizi güncellerken kuleyi çalışır durumda tutun; hizmeti kulenin \"LAN Paylaşımı\" bölümünden durdurabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhấp vào \"Sao chép đăng ký\" để mở trang \"Cấu hình\" của ClashMac, nhấp vào \"+ → Nhập đăng ký\" ở góc trên bên phải, dán liên kết, điền tên và nhấp vào \"Hoàn tất\". Sau khi tải về các bạn chọn cấu hình này để sử dụng. Vui lòng giữ cho tháp hoạt động khi cập nhật đăng ký của bạn; bạn có thể dừng dịch vụ trong phần \"Chia sẻ mạng LAN\" của tháp."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击“复制订阅”，打开 ClashMac 的“配置”页面，点击右上角“＋ → 导入订阅”，粘贴链接、填写名称并点击“完成”。下载后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "點擊“複製訂閱”，打開 ClashMac 的“配置”頁面，點擊右上角“＋ → 導入訂閱”，貼上連結、填寫名稱並點擊“完成”。下載後選擇該配置使用。更新訂閱時請保持塔台運作；可在塔台的「區域網路共享」中停止服務。"
+          }
+        }
+      }
+    },
+    "点击“复制订阅”，打开 Surge Mac，在“更多 → 配置 → 从 URL 安装配置”中粘贴链接并安装，然后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انقر على \"نسخ الاشتراك\"، وافتح Surge Mac، والصق الرابط في \"المزيد → التكوين → تثبيت التكوين من URL\" وقم بتثبيته، ثم حدد التكوين المراد استخدامه. يرجى إبقاء البرج قيد التشغيل عند تحديث اشتراكك؛ يمكنك إيقاف الخدمة في \"LAN Sharing\" الخاصة بالبرج."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken Sie auf „Abonnement kopieren“, öffnen Sie Surge Mac, fügen Sie den Link unter „Mehr → Konfiguration → Konfiguration von URL installieren“ ein und installieren Sie ihn. Wählen Sie dann die zu verwendende Konfiguration aus. Bitte lassen Sie den Tower laufen, wenn Sie Ihr Abonnement aktualisieren. Sie können den Dienst im „LAN Sharing“ des Towers stoppen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click \"Copy Subscription\", open Surge Mac, paste the link in \"More → Configuration → Install Configuration from URL\" and install it, then select the configuration to use. Please keep the tower running when updating your subscription; you can stop the service in the tower's \"LAN Sharing\"."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haga clic en \"Copiar suscripción\", abra Surge Mac, pegue el enlace en \"Más → Configuración → Instalar configuración desde URL\" e instálelo, luego seleccione la configuración que desea usar. Mantenga la torre en funcionamiento cuando actualice su suscripción; Puedes detener el servicio en \"LAN Sharing\" de la torre."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliquez sur « Copier l'abonnement », ouvrez Surge Mac, collez le lien dans « Plus → Configuration → Installer la configuration à partir de l'URL » et installez-le, puis sélectionnez la configuration à utiliser. Veuillez laisser la tour fonctionner lors de la mise à jour de votre abonnement ; vous pouvez arrêter le service dans le \"Partage LAN\" de la tour."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klik \"Salin Berlangganan\", buka Surge Mac, tempelkan tautan di \"Lainnya → Konfigurasi → Instal Konfigurasi dari URL\" dan instal, lalu pilih konfigurasi yang akan digunakan. Harap tetap menjalankan menara saat memperbarui langganan Anda; Anda dapat menghentikan layanan di \"Berbagi LAN\" menara."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「サブスクリプションのコピー」をクリックし、Surge Mac を開き、「詳細 → 構成 → URL から構成をインストール」にリンクを貼り付けてインストールし、使用する構成を選択します。サブスクリプションを更新するときは、タワーを実行したままにしてください。タワーの「LAN共有」でサービスを停止できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"구독 복사\"를 클릭하고 Surge Mac을 열고 \"추가 → 구성 → URL에서 구성 설치\"에 링크를 붙여넣고 설치한 다음 사용할 구성을 선택하세요. 구독을 업데이트할 때 타워를 계속 실행하세요. 타워의 \"LAN 공유\"에서 서비스를 중지할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clique em “Copiar assinatura”, abra o Surge Mac, cole o link em “Mais → Configuração → Instalar configuração do URL” e instale-o, a seguir selecione a configuração a ser usada. Por favor, mantenha a torre funcionando ao atualizar sua assinatura; você pode interromper o serviço no \"Compartilhamento de LAN\" da torre."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите «Копировать подписку», откройте Surge Mac, вставьте ссылку в «Дополнительно → Конфигурация → Установить конфигурацию по URL-адресу» и установите ее, затем выберите конфигурацию для использования. Пожалуйста, не отключайте башню при обновлении подписки; Вы можете остановить службу в разделе «Общий доступ к локальной сети» вышки."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คลิก \"คัดลอกการสมัครสมาชิก\" เปิด Surge Mac วางลิงก์ใน \"เพิ่มเติม → การกำหนดค่า → ติดตั้งการกำหนดค่าจาก URL\" แล้วติดตั้ง จากนั้นเลือกการกำหนดค่าที่จะใช้ โปรดให้หอคอยทำงานต่อไปเมื่ออัปเดตการสมัครของคุณ คุณสามารถหยุดบริการได้ใน \"LAN Sharing\" ของทาวเวอร์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Aboneliği Kopyala\"ya tıklayın, Surge Mac'i açın, bağlantıyı \"Diğer → Yapılandırma → Yapılandırmayı URL'den Yükle\" seçeneğine yapıştırın ve yükleyin, ardından kullanılacak yapılandırmayı seçin. Lütfen aboneliğinizi güncellerken kuleyi çalışır durumda tutun; hizmeti kulenin \"LAN Paylaşımı\" bölümünden durdurabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhấp vào \"Sao chép đăng ký\", mở Surge Mac, dán liên kết vào \"Thêm → Cấu hình → Cài đặt cấu hình từ URL\" và cài đặt, sau đó chọn cấu hình để sử dụng. Vui lòng giữ cho tháp hoạt động khi cập nhật đăng ký của bạn; bạn có thể dừng dịch vụ trong phần \"Chia sẻ mạng LAN\" của tháp."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击“复制订阅”，打开 Surge Mac，在“更多 → 配置 → 从 URL 安装配置”中粘贴链接并安装，然后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "點擊“複製訂閱”，打開 Surge Mac，在“更多 → 配置 → 從 URL 安裝配置”中貼上連結並安裝，然後選擇該配置使用。更新訂閱時請保持塔台運作；可在塔台的「區域網路共享」中停止服務。"
+          }
+        }
+      }
+    },
     "点击规则方案即可修改规则": {
       "localizations": {
         "ar": {
@@ -57899,6 +59413,7 @@
       }
     },
     "电报": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -65241,6 +66756,100 @@
         }
       }
     },
+    "节点地图": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خريطة العقدة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knotenkarte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "node map"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mapa de nodos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "carte de nœud"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "peta simpul"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ノードマップ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노드 맵"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mapa de nós"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "карта узлов"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แผนที่โหนด"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "düğüm haritası"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bản đồ nút"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "节点地图"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "節點地圖"
+          }
+        }
+      }
+    },
     "节点地址无效": {
       "localizations": {
         "ar": {
@@ -70229,6 +71838,7 @@
       }
     },
     "让手机和电脑或路由器连接同一个 Wi-Fi。": {
+      "extractionState": "stale",
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -70318,6 +71928,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "讓手機和電腦或路由器連接同一個 Wi-Fi。"
+          }
+        }
+      }
+    },
+    "让设备连接同一个局域网，支持 Wi-Fi 或有线网络。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أبقِ الأجهزة متصلة بنفس الشبكة المحلية (LAN)، إما عبر Wi-Fi أو سلكيًا."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgen Sie dafür, dass die Geräte mit demselben LAN verbunden sind, entweder über WLAN oder kabelgebunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep devices connected to the same LAN, either Wi-Fi or wired."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantenga los dispositivos conectados a la misma LAN, ya sea por Wi-Fi o por cable."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gardez les appareils connectés au même réseau local, Wi-Fi ou filaire."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jaga agar perangkat tetap terhubung ke LAN yang sama, baik Wi-Fi atau kabel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイスを同じ LAN (Wi-Fi または有線) に接続したままにします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi든 유선이든 동일한 LAN에 장치를 연결해 두세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantenha os dispositivos conectados à mesma LAN, seja por Wi-Fi ou com fio."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Держите устройства подключенными к одной локальной сети, Wi-Fi или проводной."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ให้อุปกรณ์เชื่อมต่อกับ LAN เดียวกัน ไม่ว่าจะเป็น Wi-Fi หรือแบบมีสาย"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihazları Wi-Fi veya kablolu olarak aynı LAN'a bağlı tutun."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giữ các thiết bị được kết nối với cùng một mạng LAN, Wi-Fi hoặc có dây."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让设备连接同一个局域网，支持 Wi-Fi 或有线网络。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讓設備連接同一個區域網，支援 Wi-Fi 或有線網路。"
           }
         }
       }
@@ -71165,6 +72869,101 @@
           "stringUnit": {
             "state": "translated",
             "value": "請先新增或啟用訂閱和節點，再產生配置。"
+          }
+        }
+      }
+    },
+    "请在 45 秒内切到 Clash Verge，点击之前从本机导入、同名的塔台配置卡片上的刷新按钮。配置名称改变后需重新导入。若要长期自动更新，请改用局域网共享订阅。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يرجى التبديل إلى Clash Verge خلال 45 ثانية والنقر فوق زر التحديث الموجود على بطاقة تكوين البرج التي تحمل نفس الاسم الذي تم استيراده من الجهاز المحلي. بعد تغيير اسم التكوين، يجب إعادة استيراده. للحصول على التحديثات التلقائية طويلة المدى، استخدم اشتراك LAN مشترك بدلاً من ذلك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte wechseln Sie innerhalb von 45 Sekunden zu Clash Verge und klicken Sie auf der Tower-Konfigurationskarte mit demselben Namen, die vom lokalen Computer importiert wurde, auf die Schaltfläche „Aktualisieren“. Nachdem der Konfigurationsname geändert wurde, muss er erneut importiert werden. Für langfristige automatische Updates verwenden Sie stattdessen ein LAN-Shared-Abonnement."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please switch to Clash Verge within 45 seconds and click the refresh button on the tower configuration card with the same name that was imported from the local machine. After the configuration name is changed, it needs to be re-imported. For long-term automatic updates, use a LAN shared subscription instead."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambie a Clash Verge dentro de los 45 segundos y haga clic en el botón Actualizar en la tarjeta de configuración de la torre con el mismo nombre que se importó desde la máquina local. Una vez cambiado el nombre de la configuración, es necesario volver a importarlo. Para actualizaciones automáticas a largo plazo, utilice una suscripción compartida de LAN."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veuillez passer à Clash Verge dans les 45 secondes et cliquez sur le bouton d'actualisation de la carte de configuration de la tour portant le même nom que celui importé depuis la machine locale. Une fois le nom de la configuration modifié, il doit être réimporté. Pour les mises à jour automatiques à long terme, utilisez plutôt un abonnement LAN partagé."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silakan beralih ke Clash Verge dalam waktu 45 detik dan klik tombol segarkan pada kartu konfigurasi menara dengan nama yang sama yang diimpor dari mesin lokal. Setelah nama konfigurasi diubah, perlu diimpor ulang. Untuk pembaruan otomatis jangka panjang, gunakan langganan bersama LAN."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "45 秒以内に Clash Verge に切り替え、ローカル マシンからインポートされた同じ名前のタワー構成カードの更新ボタンをクリックしてください。構成名を変更した後は、再インポートする必要があります。長期的な自動更新の場合は、代わりに LAN 共有サブスクリプションを使用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "45초 이내에 Clash Verge로 전환하고 로컬 컴퓨터에서 가져온 것과 동일한 이름의 타워 구성 카드에서 새로 고침 버튼을 클릭하세요. 구성 이름을 변경한 후에는 다시 가져와야 합니다. 장기 자동 업데이트의 경우 대신 LAN 공유 구독을 사용하십시오."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mude para o Clash Verge em 45 segundos e clique no botão Atualizar no cartão de configuração da torre com o mesmo nome que foi importado da máquina local. Depois que o nome da configuração for alterado, ele precisará ser importado novamente. Para atualizações automáticas de longo prazo, use uma assinatura compartilhada de LAN."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожалуйста, переключитесь на Clash Verge в течение 45 секунд и нажмите кнопку обновления на карточке конфигурации башни с тем же именем, которое было импортировано с локального компьютера. После изменения имени конфигурации ее необходимо повторно импортировать. Для долгосрочных автоматических обновлений используйте общую подписку по локальной сети."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โปรดเปลี่ยนไปใช้ Clash Verge ภายใน 45 วินาทีและคลิกปุ่มรีเฟรชบนการ์ดการกำหนดค่าทาวเวอร์ด้วยชื่อเดียวกับที่นำเข้าจากเครื่องท้องถิ่น หลังจากเปลี่ยนชื่อการกำหนดค่าแล้ว จะต้องนำเข้าใหม่อีกครั้ง สำหรับการอัปเดตอัตโนมัติในระยะยาว ให้ใช้การสมัครสมาชิก LAN ที่ใช้ร่วมกันแทน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lütfen 45 saniye içinde Clash Verge'a geçin ve yerel makineden içe aktarılan aynı adı taşıyan kule yapılandırma kartındaki yenile düğmesine tıklayın. Yapılandırma adı değiştirildikten sonra yeniden içe aktarılması gerekir. Uzun vadeli otomatik güncellemeler için bunun yerine LAN paylaşımlı aboneliğini kullanın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vui lòng chuyển sang Clash Verge trong vòng 45 giây và nhấp vào nút làm mới trên thẻ cấu hình tháp có cùng tên đã được nhập từ máy cục bộ. Sau khi tên cấu hình được thay đổi, nó cần được nhập lại. Để cập nhật tự động lâu dài, thay vào đó hãy sử dụng đăng ký chia sẻ mạng LAN."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在 45 秒内切到 Clash Verge，点击之前从本机导入、同名的塔台配置卡片上的刷新按钮。配置名称改变后需重新导入。若要长期自动更新，请改用局域网共享订阅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請在 45 秒內切到 Clash Verge，點選先前從本機匯入、同名的塔台配置卡片上的刷新按鈕。配置名稱改變後需重新導入。若要長期自動更新，請改用區域網路共享訂閱。"
           }
         }
       }
@@ -77288,6 +79087,100 @@
         }
       }
     },
+    "集中管理订阅和自有节点": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إدارة الاشتراكات والعقد الخاصة مركزيًا"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnements und eigene Knoten zentral verwalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Centrally manage subscriptions and own nodes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestionar centralmente suscripciones y nodos propios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gérer de manière centralisée les abonnements et posséder des nœuds"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kelola langganan dan node milik Anda secara terpusat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションと独自のノードを一元管理"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 및 자체 노드를 중앙에서 관리"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerencie centralmente assinaturas e nós próprios"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Централизованно управляйте подписками и собственными узлами"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "จัดการการสมัครสมาชิกและโหนดของตัวเองจากส่วนกลาง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelikleri ve kendi düğümlerini merkezi olarak yönetin"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quản lý tập trung các đăng ký và nút riêng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "集中管理订阅和自有节点"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "集中管理訂閱和自有節點"
+          }
+        }
+      }
+    },
     "预共享密钥（可选）": {
       "localizations": {
         "ar": {
@@ -77378,6 +79271,196 @@
           "stringUnit": {
             "state": "translated",
             "value": "預共享金鑰（可選）"
+          }
+        }
+      }
+    },
+    "首次导入请选择新建。Clash Verge 的一键导入每次都会新增配置；已有塔台配置时请选择更新。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرجاء تحديد جديد عند الاستيراد لأول مرة. سيؤدي استيراد Clash Verge بنقرة واحدة إلى إضافة تكوينات جديدة في كل مرة؛ يرجى اختيار التحديث إذا كان هناك بالفعل تكوين للبرج."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte wählen Sie beim ersten Import „Neu“ aus. Der One-Click-Import von Clash Verge fügt jedes Mal neue Konfigurationen hinzu; Bitte wählen Sie die Aktualisierung, wenn bereits eine Tower-Konfiguration vorhanden ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please select New when importing for the first time. Clash Verge's one-click import will add new configurations every time; please choose to update if there is already a tower configuration."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccione Nuevo al importar por primera vez. La importación con un solo clic de Clash Verge agregará nuevas configuraciones cada vez; elija actualizar si ya existe una configuración de torre."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veuillez sélectionner Nouveau lors de l'importation pour la première fois. L'importation en un clic de Clash Verge ajoutera de nouvelles configurations à chaque fois ; veuillez choisir de mettre à jour s'il existe déjà une configuration de tour."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silakan pilih Baru saat mengimpor untuk pertama kalinya. Impor satu klik Clash Verge akan menambahkan konfigurasi baru setiap saat; silahkan pilih update jika sudah ada konfigurasi towernya."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初めてインポートする場合は、「新規」を選択してください。 Clash Verge のワンクリック インポートでは、毎回新しい構成が追加されます。すでにタワー構成がある場合は更新を選択してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처음 가져올 때 새로 만들기를 선택하세요. Clash Verge의 원클릭 가져오기는 매번 새로운 구성을 추가합니다. 이미 타워 구성이 있는 경우 업데이트를 선택하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecione Novo ao importar pela primeira vez. A importação com um clique do Clash Verge sempre adicionará novas configurações; opte por atualizar se já houver uma configuração de torre."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожалуйста, выберите «Новый» при первом импорте. Импорт Clash Verge в один клик каждый раз будет добавлять новые конфигурации; пожалуйста, выберите обновление, если конфигурация башни уже существует."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โปรดเลือกใหม่เมื่อนำเข้าเป็นครั้งแรก การนำเข้าด้วยคลิกเดียวของ Clash Verge จะเพิ่มการกำหนดค่าใหม่ทุกครั้ง โปรดเลือกอัปเดตหากมีการกำหนดค่าแบบทาวเวอร์อยู่แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk kez içe aktarırken lütfen Yeni'yi seçin. Clash Verge'in tek tıklamayla içe aktarımı her seferinde yeni yapılandırmalar ekleyecektir; Zaten bir kule yapılandırması varsa lütfen güncellemeyi seçin."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vui lòng chọn Mới khi nhập lần đầu tiên. Tính năng nhập bằng một cú nhấp chuột của Clash Verge sẽ thêm cấu hình mới mỗi lần; vui lòng chọn cập nhật nếu đã có cấu hình tháp."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次导入请选择新建。Clash Verge 的一键导入每次都会新增配置；已有塔台配置时请选择更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次導入請選擇新建。 Clash Verge 的一鍵匯入每次都會新增配置；已有塔台設定時請選擇更新。"
+          }
+        }
+      }
+    },
+    "首次导入选择新建配置。更新时，塔台准备最新内容，再到 Clash Verge 原有卡片上刷新，避免重复新增。需要持续更新可使用局域网共享订阅。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عند الاستيراد لأول مرة، حدد تكوين جديد. عند التحديث، يقوم البرج بتجهيز المحتوى الأحدث وتحديثه على البطاقة الأصلية في Clash Verge لتجنب الإضافات المتكررة. إذا كنت بحاجة إلى تحديثات مستمرة، فيمكنك استخدام اشتراك LAN المشترك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie beim ersten Import „Neue Konfiguration“ aus. Bei der Aktualisierung bereitet der Tower die neuesten Inhalte vor und aktualisiert sie auf der Originalkarte in Clash Verge, um wiederholte Ergänzungen zu vermeiden. Wenn Sie kontinuierliche Updates benötigen, können Sie ein LAN-Shared-Abonnement verwenden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When importing for the first time, select New Configuration. When updating, the tower prepares the latest content and refreshes it on the original card in Clash Verge to avoid repeated additions. If you need continuous updates, you can use LAN shared subscription."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al importar por primera vez, seleccione Nueva configuración. Al actualizar, la torre prepara el contenido más reciente y lo actualiza en la tarjeta original en Clash Verge para evitar adiciones repetidas. Si necesita actualizaciones continuas, puede utilizar la suscripción compartida de LAN."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lors de l'importation pour la première fois, sélectionnez Nouvelle configuration. Lors de la mise à jour, la tour prépare le dernier contenu et l'actualise sur la carte originale dans Clash Verge pour éviter des ajouts répétés. Si vous avez besoin de mises à jour continues, vous pouvez utiliser un abonnement partagé LAN."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saat mengimpor untuk pertama kalinya, pilih Konfigurasi Baru. Saat memperbarui, menara menyiapkan konten terbaru dan menyegarkannya pada kartu asli di Clash Verge untuk menghindari penambahan berulang kali. Jika Anda memerlukan pembaruan terus-menerus, Anda dapat menggunakan langganan LAN bersama."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初めてインポートする場合は、「新しい構成」を選択します。アップデートの際、タワーは最新のコンテンツを準備し、追加が繰り返されることを避けるために、Clash Verge の元のカード上でそれを更新します。継続的なアップデートが必要な場合は、LAN 共有サブスクリプションを使用できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처음으로 가져올 때 새 구성을 선택합니다. 업데이트 시 타워는 최신 콘텐츠를 준비하고 반복적인 추가를 방지하기 위해 Clash Verge의 원본 카드에 새로 고침합니다. 지속적인 업데이트가 필요한 경우 LAN 공유 구독을 사용할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao importar pela primeira vez, selecione Nova configuração. Ao atualizar, a torre prepara o conteúdo mais recente e o atualiza no cartão original no Clash Verge para evitar adições repetidas. Se precisar de atualizações contínuas, você pode usar a assinatura compartilhada da LAN."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "При первом импорте выберите «Новая конфигурация». При обновлении башня подготавливает новейший контент и обновляет его на исходной карте в Clash Verge, чтобы избежать повторных добавлений. Если вам нужны постоянные обновления, вы можете использовать общую подписку LAN."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เมื่อนำเข้าเป็นครั้งแรก ให้เลือก การกำหนดค่าใหม่ เมื่ออัปเดต หอคอยจะเตรียมเนื้อหาล่าสุดและรีเฟรชบนการ์ดดั้งเดิมใน Clash Verge เพื่อหลีกเลี่ยงการเพิ่มซ้ำ หากคุณต้องการอัปเดตอย่างต่อเนื่อง คุณสามารถใช้การสมัครสมาชิก LAN ที่ใช้ร่วมกันได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk kez içe aktarırken Yeni Yapılandırma'yı seçin. Güncelleme sırasında kule en son içeriği hazırlar ve tekrarlanan eklemeleri önlemek için Clash Verge'deki orijinal kartta yeniler. Sürekli güncellemelere ihtiyacınız varsa LAN paylaşımlı aboneliğini kullanabilirsiniz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khi nhập lần đầu tiên, hãy chọn Cấu hình mới. Khi cập nhật, tháp chuẩn bị nội dung mới nhất và làm mới nội dung đó trên thẻ gốc trong Clash Verge để tránh việc bổ sung lặp lại. Nếu bạn cần cập nhật liên tục, bạn có thể sử dụng đăng ký chia sẻ mạng LAN."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次导入选择新建配置。更新时，塔台准备最新内容，再到 Clash Verge 原有卡片上刷新，避免重复新增。需要持续更新可使用局域网共享订阅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次導入選擇新建配置。更新時，塔台準備最新內容，再到 Clash Verge 原有卡片上刷新，避免重複新增。需要持續更新可使用區域網路共享訂閱。"
           }
         }
       }

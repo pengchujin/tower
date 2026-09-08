@@ -4,6 +4,7 @@ struct SubscriptionsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAddSourcePresented = false
+    @State private var isMacMapExpanded = false
     @State private var pendingDeletion: PendingDeletion?
     @State private var sourceManagementRoute: SourceManagementRoute?
     @State private var editingSubscription: SubscriptionSource?
@@ -17,35 +18,71 @@ struct SubscriptionsView: View {
                     Color.clear
                         .frame(height: 0)
                         .id(SubscriptionScrollTarget.top)
-                    SubscriptionOverviewCard { metric in
-                        sourceManagementRoute = metric.managementRoute
+                    if TowerPlatform.isMac {
+                        macHeader
+                        if isMacMapExpanded {
+                            NodeMapOverview(nodes: model.enabledNodes)
+                                .frame(maxWidth: .infinity)
+                                .transition(.opacity)
+                                .accessibilityIdentifier("inline-node-map")
+                        }
+                        if !model.subscriptions.isEmpty || !model.localNodes.isEmpty {
+                            MacSubscriptionSummary { metric in
+                                sourceManagementRoute = metric.managementRoute
+                            }
+                        }
+                    } else {
+                        SubscriptionOverviewCard { metric in
+                            sourceManagementRoute = metric.managementRoute
+                        }
+                        NodeMapOverview(nodes: model.enabledNodes)
                     }
-
-                    NodeMapOverview(nodes: model.enabledNodes)
 
                     if model.subscriptions.isEmpty && model.localNodes.isEmpty {
                         SubscriptionEmptyState {
                             isAddSourcePresented = true
                         }
+                        .frame(maxWidth: TowerPlatform.isMac ? 600 : .infinity)
+                        .padding(.top, TowerPlatform.isMac ? 32 : 0)
                     } else {
                         subscriptionsSection
                         localNodesSection
 
-                        Button {
-                            model.selectedTab = .rules
-                        } label: {
-                            PrimaryActionLabel(title: "继续选择规则", symbol: "arrow.right")
+                        if TowerPlatform.isMac {
+                            HStack {
+                                PrivacyBadge()
+                                Spacer()
+                                Button("继续选择规则", systemImage: "arrow.right") {
+                                    model.selectedTab = .rules
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                                .accessibilityIdentifier("continue-to-rules")
+                            }
+                        } else {
+                            Button {
+                                model.selectedTab = .rules
+                            } label: {
+                                PrimaryActionLabel(title: "继续选择规则", symbol: "arrow.right")
+                            }
+                            .buttonStyle(ResponsivePressButtonStyle())
+                            .accessibilityIdentifier("continue-to-rules")
                         }
-                        .buttonStyle(ResponsivePressButtonStyle())
-                        .accessibilityIdentifier("continue-to-rules")
                     }
                 }
-                .padding(.horizontal, TowerTheme.pagePadding)
+                .frame(maxWidth: TowerPlatform.isMac ? TowerTheme.macContentMaxWidth : .infinity)
+                .padding(.horizontal, TowerPlatform.isMac ? 28 : TowerTheme.pagePadding)
+                .frame(maxWidth: .infinity)
                 .padding(.top, 12)
                 .padding(.bottom, 34)
             }
             .background(TowerTheme.background.ignoresSafeArea())
             .navigationTitle("我的订阅")
+            .navigationBarTitleDisplayMode(TowerPlatform.isMac ? .inline : .large)
+            .task(id: TowerPlatform.isMac ? model.enabledNodes : []) {
+                guard TowerPlatform.isMac else { return }
+                await model.resolveIPCountries(for: model.enabledNodes)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("管理") {
@@ -107,6 +144,38 @@ struct SubscriptionsView: View {
                 Text(deletion.message)
             }
         }
+    }
+
+    private var macHeader: some View {
+        HStack(alignment: .center, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("我的订阅")
+                    .font(.largeTitle.weight(.bold))
+                Text("集中管理订阅和自有节点")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 12)
+            if !model.enabledNodes.isEmpty {
+                Button {
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 1)) {
+                        isMacMapExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Label("节点地图", systemImage: "globe.asia.australia")
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .rotationEffect(.degrees(isMacMapExpanded ? 180 : 0))
+                    }
+                }
+                .accessibilityAddTraits(isMacMapExpanded ? .isSelected : [])
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .accessibilityIdentifier("open-node-map")
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -419,6 +488,50 @@ private struct EditSubscriptionSheet: View {
             if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct MacSubscriptionSummary: View {
+    @Environment(AppModel.self) private var model
+    let onMetricTap: (SubscriptionOverviewMetric) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            metric(model.enabledSubscriptionCount, title: "已启用", symbol: "link",
+                   target: .subscriptions, enabled: !model.subscriptions.isEmpty, id: "overview-subscriptions")
+            Divider().frame(height: 32)
+            metric(model.enabledNodes.count, title: "节点", symbol: "network",
+                   target: .nodes, enabled: !model.availableNodes.isEmpty, id: "overview-nodes")
+            Divider().frame(height: 32)
+            metric(model.coveredCountryCount, title: "地区", symbol: "globe.asia.australia",
+                   target: .regions, enabled: model.coveredCountryCount > 0, id: "overview-regions")
+            Divider().frame(height: 32)
+            metric(model.localNodes.count, title: "自有节点", symbol: "server.rack",
+                   target: .localNodes, enabled: !model.localNodes.isEmpty, id: "overview-local-nodes")
+        }
+        .padding(.vertical, 16)
+        .towerCard()
+    }
+
+    private func metric(_ count: Int, title: LocalizedStringKey, symbol: String,
+                        target: SubscriptionOverviewMetric, enabled: Bool, id: String) -> some View {
+        Button { onMetricTap(target) } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: symbol)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(count, format: .number)
+                    .font(.title2.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .disabled(!enabled)
+        .accessibilityIdentifier(id)
     }
 }
 

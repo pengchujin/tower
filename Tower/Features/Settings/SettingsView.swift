@@ -4,13 +4,20 @@ import UIKit
 struct SettingsView: View {
     @Binding var configurationNameDraft: ConfigurationNameDraft
 
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     @State private var showsOnboarding = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
                 Button {
-                    showsOnboarding = true
+                    if TowerPlatform.isMac {
+                        model.isReplayingMacOnboarding = true
+                        dismiss()
+                    } else {
+                        showsOnboarding = true
+                    }
                 } label: {
                     HStack {
                         Label("使用引导", systemImage: "book.closed")
@@ -799,6 +806,7 @@ struct LANSharingDestinationCard: View {
                             .tag(Optional(format))
                     }
                 }
+                .pickerStyle(.inline)
             } label: {
                 HStack(spacing: 6) {
                     if let selectedClient {
@@ -856,7 +864,7 @@ private struct URLPanel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let url: URL
 
-    @State private var isShowingQRCode = false
+    @State private var isShowingQRCode = TowerPlatform.isMac
     @State private var qrImage: UIImage?
     /// Which address the image on screen encodes. Without it there is no way
     /// to tell a current code from one left over by a format change.
@@ -1016,9 +1024,9 @@ struct LANSharingGuide: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "怎么使用", detail: "OpenClash · Windows · Mac")
             VStack(alignment: .leading, spacing: 13) {
-                GuideRow(number: "1", text: "让手机和电脑或路由器连接同一个 Wi-Fi。")
+                GuideRow(number: "1", text: "让设备连接同一个局域网，支持 Wi-Fi 或有线网络。")
                 GuideRow(number: "2", text: "开启服务，优先复制“自动识别客户端”链接。")
-                GuideRow(number: "3", text: "把链接作为订阅地址添加到客户端，刷新时保持塔台在前台打开。")
+                GuideRow(number: "3", text: "把链接作为订阅地址添加到客户端；Mac 上保持塔台运行，iPhone 上保持前台打开。")
                 Divider()
                 Label(
                     model.embedRemoteSubscriptionLinks

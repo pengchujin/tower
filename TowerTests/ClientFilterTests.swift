@@ -4,15 +4,24 @@ import Testing
 
 @MainActor
 struct ClientFilterTests {
+    @Test(arguments: [ClientPlatform.phone, .mac])
+    func freshInstallUsesACL4SSRDefault(platform: ClientPlatform) {
+        let fileURL = temporaryFileURL()
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fileURL), arguments: [], clientPlatform: platform)
+
+        #expect(model.selectedPresetID == "acl4ssr-default")
+    }
+
     @Test
-    func freshInstallShowsEverySupportedClient() {
+    func freshPhoneInstallHidesMacOnlyClients() {
         let model = makeModel()
 
-        #expect(model.visibleClientOrder == ClientTargetOrder.defaultOrder)
-        #expect(model.hiddenClientOrder.isEmpty)
-        #expect(model.exportDestinationOrder.compactMap(\.clientTarget) == ClientTargetOrder.defaultOrder)
+        #expect(Set(model.visibleClientOrder) == ClientPlatform.phone.defaultVisibleTargets)
+        #expect(Set(model.hiddenClientOrder) == Set([.surgeMac, .clashVerge, .clashMac, .flClash, .mihomoParty]))
+        #expect(Set(model.exportDestinationOrder.compactMap(\.clientTarget)) == ClientPlatform.phone.defaultVisibleTargets)
         #expect(model.exportDestinationOrder.contains(.lanSharing))
-        #expect(model.hiddenExportDestinationOrder.isEmpty)
+        #expect(model.hiddenExportDestinationOrder.count == 5)
     }
 
     @Test
@@ -20,7 +29,7 @@ struct ClientFilterTests {
         let fileURL = temporaryFileURL()
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         model.selectTarget(.surge)
         model.setClient(.surge, isVisible: false)
@@ -29,7 +38,7 @@ struct ClientFilterTests {
         #expect(model.selectedTarget == .shadowrocket)
         #expect(!model.exportDestinationOrder.contains(.client(.surge)))
 
-        let reloaded = AppModel(persistence: store, arguments: [])
+        let reloaded = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
         #expect(reloaded.visibleClientTargets == model.visibleClientTargets)
         #expect(reloaded.selectedTarget == .shadowrocket)
     }
@@ -39,7 +48,7 @@ struct ClientFilterTests {
         let fileURL = temporaryFileURL()
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         model.setClient(.karing, isVisible: false)
         #expect(model.hiddenClientOrder.contains(.karing))
@@ -56,7 +65,7 @@ struct ClientFilterTests {
         let fileURL = temporaryFileURL()
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         model.setExportDestination(.lanSharing, isVisible: false)
 
@@ -65,7 +74,7 @@ struct ClientFilterTests {
         #expect(model.hiddenExportDestinationOrder.contains(.lanSharing))
         #expect(try store.load()?.isLANSharingVisible == false)
 
-        let reloaded = AppModel(persistence: store, arguments: [])
+        let reloaded = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
         #expect(!reloaded.isLANSharingVisible)
 
         reloaded.setExportDestination(.lanSharing, isVisible: true)
@@ -94,16 +103,16 @@ struct ClientFilterTests {
         let fileURL = temporaryFileURL()
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
         model.setClient(.clash, isVisible: false)
 
         model.moveVisibleClients(fromOffsets: IndexSet(integer: 1), toOffset: 0)
 
         #expect(Array(model.visibleClientOrder.prefix(2)) == [.surge, .shadowrocket])
         #expect(Array(model.clientOrder.prefix(3)) == [.surge, .clash, .shadowrocket])
-        let reloaded = AppModel(persistence: store, arguments: [])
+        let reloaded = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
         #expect(reloaded.visibleClientOrder == model.visibleClientOrder)
-        #expect(reloaded.hiddenClientOrder == [.clash])
+        #expect(reloaded.hiddenClientOrder == [.clash, .clashVerge, .clashMac, .flClash, .mihomoParty, .surgeMac])
     }
 
     @Test
@@ -119,9 +128,9 @@ struct ClientFilterTests {
             clientOrder: ClientTargetOrder.defaultOrder.map(\.rawValue)
         ))
 
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
-        #expect(model.visibleClientTargets == Set(ClientTarget.allCases))
+        #expect(model.visibleClientTargets == ClientPlatform.phone.defaultVisibleTargets)
         #expect(model.isLANSharingVisible)
     }
 
@@ -141,7 +150,7 @@ struct ClientFilterTests {
         let fileURL = temporaryFileURL()
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         model.setClient(.clash, isVisible: false)
 
@@ -156,7 +165,7 @@ struct ClientFilterTests {
         #expect(saved.lanSharingFullOrderIndex == 2)
         #expect(saved.lanSharingOrderIndex == 1)
 
-        let reloaded = AppModel(persistence: store, arguments: [])
+        let reloaded = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
         #expect(Array(reloaded.exportDestinationOrder.prefix(3)) == [
             .client(.shadowrocket),
             .lanSharing,
@@ -190,7 +199,7 @@ struct ClientFilterTests {
                 .map(\.rawValue)
         ))
 
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         #expect(model.lanSharingOrderIndex == 2)
         #expect(Array(model.exportDestinationOrder.prefix(3)) == [
@@ -224,7 +233,7 @@ struct ClientFilterTests {
             lanSharingFullOrderIndex: 2
         ))
 
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         #expect(model.exportDestinationOrder[2] == .lanSharing)
     }
@@ -265,7 +274,7 @@ struct ClientFilterTests {
             visibleClientTargets: [ClientTarget.karing.rawValue]
         ))
 
-        let model = AppModel(persistence: store, arguments: [])
+        let model = AppModel(persistence: store, arguments: [], clientPlatform: .phone)
 
         #expect(model.visibleClientOrder == [.karing])
         #expect(model.selectedTarget == .karing)
@@ -274,7 +283,7 @@ struct ClientFilterTests {
     private func makeModel() -> AppModel {
         AppModel(
             persistence: PersistenceStore(fileURL: temporaryFileURL()),
-            arguments: []
+            arguments: [], clientPlatform: .phone
         )
     }
 

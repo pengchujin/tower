@@ -66,7 +66,7 @@ struct ConfigurationGenerator {
         let regionGroups = makeRegionGroups(nodes: supported, countryCodes: countryCodes)
         let content: String
         switch target {
-        case .clash, .clashApple, .clashMi, .karing:
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
             content = clash(
                 nodes: supported,
                 inlineNodes: inlineNodes,
@@ -75,7 +75,7 @@ struct ConfigurationGenerator {
                 regionGroups: regionGroups,
                 target: target
             )
-        case .surge:
+        case .surge, .surgeMac:
             content = surgeLike(
                 nodes: supported,
                 inlineNodes: inlineNodes,
@@ -160,7 +160,7 @@ struct ConfigurationGenerator {
         var downgradedSmart = false
         var ignoredNotifications = false
         scheme.groups = scheme.groups.map { group in
-            let downgrade = group.kind == .smart && ![ClientTarget.surge, .egern].contains(target)
+            let downgrade = group.kind == .smart && ![ClientTarget.surge, .surgeMac, .egern].contains(target)
             var parameters = group.parameters
             if downgrade {
                 downgradedSmart = true
@@ -227,7 +227,7 @@ struct ConfigurationGenerator {
             return String(localized: "策略组校验失败（\(issue.code.displayTitle)）：\(detail)。请修正后导出。")
         }
         let normalizedNames = scheme.groups.map { group in
-            [.surge, .loon, .quanx].contains(target) ? confName(group.name) : collapsingLineBreaks(group.name)
+            [.surge, .surgeMac, .loon, .quanx].contains(target) ? confName(group.name) : collapsingLineBreaks(group.name)
         }
         let collidedNames = Dictionary(grouping: normalizedNames, by: { $0 }).filter { $0.value.count > 1 }.keys.sorted()
         if !collidedNames.isEmpty {
@@ -235,7 +235,7 @@ struct ConfigurationGenerator {
             let label = RuleSchemePolicyValidator.Code.duplicateGroupName.displayTitle
             diagnostics.append(String(localized: "策略组校验失败（\(label)）：\(detail)。请修正后导出。"))
         }
-        let missingDomainSets = !(target == .surge && preferRuleSets)
+        let missingDomainSets = !([.surge, .surgeMac].contains(target) && preferRuleSets)
             && scheme.rulesets.contains { !schemes.hasDomainSetContent($0.resource) }
         if missingDomainSets {
             diagnostics.append(String(localized: "部分规则还没下载完成") + " · " + String(localized: "刷新规则"))
@@ -272,7 +272,7 @@ struct ConfigurationGenerator {
         )
         let content: String
         switch target {
-        case .clash, .clashApple, .clashMi, .karing:
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
             content = clashScheme(
                 scheme,
                 groups: resolved,
@@ -292,7 +292,7 @@ struct ConfigurationGenerator {
                 target: .shadowrocket,
                 rulePlan: rulePlan
             )
-        case .surge:
+        case .surge, .surgeMac:
             content = surgeLikeScheme(
                 scheme,
                 groups: resolved,
@@ -366,13 +366,13 @@ struct ConfigurationGenerator {
         default: return nil
         }
         switch target {
-        case .surge: return kind == "random" ? "random" : kind == "hash" ? "persistent" : nil
+        case .surge, .surgeMac: return kind == "random" ? "random" : kind == "hash" ? "persistent" : nil
         case .quanx: return kind == "round-robin" ? "round-robin" : kind == "hash" ? "dest-hash" : nil
         case .loon: return kind == "random" ? "Random" : kind == "hash" ? "PCC" : kind == "round-robin" ? "Round-Robin" : nil
         case .egern: return kind == "hash" ? "hash" : kind == "round-robin" ? "round_robin" : nil
         case .clash, .clashMi:
             return kind == "hash" ? "consistent-hashing" : ["round-robin", "sticky-sessions"].contains(kind) ? kind : nil
-        case .clashApple: return kind == "hash" ? "consistent-hashing" : kind == "round-robin" ? kind : nil
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty: return kind == "hash" ? "consistent-hashing" : kind == "round-robin" ? kind : nil
         default: return nil
         }
     }
@@ -398,7 +398,7 @@ struct ConfigurationGenerator {
     private func validConditional(_ group: RuleSchemeGroup, target: ClientTarget) -> Bool {
         let parameters = group.parameters ?? [:]
         switch target {
-        case .surge:
+        case .surge, .surgeMac:
             guard group.sourceFormat == "surge", let fields = stringArray(parameters["subnet-fields"]),
                   fields.contains(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("default=") || $0.hasPrefix("default =") }) else { return false }
             return fields.allSatisfy { $0.contains("=") && !$0.contains("\n") && !$0.contains("\r") }
@@ -424,12 +424,12 @@ struct ConfigurationGenerator {
     /// and meanings are deliberately not guessed across clients.
     private func nativeOptionKeys(sourceFormat: String?, target: ClientTarget) -> Set<String> {
         switch (sourceFormat, target) {
-        case ("surge", .surge): return ["timeout", "evaluate-before-use", "no-alert"]
+        case ("surge", .surge), ("surge", .surgeMac): return ["timeout", "evaluate-before-use", "no-alert"]
         case ("surge", .loon): return ["max-timeout"]
         case ("quanx", .quanx): return ["alive-checking"]
         case ("clash", .clash), ("clash", .clashMi):
             return ["lazy", "timeout", "max-failed-times", "exclude-filter", "exclude-type", "disable-udp"]
-        case ("clash", .clashApple): return ["lazy", "timeout"]
+        case ("clash", .clashApple), ("clash", .clashVerge), ("clash", .clashMac), ("clash", .flClash), ("clash", .mihomoParty): return ["lazy", "timeout"]
         case ("egern", .egern): return ["timeout", "flatten", "block_quic"]
         case ("sing-box", .singBox), ("sing-box", .hiddify):
             return ["idle_timeout", "interrupt_exist_connections"]
@@ -464,7 +464,7 @@ struct ConfigurationGenerator {
             output += "      filter: \(yaml(filter))\n"
         }
         guard !options.isEmpty else { return }
-        if [.surge, .loon, .quanx].contains(target) {
+        if [.surge, .surgeMac, .loon, .quanx].contains(target) {
             if output.hasSuffix("\n") { output.removeLast() }
             output += options.map { ", \($0.0)=\(confValue($0.1))" }.joined() + "\n"
         } else {
@@ -496,10 +496,10 @@ struct ConfigurationGenerator {
     private func supportsPolicyKind(_ group: RuleSchemeGroup, target: ClientTarget) -> Bool {
             switch group.kind {
             case .select, .urlTest: return true
-            case .smart: return [.surge, .egern].contains(target)
-            case .fallback: return [.surge, .quanx, .clash, .clashMi, .clashApple, .loon, .egern, .shadowrocket].contains(target)
+            case .smart: return [.surge, .surgeMac, .egern].contains(target)
+            case .fallback: return [.surge, .surgeMac, .quanx, .clash, .clashMi, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .loon, .egern, .shadowrocket].contains(target)
             case .loadBalance: return loadBalanceAlgorithm(group.algorithm, target: target) != nil
-            case .relay: return target == .clashApple || (target == .loon && group.sourceType == "chain")
+            case .relay: return [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty].contains(target) || (target == .loon && group.sourceType == "chain")
             case .conditional: return validConditional(group, target: target)
             case .unsupported: return false
             }
@@ -698,7 +698,7 @@ struct ConfigurationGenerator {
            node.kind != .vless || !["", "tcp"].contains(node.transport?.lowercased() ?? "tcp") { return false }
         // Hako's verified outbound implementations do not consume Reality for
         // these kinds or native SS TLS. Preserve the source and report skips.
-        if target == .clashApple {
+        if [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty].contains(target) {
             if node.usesReality, [.anytls, .socks5, .http].contains(node.kind) { return false }
             if node.kind == .shadowsocks, node.tls,
                (node.plugin ?? "").isEmpty, simpleObfsMode(node) == nil { return false }
@@ -712,7 +712,7 @@ struct ConfigurationGenerator {
         // Omitted YAML version defaults to v1 in Stash.
         if node.kind == .snell, target == .clash, !(1...3).contains(node.version ?? 1) { return false }
         // Mihomo has its own version support, independent of Stash.
-        if node.kind == .snell, [.clashApple, .clashMi].contains(target), !(1...5).contains(node.version ?? 4) { return false }
+        if node.kind == .snell, [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target), !(1...5).contains(node.version ?? 4) { return false }
         // Egern has no native ordinary SS-over-TLS transport. Never strip it.
         if target == .egern, node.kind == .shadowsocks, node.tls { return false }
         // sing-box 1.14 represents non-QUIC Snell v5 with version 4.
@@ -735,7 +735,7 @@ struct ConfigurationGenerator {
         // Writing one anyway would hand the password to Salamander and produce
         // the "looks right, never connects" outcome, so the node is skipped and
         // counted instead.
-        if node.kind == .hysteria2, [.surge, .shadowrocket].contains(target),
+        if node.kind == .hysteria2, [.surge, .surgeMac, .shadowrocket].contains(target),
            let obfs = hysteria2Obfs(node), obfs.type.lowercased() != "salamander" { return false }
         if node.plugin == "v2ray-plugin" {
             // Quantumult X requires a confirmed non-multiplexed server.
@@ -744,7 +744,7 @@ struct ConfigurationGenerator {
             // SIP003 directly or have a documented equivalent; the others must
             // skip instead of silently exporting plain Shadowsocks.
             guard node.transport == "ws",
-                  [.clash, .clashApple, .clashMi, .karing, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
+                  [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
         }
         if !canExpressTransport(of: node, on: target) { return false }
         return true
@@ -758,10 +758,10 @@ struct ConfigurationGenerator {
         case .clash:
             if node.kind == .trojan { return ["ws", "grpc"].contains(transport) }
             return ["ws", "http", "h2", "grpc"].contains(transport)
-        case .clashApple, .clashMi, .karing:
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
             if transport == "xhttp" { return node.kind == .vless }
             return ["ws", "http", "h2", "grpc", "httpupgrade"].contains(transport)
-        case .surge:
+        case .surge, .surgeMac:
             return transport == "ws" && [.vmess, .trojan].contains(node.kind)
         case .shadowrocket:
             return ["ws", "http", "h2", "grpc", "httpupgrade", "xhttp"].contains(transport)
@@ -1037,7 +1037,7 @@ struct ConfigurationGenerator {
 
         guard let finalGroup = plan.finalGroupName else { return output }
         switch target {
-        case .clash, .clashApple, .clashMi, .karing: output += "\(indent)MATCH,\(finalGroup)\n"
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing: output += "\(indent)MATCH,\(finalGroup)\n"
         case .quanx: output += "\(indent)final, \(finalGroup)\n"
         default: output += "\(indent)FINAL,\(finalGroup)\n"
         }
@@ -1164,7 +1164,7 @@ struct ConfigurationGenerator {
             output += "    geoip: true\n"
             output += "    geoip-code: CN\n"
         }
-        if protectionMode == .strict, [.clashApple, .clashMi].contains(target) {
+        if protectionMode == .strict, [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target) {
             output += "\ntun:\n"
             output += "  enable: true\n"
             output += "  stack: mixed\n"
@@ -1305,7 +1305,7 @@ struct ConfigurationGenerator {
         output += "ipv6 = \(schemeIPv6(scheme))\n"
         output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n"
         output += "encrypted-dns-server = \(schemeEncryptedDNS(scheme).joined(separator: ", "))\n"
-        if schemeDNSProtectionMode(scheme) == .strict, target == .surge {
+        if schemeDNSProtectionMode(scheme) == .strict, [.surge, .surgeMac].contains(target) {
             output += "hijack-dns = *:53\n"
             output += "encrypted-dns-follow-outbound-mode = true\n"
         }
@@ -1343,7 +1343,7 @@ struct ConfigurationGenerator {
                     testURL: group.testURL,
                     interval: group.interval,
                     tolerance: group.tolerance,
-                    smart: group.kind == .smart && target == .surge
+                    smart: group.kind == .smart && [.surge, .surgeMac].contains(target)
                 )
             case .fallback, .loadBalance:
                 var values = inlineMembers.map(confName)
@@ -3006,7 +3006,7 @@ struct ConfigurationGenerator {
     private func mappedRule(_ rule: String, policy: RulePolicy, target: ClientTarget) -> String? {
         let policyName: String
         switch target {
-        case .clash, .clashApple, .clashMi, .karing: policyName = clashPolicyName(policy)
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing: policyName = clashPolicyName(policy)
         case .quanx: policyName = quanXPolicyName(policy)
         default: policyName = surgePolicyName(policy)
         }
@@ -3016,7 +3016,7 @@ struct ConfigurationGenerator {
     /// Shared by the built-in presets and by imported schemes, whose policy
     /// names come from the imported file rather than from `RulePolicy`.
     private func mappedRule(_ rule: String, policyName: String, target: ClientTarget) -> String? {
-        let policyName = [.surge, .loon, .quanx].contains(target) ? confName(policyName) : policyName
+        let policyName = [.surge, .surgeMac, .loon, .quanx].contains(target) ? confName(policyName) : policyName
         var parts = rule.split(separator: ",", omittingEmptySubsequences: false).map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }

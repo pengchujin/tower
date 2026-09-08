@@ -306,7 +306,7 @@ final class TUICHysteriaTests: XCTestCase {
 
     func testTUICSupportMatchesWhatEachClientImplements() {
         let supported: Set<ClientTarget> = [
-            .surge, .shadowrocket, .clash, .clashApple, .clashMi, .karing,
+            .surge, .surgeMac, .shadowrocket, .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing,
             .hiddify, .egern, .singBox
         ]
         for target in ClientTarget.allCases {
@@ -322,7 +322,7 @@ final class TUICHysteriaTests: XCTestCase {
         // Surge, Loon, Quantumult X and Egern all ship Hysteria 2 but never
         // shipped Hysteria 1.
         let supported: Set<ClientTarget> = [
-            .shadowrocket, .clash, .clashApple, .clashMi, .karing, .hiddify, .singBox
+            .shadowrocket, .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .hiddify, .singBox
         ]
         for target in ClientTarget.allCases {
             XCTAssertEqual(
@@ -370,7 +370,7 @@ final class TUICHysteriaTests: XCTestCase {
             rawURI: "tuic://legacy"
         )
 
-        for target in [ClientTarget.surge, .shadowrocket, .clash, .clashMi, .karing, .hiddify, .egern] {
+        for target in [ClientTarget.surge, .surgeMac, .shadowrocket, .clash, .clashMi, .karing, .hiddify, .egern] {
             let result = ConfigurationGenerator().generate(
                 nodes: [missingPassword, legacyToken],
                 preset: RulePreset.builtIns[0],
@@ -469,7 +469,7 @@ final class TUICHysteriaTests: XCTestCase {
             parser.parseURI(hysteria2URI + "&obfs=scramble&obfs-password=s3cret")
         )
 
-        for target in [ClientTarget.surge, .shadowrocket] {
+        for target in [ClientTarget.surge, .surgeMac, .shadowrocket] {
             let result = ConfigurationGenerator()
                 .generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
 

@@ -20,7 +20,7 @@ final class DomainSetExportTests: XCTestCase {
         let store = RuleDownloadStore(folderURL: folder)
         try store.store("# comment\nexact.example.com\n.suffix.example.com\n// comment\n", for: url)
         let planner = RuleSetEmissionPlanner(repository: RuleSchemeRepository(downloadStore: store))
-        for target in ClientTarget.allCases where target != .surge {
+        for target in ClientTarget.allCases where target != .surge && target != .surgeMac {
             for prefer in [false, true] {
                 let plan = planner.plan(for: scheme, target: target, preferRuleSets: prefer)
                 XCTAssertEqual(plan.inlineRules.map(\.line), ["DOMAIN,exact.example.com", "DOMAIN-SUFFIX,suffix.example.com"], target.rawValue)

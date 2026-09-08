@@ -2,6 +2,26 @@ import XCTest
 
 @MainActor
 final class ClientPickerInteractionTests: XCTestCase {
+    func testSwitchingClientsKeepsExportBarAndViewportStable() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchEnvironment["TOWER_PERFORMANCE_NODE_COUNT"] = "1000"
+        app.launchArguments = ["-hasSeenWelcome", "YES", "--tab=export"]
+        app.launch()
+        let first = app.buttons["client-shadowrocket"]
+        XCTAssertTrue(first.waitForExistence(timeout: 15))
+        let button = app.buttons["export-config"]
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        let originalButtonY = button.frame.minY
+        let originalPickerY = first.frame.minY
+        for target in ["client-clash", "client-shadowrocket", "client-clash", "client-shadowrocket"] {
+            app.buttons[target].tap()
+            XCTAssertTrue(button.exists)
+            XCTAssertEqual(button.frame.minY, originalButtonY, accuracy: 1)
+            XCTAssertEqual(first.frame.minY, originalPickerY, accuracy: 1)
+        }
+    }
+
     func testTapSwipeAndLongPressReorder() {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "-hasSeenWelcome", "YES"]

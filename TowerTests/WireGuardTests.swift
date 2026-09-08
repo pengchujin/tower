@@ -96,7 +96,7 @@ final class WireGuardTests: XCTestCase {
 
     func testWireGuardSupportMatrixMatchesFormatsThatCanCarryIt() {
         let supported: Set<ClientTarget> = [
-            .surge, .shadowrocket, .clash, .clashApple, .clashMi, .karing,
+            .surge, .surgeMac, .shadowrocket, .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing,
             .loon, .hiddify, .egern, .v2box, .singBox
         ]
         XCTAssertEqual(Set(ClientTarget.allCases.filter { $0.supports(.wireguard) }), supported)
@@ -105,7 +105,7 @@ final class WireGuardTests: XCTestCase {
     func testEveryAdvertisedTargetWritesCompleteWireGuardConfiguration() throws {
         let node = try node()
         for target in [
-            ClientTarget.surge, .shadowrocket, .clash, .clashMi, .karing,
+            ClientTarget.surge, .surgeMac, .shadowrocket, .clash, .clashMi, .karing,
             .loon, .hiddify, .egern, .singBox
         ] {
             let result = generator.generate(nodes: [node], preset: preset, target: target)
@@ -168,7 +168,7 @@ final class WireGuardTests: XCTestCase {
         )
 
         for target in [
-            ClientTarget.surge, .shadowrocket, .clash, .clashMi, .karing,
+            ClientTarget.surge, .surgeMac, .shadowrocket, .clash, .clashMi, .karing,
             .loon, .hiddify, .egern
         ] {
             let result = generator.generate(nodes: [incomplete], preset: preset, target: target)

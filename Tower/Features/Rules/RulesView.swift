@@ -32,7 +32,9 @@ struct RulesView: View {
                 .disabled(!model.hasExportableSources)
                 .accessibilityIdentifier("continue-to-export")
             }
-            .padding(.horizontal, TowerTheme.pagePadding)
+            .frame(maxWidth: TowerPlatform.isMac ? TowerTheme.macContentMaxWidth : .infinity)
+            .padding(.horizontal, TowerPlatform.isMac ? 28 : TowerTheme.pagePadding)
+            .frame(maxWidth: .infinity)
             .padding(.top, 12)
             .padding(.bottom, 34)
         }

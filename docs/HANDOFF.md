@@ -380,3 +380,105 @@ Karing YAML 不再丢失 AnyTLS / SOCKS / HTTP 的 Reality 以及原生 SS TLS �
 - 真机导航检查额外定位到同步剪贴板阻塞：spindump 469 个主线程样本均在 AddSourceSheet → UIPasteboard.string → semaphore wait，约 60 秒未运行。改为 NSItemProvider 异步文本/URL 读取，保留自动请求与手动粘贴；用户编辑、切换模式和面板消失会取消读取，回调校验代次与原内容，避免迟到覆盖。模拟器编译通过，真机回归结果待下条补充。
 - 最终剪贴板真机回归：自动复制订阅链接→自动填充→取消关闭通过；草稿编辑与取消、多订阅导航通过。键盘聚焦→完成收起用例通过，最后两项退出 0（33.41 秒）。第三方键盘的 XCTest 文字注入不稳定，键盘用例限定焦点/收起，不声称其所有输入行为已覆盖；此前权限弹窗和前台切换导致的失败保留在本机报告。
 - 最终 1.0.7（45）优化 Debug（-O / wholemodule）已通过签名验证，覆盖安装到实体 iPhone 并成功启动，当前打开独立的 30 地区/16 订阅/1000 节点测试数据（含 40 自有节点）。正常手动重启不带测试参数时恢复用户原存储；未提交、归档或上传。git diff --check 通过。
+
+### 2026-09-08 — Mac 客户端与平台排序
+
+- 开启 Mac Catalyst 开发构建，保留原来的客户端图标卡片、横向滚动、筛选、拖动排序及底部导出操作。Surge 手机版与 Surge Mac 独立保留；新增 Clash Verge、ClashMac，沿用完整 Mihomo 配置生成及兼容性边界。
+- Mac 默认前五项为 Shadowrocket、局域网共享、Surge Mac、Clash Verge、ClashMac；手机默认隐藏后三个 Mac 专用目标，可从筛选手动添加。手机旧字段与可选 Mac 偏好分别保存，交替写回不会覆盖另一端的排序、可见目标或选中客户端，已覆盖持久化回归。
+- Mac 支持原生保存配置文件；Surge Mac 使用 surgeconfig、Clash Verge 使用 clash-verge 导入入口。旧版 Surge Mac 回退保存文件；ClashMac 使用文件或局域网订阅导入。局域网共享支持 Mac 有线网络和切换 App 后持续运行，修复共享启动期间取消的竞态，并完整读取分包 HTTP 请求头。
+- 本机实测：Clash Verge 2.5.2 本机一键导入和局域网订阅成功；ClashMac 27.1.4 文件导入成功，Mihomo 配置检查通过；Surge Mac 6.4.4 文件回退成功，surge-cli --check 返回 OK。Surge 手机版独立入口可打开对应客户端。使用演示节点，未宣称真实代理流量连通或 Surge Mac 6.7+ 的运行时验证。
+- 最终 Mac 和 iOS Simulator 均通过 1,016 项 XCTest + 49 项 Swift Testing，零失败；平台限制分别跳过 33 / 3 项 XCTest。841 条本地化提取检查及 git diff --check 通过。Mac 图标排序与手机版默认隐藏已在界面检查；最终 1.0.8（46）已再次签名覆盖安装到实体 iPhone 并启动。
+- 本机开发版位于用户 Applications 下的 Tower Mac.app，使用本地临时签名。未变更版本号、提交、归档上传或进行 Mac 分发/iCloud 签名验收。原始测试与客户端验证材料仅保留在忽略目录 .artifacts/mac-adaptation/。
+
+### 2026-09-08 — Mac 首页与重复导入跟进
+
+- Mac 宽窗口的首页概览和地图并排；窄窗口限制地图宽度，避免地图随窗口无限放大而将订阅卡片挤出首屏。手机保持原有纵向排列，客户端图标选择设计保留。本机宽窗口已实测首屏显示订阅与自有节点。
+- Clash Verge 2.5.2 的 URL Scheme 源码每次执行 append，未提供按 URL 覆盖入口。导出增加“新建配置 / 更新已有配置”选择；更新仅重新开放同一个 45 秒本机地址，用户在 Verge 原有同名卡片点刷新。改名需重新导入，持续更新可使用局域网共享。不会读取或修改客户端私有配置来实现覆盖。
+- 真实客户端验证：独立 Tower QA Refresh 演示配置首次导入后，关闭 VMess 再执行准备更新并点击 Verge 刷新；卡片保持一张，客户端存储的新 YAML 不再包含 VMess。用户已有两张配置保留，未切换活动配置或修改系统代理。
+- 连续准备导出回归发现固定端口未释放时重启可能失败，现等待旧 listener 取消完成再启动；新增测试确认原 URL 可获取更新后的内容。
+- Surge Mac 官方从 6.7 起支持 URL Scheme；本机 6.4.4 不注册该入口，已补明确版本与文件回退提示。ClashMac 27.1.4 未注册 URL Scheme；官方 CLI 的 profile 命令只列出和切换配置，未发现新增配置入口，继续使用文件或订阅。
+- 最终 Mac / iOS Simulator 均通过 1,017 项 XCTest + 49 项 Swift Testing，零失败（平台分别跳过 33 / 3 项）；849 条本地化提取检查通过。最新 1.0.8（46）再次覆盖安装并启动实体 iPhone，Mac 开发版已替换到用户 Applications。未升级第三方客户端、上传或发布。
+
+### 2026-09-08 — 撤回未采用的 Mac 交互方案
+
+- 按用户反馈撤回 Clash Verge 的“新建 / 更新已有配置”选择及手动刷新提示，恢复按钮直接调用导入 Scheme。
+- 撤回 Mac 首页左右并排和固定地图宽度，恢复此前纵向布局。此前宽屏地图过大的问题仍待新的设计方案处理，上一条布局验收不代表该方案被采用。
+- 保留 Mac 客户端、两端默认排序与显示偏好、Surge Mac 版本说明，以及连续导出等待端口释放的修复。
+
+### 2026-09-08 — Mac 订阅首页重新排版
+
+- 按 apple-design 的内容层级和桌面任务优先原则重新设计 Mac 首页：紧凑统计条、直接呈现订阅列表、尾部轻量继续操作。节点地图改为明确按钮打开的独立面板，保留地图选择、节点详情和测速；首页仍解析离线国家信息，统计不依赖打开地图。
+- 空状态隐藏零值概览和空地图，突出添加来源；订阅、规则与导出页共用 Mac 内容最大宽度，避免卡片随宽屏无限拉伸。手机版保留原有概览与地图布局，客户端图标、排序和导入方式保留。
+- 本机检查了正常数据、空状态、普通演示及 16 个订阅 / 1,000 节点，验证订阅展开、地图打开、地区选择和关闭。测试数据使用独立临时存储，最终已回到正常数据。
+- Mac 与 iOS Simulator 的 TowerTests 全量通过，851 条本地化提取检查通过，git diff --check 通过。最新 1.0.8（46）覆盖安装实体 iPhone后首次启动未成功，单独重试 devicectl 已确认启动成功。用户 Applications 下的 Tower Mac.app 已替换为本轮开发构建；未上传或发布。
+
+### 2026-09-08 — Mac 地图改为首页内展开
+
+- 按后续反馈将“节点地图”从独立面板改为首页内展开，位于紧凑统计条上方；默认收起，再次点击收起，箭头与选中状态同步，支持减少动态效果。
+- 核实手机和 Mac 全新安装均选择 acl4ssr-default（ACL4SSR 默认），增加两种平台的启动默认值回归测试；保留已有安装保存的规则选择。
+- Mac 与手机共用首次启动使用引导，hasSeenWelcome 默认 false，完成后不再弹出；设置的“使用引导”可重看。
+- Mac 相关测试通过，本机确认地图原位展开与收起，实体 iPhone 1.0.8（46）覆盖安装并启动成功。用户 Applications 下的 Mac 开发版已更新；本轮没有新增文案，未上传或发布。
+
+### 2026-09-08 — Mac 地图对齐与导出生成响应
+
+- Mac 内联地图移除 720 点宽度限制，与统计和订阅卡片共用内容宽度；仅在 Mac 隐藏“还不能定位节点”的空状态提示，保留地图图例、地区节点与测速操作。
+- 导出页不再在 body 中同步生成完整配置。配置请求捕获不可变输入，后台生成后回到主线程写缓存和呈现；任务按请求变化取消，旧任务不发布预览。生成中仍保留客户端与协议选择，暂不提供旧配置导入操作。
+- 同步配置接口继续共用同一请求与缓存，供局域网、其他导出入口及测试使用。增加后台线程、缓存复用和切换后输入快照一致性测试。
+- Mac TowerTests 全量通过（1,017 XCTest，33 跳过；50 Swift Testing），新增后台测试随后定向通过；iOS 全量通过（1,017 XCTest，3 跳过；52 Swift Testing）。本机验证全分组和默认方案切换到导出后的结果，未进行帧率或 Instruments 定量测量。
+- 本机 Mac 应用已更新；实体 iPhone 1.0.8（46）安装并启动成功。未新增界面文案、上传或发布。
+
+### 2026-09-08 — FlClash 与 ClashMac Scheme 实测
+
+- 新增 FlClash 客户端图标、Clash/mihomo 配置能力、局域网目标别名和专属 flclash://install-config?url= 导入。Mac 默认排在 ClashMac 后，已有 Mac 偏好首次升级补入该位置并显示；用户后续隐藏或排序会保留，手机默认隐藏。
+- 官方 FlClash 0.8.96 在本机实测成功：专属链接弹出添加配置确认；塔台使用演示节点生成完整配置，FlClash 成功下载并显示“塔台.yaml”。两份本次 FlClash 测试配置已清理，未启用演示代理或进行代理流量测试。
+- ClashMac 27.1.4 未注册 URL Scheme。使用本地有效测试订阅，指定 ClashMac 打开 clash://install-config 没有导入提示、HTTP 请求或新增配置；直接打开通用 clash:// 链接由本机 Mihomo Party 接收并请求订阅。因此 ClashMac 继续文件/局域网导出，不冒用通用 Scheme。
+- Mac / iOS TowerTests 均通过：1,019 XCTest（分别跳过 33 / 3）与 52 Swift Testing。实体 iPhone 1.0.8（46）覆盖安装并启动成功，本机 Mac 开发版更新并退出演示模式。未上传或发布。
+
+### 2026-09-08 — Mihomo Party 与卸载后 Scheme 复测
+
+- 新增 Mihomo Party（Mac 默认位于 FlClash 后，手机默认隐藏），包括原应用图标、Clash/mihomo 配置、局域网别名及 mihomo://install-config?url=…&name=… 专属导入。新客户端补入已有 Mac 排序，之后保留用户排序和隐藏偏好。
+- 导入语法依据 https://clashparty.org/docs/guide/urlscheme ，本机实测专属链接唤起 Mihomo Party 并成功请求无凭据测试订阅；未启用测试配置或验证代理流量。
+- 用户授权卸载 Mihomo Party 以排除 Scheme 抢占。命令行移动因应用权限失败后，使用 Finder 移到废纸篓成功；确认 /Applications 原应用不存在，保留 Application Support 配置数据。
+- 卸载后通用 clash:// 链接实际由 Stash 接收（LaunchServices 查询为 /Applications/Stash.app），不是 ClashMac；显式指定 ClashMac 27.1.4 打开时仍无对应 HTTP 请求或新增配置。因此不改变 ClashMac 文件导入回退。
+- Mac / iOS TowerTests 各通过 1,020 XCTest（分别跳过 33 / 3）及 52 Swift Testing。本机正常数据验证 ClashMac、FlClash、Mihomo Party 排序；Mac 开发版更新，实体 iPhone 1.0.8（46）安装并启动成功。未上传或发布。
+
+### 2026-09-08 — Mac 共享菜单、默认二维码与订阅复制
+
+- 共享格式 Picker 使用 inline 样式去除 Mac 菜单中的额外“链接格式”子层；Mac 二维码默认展开，手机维持按需展开。
+- Surge Mac 通过声明 surgeconfig 查询白名单和 canOpenURL 检测安装后的导入能力，而非读取或猜测版本号；有专属入口时一键导入，未检测到入口时主按钮改为“复制订阅地址”。返回前台重新检测，打开入口失败也回退复制。ClashMac 在 Mac 上直接使用复制订阅地址。
+- 复制启动持续的局域网订阅服务，复用访问密钥和固定端口，保持塔台运行时可刷新，不受一键导入 45 秒时限影响。显式 surge-mac / clashmac 路由保留对应客户端的能力和协议筛选；通用局域网格式入口不变。
+- 本机旧版 Surge Mac 验证复制操作，ClashMac 同一地址先包含 VMess、关闭该客户端 VMess 后再次读取即移除。共享菜单单层、默认二维码通过界面验证；高版本能力分支通过单元测试，未安装新版本 Surge 进行实测。
+- Mac / iOS TowerTests 通过，852 条本地化提取检查通过，实体 iPhone 1.0.8（46）安装并启动成功；Mac 应用已更新并恢复正常数据模式。未上传或发布。
+
+### 2026-09-08 — 平台引导与订阅导入说明
+
+- 引导首页固定为 12 个客户端。手机恢复原来的移动端列表；Mac 优先 Shadowrocket、Surge Mac、Clash Verge、ClashMac、FlClash、Mihomo Party，补充 Stash、Hiddify、V2Box、sing-box MT、Clash Mi、Karing。
+- Mac 重看引导改为主窗口中的居中面板（最大 720 × 960，随窗口可用空间缩小），避免嵌套设置弹窗限制高度。保留页内滚动和固定底部导航，手机仍使用原来的全屏引导。本机验证四页导航与完成退出。
+- Mac 回退操作统一为“复制订阅”，说明分别列出 Surge Mac 的“更多 → 配置 → 从 URL 安装配置”和 ClashMac 的“配置 → ＋ → 导入订阅”，补充粘贴、安装/完成、选择配置和刷新时保持塔台运行。ClashMac 路径依据 https://clashmac.app/guide/dashboard/profiles 。
+- 19 项 MotionDesign / Localization 测试通过，855 条本地化提取检查通过；Mac 构建通过并更新开发应用，最终版已在实体 iPhone 覆盖安装并启动。未上传或发布。
+
+### 2026-09-08 — 引导底色与 Mac 客户端顺序
+
+- Mac 引导底部移除独立 regularMaterial，沿用整页背景，消除灰绿色矩形色差；手机材质不变。
+- Mac 引导仍为 12 个，Mihomo Party 后紧接 sing-box MT、Clash。导出默认顺序同步调整；仅迁移旧默认顺序，保留自定义排序。
+- ClientOrder / MotionDesign 测试通过，Mac 实际界面确认底色与两处排序；开发版已更新，实体 iPhone 已安装并启动。未发布。
+
+### 2026-09-08 — Mac 客户端选择器鼠标滚动
+
+- Mac 横向客户端列表增加滚动条独立留白，保持原图标卡片设计。使用仅接收 discrete scroll、禁用触摸输入的 UIPanGestureRecognizer，将普通鼠标纵向滚轮映射到横向偏移；触控板连续输入仍走原生滚动，手机不启用此处理。API 依据 https://developer.apple.com/documentation/uikit/uipangesturerecognizer/allowedscrolltypesmask 。
+- 本机界面测试向下滚轮显示尾部客户端、向上返回开头，页面纵向位置保持不变；列表外滚轮正常滚动页面。最终界面确认滚动条与选中边框分离。
+- ClientOrder / MotionDesign 测试及 Mac 构建通过，开发应用已更新；实体 iPhone 覆盖安装并启动。未发布。
+
+### 2026-09-08 — 手机切换客户端时的闪动
+
+- 异步配置生成期间原实现会移除 safeAreaInset 导出栏，并将结果/预览区域替换成较矮的加载提示，引起可用视口及内容高度反复变化。
+- 非局域网目标始终保留导出栏；保留上一份结果的布局直到新请求完成。等待期间禁止预览、导出、分享或复制旧结果，所有操作仍只接受与当前请求匹配的配置。
+- iOS 模拟器 ExportPresentation / AuditScale 的 26 项测试通过；新增 1,000 节点客户端切换 UI 测试通过，验证反复切换后导出栏和选择器纵向位置稳定。这不是实体设备帧率测量。
+- 真机安装脚本未检测到唯一可用的实体 iPhone，本次尚未覆盖安装/启动；需连接手机后完成真机验收。未发布。
+- 后续用户连接手机后重试成功：切换闪动修正版 1.0.8（46）已覆盖安装并启动到实体 iPhone；手机实际切换观感待用户确认。
+
+### 2026-09-08 — 1.0.9（47）双平台 TestFlight 准备
+
+- 用户授权推送代码，分别归档 iOS / Mac Catalyst 并上传 TestFlight；不提交新的 App Store 正式审核。更新日志见 releases/1.0.9.md。
+- Mac 使用独立 entitlement 文件启用 App Sandbox、出站/入站网络与用户选择文件读写；iOS entitlement 保持不变。归档使用发布机正式版 Xcode。
+- 855 条本地化检查、发布脚本测试、最新 ACL4SSR 检查和远程规则摘要校验通过；1.0.9（47）已在实体 iPhone 安装并启动。上传与处理状态需另行核对。

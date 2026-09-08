@@ -227,7 +227,7 @@ struct NodeMapOverview: View {
                 withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { selectedRegionCode = nil }
             }
             .id(cluster.id)
-        } else if canShowUnavailable && clusters.isEmpty && !nodes.isEmpty {
+        } else if !TowerPlatform.isMac && canShowUnavailable && clusters.isEmpty && !nodes.isEmpty {
             ContentUnavailableView(
                 "还不能定位节点",
                 systemImage: "mappin.slash",

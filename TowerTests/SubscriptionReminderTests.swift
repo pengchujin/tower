@@ -91,7 +91,7 @@ final class SubscriptionReminderTests: XCTestCase {
         let model = AppModel(
             persistence: store,
             reminderScheduler: scheduler,
-            arguments: []
+            arguments: [], clientPlatform: .phone
         )
 
         await model.setRenewalRemindersEnabled(true)
@@ -115,7 +115,7 @@ final class SubscriptionReminderTests: XCTestCase {
                     .appendingPathComponent("tower-reminder-denied-\(UUID().uuidString).json")
             ),
             reminderScheduler: scheduler,
-            arguments: []
+            arguments: [], clientPlatform: .phone
         )
 
         await model.setRenewalRemindersEnabled(true)
@@ -165,7 +165,7 @@ final class SubscriptionReminderTests: XCTestCase {
             persistence: persistence,
             downloadStore: downloadStore,
             reminderScheduler: scheduler,
-            arguments: []
+            arguments: [], clientPlatform: .phone
         )
         model.subscriptions = [source]
         model.nodes = [node]
@@ -249,7 +249,7 @@ final class SubscriptionReminderTests: XCTestCase {
             persistence: persistence,
             downloadStore: downloadStore,
             reminderScheduler: scheduler,
-            arguments: []
+            arguments: [], clientPlatform: .phone
         )
         XCTAssertEqual(reloaded.exportDestinationOrder[2], .lanSharing)
     }

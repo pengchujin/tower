@@ -48,6 +48,7 @@ final class AppModel {
 
     var selectedPresetID: String = AppModel.defaultRuleSchemeID
     var selectedTarget: ClientTarget = .surge
+    var isReplayingMacOnboarding = false
     var selectedTab: AppTab = .subscriptions
     var refreshingSourceIDs: Set<UUID> = []
     var nodeLatencies: [UUID: NodeLatencyMeasurement] = [:]
@@ -75,6 +76,9 @@ final class AppModel {
     var isLANSharingStarting = false
     var renewalRemindersEnabled = false
     var isUpdatingRenewalReminders = false
+    @ObservationIgnored private let clientPlatform: ClientPlatform
+    @ObservationIgnored private var savedPhoneClientPreferences: ClientPlatformPreferences?
+    @ObservationIgnored private var savedMacClientPreferences: ClientPlatformPreferences?
     var clientOrder = ClientTargetOrder.defaultOrder
     private(set) var visibleClientTargets = Set(ClientTargetOrder.defaultOrder)
     var visibleClientOrder: [ClientTarget] {
@@ -208,6 +212,7 @@ final class AppModel {
     /// answered for. Not observed: it only ever feeds `nodeIPCountryCodes`.
     @ObservationIgnored private var resolvedHostCountryCodes: [String: String] = [:]
     @ObservationIgnored private var resolvedHostCountryCodeUpdatedAt: [String: Date] = [:]
+    @ObservationIgnored private var lanSharingGeneration = UUID()
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
     @ObservationIgnored private let persistencePolicy: PersistencePolicy
     @ObservationIgnored private var pendingPersistenceUpdatedAt: Date?
@@ -229,8 +234,13 @@ final class AppModel {
         ipCountryLookupService: IPCountryLookupService = IPCountryLookupService(),
         reminderScheduler: (any SubscriptionReminderScheduling)? = nil,
         persistencePolicy: PersistencePolicy = .immediate,
-        arguments: [String] = ProcessInfo.processInfo.arguments
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        clientPlatform: ClientPlatform = .current
     ) {
+        self.clientPlatform = clientPlatform
+        self.clientOrder = clientPlatform.defaultOrder
+        self.visibleClientTargets = clientPlatform.defaultVisibleTargets
+        self.lanSharingOrderIndex = clientPlatform == .mac ? 1 : ExportDestinationOrder.defaultLANSharingIndex
         self.persistencePolicy = persistencePolicy
         #if DEBUG
         // UI tests get a disposable, restartable fixture, never the user's store.
@@ -2308,7 +2318,7 @@ final class AppModel {
         case .lanSharing:
             guard isLANSharingVisible != isVisible else { return }
             isLANSharingVisible = isVisible
-            if !isVisible, isLANSharingActive {
+            if !isVisible, isLANSharingActive || isLANSharingStarting {
                 stopLANSharing()
             }
             persist()
@@ -2471,6 +2481,37 @@ final class AppModel {
         contentMode: ExportContentMode? = nil,
         supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
+        let request = configurationRequest(target: target, contentMode: contentMode, supportedKindsOverride: supportedKindsOverride)
+        if let cached = generationCache[request.key] { return cached.named(request.name) }
+        configurationGenerationCount += 1
+        let result = request.generate()
+        generationCache[request.key] = result
+        return result.named(request.name)
+    }
+
+    func configuration(for request: ConfigurationRequest) async -> GeneratedConfiguration {
+        if let cached = generationCache[request.key] { return cached.named(request.name) }
+        configurationGenerationCount += 1
+        let worker = Task.detached(priority: .userInitiated) { request.generate() }
+        let result = await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+        if !Task.isCancelled { generationCache[request.key] = result }
+        return result.named(request.name)
+    }
+
+    func configurationRequest(
+        target: ClientTarget? = nil,
+        contentMode: ExportContentMode? = nil,
+        supportedKindsOverride: Set<ProxyKind>? = nil
+    ) -> ConfigurationRequest {
+        let ruleRepository = self.ruleRepository
+        let schemeRepository = self.schemeRepository
+        let configurationName = self.configurationName
+        let preferRuleSets = self.preferRuleSets
+        let selectedPreset = self.selectedPreset
         let resolvedTarget = target ?? selectedTarget
         let resolvedMode = contentMode ?? exportContentMode(for: resolvedTarget)
         let currentNodes = enabledNodes.map(nodeForPresentation)
@@ -2497,16 +2538,12 @@ final class AppModel {
                 excludedHash: excludedHash,
                 contentMode: .nodesOnly
             )
-            if let cached = generationCache[key] { return cached.named(configurationName) }
-            configurationGenerationCount += 1
-            let generated = ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
-                nodes: currentNodes,
-                target: resolvedTarget,
-                excludedKinds: excluded,
-                profileName: configurationName
-            )
-            generationCache[key] = generated
-            return generated
+            return ConfigurationRequest(key: key, name: configurationName) {
+                ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
+                    nodes: currentNodes, target: resolvedTarget, excludedKinds: excluded,
+                    profileName: configurationName
+                )
+            }
         }
 
         let currentNodeIDs = Set(currentNodes.map(\.id))
@@ -2538,36 +2575,34 @@ final class AppModel {
             remoteSubscriptionsHash: remoteSubscriptionsHash,
             contentMode: .fullConfiguration
         )
-        if let cached = generationCache[key] { return cached.named(configurationName) }
-        configurationGenerationCount += 1
-
-        let generator = ConfigurationGenerator(rules: ruleRepository)
-        let generated: GeneratedConfiguration
-        if let scheme {
-            generated = generator.generate(
-                nodes: currentNodes,
-                scheme: scheme,
-                target: resolvedTarget,
-                schemes: schemeRepository,
-                excludedKinds: excluded,
-                preferRuleSets: preferRuleSets,
-                remoteSubscriptions: remoteSubscriptions,
-                sourceURLHashes: sourceURLHashes,
-                supportedKindsOverride: supportedKindsOverride
-            )
-        } else {
-            generated = generator.generate(
-                nodes: currentNodes,
-                preset: selectedPreset,
-                target: resolvedTarget,
-                countryCodes: currentCountryCodes,
-                excludedKinds: excluded,
-                remoteSubscriptions: remoteSubscriptions,
-                supportedKindsOverride: supportedKindsOverride
-            )
+        return ConfigurationRequest(key: key, name: configurationName) {
+            let generator = ConfigurationGenerator(rules: ruleRepository)
+            let generated: GeneratedConfiguration
+            if let scheme {
+                generated = generator.generate(
+                    nodes: currentNodes,
+                    scheme: scheme,
+                    target: resolvedTarget,
+                    schemes: schemeRepository,
+                    excludedKinds: excluded,
+                    preferRuleSets: preferRuleSets,
+                    remoteSubscriptions: remoteSubscriptions,
+                    sourceURLHashes: sourceURLHashes,
+                    supportedKindsOverride: supportedKindsOverride
+                )
+            } else {
+                generated = generator.generate(
+                    nodes: currentNodes,
+                    preset: selectedPreset,
+                    target: resolvedTarget,
+                    countryCodes: currentCountryCodes,
+                    excludedKinds: excluded,
+                    remoteSubscriptions: remoteSubscriptions,
+                    supportedKindsOverride: supportedKindsOverride
+                )
+            }
+            return generated
         }
-        generationCache[key] = generated
-        return generated.named(configurationName)
     }
 
     var isLANSharingActive: Bool { lanSharingURL != nil }
@@ -2586,10 +2621,18 @@ final class AppModel {
             return
         }
 
+        let generation = UUID()
+        lanSharingGeneration = generation
         isLANSharingStarting = true
-        defer { isLANSharingStarting = false }
+        defer { if lanSharingGeneration == generation { isLANSharingStarting = false } }
 
-        let server = LANSubscriptionServer(token: lanSharingToken) { [weak self] format in
+        let server = LANSubscriptionServer(
+            token: lanSharingToken,
+            exactClientConfiguration: { [weak self] target in
+                self?.configuration(target: target, contentMode: .fullConfiguration)
+                    ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0, skippedNodeCount: 0, ruleCount: 0)
+            }
+        ) { [weak self] format in
             guard let self else {
                 return GeneratedConfiguration(
                     target: format.generationTarget,
@@ -2609,6 +2652,7 @@ final class AppModel {
 
         do {
             let startedURL = try await server.start()
+            guard lanSharingGeneration == generation else { server.stop(); return }
             guard isLANSharingVisible else {
                 server.stop()
                 lanSubscriptionServer = nil
@@ -2619,6 +2663,7 @@ final class AppModel {
             showToast(String(localized: "局域网订阅已开启"), symbol: "wifi.circle.fill")
         } catch {
             server.stop()
+            guard lanSharingGeneration == generation else { return }
             lanSubscriptionServer = nil
             lanSharingURL = nil
             showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
@@ -2626,6 +2671,8 @@ final class AppModel {
     }
 
     func stopLANSharing() {
+        lanSharingGeneration = UUID()
+        isLANSharingStarting = false
         lanSubscriptionServer?.stop()
         lanSubscriptionServer = nil
         lanSharingURL = nil
@@ -2633,13 +2680,17 @@ final class AppModel {
     }
 
     func rotateLANSharingToken() {
-        if isLANSharingActive { stopLANSharing() }
+        if isLANSharingActive || isLANSharingStarting { stopLANSharing() }
         lanSharingToken = LANSubscriptionAccessTokenStore.rotate()
         showToast(String(localized: "访问密钥已更换，旧链接已失效"), symbol: "key.fill")
     }
 
     func lanSubscriptionURL(target: ClientTarget?) -> URL? {
-        lanSubscriptionURL(format: target.flatMap { LANSubscriptionFormat(target: $0) })
+        guard let url = lanSubscriptionURL(format: target.flatMap { LANSubscriptionFormat(target: $0) }) else { return nil }
+        guard let target, [.surgeMac, .clashMac].contains(target),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.queryItems = [URLQueryItem(name: "target", value: target.rawValue)]
+        return components.url
     }
 
     func lanSubscriptionURL(format: LANSubscriptionFormat?) -> URL? {
@@ -2767,6 +2818,7 @@ final class AppModel {
         cloudUploadTask = nil
         discardPendingLocalWrite()
 
+        lanSharingGeneration = UUID()
         lanSubscriptionServer?.stop()
         lanSubscriptionServer = nil
         lanSharingURL = nil
@@ -3020,7 +3072,7 @@ final class AppModel {
             savedMigrationVersion: snapshot.clientOrderMigrationVersion
         )
         visibleClientTargets = ClientTargetVisibility.normalized(
-            rawValues: snapshot.visibleClientTargets,
+            rawValues: snapshot.visibleClientTargets ?? ClientPlatform.phone.defaultVisibleTargets.map(\.rawValue),
             clientOrder: clientOrder
         )
         isLANSharingVisible = snapshot.isLANSharingVisible ?? true
@@ -3044,6 +3096,37 @@ final class AppModel {
                 clientOrder: clientOrder,
                 visibleClientTargets: visibleClientTargets
             )
+        }
+        savedPhoneClientPreferences = ClientPlatformPreferences(
+            order: clientOrder.map(\.rawValue), visibleTargets: visibleClientOrder.map(\.rawValue),
+            lanSharingIndex: lanSharingOrderIndex, isLANSharingVisible: isLANSharingVisible,
+            selectedTarget: snapshot.selectedTarget
+        )
+        savedMacClientPreferences = snapshot.macClientPreferences
+        if clientPlatform == .mac {
+            let preferences = snapshot.macClientPreferences
+            clientOrder = preferences.map { ClientTargetOrder.normalized(rawValues: $0.order) }
+                ?? ClientPlatform.mac.defaultOrder
+            visibleClientTargets = preferences.map {
+                ClientTargetVisibility.normalized(rawValues: $0.visibleTargets, clientOrder: clientOrder)
+            } ?? ClientPlatform.mac.defaultVisibleTargets
+            for (target, predecessor) in [(ClientTarget.flClash, ClientTarget.clashMac), (.mihomoParty, .flClash)] {
+                guard let preferences, !preferences.order.contains(target.rawValue) else { continue }
+                clientOrder.removeAll { $0 == target }
+                let insertionIndex = clientOrder.firstIndex(of: predecessor).map { $0 + 1 } ?? clientOrder.endIndex
+                clientOrder.insert(target, at: insertionIndex)
+                visibleClientTargets.insert(target)
+            }
+            // Upgrade the previous Mac default without overwriting a custom order.
+            let previousFront: [ClientTarget] = [.shadowrocket, .surgeMac, .clashVerge, .clashMac, .flClash, .mihomoParty]
+            let previousDefault = previousFront + ClientTargetOrder.defaultOrder.filter { !previousFront.contains($0) }
+            if clientOrder == previousDefault {
+                clientOrder = ClientPlatform.mac.defaultOrder
+            }
+            lanSharingOrderIndex = ExportDestinationOrder.normalizedLANSharingIndex(
+                preferences?.lanSharingIndex ?? 1, clientCount: clientOrder.count
+            )
+            isLANSharingVisible = preferences?.isLANSharingVisible ?? true
         }
         appendSubscriptionNameToNodes = snapshot.appendSubscriptionNameToNodes ?? false
         filterSubscriptionInfoNodes = snapshot.filterSubscriptionInfoNodes ?? false
@@ -3070,7 +3153,9 @@ final class AppModel {
             resolvedHostCountryCodes[$0.key] != nil
         }
         selectedPresetID = snapshot.selectedPresetID
-        selectedTarget = snapshot.selectedTarget
+        selectedTarget = clientPlatform == .mac
+            ? snapshot.macClientPreferences?.selectedTarget ?? .shadowrocket
+            : snapshot.selectedTarget
         if !visibleClientTargets.contains(selectedTarget),
            let fallback = visibleClientOrder.first {
             selectedTarget = fallback
@@ -3126,11 +3211,24 @@ final class AppModel {
     /// two can never describe different states.
     private func currentSnapshot(updatedAt: Date = .now) -> AppSnapshot {
         persistenceSnapshotBuildCount += 1
+        let active = ClientPlatformPreferences(
+            order: clientOrder.map(\.rawValue), visibleTargets: visibleClientOrder.map(\.rawValue),
+            lanSharingIndex: lanSharingOrderIndex, isLANSharingVisible: isLANSharingVisible,
+            selectedTarget: selectedTarget
+        )
+        let phone = clientPlatform == .phone ? active : savedPhoneClientPreferences ?? ClientPlatformPreferences(
+            order: ClientPlatform.phone.defaultOrder.map(\.rawValue),
+            visibleTargets: ClientPlatform.phone.defaultOrder.filter { ClientPlatform.phone.defaultVisibleTargets.contains($0) }.map(\.rawValue),
+            lanSharingIndex: ExportDestinationOrder.defaultLANSharingIndex,
+            isLANSharingVisible: true, selectedTarget: .surge
+        )
+        let phoneOrder = phone.order.compactMap(ClientTarget.init(rawValue:))
+        let phoneVisible = Set(phone.visibleTargets.compactMap(ClientTarget.init(rawValue:)))
         return AppSnapshot(
             subscriptions: subscriptions,
             nodes: nodes,
             selectedPresetID: selectedPresetID,
-            selectedTarget: selectedTarget,
+            selectedTarget: phone.selectedTarget,
             importedSchemes: importedSchemes,
             selectedRuleGroups: selectedRuleGroups.isEmpty
                 ? nil
@@ -3148,18 +3246,16 @@ final class AppModel {
             localRuleSets: localRuleSets.isEmpty ? nil : localRuleSets,
             excludedKinds: Self.encodeExcludedKinds(excludedKinds),
             renewalRemindersEnabled: renewalRemindersEnabled,
-            clientOrder: clientOrder.map(\.rawValue),
+            clientOrder: phone.order,
             clientOrderMigrationVersion: ClientTargetOrder.currentMigrationVersion,
             lanSharingOrderIndex: ExportDestinationOrder.visibleLANSharingIndex(
-                fullIndex: lanSharingOrderIndex,
-                clientOrder: clientOrder,
-                visibleClientTargets: visibleClientTargets
+                fullIndex: phone.lanSharingIndex,
+                clientOrder: phoneOrder,
+                visibleClientTargets: phoneVisible
             ),
-            lanSharingFullOrderIndex: lanSharingOrderIndex,
-            visibleClientTargets: visibleClientTargets.count == clientOrder.count
-                ? nil
-                : visibleClientOrder.map(\.rawValue),
-            isLANSharingVisible: isLANSharingVisible ? nil : false,
+            lanSharingFullOrderIndex: phone.lanSharingIndex,
+            visibleClientTargets: phoneVisible == ClientPlatform.phone.defaultVisibleTargets ? nil : phone.visibleTargets,
+            isLANSharingVisible: phone.isLANSharingVisible ? nil : false,
             appendSubscriptionNameToNodes: appendSubscriptionNameToNodes,
             filterSubscriptionInfoNodes: filterSubscriptionInfoNodes,
             autoRefreshOnOpen: autoRefreshOnOpen,
@@ -3173,7 +3269,8 @@ final class AppModel {
             resolvedHostCountryCodes: prunedResolvedHostCountryCodes(),
             resolvedHostCountryCodeUpdatedAt: prunedResolvedHostCountryCodeUpdatedAt(),
             resolvedHostCountryDatabaseVersion: IPCountryDatabase.dataVersion,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            macClientPreferences: clientPlatform == .mac ? active : savedMacClientPreferences
         )
     }
 

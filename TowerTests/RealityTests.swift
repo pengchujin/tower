@@ -147,7 +147,7 @@ final class RealityTests: XCTestCase {
             return generator.generate(nodes: [node], preset: preset, target: target).supportedNodeCount == 0
         }
 
-        XCTAssertEqual(skipping, [.surge])
+        XCTAssertEqual(skipping, [.surge, .surgeMac])
     }
 
     func testNoTargetEverWritesARealityNodeWithoutItsPublicKey() throws {

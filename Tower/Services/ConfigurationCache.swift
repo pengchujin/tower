@@ -118,3 +118,15 @@ struct ConfigurationCache {
         }
     }
 }
+
+
+/// Immutable inputs let preview generation run without retaining the UI model.
+struct ConfigurationRequest: Equatable {
+    let key: GenerationCacheKey
+    let name: String
+    let generate: @Sendable () -> GeneratedConfiguration
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.key == rhs.key && lhs.name == rhs.name
+    }
+}

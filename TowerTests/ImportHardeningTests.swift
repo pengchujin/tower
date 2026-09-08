@@ -172,8 +172,8 @@ final class ImportHardeningTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
 
-        #if targetEnvironment(simulator)
-        throw XCTSkip("模拟器不实现数据保护，`.complete` 需在真机验证")
+        #if targetEnvironment(simulator) || targetEnvironment(macCatalyst)
+        throw XCTSkip("模拟器和 Mac 不实现 iOS 数据保护，`.complete` 需在 iPhone 真机验证")
         #else
         let protection = try url.resourceValues(forKeys: [.fileProtectionKey]).fileProtection
         XCTAssertEqual(protection, .complete, "实际保护级别：\(protection?.rawValue ?? "nil")")

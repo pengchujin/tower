@@ -201,7 +201,7 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(ClientTargetOrder.defaultOrder.firstIndex(of: target), 7)
     }
 
-    func testClashMiAndKaringUseOfficialIdentitiesAndStayLast() throws {
+    func testClashMiAndKaringKeepTheirPositionsWhenDesktopClientsAreAdded() throws {
         let clashMi = try XCTUnwrap(ClientTarget(rawValue: "clash-mi"))
         let karing = try XCTUnwrap(ClientTarget(rawValue: "karing"))
 
@@ -219,7 +219,7 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertNotNil(UIImage(named: "ClientKaring"))
         XCTAssertTrue(karing.supportsDirectImport(mode: .fullConfiguration))
 
-        XCTAssertEqual(Array(ClientTargetOrder.defaultOrder.suffix(2)), [.clashMi, .karing])
+        XCTAssertEqual(Array(ClientTargetOrder.defaultOrder.suffix(7)), [.clashMi, .karing, .clashVerge, .clashMac, .flClash, .mihomoParty, .surgeMac])
     }
 
     func testV2BoxOnlyOffersNodeSubscription() throws {

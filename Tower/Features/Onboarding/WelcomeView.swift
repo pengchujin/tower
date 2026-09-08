@@ -141,7 +141,9 @@ struct WelcomeView: View {
             }
         }
         .padding(.horizontal, 26).padding(.top, 14).padding(.bottom, 12)
-        .background(.regularMaterial)
+        .background {
+            if !TowerPlatform.isMac { Rectangle().fill(.regularMaterial) }
+        }
     }
 
     private func changePage(by offset: Int) {
@@ -267,13 +269,24 @@ private struct WelcomePageContent: View {
         }
     }
 
+    private var overviewClients: [ClientTarget] {
+        if TowerPlatform.isMac {
+            return [.shadowrocket, .surgeMac, .clashVerge, .clashMac,
+                    .flClash, .mihomoParty, .singBox, .clashApple,
+                    .clash, .hiddify, .clashMi, .karing]
+        }
+        return [.surge, .clash, .shadowrocket, .loon,
+                .quanx, .hiddify, .egern, .v2box,
+                .clashApple, .singBox, .clashMi, .karing]
+    }
+
     private var overview: some View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("支持的客户端").font(.subheadline.weight(.semibold))
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10),
                                         count: dynamicTypeSize.isAccessibilitySize ? 2 : 4), spacing: 18) {
-                    ForEach(ClientTarget.allCases) { client in
+                    ForEach(overviewClients) { client in
                         VStack(spacing: 7) {
                             if let asset = client.appIconAssetName {
                                 Image(asset).resizable().scaledToFit()

@@ -4,6 +4,7 @@ enum TowerTheme {
     static let cornerRadius: CGFloat = 22
     static let compactCornerRadius: CGFloat = 16
     static let pagePadding: CGFloat = 18
+    static let macContentMaxWidth: CGFloat = 1040
     static let actionBarButtonHeight: CGFloat = 50
     static let actionBarButtonCornerRadius: CGFloat = 16
 
