@@ -180,6 +180,70 @@ final class AppModel {
     @ObservationIgnored private var generationCache = ConfigurationCache()
     @ObservationIgnored private(set) var configurationGenerationCount = 0
 
+    // Snapshot comparisons reuse Array/Dictionary copy-on-write storage. Cache hits
+    // still read every observable input, so SwiftUI never loses invalidations.
+    private struct RequestInputs: Equatable {
+        let nodes: [ProxyNode]
+        let sources: [SubscriptionSource]
+        let excludedNodes: Set<UUID>
+        let countryCodes: [UUID: String]
+        let schemes: [RuleScheme]
+        let groups: [String: Set<String>]
+        let customizations: [String: RuleSchemeCustomization]
+        let emojis: [String: Bool]
+        let flows: [CustomRuleFlow]
+        let excludedKinds: [ClientTarget: Set<ProxyKind>]
+        let presetID: String
+        let name: String
+        let appendName: Bool
+        let filterInfo: Bool
+        let ruleSets: Bool
+        let remoteLinks: Bool
+        let rulesRevision: Int
+    }
+    private struct RequestVariant: Hashable {
+        let target: ClientTarget
+        let mode: ExportContentMode
+        let supportedKinds: Set<ProxyKind>?
+    }
+    @ObservationIgnored private var requestInputs: RequestInputs?
+    @ObservationIgnored private var requestCache: [RequestVariant: ConfigurationRequest] = [:]
+    @ObservationIgnored private(set) var configurationRequestPreparationCount = 0
+
+    private struct NodeSelectionInputs: Equatable {
+        let nodes: [ProxyNode]
+        let sources: [SubscriptionSource]
+        let excluded: Set<UUID>
+        let filterInfo: Bool
+    }
+    private struct NodeSelection {
+        let available: [ProxyNode]
+        let enabled: [ProxyNode]
+        let local: [ProxyNode]
+        let counts: [UUID: Int]
+    }
+    @ObservationIgnored private var nodeSelectionCache: (NodeSelectionInputs, NodeSelection)?
+    private var nodeSelection: NodeSelection {
+        let inputs = NodeSelectionInputs(nodes: nodes, sources: subscriptions,
+                                         excluded: excludedNodeIDs, filterInfo: filterSubscriptionInfoNodes)
+        if let cached = nodeSelectionCache, cached.0 == inputs { return cached.1 }
+        let enabledSources = Set(inputs.sources.filter(\.isEnabled).map(\.id))
+        var available: [ProxyNode] = [], enabled: [ProxyNode] = [], local: [ProxyNode] = []
+        var counts: [UUID: Int] = [:]
+        for node in inputs.nodes {
+            if node.isLocal { local.append(node) }
+            guard !inputs.filterInfo || node.isSubscriptionMetadata != true else { continue }
+            if let source = node.sourceID { counts[source, default: 0] += 1 }
+            guard node.sourceID == nil || enabledSources.contains(node.sourceID!) else { continue }
+            available.append(node)
+            if !inputs.excluded.contains(node.id) { enabled.append(node) }
+        }
+        let result = NodeSelection(available: available, enabled: enabled, local: local, counts: counts)
+        nodeSelectionCache = (inputs, result)
+        return result
+    }
+    @ObservationIgnored private var countryCountCache: ([ProxyNode], [UUID: String], Int)?
+
     private struct SubscriptionRefreshBatch {
         let id: UUID
         let sourceIDs: Set<UUID>
@@ -214,6 +278,8 @@ final class AppModel {
     @ObservationIgnored private var resolvedHostCountryCodeUpdatedAt: [String: Date] = [:]
     @ObservationIgnored private var lanSharingGeneration = UUID()
     @ObservationIgnored private var lanSubscriptionServer: LANSubscriptionServer?
+    @ObservationIgnored private let lanBackgroundLease: LANSharingBackgroundLease
+    @ObservationIgnored private var lanSharingOutsideForeground = false
     @ObservationIgnored private let persistencePolicy: PersistencePolicy
     @ObservationIgnored private var pendingPersistenceUpdatedAt: Date?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
@@ -235,8 +301,10 @@ final class AppModel {
         reminderScheduler: (any SubscriptionReminderScheduling)? = nil,
         persistencePolicy: PersistencePolicy = .immediate,
         arguments: [String] = ProcessInfo.processInfo.arguments,
-        clientPlatform: ClientPlatform = .current
+        clientPlatform: ClientPlatform = .current,
+        lanBackgroundLease: LANSharingBackgroundLease? = nil
     ) {
+        self.lanBackgroundLease = lanBackgroundLease ?? LANSharingBackgroundLease()
         self.clientPlatform = clientPlatform
         self.clientOrder = clientPlatform.defaultOrder
         self.visibleClientTargets = clientPlatform.defaultVisibleTargets
@@ -1185,11 +1253,7 @@ final class AppModel {
     /// Nodes whose parent subscription is enabled, before the user's per-node
     /// export selection is applied. The filter screen and map use this list.
     var availableNodes: [ProxyNode] {
-        let enabledSourceIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
-        return nodes.filter { node in
-            let sourceIsEnabled = node.sourceID == nil || enabledSourceIDs.contains(node.sourceID!)
-            return sourceIsEnabled && isVisibleUnderInfoFilter(node)
-        }
+        nodeSelection.available
     }
 
     /// The single answer to "does this node count as a node right now".
@@ -1206,13 +1270,18 @@ final class AppModel {
 
     /// The single source of truth used by every configuration generator.
     var enabledNodes: [ProxyNode] {
-        availableNodes.filter { !excludedNodeIDs.contains($0.id) }
+        nodeSelection.enabled
     }
 
-    var localNodes: [ProxyNode] { nodes.filter(\.isLocal) }
+    var localNodes: [ProxyNode] { nodeSelection.local }
     var enabledSubscriptionCount: Int { subscriptions.filter(\.isEnabled).count }
     var coveredCountryCount: Int {
-        Set(enabledNodes.compactMap(countryCode(for:))).count
+        let enabled = enabledNodes
+        let codes = nodeIPCountryCodes
+        if let cached = countryCountCache, cached.0 == enabled, cached.1 == codes { return cached.2 }
+        let count = Set(enabled.compactMap { NodeRegionResolver.countryCode(for: $0) ?? codes[$0.id] }).count
+        countryCountCache = (enabled, codes, count)
+        return count
     }
     var currentRuleCount: Int { ruleRepository.count(for: selectedPreset) }
 
@@ -1228,9 +1297,7 @@ final class AppModel {
     /// for the whole array to count it — copying every matching node, with all
     /// its string fields, for every card, on every redraw of the screen.
     func nodeCount(for source: SubscriptionSource) -> Int {
-        nodes.count {
-            $0.sourceID == source.id && isVisibleUnderInfoFilter($0)
-        }
+        nodeSelection.counts[source.id] ?? 0
     }
 
     func nodeForPresentation(_ node: ProxyNode) -> ProxyNode {
@@ -2504,13 +2571,38 @@ final class AppModel {
         contentMode: ExportContentMode? = nil,
         supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> ConfigurationRequest {
+        let inputs = RequestInputs(nodes: nodes, sources: subscriptions, excludedNodes: excludedNodeIDs,
+            countryCodes: nodeIPCountryCodes, schemes: importedSchemes, groups: selectedRuleGroups,
+            customizations: ruleSchemeCustomizations, emojis: ruleGroupEmojisEnabled, flows: customRuleFlows,
+            excludedKinds: excludedKinds, presetID: selectedPresetID, name: configurationName,
+            appendName: appendSubscriptionNameToNodes, filterInfo: filterSubscriptionInfoNodes,
+            ruleSets: preferRuleSets, remoteLinks: embedRemoteSubscriptionLinks, rulesRevision: ruleSchemePresentationRevision)
+        if requestInputs != inputs {
+            requestInputs = inputs
+            requestCache.removeAll(keepingCapacity: true)
+        }
+        let variant = RequestVariant(target: target ?? selectedTarget,
+            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride)
+        if let cached = requestCache[variant] { return cached }
+        configurationRequestPreparationCount += 1
+        let request = prepareConfigurationRequest(target: variant.target, contentMode: variant.mode,
+                                                   supportedKindsOverride: supportedKindsOverride)
+        // Only the latest supported-kinds variant per client/mode is retained.
+        requestCache = requestCache.filter { $0.key.target != variant.target || $0.key.mode != variant.mode }
+        requestCache[variant] = request
+        return request
+    }
+
+    private func prepareConfigurationRequest(
+        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?
+    ) -> ConfigurationRequest {
         let ruleRepository = self.ruleRepository
         let schemeRepository = self.schemeRepository
         let configurationName = self.configurationName
         let preferRuleSets = self.preferRuleSets
         let selectedPreset = self.selectedPreset
-        let resolvedTarget = target ?? selectedTarget
-        let resolvedMode = contentMode ?? exportContentMode(for: resolvedTarget)
+        let resolvedTarget = target
+        let resolvedMode = contentMode
         let currentNodes = enabledNodes.map(nodeForPresentation)
         let excluded = excludedKinds[resolvedTarget] ?? []
         let supportedKindsHash = supportedKindsOverride?
@@ -2608,9 +2700,8 @@ final class AppModel {
         !enabledNodes.isEmpty || !embeddedRemoteSubscriptions(for: .clash, contentMode: .fullConfiguration).isEmpty
     }
 
-    /// Starts a foreground LAN endpoint. iOS may suspend all networking after
-    /// Tower leaves the foreground, so the export destination card communicates
-    /// that Tower must remain open while a desktop client refreshes.
+    /// Starts an opt-in LAN endpoint. iOS background execution is best effort;
+    /// the system expiration handler closes it when the granted time runs out.
     func startLANSharing(listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi) async {
         guard !isLANSharingStarting, !isLANSharingActive else { return }
         guard hasExportableSources else {
@@ -2621,6 +2712,8 @@ final class AppModel {
         let generation = UUID()
         lanSharingGeneration = generation
         isLANSharingStarting = true
+        if lanSharingOutsideForeground { retainLANSharingInBackground() }
+        guard lanSharingGeneration == generation else { return }
         defer { if lanSharingGeneration == generation { isLANSharingStarting = false } }
 
         let server = LANSubscriptionServer(
@@ -2660,6 +2753,7 @@ final class AppModel {
                 server.stop()
                 lanSubscriptionServer = nil
                 lanSharingURL = nil
+                lanBackgroundLease.finish()
                 return
             }
             lanSharingURL = startedURL
@@ -2669,11 +2763,29 @@ final class AppModel {
             guard lanSharingGeneration == generation else { return }
             lanSubscriptionServer = nil
             lanSharingURL = nil
+            lanBackgroundLease.finish()
             showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
         }
     }
 
+    func lanSharingWillLeaveForeground() {
+        guard clientPlatform != .mac else { return }
+        lanSharingOutsideForeground = true
+        retainLANSharingInBackground()
+    }
+
+    func lanSharingDidBecomeActive() {
+        lanSharingOutsideForeground = false
+        lanBackgroundLease.finish()
+    }
+
+    private func retainLANSharingInBackground() {
+        guard isLANSharingActive || isLANSharingStarting else { return }
+        lanBackgroundLease.retainUntilExpiration { [weak self] in self?.stopLANSharing() }
+    }
+
     func stopLANSharing() {
+        lanBackgroundLease.finish()
         lanSharingGeneration = UUID()
         isLANSharingStarting = false
         lanSubscriptionServer?.stop()
@@ -2828,6 +2940,7 @@ final class AppModel {
         cloudUploadTask = nil
         discardPendingLocalWrite()
 
+        lanBackgroundLease.finish()
         lanSharingGeneration = UUID()
         lanSubscriptionServer?.stop()
         lanSubscriptionServer = nil

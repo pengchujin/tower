@@ -22,6 +22,7 @@ struct SubscriptionsView: View {
                         macHeader
                         if isMacMapExpanded {
                             NodeMapOverview(nodes: model.enabledNodes)
+                                .equatable()
                                 .frame(maxWidth: .infinity)
                                 .transition(.opacity)
                                 .accessibilityIdentifier("inline-node-map")
@@ -36,6 +37,7 @@ struct SubscriptionsView: View {
                             sourceManagementRoute = metric.managementRoute
                         }
                         NodeMapOverview(nodes: model.enabledNodes)
+                            .equatable()
                     }
 
                     if model.subscriptions.isEmpty && model.localNodes.isEmpty {
@@ -181,7 +183,7 @@ struct SubscriptionsView: View {
     @ViewBuilder
     private var subscriptionsSection: some View {
         if !model.subscriptions.isEmpty {
-            VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
                 SectionHeading(title: "订阅", detail: String(localized: "\(model.subscriptions.count) 个来源"))
                 ForEach(displayedSubscriptions) { source in
                     SubscriptionCard(source: source) {

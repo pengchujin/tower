@@ -2,6 +2,12 @@ import CoreLocation
 import SwiftUI
 
 struct NodeMapPresentation {
+    struct Inputs: Equatable {
+        let nodes: [ProxyNode]
+        let countryCodes: [UUID: String]
+        let completedNodeIDs: Set<UUID>
+    }
+
     let clusters: [NodeRegionCluster]
     let unlocatedCount: Int
     let pendingCount: Int
@@ -31,14 +37,18 @@ struct NodeMapPresentation {
     }
 }
 
-struct NodeMapOverview: View {
+struct NodeMapOverview: View, Equatable {
+    // Parent layout/scroll updates don't change the map's inputs. Observation
+    // inside this view still delivers country/latency changes independently.
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.nodes == rhs.nodes }
+
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     let nodes: [ProxyNode]
 
     @State private var selectedRegionCode: String?
-    @State private var preparedRevision: Int?
+    @State private var preparedRevision: NodeMapPresentation.Inputs?
     @State private var presentation = NodeMapPresentation(nodes: [], countryCodes: [:])
 
     var body: some View {
@@ -62,10 +72,11 @@ struct NodeMapOverview: View {
             .accessibilityIdentifier("nodes-section")
         }
         .sensoryFeedback(.selection, trigger: selectedRegionCode)
-        .task(id: ipCountryTaskID) {
+        .task(id: nodes) {
             await model.resolveIPCountries(for: nodes)
         }
         .task(id: revision) {
+            guard preparedRevision != revision else { return }
             let latestNodes = nodes
             let countryCodes = model.nodeIPCountryCodes
             let completedNodeIDs = model.countryResolutionCompletedNodeIDs
@@ -95,10 +106,6 @@ struct NodeMapOverview: View {
         }
     }
 
-    private var isTestingAnyNode: Bool {
-        nodes.contains { model.latencyTestingNodeIDs.contains($0.id) }
-    }
-
     private func map(clusters: [NodeRegionCluster]) -> some View {
         WorldDotMapView(markers: markers(from: clusters)) { id in
             withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
@@ -116,25 +123,49 @@ struct NodeMapOverview: View {
     }
 
     private var latencyButton: some View {
-        Button {
+        let testingCount = nodes.reduce(into: 0) { count, node in
+            if model.latencyTestingNodeIDs.contains(node.id) { count += 1 }
+        }
+        let isTestingAnyNode = testingCount > 0
+
+        return Button {
             guard !nodes.isEmpty else { return }
             if isTestingAnyNode { model.cancelLatencyTests() }
             else { Task { await model.testLatencies(nodes, force: true) } }
         } label: {
             HStack(spacing: 7) {
-                if isTestingAnyNode {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.white)
-                } else {
-                    Image(systemName: model.selectedLatencyTestMode.symbol)
-                        .font(.subheadline.weight(.bold))
+                ZStack {
+                    if isTestingAnyNode {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                            .transition(.opacity)
+                    } else {
+                        Image(systemName: model.selectedLatencyTestMode.symbol)
+                            .transition(.opacity)
+                    }
                 }
-                Text(isTestingAnyNode
-                     ? "\(nodes.count - nodes.filter { model.latencyTestingNodeIDs.contains($0.id) }.count)/\(nodes.count) · \(String(localized: "停止"))"
-                     : String(localized: "测速"))
-                    .font(.subheadline.weight(.bold))
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
+
+                ZStack(alignment: .trailing) {
+                    if isTestingAnyNode {
+                        // Reserve the completed count's widest value so batches
+                        // crossing 9/99 don't repeatedly resize the capsule.
+                        Text(verbatim: "\(nodes.count)/\(nodes.count) · \(String(localized: "停止"))")
+                            .hidden()
+                            .overlay(alignment: .trailing) {
+                                Text(verbatim: "\(nodes.count - testingCount)/\(nodes.count) · \(String(localized: "停止"))")
+                            }
+                            .monospacedDigit()
+                            .transition(.opacity)
+                    } else {
+                        Text(String(localized: "测速"))
+                            .transition(.opacity)
+                    }
+                }
             }
+            .font(.subheadline.weight(.bold))
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .frame(height: 42)
@@ -172,6 +203,10 @@ struct NodeMapOverview: View {
                 }
             }
         }
+        // Keep the right edge anchored while the capsule changes width. Scope
+        // motion to this control, never the map or every progress-count update.
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .animation(reduceMotion ? nil : TowerMotion.disclosure(reduceMotion: false), value: isTestingAnyNode)
     }
 
     private func markers(from clusters: [NodeRegionCluster]) -> [WorldDotMarker] {
@@ -238,12 +273,9 @@ struct NodeMapOverview: View {
 
     }
 
-    private var ipCountryTaskID: String {
-        "\(nodes.map { "\($0.id):\($0.server)" }.hashValue)"
-    }
-
-    private var presentationTaskID: Int {
-        NodeMapPresentation.revision(nodes: nodes, countryCodes: model.nodeIPCountryCodes, completedNodeIDs: model.countryResolutionCompletedNodeIDs)
+    private var presentationTaskID: NodeMapPresentation.Inputs {
+        NodeMapPresentation.Inputs(nodes: nodes, countryCodes: model.nodeIPCountryCodes,
+                                   completedNodeIDs: model.countryResolutionCompletedNodeIDs)
     }
 
 }

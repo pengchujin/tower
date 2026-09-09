@@ -40,7 +40,17 @@ Surge Mac 6.7+ 和 Clash Verge 支持一键导入；旧版 Surge Mac 找不到�
 
 ## 规则与已知边界
 
+### sing-box MT 的模式与 DNS
+
+重新导出的完整配置提供「规则判定 / 全局代理 / 直接连接」，默认「规则判定」，客户端可记住之后的选择。一份配置内切换，文件名保持塔台或用户自定义名称。规则判定沿用原方案；全局代理指向独立同名 selector，默认自动选择全部可用节点，也可手动选具体节点；此模式的 DNS 复制原解析器设置并跟随该 selector。直接连接的流量和 DNS 直连。不增加含 DIRECT 的全局候选；没有节点时全局代理拒绝连接。组名冲突使用数字后缀，保留用户原策略组。Hiddify 保持独立适配。
+
+- 标准保护：按本机缓存的域名规则顺序选择 DNS。仅 DIRECT 或成员全部直连的策略组使用直连加密 DNS，混合策略组和其他域名使用代理 DNS；IP 规则不用于推测 DNS 分流。DNS 接管先于模式规则。
+- 严格保护：规则判定模式的普通 DNS 统一经代理；代理失败不回退直连。主动切换直接连接后使用直连 DNS。
+- 跟随方案：保留方案解析器，仍处理隧道自身 DNS，不额外强制接管所有 53 端口流量或启用严格路由。
+- 节点地址和解析器地址的启动解析独立于代理，防止循环依赖。自定义加密解析器使用域名时，允许配置的 bootstrap DNS 解析该解析器域名；规则文件下载也有独立的域名解析。
+
+使用当前 typed DNS 格式。这里的标准保护使用真实 DNS 与 reverse mapping，不强制 Fake-IP。`strict_route` 在 Apple NetworkExtension 客户端中并未实现，不能视为系统级防泄露保证；应用内自带 DoH、系统绕过隧道等情况仍取决于客户端和系统设置。官方依据：[模式规则](https://sing-box.sagernet.org/configuration/experimental/clash-api/)、[DNS 规则](https://sing-box.sagernet.org/configuration/dns/rule/)、[Apple 平台限制](https://sing-box.sagernet.org/clients/apple/features/)。
+
 自定义规则在本机生成，不即时编译 MRS/SRS。内置 ACL4SSR 的已验证二进制可供兼容客户端引用：Stash / Clash / Clash Mi 使用 MRS，sing-box MT 使用 SRS；其他目标沿用兼容文本或内联。内容与编译源不一致时回退，不复用旧二进制覆盖新规则。发布流程固定源版本、哈希和不可变产物 URL。
 
 SS 插件仅支持 simple-obfs；WireGuard 多 Peer 不做有损压缩；Snell 等协议按各目标能力判断。Surge 输入目前仅解析 `[Proxy]` 中的 SS 行，其他行计入跳过。客户端是否接收分享、重复导入是否覆盖，由客户端决定，不能由生成成功推断连通。
-

@@ -326,7 +326,12 @@ struct ConfigurationGenerator {
                 groups: resolved,
                 nodes: supported,
                 rulePlan: rulePlan,
-                target: target
+                target: target,
+                dnsDomainRules: target == .singBox ? SingBoxDNSPolicy.domainRules(from:
+                    RuleSetEmissionPlanner(repository: schemes).plan(
+                        for: scheme, target: target, preferRuleSets: false
+                    ).inlineRules
+                ) : []
             )
         case .egern:
             content = egernScheme(
@@ -3453,6 +3458,12 @@ extension ConfigurationGenerator {
             if !endpoints.isEmpty { configuration["endpoints"] = endpoints }
         }
 
+        if target == .singBox {
+            SingBoxDNSPolicy.apply(to: &configuration, nodeTags: nodeTags,
+                preferredProxy: RulePolicy.select.configurationName,
+                domainRules: singBoxRules(preset: preset), protection: .standard)
+        }
+
         guard let data = try? JSONSerialization.data(
             withJSONObject: configuration,
             options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -3881,7 +3892,8 @@ extension ConfigurationGenerator {
         groups: [ResolvedSchemeGroup],
         nodes: [ProxyNode],
         rulePlan: RuleSetEmissionPlanner.Plan,
-        target: ClientTarget
+        target: ClientTarget,
+        dnsDomainRules: [[String: Any]] = []
     ) -> String {
         let finalGroup = rulePlan.finalGroupName ?? groups.first?.name ?? Self.singBoxDirectTag
         var outbounds: [[String: Any]] = groups.map { group in
@@ -4035,6 +4047,13 @@ extension ConfigurationGenerator {
         if target == .singBox {
             let endpoints = nodes.compactMap(singBoxWireGuardEndpoint)
             if !endpoints.isEmpty { configuration["endpoints"] = endpoints }
+        }
+
+        if target == .singBox {
+            SingBoxDNSPolicy.apply(to: &configuration,
+                nodeTags: nodes.map { NodeRegionResolver.displayName(for: $0) },
+                preferredProxy: remoteDetour, domainRules: dnsDomainRules,
+                protection: schemeDNSProtectionMode(scheme))
         }
 
         guard let data = try? JSONSerialization.data(

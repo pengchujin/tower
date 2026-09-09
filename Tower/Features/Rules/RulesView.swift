@@ -81,7 +81,7 @@ struct RulesView: View {
 
     private var builtInSection: some View {
         let schemes = model.ruleSchemes.filter(\.isBundled)
-        return VStack(spacing: 12) {
+        return LazyVStack(spacing: 12) {
             SectionHeading(title: "本机规则", detail: String(localized: "安装后离线可用"))
             ForEach(schemes) { scheme in
                 RuleSchemeCard(
@@ -127,7 +127,7 @@ struct RulesView: View {
         let schemes = model.ruleSchemes.filter {
             !$0.isBundled && !SelfConfigurationSource.matches($0)
         }
-        VStack(spacing: 12) {
+        LazyVStack(spacing: 12) {
             SectionHeading(title: "已导入", detail: String(localized: "\(schemes.count) 个方案"))
             if schemes.isEmpty {
                 Text("还没有导入规则，使用右上角按钮添加。")

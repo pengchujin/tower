@@ -37,12 +37,11 @@ struct TowerApp: App {
                         // close the coalescing window: iOS may stop the process
                         // from here without another chance to write.
                         model.flushPendingWrite()
-                        if phase == .background, !TowerPlatform.isMac,
-                           model.isLANSharingActive || model.isLANSharingStarting {
-                            model.stopLANSharing()
-                        }
+                        // Acquire the assertion while inactive, before iOS suspends us.
+                        model.lanSharingWillLeaveForeground()
                         return
                     }
+                    model.lanSharingDidBecomeActive()
                     guard hasSeenWelcome else { return }
                     Task {
                         await model.synchronizeWithCloud()

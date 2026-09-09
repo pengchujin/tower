@@ -328,6 +328,7 @@ struct WorldDotMapView: View {
 
     private let grid = WorldDotGrid.shared
     @State private var paint = WorldDotPaint()
+    @State private var preparedPaintInputs: [WorldDotPaint.Input]?
 
     init(markers: [WorldDotMarker], initialPaint: WorldDotPaint = WorldDotPaint(), onSelect: @escaping (String) -> Void) {
         self.markers = markers
@@ -348,12 +349,12 @@ struct WorldDotMapView: View {
             let markerPositions = Dictionary(
                 uniqueKeysWithValues: displayItems.map { ($0.id, $0.position) }
             )
-            let placements = LabelPlanner.plan(
+            let placements = frozenLabels == nil ? LabelPlanner.plan(
                 markers: labelMarkers,
                 positions: markerPositions,
                 bounds: CGRect(origin: .zero, size: geometry.size),
                 expanded: displayedLevel != .overview
-            )
+            ) : [:]
             let presentedLabels = labelsForPresentation(
                 displayItems: displayItems,
                 labelMarkers: labelMarkers,
@@ -487,6 +488,8 @@ struct WorldDotMapView: View {
         .aspectRatio(grid.aspectRatio, contentMode: .fit)
         .task(id: isManipulatingViewport ? nil : markers.map(WorldDotPaint.Input.init)) {
             guard !isManipulatingViewport else { return }
+            let inputs = markers.map(WorldDotPaint.Input.init)
+            guard preparedPaintInputs != inputs else { return }
             let snapshot = markers
             let worker = Task.detached(priority: .userInitiated) {
                 WorldDotPaint(grid: grid, markers: snapshot)
@@ -494,6 +497,7 @@ struct WorldDotMapView: View {
             let prepared = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
             guard !Task.isCancelled else { return }
             paint = prepared
+            preparedPaintInputs = inputs
         }
     }
 

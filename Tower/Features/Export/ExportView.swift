@@ -39,9 +39,14 @@ struct ExportView: View {
                     LANSharingGuide()
                 } else {
                     ExportContentModePicker()
-                    ProtocolFilter()
                     if let displayedConfiguration = configuration ?? preparedConfiguration {
                         ConversionSummary(configuration: displayedConfiguration)
+                    } else {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 160)
+                    }
+                    ProtocolFilter()
+                    if let displayedConfiguration = configuration ?? preparedConfiguration {
                         ImportPrivacyNote(
                             copiesSubscription: copiesSubscription,
                             target: displayedConfiguration.target,
@@ -54,9 +59,6 @@ struct ExportView: View {
                             previewPayload = ConfigurationPreviewPayload(configuration: configuration)
                         }
                         .disabled(configuration == nil)
-                    } else {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 160)
                     }
                 }
             }

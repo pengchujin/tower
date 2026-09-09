@@ -58,6 +58,7 @@ ConfigurationGenerator 按 ClientTarget 与能力矩阵输出 INI / YAML / JSON 
 
 - Stash、Clash、Clash Mi、Karing 共用部分 YAML，远端规则能力仍分开。
 - Hiddify、sing-box MT 各有协议矩阵和导入身份；Egern 使用独立 YAML 结构。
+- SingBoxDNSPolicy 仅处理官方 sing-box MT 的「规则判定 / 全局代理 / 直接连接」与 DNS 联动。全局 selector 默认自动选择全部节点，也可手选，DNS 通过独立 detour 跟随。递归检查代理组是否可能到达 DIRECT，必要时创建无直连候选的自动组；DNS 域名规则从同一份本机缓存投影，保持优先级，不依赖远端 SRS 是否启用。普通目标先经 DNS 规则解析，节点启动解析继续独立；严格保护不回退直连。Hiddify 不套用该适配层。
 - Surge / Surge Mac 的仅节点模式输出 `policy-path` 纯策略列表，主操作复制聚合订阅链接；WireGuard 需要独立配置节，继续使用完整配置。节点模式能力与 URL Scheme 导入能力分开建模。
 - V2Box 仅节点订阅；QuanX 分享完整文件，不假装远程资源 API 能导入策略组。
 - 名称必须转义，不能让不可信 remark 注入规则。
@@ -65,6 +66,8 @@ ConfigurationGenerator 按 ClientTarget 与能力矩阵输出 INI / YAML / JSON 
 - supported/skipped 统计本地输出，remoteSourceCount 单列远端来源；hasExportableProxies 决定能否导出。远端节点不受本地筛选控制。
 
 ### 有界生成缓存
+
+AppModel 对配置请求输入、节点筛选/来源计数和地区统计保留值类型快照。命中时仍读取全部 Observation 输入，内容、设置或规则下载 revision 变化就失效；请求按目标/内容模式分开缓存，能力覆盖只保留当前变体。不能用 UUID 或节点数量替代完整输入一致性检查。
 
 ConfigurationCache 独立于 AppModel，完整配置和仅节点各有缓存族。全局签名只含共享的节点、规则、地区等；远端链接、目标能力放在目标键里。同一目标的新键替换旧键，不清空其他目标，也不无限累积。切换代理集合能力不同的客户端应复用缓存。
 
@@ -76,8 +79,8 @@ ConfigurationCache 独立于 AppModel，完整配置和仅节点各有缓存族�
 - ReorderPlanner 用冻结几何计算插入槽及实际尺寸落点；ReorderAutoScroller 处理边缘滚动。
 - 活跃拖动与视觉落位分开，松手即释放输入；旧 completion 核对 token，不能清掉新手势。浮层以 presentation offset 衔接被打断的运动。
 - 行高和卡片适配 Dynamic Type；Reduce Motion 取消选择缩放，按钮表达选中语义，装饰勾号不重复朗读。
-- Mac 的 Surge 聚合节点链接复用前台局域网服务，URL 显式携带目标和 `content=nodesOnly`；切换页面或完整配置不改变旧链接的节点语义，响应按当前已启用节点和该目标的协议筛选重新生成。Mac 需局域网连接并保持塔台运行。iPhone 复制节点链接复用 DirectImportService 的 127.0.0.1 / 3 分钟后台交接，不使用退后台即关闭的 LAN 服务；更新时重新复制。
-- DirectImportService 只开放 127.0.0.1 的 3 分钟服务；LANSubscriptionServer 是独立、随机密钥保护的前台共享入口。
+- Mac 的 Surge 聚合节点链接复用前台局域网服务，URL 显式携带目标和 `content=nodesOnly`；切换页面或完整配置不改变旧链接的节点语义，响应按当前已启用节点和该目标的协议筛选重新生成。Mac 需局域网连接并保持塔台运行。iPhone 复制节点链接复用 DirectImportService 的 127.0.0.1 / 3 分钟后台交接，与 LAN 共享的系统后台续时独立；更新时重新复制。
+- DirectImportService 只开放 127.0.0.1 的 3 分钟服务；LANSubscriptionServer 是独立、随机密钥保护的共享入口。iPhone 离开前台时通过 LANSharingBackgroundLease 申请有限后台时间；回到前台仅释放执行断言，保留监听和 URL；系统到期或用户停止时才关闭，不另设倒计时。Mac 不使用 iOS 后台断言。
 - ExportFileService / ProxyShareService 写完整保护的临时文件并清理。代理集合开启时，分享/LAN 响应可能含原始订阅凭据。
 
 ## 验证边界
