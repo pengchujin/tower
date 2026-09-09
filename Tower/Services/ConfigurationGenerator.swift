@@ -595,7 +595,7 @@ struct ConfigurationGenerator {
         excludedKinds: Set<ProxyKind> = [],
         profileName: String = TowerBrand.localizedName
     ) -> GeneratedConfiguration {
-        guard target.supportsNodesOnlyImport else {
+        guard target.supportsNodesOnlyExport else {
             return GeneratedConfiguration(
                 target: target,
                 content: "",
@@ -610,8 +610,14 @@ struct ConfigurationGenerator {
 
         var supported = uniquedNames(
             nodes.filter { writes($0, to: target, excluding: excludedKinds) },
-            reservedNames: []
+            reservedNames: target.copiesAggregatedSubscription(mode: .nodesOnly)
+                ? ["DIRECT", "REJECT", "direct", "reject"] : []
         )
+        // A Surge policy-path list cannot carry the separate WireGuard section
+        // required by section-name. Keep these nodes in full-profile export.
+        if target == .surge || target == .surgeMac {
+            supported.removeAll { $0.kind == .wireguard }
+        }
         // Snell has no subscription URI. WireGuard URI conventions also vary
         // between producers, so Shadowrocket receives both only in the full
         // profile form that carries their complete settings.
@@ -626,6 +632,9 @@ struct ConfigurationGenerator {
             let links = supported.map { generator.canonicalLink(for: $0) }
                 .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             content = Data(links.joined(separator: "\n").utf8).base64EncodedString()
+        case .surge, .surgeMac:
+            content = supported.map { surgeNode($0, shadowrocket: false) }.joined(separator: "\n")
+                + (supported.isEmpty ? "" : "\n")
         case .loon:
             content = supported.map(loonNode).joined(separator: "\n") + (supported.isEmpty ? "" : "\n")
         case .quanx:
@@ -3074,13 +3083,18 @@ struct ConfigurationGenerator {
             parts.insert(policyName, at: parts.count - 1)
         } else {
             parts.append(policyName)
-            if ruleType == "GEOIP" {
+            let surgeIPRule = [.surge, .surgeMac].contains(target)
+                && ["IP-CIDR", "IP-CIDR6", "IP6-CIDR", "IP-ASN"].contains(ruleType)
+            if ruleType == "GEOIP" || surgeIPRule {
                 // A GEOIP rule above later domain rules otherwise makes the
                 // client resolve the domain locally just to decide whether it
                 // matches — and the domains that reach it are the ones no rule
                 // list covered. Every built-in preset already writes the flag
                 // for all seven clients; an imported scheme must not route
-                // differently on Stash than it does on Surge.
+                // differently on Stash than it does on Surge. Surge also
+                // needs this for inline IP/ASN rules: imported service lists
+                // can place their IP ranges before another list's domains.
+                // Keep policy order while avoiding that premature DNS lookup.
                 parts.append("no-resolve")
             }
         }

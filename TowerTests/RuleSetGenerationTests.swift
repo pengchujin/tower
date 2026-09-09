@@ -5,6 +5,38 @@ import XCTest
 final class RuleSetGenerationTests: XCTestCase {
     private let url = URL(string: "https://rules.example.com/Streaming.list")!
 
+    func testSurgeIPRulesDoNotResolveBeforeLaterDomainRules() throws {
+        let fixture = try makeFixture(content: """
+        IP-CIDR,203.0.113.0/24
+        IP-CIDR6,2620:120:e000::/40
+        IP-ASN,64496
+        IP-CIDR,198.51.100.0/24,no-resolve
+        DOMAIN-SUFFIX,example.com
+        """)
+        for target in ClientTarget.allCases where target.supportsFullConfigurationExport {
+            let content = fixture.generator.generate(
+                nodes: [], scheme: fixture.scheme, target: target,
+                schemes: fixture.repository, preferRuleSets: false
+            ).content
+            XCTAssertFalse(content.isEmpty, target.rawValue)
+            if [.surge, .surgeMac].contains(target) {
+                for rule in ["IP-CIDR,203.0.113.0/24", "IP-CIDR6,2620:120:e000::/40", "IP-ASN,64496", "IP-CIDR,198.51.100.0/24"] {
+                    XCTAssertTrue(content.contains("\(rule),Proxy,no-resolve\n"), "\(target): \(rule)")
+                }
+                XCTAssertFalse(content.contains("no-resolve,no-resolve"))
+                XCTAssertTrue(content.contains("DOMAIN-SUFFIX,example.com,Proxy\n"))
+                XCTAssertLessThan(
+                    try XCTUnwrap(content.range(of: "IP-CIDR6,2620:120:e000::/40")?.lowerBound),
+                    try XCTUnwrap(content.range(of: "DOMAIN-SUFFIX,example.com")?.lowerBound)
+                )
+            } else if target.usesClashFormat {
+                // Other dialects keep the source's explicit resolution flags.
+                XCTAssertTrue(content.contains("IP-CIDR,203.0.113.0/24,Proxy"))
+                XCTAssertFalse(content.contains("IP-CIDR,203.0.113.0/24,Proxy,no-resolve"))
+            }
+        }
+    }
+
     func testClashUsesClassicalRuleProviderWhenEnabled() throws {
         let fixture = try makeFixture(content: "DOMAIN-SUFFIX,example.com")
         let content = fixture.generator.generate(

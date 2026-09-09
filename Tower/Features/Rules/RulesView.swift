@@ -826,7 +826,7 @@ private struct RuleCustomizationSheet: View {
                 RuleGroupEditor(scheme: request.scheme, group: request.group)
             }
             .sheet(item: $identityEditor, onDismiss: reloadEditingGroupsIfNeeded) { request in
-                RuleGroupIdentityEditor(scheme: request.scheme, group: request.group)
+                RuleGroupIdentityEditor(model: model, scheme: request.scheme, group: request.group)
             }
             .sheet(item: $networkSettingsEditor) { editableScheme in
                 RuleSchemeNetworkSettingsEditor(scheme: editableScheme)
@@ -1759,7 +1759,9 @@ private struct RuleSchemeConfigurationEditor: View {
 }
 
 private struct RuleGroupIdentityEditor: View {
-    @Environment(AppModel.self) private var model
+    // Catalyst may not carry the observable environment into this nested sheet.
+    // Keep the same model explicitly, as in SaveCustomizedSchemeSheet.
+    private let model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var requestsDiscard = false
     let scheme: RuleScheme
@@ -1768,7 +1770,8 @@ private struct RuleGroupIdentityEditor: View {
     @State private var name: String
     @State private var errorMessage: String?
 
-    init(scheme: RuleScheme, group: RuleSchemeGroup) {
+    init(model: AppModel, scheme: RuleScheme, group: RuleSchemeGroup) {
+        self.model = model
         self.scheme = scheme
         self.group = group
         _emoji = State(initialValue: RulePolicyPresentation.emoji(for: group.name, kind: group.kind))

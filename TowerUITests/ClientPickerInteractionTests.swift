@@ -2,6 +2,30 @@ import XCTest
 
 @MainActor
 final class ClientPickerInteractionTests: XCTestCase {
+    func testSurgeNodeModeOffersCopyAndFullModeRestoresImport() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--tab=export", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)"]
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launch()
+        let modes = app.segmentedControls["export-content-mode"]
+        XCTAssertTrue(modes.waitForExistence(timeout: 10))
+        modes.buttons["仅节点"].tap()
+        let action = app.buttons["export-config"]
+        XCTAssertTrue(action.waitForExistence(timeout: 10))
+        XCTAssertTrue(action.label.contains("复制聚合的订阅链接"), action.label)
+        modes.buttons["完整配置"].tap()
+        XCTAssertTrue(action.label.contains("一键导出到 Surge"), action.label)
+        modes.buttons["仅节点"].tap()
+        XCTAssertTrue(action.label.contains("复制聚合的订阅链接"), action.label)
+        action.tap()
+        XCTAssertTrue(app.staticTexts["tower-toast"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["tower-toast"].label, "订阅链接已复制")
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertTrue(action.label.contains("复制聚合的订阅链接"), action.label)
+    }
+
     func testSwitchingClientsKeepsExportBarAndViewportStable() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

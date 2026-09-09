@@ -1263,6 +1263,14 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         [.shadowrocket, .loon, .quanx, .hiddify, .v2box].contains(self)
     }
 
+    var supportsNodesOnlyExport: Bool {
+        supportsNodesOnlyImport || self == .surge || self == .surgeMac
+    }
+
+    func copiesAggregatedSubscription(mode: ExportContentMode) -> Bool {
+        mode == .nodesOnly && (self == .surge || self == .surgeMac)
+    }
+
     func supportsDirectImport(mode: ExportContentMode) -> Bool {
         switch mode {
         case .fullConfiguration: supportsDirectConfigurationImport
@@ -1272,7 +1280,7 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     var supportedContentModes: [ExportContentMode] {
         if self == .v2box { return [.nodesOnly] }
-        guard supportsNodesOnlyImport else { return [.fullConfiguration] }
+        guard supportsNodesOnlyExport else { return [.fullConfiguration] }
         return [.fullConfiguration, .nodesOnly]
     }
 

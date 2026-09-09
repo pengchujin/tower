@@ -43,7 +43,7 @@ title: 塔台隐私政策 · Tower Privacy Policy
 
 ## 三、本机的临时服务
 
-塔台把配置交给同一台设备上的其他客户端时，会启动一个**只绑定 `127.0.0.1`** 的本地 HTTP 服务。这个地址只有本机能访问，数据不经过任何网络，**45 秒后自动失效**。
+塔台把配置交给同一台设备上的其他客户端时，会启动一个**只绑定 `127.0.0.1`** 的本地 HTTP 服务。这个地址只有本机能访问，数据不经过任何网络，**最长 3 分钟后自动失效**；iOS 的后台执行额度到期可能让服务提前关闭。
 
 设置里的“代理集合”默认关闭。开启后，Stash、Clash、Clash Mi、Karing、Surge、Loon、QuanX 和 Egern 的完整配置可以包含原始订阅链接，以便客户端以后自行更新远程节点。这不会把链接发给塔台服务器，但会把它交给目标客户端；你通过系统分享导出配置时，链接也会随文件一起分享。Shadowrocket、Hiddify、V2Box 和 sing-box MT 不使用此模式。
 
@@ -110,7 +110,7 @@ Tower makes no other requests. It does not run in the background, so automatic r
 
 ## 3. On-device temporary service
 
-To hand a configuration to another client on the same device, Tower starts a local HTTP service bound to `127.0.0.1` only. Nothing crosses a network, and the service **expires after 45 seconds**.
+To hand a configuration to another client on the same device, Tower starts a local HTTP service bound to `127.0.0.1` only. Nothing crosses a network, and the service **expires after at most 3 minutes**. iOS may end background execution sooner, in which case the service closes early.
 
 “Client-managed subscriptions” is off by default. If enabled, complete profiles for Stash, Clash, Clash Mi, Karing, Surge, Loon, QuanX, and Egern may contain the original subscription URL so those clients can refresh remote nodes later. Tower does not send that URL to a Tower server, but it does hand the URL to the destination client; sharing the exported file also shares the URL. Shadowrocket, Hiddify, V2Box, and sing-box MT do not use this mode.
 

@@ -29565,6 +29565,288 @@
         }
       }
     },
+    "复制后，在 Surge 的“策略 → 策略组”中新建或编辑策略组，勾选“同时包含外部策略”，将链接粘贴到“URL 或本地路径”（policy-path）。链接聚合已启用且通过筛选的节点，刷新时保持塔台运行；可在“局域网共享”中停止服务。WireGuard 请使用完整配置导出。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بعد النسخ، قم بإنشاء أو تحرير مجموعة سياسات جديدة في \"السياسة → مجموعة السياسات\" في Surge، حدد \"تضمين السياسات الخارجية أيضًا\"، والصق الرابط في \"عنوان URL أو المسار المحلي\" (مسار السياسة). العقد التي تم تمكين تجميع الارتباطات وتصفيتها ستبقي البرج قيد التشغيل أثناء التحديث؛ يمكن إيقاف الخدمة في \"LAN Sharing\". WireGuard الرجاء استخدام تصدير التكوين الكامل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstellen oder bearbeiten Sie nach dem Kopieren eine neue Richtliniengruppe unter „Richtlinie → Richtliniengruppe“ in Surge, aktivieren Sie „Auch externe Richtlinien einschließen“ und fügen Sie den Link in „URL oder lokaler Pfad“ (Richtlinienpfad) ein. Knoten mit aktivierter und gefilterter Link-Aggregation halten den Tower während der Aktualisierung am Laufen; Der Dienst kann unter „LAN-Freigabe“ gestoppt werden. WireGuard Bitte nutzen Sie den vollständigen Konfigurationsexport."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Surge, create or edit a group under Policies → Policy Groups. Enable “Include External Policies” and paste the link into “URL or Local Path” (policy-path). The link combines enabled, filtered nodes. Keep Tower running when refreshing; stop the service in LAN Sharing. Use full configuration export for WireGuard."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de copiar, cree o edite un nuevo grupo de políticas en \"Política → Grupo de políticas\" en Surge, marque \"Incluir también políticas externas\" y pegue el enlace en \"URL o ruta local\" (ruta de política). Los nodos con agregación de enlaces habilitada y filtrada mantendrán la torre en funcionamiento durante la actualización; el servicio se puede detener en \"Compartir LAN\". WireGuard Utilice la exportación de configuración completa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après avoir copié, créez ou modifiez un nouveau groupe de stratégies dans \"Politique → Groupe de stratégies\" dans Surge, cochez \"Inclure également les stratégies externes\" et collez le lien dans \"URL ou chemin local\" (chemin de stratégie). Les nœuds avec l'agrégation de liens activée et filtrée maintiendront la tour en fonctionnement pendant l'actualisation ; le service peut être arrêté dans \"Partage LAN\". WireGuard Veuillez utiliser l'exportation complète de la configuration."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setelah menyalin, buat atau edit grup kebijakan baru di \"Kebijakan → Grup Kebijakan\" di Surge, centang \"Sertakan juga kebijakan eksternal\", dan tempelkan tautan ke \"URL atau jalur lokal\" (jalur kebijakan). Node dengan agregasi tautan diaktifkan dan difilter akan menjaga menara tetap berjalan selama penyegaran; layanan dapat dihentikan di \"Berbagi LAN\". WireGuard Silakan gunakan ekspor konfigurasi lengkap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピー後、Surgeの「ポリシー→ポリシーグループ」で新しいポリシーグループを作成または編集し、「外部ポリシーも含める」にチェックを入れ、リンクを「URLまたはローカルパス」（policy-path）に貼り付けます。リンク アグリゲーションが有効でフィルタリングされているノードは、更新中にタワーを実行し続けます。 「LAN共有」でサービスを停止することができます。 WireGuard 完全な構成のエクスポートを使用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사 후 Surge의 \"정책 → 정책 그룹\"에서 새 정책 그룹을 생성 또는 편집한 후 \"외부 정책도 포함\"을 체크하고 링크를 \"URL 또는 로컬 경로\"(policy-path)에 붙여넣습니다. 링크 집계가 활성화되고 필터링된 노드는 새로 고치는 동안 타워를 계속 실행합니다. \"LAN 공유\"에서 서비스를 중지할 수 있습니다. WireGuard 전체 구성 내보내기를 사용하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Após copiar, crie ou edite um novo grupo de políticas em \"Política → Grupo de Políticas\" no Surge, marque \"Também incluir políticas externas\" e cole o link em \"URL ou caminho local\" (caminho da política). Nós com agregação de links habilitada e filtrada manterão a torre funcionando durante a atualização; o serviço pode ser interrompido em \"Compartilhamento de LAN\". WireGuard Por favor, use a exportação completa da configuração."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После копирования создайте или отредактируйте новую группу политик в «Политика → Группа политик» в Surge, установите флажок «Также включать внешние политики» и вставьте ссылку в «URL или локальный путь» (policy-path). Узлы с включенной и отфильтрованной агрегацией каналов будут поддерживать работу башни во время обновления; услугу можно остановить в разделе «Общий доступ к локальной сети». WireGuard Используйте полный экспорт конфигурации."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หลังจากคัดลอก สร้างหรือแก้ไขกลุ่มนโยบายใหม่ใน \"นโยบาย → กลุ่มนโยบาย\" ใน Surge ให้เลือก \"รวมนโยบายภายนอกด้วย\" และวางลิงก์ลงใน \"URL หรือเส้นทางท้องถิ่น\" (เส้นทางนโยบาย) โหนดที่เปิดใช้งานการรวมลิงก์และกรองแล้ว จะทำให้ทาวเวอร์ทำงานต่อไปในระหว่างการรีเฟรช สามารถหยุดบริการได้ใน \"LAN Sharing\" WireGuard โปรดใช้การส่งออกการกำหนดค่าที่สมบูรณ์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surge'deki \"Politika → Politika Grubu\"nda yeni bir politika grubunu kopyaladıktan, oluşturduktan veya düzenledikten sonra, \"Harici politikaları da dahil et\" seçeneğini işaretleyin ve bağlantıyı \"URL veya yerel yola\" (politika yolu) yapıştırın. Bağlantı toplamanın etkinleştirildiği ve filtrelendiği düğümler, yenileme sırasında kulenin çalışır durumda kalmasını sağlar; hizmet \"LAN Paylaşımı\"nda durdurulabilir. WireGuard Lütfen tam konfigürasyon aktarımını kullanın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sau khi sao chép, tạo hoặc chỉnh sửa nhóm chính sách mới trong \"Chính sách → Nhóm chính sách\" trong Surge, hãy chọn \"Cũng bao gồm các chính sách bên ngoài\" và dán liên kết vào \"URL hoặc đường dẫn cục bộ\" (đường dẫn chính sách). Các nút đã bật và lọc tính năng tổng hợp liên kết sẽ giúp tháp hoạt động trong quá trình làm mới; dịch vụ có thể bị dừng trong \"Chia sẻ mạng LAN\". WireGuard Vui lòng sử dụng bản xuất cấu hình hoàn chỉnh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制后，在 Surge 的“策略 → 策略组”中新建或编辑策略组，勾选“同时包含外部策略”，将链接粘贴到“URL 或本地路径”（policy-path）。链接聚合已启用且通过筛选的节点，刷新时保持塔台运行；可在“局域网共享”中停止服务。WireGuard 请使用完整配置导出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製後，在 Surge 的「策略 → 策略群組」中新建或編輯策略群組，勾選「同時包含外部策略」，將連結貼到「URL 或本機路徑」（policy-path）。連結聚合已啟用且通過篩選的節點，重新整理時保持塔台執行；可在「區域網路分享」中停止服務。WireGuard 請使用完整設定匯出。"
+          }
+        }
+      }
+    },
+    "复制后，请在 45 秒内切换到 Surge，在策略组的外部策略（policy-path）中粘贴链接。只聚合已启用且通过筛选的节点，不替换规则。链接仅在本机临时有效；更新节点时回到塔台重新复制，再在 Surge 中刷新。WireGuard 请使用完整配置导出。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بعد النسخ، قم بالتبديل إلى Surge خلال 45 ثانية والصق الرابط في السياسة الخارجية لمجموعة السياسات (مسار السياسة). يتم فقط تجميع العقد التي تم تمكينها وتمرير التصفية دون استبدال القواعد. الارتباط صالح مؤقتًا فقط على هذا الجهاز؛ عند تحديث العقدة، ارجع إلى البرج لنسخها مرة أخرى، ثم قم بتحديثها في Surge. WireGuard الرجاء استخدام تصدير التكوين الكامل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wechseln Sie nach dem Kopieren innerhalb von 45 Sekunden zu Surge und fügen Sie den Link in die externe Richtlinie der Richtliniengruppe (policy-path) ein. Nur Knoten, die aktiviert sind und die Filterung bestehen, werden aggregiert, ohne Regeln zu ersetzen. Der Link ist auf diesem Rechner nur vorübergehend gültig; Wenn Sie den Knoten aktualisieren, kehren Sie zum Turm zurück, um ihn erneut zu kopieren, und aktualisieren Sie ihn dann in Surge. WireGuard Bitte nutzen Sie den vollständigen Konfigurationsexport."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After copying, switch to Surge within 45 seconds and paste the link into a policy group’s external policies (policy-path). Only enabled, filtered nodes are included; existing rules are preserved. This local link is temporary. To update nodes, copy it again in Tower, then refresh in Surge. Use full configuration export for WireGuard."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de copiar, cambie a Surge en 45 segundos y pegue el enlace en la política externa del grupo de políticas (ruta de política). Solo los nodos que están habilitados y pasan el filtrado se agregan sin reemplazar las reglas. El enlace sólo es válido temporalmente en esta máquina; al actualizar el nodo, regrese a la torre para copiarlo nuevamente y luego actualícelo en Surge. WireGuard Utilice la exportación de configuración completa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après la copie, passez à Surge dans les 45 secondes et collez le lien dans la stratégie externe du groupe de stratégies (chemin d'accès à la stratégie). Seuls les nœuds activés et qui réussissent le filtrage sont agrégés sans remplacer les règles. Le lien n'est valable que temporairement sur cette machine ; lors de la mise à jour du nœud, retournez à la tour pour le copier à nouveau, puis actualisez-le dans Surge. WireGuard Veuillez utiliser l'exportation complète de la configuration."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setelah menyalin, beralihlah ke Surge dalam waktu 45 detik dan tempelkan tautan di kebijakan eksternal grup kebijakan (jalur kebijakan). Hanya node yang diaktifkan dan lolos pemfilteran yang dikumpulkan tanpa mengganti aturan. Tautan ini hanya berlaku sementara di mesin ini; saat memperbarui node, kembali ke menara untuk menyalinnya lagi, lalu segarkan di Surge. WireGuard Silakan gunakan ekspor konfigurasi lengkap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピー後、45 秒以内に Surge に切り替え、ポリシー グループの外部ポリシー (ポリシー パス) にリンクを貼り付けます。有効化され、フィルタリングに合格したノードのみが、ルールを置換せずに集約されます。リンクはこのマシン上で一時的にのみ有効です。ノードを更新するときは、タワーに戻ってノードを再度コピーし、Surge で更新します。 WireGuard 完全な構成のエクスポートを使用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사 후 45초 이내에 Surge로 전환하여 정책 그룹의 외부 정책(policy-path)에 링크를 붙여넣습니다. 활성화되어 있고 필터링을 통과한 노드만 규칙을 바꾸지 않고 집계됩니다. 링크는 이 시스템에서 일시적으로만 유효합니다. 노드 업데이트 시 타워로 돌아가서 다시 복사한 후 Surge에서 새로고침하세요. WireGuard 전체 구성 내보내기를 사용하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Após copiar, mude para Surge em 45 segundos e cole o link na política externa do grupo de políticas (caminho da política). Somente nós que estão habilitados e passam na filtragem são agregados sem substituir regras. O link é válido apenas temporariamente nesta máquina; ao atualizar o nó, retorne à torre para copiá-lo novamente e depois atualize-o no Surge. WireGuard Por favor, use a exportação completa da configuração."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После копирования переключитесь на Surge в течение 45 секунд и вставьте ссылку во внешнюю политику группы политик (policy-path). Только узлы, которые включены и проходят фильтрацию, агрегируются без замены правил. Ссылка действительна на этом компьютере только временно; при обновлении узла вернитесь в башню, чтобы скопировать его еще раз, а затем обновите в Surge. WireGuard Используйте полный экспорт конфигурации."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หลังจากการคัดลอก ให้เปลี่ยนไปใช้ Surge ภายใน 45 วินาที และวางลิงก์ลงในนโยบายภายนอกของกลุ่มนโยบาย (เส้นทางนโยบาย) เฉพาะโหนดที่เปิดใช้งานและผ่านการกรองเท่านั้นที่จะรวมเข้าด้วยกันโดยไม่ต้องแทนที่กฎ ลิงก์นี้ใช้ได้ชั่วคราวบนเครื่องนี้เท่านั้น เมื่ออัปเดตโหนด ให้กลับไปที่หอคอยเพื่อคัดลอกอีกครั้ง จากนั้นรีเฟรชใน Surge WireGuard โปรดใช้การส่งออกการกำหนดค่าที่สมบูรณ์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopyaladıktan sonra 45 saniye içinde Surge'a geçin ve bağlantıyı politika grubunun dış politikasına (politika yolu) yapıştırın. Yalnızca etkinleştirilmiş ve filtrelemeyi geçen düğümler, kurallar değiştirilmeden toplanır. Bağlantı bu makinede yalnızca geçici olarak geçerlidir; Düğümü güncellerken tekrar kopyalamak için kuleye dönün ve ardından Surge'de yenileyin. WireGuard Lütfen tam konfigürasyon aktarımını kullanın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sau khi sao chép, chuyển sang Surge trong vòng 45 giây và dán liên kết vào chính sách bên ngoài (policy-path) của nhóm chính sách. Chỉ các nút được bật và vượt qua quá trình lọc mới được tổng hợp mà không thay thế quy tắc. Liên kết chỉ có hiệu lực tạm thời trên máy này; khi cập nhật nút, hãy quay lại tháp để sao chép lại và sau đó làm mới nút đó trong Surge. WireGuard Vui lòng sử dụng bản xuất cấu hình hoàn chỉnh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制后，请在 45 秒内切换到 Surge，在策略组的外部策略（policy-path）中粘贴链接。只聚合已启用且通过筛选的节点，不替换规则。链接仅在本机临时有效；更新节点时回到塔台重新复制，再在 Surge 中刷新。WireGuard 请使用完整配置导出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製後，請在 45 秒內切換到 Surge，在策略群組的外部策略（policy-path）中貼上連結。只聚合已啟用且通過篩選的節點，不取代規則。連結僅在本機暫時有效；更新節點時回到塔台重新複製，再在 Surge 中重新整理。WireGuard 請使用完整設定匯出。"
+          }
+        }
+      }
+    },
+    "复制聚合的订阅链接": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انسخ رابط الاشتراك المجمع"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopieren Sie den aggregierten Abonnementlink"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy aggregated subscription link"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie el enlace de suscripción agregada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiez le lien d'abonnement agrégé"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salin tautan langganan gabungan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "集約されたサブスクリプション リンクをコピーする"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "집계된 구독 링크 복사"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie o link de assinatura agregado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопируйте ссылку на агрегированную подписку"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คัดลอกลิงก์การสมัครรับข้อมูลแบบรวม"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplu abonelik bağlantısını kopyalayın"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép liên kết đăng ký tổng hợp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制聚合的订阅链接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製聚合的訂閱連結"
+          }
+        }
+      }
+    },
     "复制订阅": {
       "localizations": {
         "ar": {
@@ -71649,6 +71931,100 @@
         }
       }
     },
+    "订阅链接已复制": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم نسخ رابط الاشتراك"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo-Link kopiert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription link copied"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enlace de suscripción copiado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lien d'abonnement copié"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tautan berlangganan disalin"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "購読リンクがコピーされました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구독 링크가 복사되었습니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link de assinatura copiado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ссылка на подписку скопирована."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คัดลอกลิงก์สมัครสมาชิกแล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonelik bağlantısı kopyalandı"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã sao chép liên kết đăng ký"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅链接已复制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訂閱連結已複製"
+          }
+        }
+      }
+    },
     "认证": {
       "localizations": {
         "ar": {
@@ -80592,6 +80968,478 @@
           "stringUnit": {
             "state": "translated",
             "value": "🧩"
+          }
+        }
+      }
+    },
+    "一键导入需要 Surge Mac 6.7 或更新版本。旧版会改为保存配置文件；可在 Surge 中导入。配置只在本机临时提供 3 分钟。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتطلب الاستيراد بنقرة واحدة Surge Mac 6.7 أو أحدث. الإصدارات الأقدم تحفظ ملفات التكوين بدلاً من ذلك؛ يمكن استيرادها في Surge. التكوين متاح مؤقتًا فقط محليًا لمدة 3 دقائق."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für den Ein-Klick-Import ist Surge Mac 6.7 oder neuer erforderlich. Ältere Versionen speichern stattdessen Konfigurationsdateien; Sie können in Surge importiert werden. Die Konfiguration ist nur vorübergehend für 3 Minuten lokal verfügbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-click import requires Surge Mac 6.7 or newer. Older versions save configuration files instead; they can be imported in Surge. Configuration is only temporarily available locally for 3 minutes."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La importación con un clic requiere Surge Mac 6.7 o posterior. En su lugar, las versiones anteriores guardan archivos de configuración; se pueden importar en Surge. La configuración solo está disponible temporalmente de forma local durante 3 minutos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'importation en un clic nécessite Surge Mac 6.7 ou version ultérieure. Les anciennes versions enregistrent les fichiers de configuration à la place ; ils peuvent être importés dans Surge. La configuration n'est disponible que temporairement localement pendant 3 minutes."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impor sekali klik memerlukan Surge Mac 6.7 atau lebih baru. Versi yang lebih lama menyimpan file konfigurasi; mereka dapat diimpor di Surge. Konfigurasi hanya tersedia sementara secara lokal selama 3 menit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワンクリックインポートには、Surge Mac 6.7 以降が必要です。古いバージョンでは、代わりに構成ファイルが保存されます。 Surge にインポートできます。構成はローカルで一時的に 3 分間のみ使用できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원클릭 가져오기에는 Surge Mac 6.7 이상이 필요합니다. 이전 버전은 대신 구성 파일을 저장합니다. Surge로 가져올 수 있습니다. 구성은 3분 동안 로컬에서만 일시적으로 사용할 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A importação com um clique requer Surge Mac 6.7 ou mais recente. Em vez disso, versões mais antigas salvam arquivos de configuração; eles podem ser importados no Surge. A configuração fica disponível localmente apenas temporariamente por 3 minutos."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для импорта в один клик требуется Surge Mac 6.7 или новее. Вместо этого более старые версии сохраняют файлы конфигурации; их можно импортировать в Surge. Конфигурация доступна локально только временно в течение 3 минут."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การนำเข้าด้วยคลิกเดียวต้องใช้ Surge Mac 6.7 หรือใหม่กว่า เวอร์ชันเก่าจะบันทึกไฟล์การกำหนดค่าแทน สามารถนำเข้าใน Surge ได้ การกำหนดค่าจะพร้อมใช้งานชั่วคราวภายในเครื่องเป็นเวลา 3 นาทีเท่านั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tek tıklamayla içe aktarma, Surge Mac 6.7 veya daha yenisini gerektirir. Eski sürümler bunun yerine yapılandırma dosyalarını kaydeder; Surge'e aktarılabilirler. Yapılandırma yalnızca yerel olarak 3 dakika boyunca geçici olarak kullanılabilir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập bằng một cú nhấp chuột yêu cầu Surge Mac 6.7 hoặc mới hơn. Thay vào đó, các phiên bản cũ hơn lưu tệp cấu hình; chúng có thể được nhập vào Surge. Cấu hình chỉ có sẵn cục bộ tạm thời trong 3 phút."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一键导入需要 Surge Mac 6.7 或更新版本。旧版会改为保存配置文件；可在 Surge 中导入。配置只在本机临时提供 3 分钟。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一鍵導入需要 Surge Mac 6.7 或更新版本。舊版會改為儲存設定檔；可在 Surge 中匯入。配置僅在本機臨時提供 3 分鐘。"
+          }
+        }
+      }
+    },
+    "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 3 分钟，不会上传；需要更新时回到塔台再次导入。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيفتح البرج العميل من خلال مخطط URL الخاص بـ %@. يتم الاحتفاظ بالتكوين فقط على العنوان المؤقت 127.0.0.1 للجهاز المحلي لمدة 3 دقائق ولن يتم تحميله؛ عندما يحتاج إلى التحديث، ارجع إلى البرج وقم باستيراده مرة أخرى."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Tower öffnet den Client über das URL-Schema %@. Die Konfiguration bleibt nur 3 Minuten lang an der temporären Adresse 127.0.0.1 des lokalen Computers erhalten und wird nicht hochgeladen. Wenn es aktualisiert werden muss, kehren Sie zum Tower zurück und importieren Sie es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tower will open the client through the URL Scheme of %@. The configuration is only retained at the local machine's 127.0.0.1 temporary address for 3 minutes and will not be uploaded; when it needs to be updated, return to the tower and import it again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La torre abrirá al cliente a través del esquema URL de %@. La configuración solo se conserva en la dirección temporal 127.0.0.1 de la máquina local durante 3 minutos y no se cargará; cuando sea necesario actualizarlo, regrese a la torre e impórtelo nuevamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tour ouvrira le client via le schéma d'URL %@. La configuration n'est conservée à l'adresse temporaire 127.0.0.1 de la machine locale que pendant 3 minutes et ne sera pas téléchargée ; lorsqu'il doit être mis à jour, revenez à la tour et importez-le à nouveau."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menara akan membuka klien melalui Skema URL %@. Konfigurasi hanya disimpan di alamat sementara 127.0.0.1 mesin lokal selama 3 menit dan tidak akan diunggah; bila perlu diperbarui, kembali ke menara dan impor lagi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タワーは、%@ の URL スキームを通じてクライアントを開きます。構成は、ローカル マシンの一時アドレス 127.0.0.1 に 3 分間のみ保持され、アップロードされません。更新する必要がある場合は、タワーに戻って再度インポートしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타워는 %@의 URL Scheme을 통해 클라이언트를 엽니다. 구성은 로컬 시스템의 127.0.0.1 임시 주소에서만 3분 동안 유지되며 업로드되지 않습니다. 업데이트가 필요한 경우 타워로 돌아가서 다시 가져오세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A torre abrirá o cliente através do esquema de URL %@. A configuração é retida apenas no endereço temporário 127.0.0.1 da máquina local por 3 minutos e não será carregada; quando precisar ser atualizado, volte para a torre e importe-o novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Башня откроет клиент через схему URL %@. Конфигурация сохраняется по временному адресу 127.0.0.1 локального компьютера только в течение 3 минут и не будет загружена; когда его нужно будет обновить, вернитесь в башню и импортируйте его снова."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หอคอยจะเปิดไคลเอ็นต์ผ่าน URL Scheme %@ การกำหนดค่าจะถูกเก็บไว้ที่ที่อยู่ชั่วคราว 127.0.0.1 ของเครื่องภายในเครื่องเป็นเวลา 3 นาทีและจะไม่ถูกอัพโหลด เมื่อจำเป็นต้องอัปเดต ให้กลับไปที่หอคอยแล้วนำเข้าอีกครั้ง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kule, istemciyi %@ URL Şeması aracılığıyla açacaktır. Yapılandırma yalnızca yerel makinenin 127.0.0.1 geçici adresinde 3 dakika süreyle tutulur ve yüklenmez; güncellenmesi gerektiğinde kuleye dönün ve tekrar içe aktarın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower sẽ mở ứng dụng khách thông qua Lược đồ URL của %@. Cấu hình chỉ được giữ lại tại địa chỉ tạm thời 127.0.0.1 của máy cục bộ trong 3 phút và sẽ không được tải lên; khi cần cập nhật, hãy quay lại tháp và nhập lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 3 分钟，不会上传；需要更新时回到塔台再次导入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台會透過 %@ 的 URL Scheme 開啟客戶端。配置只在本機的 127.0.0.1 臨時位址保留 3 分鐘，不會上傳；需要更新時回到塔台再次匯入。"
+          }
+        }
+      }
+    },
+    "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 3 分钟，不会上传；需要更新时回到塔台再次导入。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيفتح البرج العميل من خلال مخطط URL الخاص بـ %@. يتم الاحتفاظ بالتكوين فقط على العنوان المؤقت 127.0.0.1 لجهاز iPhone هذا لمدة 3 دقائق ولن يتم تحميله؛ عندما يحتاج إلى التحديث، ارجع إلى البرج وقم باستيراده مرة أخرى."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Tower öffnet den Client über das URL-Schema %@. Die Konfiguration wird nur 3 Minuten lang an der temporären Adresse 127.0.0.1 dieses iPhones gespeichert und nicht hochgeladen. Wenn es aktualisiert werden muss, kehren Sie zum Tower zurück und importieren Sie es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower opens %@ using its URL scheme. The profile stays on this iPhone at 127.0.0.1 for 3 minutes and is never uploaded. Return to Tower to import updates."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La torre abrirá al cliente a través del esquema URL de %@. La configuración sólo se mantiene en la dirección temporal 127.0.0.1 de este iPhone durante 3 minutos y no se cargará; cuando sea necesario actualizarlo, regrese a la torre e impórtelo nuevamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tour ouvrira le client via le schéma d'URL %@. La configuration n'est conservée à l'adresse temporaire 127.0.0.1 de cet iPhone que pendant 3 minutes et ne sera pas téléchargée ; lorsqu'il doit être mis à jour, revenez à la tour et importez-le à nouveau."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menara akan membuka klien melalui Skema URL %@. Konfigurasi hanya disimpan di alamat sementara 127.0.0.1 iPhone ini selama 3 menit dan tidak akan diunggah; bila perlu diperbarui, kembali ke menara dan impor lagi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タワーは、%@ の URL スキームを通じてクライアントを開きます。構成は、この iPhone の一時アドレス 127.0.0.1 に 3 分間のみ保持され、アップロードされません。更新する必要がある場合は、タワーに戻って再度インポートしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타워는 %@의 URL Scheme을 통해 클라이언트를 엽니다. 구성은 이 iPhone의 임시 주소 127.0.0.1에만 3분 동안 유지되며 업로드되지 않습니다. 업데이트가 필요한 경우 타워로 돌아가서 다시 가져오세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A torre abrirá o cliente através do esquema de URL %@. A configuração será mantida no endereço temporário 127.0.0.1 deste iPhone apenas por 3 minutos e não será carregada; quando precisar ser atualizado, volte para a torre e importe-o novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Башня откроет клиент через схему URL-адресов %@. Конфигурация сохраняется по временному адресу 127.0.0.1 этого iPhone только в течение 3 минут и не будет загружена; когда его нужно будет обновить, вернитесь в башню и импортируйте его снова."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หอคอยจะเปิดไคลเอ็นต์ผ่าน URL Scheme %@ การกำหนดค่าจะถูกเก็บไว้ที่ที่อยู่ชั่วคราว 127.0.0.1 ของ iPhone นี้เป็นเวลา 3 นาทีและจะไม่ถูกอัปโหลด เมื่อจำเป็นต้องอัปเดต ให้กลับไปที่หอคอยแล้วนำเข้าอีกครั้ง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kule, istemciyi %@ URL Şeması aracılığıyla açacaktır. Yapılandırma yalnızca bu iPhone'un 127.0.0.1 geçici adresinde 3 dakika süreyle tutulur ve yüklenmez; güncellenmesi gerektiğinde kuleye dönün ve tekrar içe aktarın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tower sẽ mở ứng dụng khách thông qua Lược đồ URL của %@. Cấu hình chỉ được lưu tại địa chỉ tạm thời 127.0.0.1 của iPhone này trong 3 phút và sẽ không được tải lên; khi cần cập nhật, hãy quay lại tháp và nhập lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台会通过 %@ 的 URL Scheme 打开客户端。配置只在这台 iPhone 的 127.0.0.1 临时地址保留 3 分钟，不会上传；需要更新时回到塔台再次导入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塔台會透過 %@ 的 URL Scheme 開啟客戶端。配置只在這台 iPhone 的 127.0.0.1 臨時位址保留 3 分鐘，不會上傳；需要更新時回到塔台再次匯入。"
+          }
+        }
+      }
+    },
+    "复制后，请在 3 分钟内切换到 Surge，在策略组的外部策略（policy-path）中粘贴链接。只聚合已启用且通过筛选的节点，不替换规则。链接仅在本机临时有效；更新节点时回到塔台重新复制，再在 Surge 中刷新。WireGuard 请使用完整配置导出。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بعد النسخ، قم بالتبديل إلى Surge خلال 3 دقائق والصق الرابط في السياسة الخارجية لمجموعة السياسات (مسار السياسة). يتم فقط تجميع العقد التي تم تمكينها وتمرير التصفية دون استبدال القواعد. الارتباط صالح مؤقتًا فقط على هذا الجهاز؛ عند تحديث العقدة، ارجع إلى البرج لنسخها مرة أخرى، ثم قم بتحديثها في Surge. WireGuard الرجاء استخدام تصدير التكوين الكامل."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wechseln Sie nach dem Kopieren innerhalb von 3 Minuten zu Surge und fügen Sie den Link in die externe Richtlinie der Richtliniengruppe (policy-path) ein. Nur Knoten, die aktiviert sind und die Filterung bestehen, werden aggregiert, ohne Regeln zu ersetzen. Der Link ist auf diesem Rechner nur vorübergehend gültig; Wenn Sie den Knoten aktualisieren, kehren Sie zum Turm zurück, um ihn erneut zu kopieren, und aktualisieren Sie ihn dann in Surge. WireGuard Bitte nutzen Sie den vollständigen Konfigurationsexport."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After copying, switch to Surge within 3 minutes and paste the link into a policy group’s external policies (policy-path). Only enabled, filtered nodes are included; existing rules are preserved. This local link is temporary. To update nodes, copy it again in Tower, then refresh in Surge. Use full configuration export for WireGuard."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de copiar, cambie a Surge en 3 minutos y pegue el enlace en la política externa del grupo de políticas (ruta de política). Solo los nodos que están habilitados y pasan el filtrado se agregan sin reemplazar las reglas. El enlace sólo es válido temporalmente en esta máquina; al actualizar el nodo, regrese a la torre para copiarlo nuevamente y luego actualícelo en Surge. WireGuard Utilice la exportación de configuración completa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après la copie, passez à Surge dans les 3 minutes et collez le lien dans la stratégie externe du groupe de stratégies (chemin d'accès à la stratégie). Seuls les nœuds activés et qui réussissent le filtrage sont agrégés sans remplacer les règles. Le lien n'est valable que temporairement sur cette machine ; lors de la mise à jour du nœud, retournez à la tour pour le copier à nouveau, puis actualisez-le dans Surge. WireGuard Veuillez utiliser l'exportation complète de la configuration."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setelah menyalin, beralihlah ke Surge dalam waktu 3 menit dan tempelkan tautan di kebijakan eksternal grup kebijakan (jalur kebijakan). Hanya node yang diaktifkan dan lolos pemfilteran yang dikumpulkan tanpa mengganti aturan. Tautan ini hanya berlaku sementara di mesin ini; saat memperbarui node, kembali ke menara untuk menyalinnya lagi, lalu segarkan di Surge. WireGuard Silakan gunakan ekspor konfigurasi lengkap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピー後、3 分以内に Surge に切り替え、ポリシー グループの外部ポリシー (ポリシー パス) にリンクを貼り付けます。有効化され、フィルタリングに合格したノードのみが、ルールを置換せずに集約されます。リンクはこのマシン上で一時的にのみ有効です。ノードを更新するときは、タワーに戻ってノードを再度コピーし、Surge で更新します。 WireGuard 完全な構成のエクスポートを使用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사 후 3분 이내에 Surge로 전환하여 정책 그룹의 외부 정책(policy-path)에 링크를 붙여넣습니다. 활성화되어 있고 필터링을 통과한 노드만 규칙을 바꾸지 않고 집계됩니다. 링크는 이 시스템에서 일시적으로만 유효합니다. 노드 업데이트 시 타워로 돌아가서 다시 복사한 후 Surge에서 새로고침하세요. WireGuard 전체 구성 내보내기를 사용하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Após copiar, mude para Surge em 3 minutos e cole o link na política externa do grupo de políticas (caminho da política). Somente nós que estão habilitados e passam na filtragem são agregados sem substituir regras. O link é válido apenas temporariamente nesta máquina; ao atualizar o nó, retorne à torre para copiá-lo novamente e depois atualize-o no Surge. WireGuard Por favor, use a exportação completa da configuração."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После копирования переключитесь на Surge в течение 3 минут и вставьте ссылку во внешнюю политику группы политик (policy-path). Только узлы, которые включены и проходят фильтрацию, агрегируются без замены правил. Ссылка действительна на этом компьютере только временно; при обновлении узла вернитесь в башню, чтобы скопировать его еще раз, а затем обновите в Surge. WireGuard Используйте полный экспорт конфигурации."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หลังจากการคัดลอก ให้เปลี่ยนไปใช้ Surge ภายใน 3 นาที และวางลิงก์ลงในนโยบายภายนอกของกลุ่มนโยบาย (เส้นทางนโยบาย) เฉพาะโหนดที่เปิดใช้งานและผ่านการกรองเท่านั้นที่จะรวมเข้าด้วยกันโดยไม่ต้องแทนที่กฎ ลิงก์นี้ใช้ได้ชั่วคราวบนเครื่องนี้เท่านั้น เมื่ออัปเดตโหนด ให้กลับไปที่หอคอยเพื่อคัดลอกอีกครั้ง จากนั้นรีเฟรชใน Surge WireGuard โปรดใช้การส่งออกการกำหนดค่าที่สมบูรณ์"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopyaladıktan sonra 3 dakika içinde Surge'a geçin ve bağlantıyı politika grubunun dış politikasına (politika yolu) yapıştırın. Yalnızca etkinleştirilmiş ve filtrelemeyi geçen düğümler, kurallar değiştirilmeden toplanır. Bağlantı bu makinede yalnızca geçici olarak geçerlidir; Düğümü güncellerken tekrar kopyalamak için kuleye dönün ve ardından Surge'de yenileyin. WireGuard Lütfen tam konfigürasyon aktarımını kullanın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sau khi sao chép, chuyển sang Surge trong vòng 3 phút và dán liên kết vào chính sách bên ngoài (policy-path) của nhóm chính sách. Chỉ các nút được bật và vượt qua quá trình lọc mới được tổng hợp mà không thay thế quy tắc. Liên kết chỉ có hiệu lực tạm thời trên máy này; khi cập nhật nút, hãy quay lại tháp để sao chép lại và sau đó làm mới nút đó trong Surge. WireGuard Vui lòng sử dụng bản xuất cấu hình hoàn chỉnh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制后，请在 3 分钟内切换到 Surge，在策略组的外部策略（policy-path）中粘贴链接。只聚合已启用且通过筛选的节点，不替换规则。链接仅在本机临时有效；更新节点时回到塔台重新复制，再在 Surge 中刷新。WireGuard 请使用完整配置导出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製後，請在 3 分鐘內切換到 Surge，在策略群組的外部策略（policy-path）中貼上連結。只聚合已啟用且通過篩選的節點，不取代規則。連結僅在本機暫時有效；更新節點時回到塔台重新複製，再在 Surge 中重新整理。WireGuard 請使用完整設定匯出。"
+          }
+        }
+      }
+    },
+    "请在 3 分钟内切到 Clash Verge，点击之前从本机导入、同名的塔台配置卡片上的刷新按钮。配置名称改变后需重新导入。若要长期自动更新，请改用局域网共享订阅。": {
+      "extractionState": "stale",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يرجى التبديل إلى Clash Verge خلال 3 دقائق والنقر فوق زر التحديث الموجود على بطاقة تكوين البرج التي تحمل نفس الاسم الذي تم استيراده من الجهاز المحلي. بعد تغيير اسم التكوين، يجب إعادة استيراده. للحصول على التحديثات التلقائية طويلة المدى، استخدم اشتراك LAN مشترك بدلاً من ذلك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte wechseln Sie innerhalb von 3 Minuten zu Clash Verge und klicken Sie auf der Tower-Konfigurationskarte mit demselben Namen, die vom lokalen Computer importiert wurde, auf die Schaltfläche „Aktualisieren“. Nachdem der Konfigurationsname geändert wurde, muss er erneut importiert werden. Für langfristige automatische Updates verwenden Sie stattdessen ein LAN-Shared-Abonnement."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please switch to Clash Verge within 3 minutes and click the refresh button on the tower configuration card with the same name that was imported from the local machine. After the configuration name is changed, it needs to be re-imported. For long-term automatic updates, use a LAN shared subscription instead."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambie a Clash Verge dentro de los 3 minutos y haga clic en el botón Actualizar en la tarjeta de configuración de la torre con el mismo nombre que se importó desde la máquina local. Una vez cambiado el nombre de la configuración, es necesario volver a importarlo. Para actualizaciones automáticas a largo plazo, utilice una suscripción compartida de LAN."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veuillez passer à Clash Verge dans les 3 minutes et cliquez sur le bouton d'actualisation de la carte de configuration de la tour portant le même nom que celui importé depuis la machine locale. Une fois le nom de la configuration modifié, il doit être réimporté. Pour les mises à jour automatiques à long terme, utilisez plutôt un abonnement LAN partagé."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silakan beralih ke Clash Verge dalam waktu 3 menit dan klik tombol segarkan pada kartu konfigurasi menara dengan nama yang sama yang diimpor dari mesin lokal. Setelah nama konfigurasi diubah, perlu diimpor ulang. Untuk pembaruan otomatis jangka panjang, gunakan langganan bersama LAN."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 分以内に Clash Verge に切り替え、ローカル マシンからインポートされた同じ名前のタワー構成カードの更新ボタンをクリックしてください。構成名を変更した後は、再インポートする必要があります。長期的な自動更新の場合は、代わりに LAN 共有サブスクリプションを使用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3분 이내에 Clash Verge로 전환하고 로컬 컴퓨터에서 가져온 것과 동일한 이름의 타워 구성 카드에서 새로 고침 버튼을 클릭하세요. 구성 이름을 변경한 후에는 다시 가져와야 합니다. 장기 자동 업데이트의 경우 대신 LAN 공유 구독을 사용하십시오."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mude para o Clash Verge em 3 minutos e clique no botão Atualizar no cartão de configuração da torre com o mesmo nome que foi importado da máquina local. Depois que o nome da configuração for alterado, ele precisará ser importado novamente. Para atualizações automáticas de longo prazo, use uma assinatura compartilhada de LAN."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожалуйста, переключитесь на Clash Verge в течение 3 минут и нажмите кнопку обновления на карточке конфигурации башни с тем же именем, которое было импортировано с локального компьютера. После изменения имени конфигурации ее необходимо повторно импортировать. Для долгосрочных автоматических обновлений используйте общую подписку по локальной сети."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โปรดเปลี่ยนไปใช้ Clash Verge ภายใน 3 นาทีและคลิกปุ่มรีเฟรชบนการ์ดการกำหนดค่าทาวเวอร์ด้วยชื่อเดียวกับที่นำเข้าจากเครื่องท้องถิ่น หลังจากเปลี่ยนชื่อการกำหนดค่าแล้ว จะต้องนำเข้าใหม่อีกครั้ง สำหรับการอัปเดตอัตโนมัติในระยะยาว ให้ใช้การสมัครสมาชิก LAN ที่ใช้ร่วมกันแทน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lütfen 3 dakika içinde Clash Verge'a geçin ve yerel makineden içe aktarılan aynı adı taşıyan kule yapılandırma kartındaki yenile düğmesine tıklayın. Yapılandırma adı değiştirildikten sonra yeniden içe aktarılması gerekir. Uzun vadeli otomatik güncellemeler için bunun yerine LAN paylaşımlı aboneliğini kullanın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vui lòng chuyển sang Clash Verge trong vòng 3 phút và nhấp vào nút làm mới trên thẻ cấu hình tháp có cùng tên đã được nhập từ máy cục bộ. Sau khi tên cấu hình được thay đổi, nó cần được nhập lại. Để cập nhật tự động lâu dài, thay vào đó hãy sử dụng đăng ký chia sẻ mạng LAN."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在 3 分钟内切到 Clash Verge，点击之前从本机导入、同名的塔台配置卡片上的刷新按钮。配置名称改变后需重新导入。若要长期自动更新，请改用局域网共享订阅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請在 3 分鐘內切到 Clash Verge，點選先前從本機匯入、同名的塔台配置卡片上的刷新按鈕。配置名稱改變後需重新導入。若要長期自動更新，請改用區域網路共享訂閱。"
           }
         }
       }

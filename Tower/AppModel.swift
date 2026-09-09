@@ -1628,7 +1628,7 @@ final class AppModel {
     private static func decodeExportContentModes(_ values: [String: String]?) -> [ClientTarget: ExportContentMode] {
         (values ?? [:]).reduce(into: [:]) { result, entry in
             guard let target = ClientTarget(rawValue: entry.key),
-                  target.supportsNodesOnlyImport,
+                  target.supportsNodesOnlyExport,
                   let mode = ExportContentMode(rawValue: entry.value),
                   mode == .nodesOnly else { return }
             result[target] = mode
@@ -1637,7 +1637,7 @@ final class AppModel {
 
     private static func encodeExportContentModes(_ values: [ClientTarget: ExportContentMode]) -> [String: String]? {
         let encoded = values.reduce(into: [String: String]()) { result, entry in
-            guard entry.key.supportsNodesOnlyImport, entry.value == .nodesOnly else { return }
+            guard entry.key.supportsNodesOnlyExport, entry.value == .nodesOnly else { return }
             result[entry.key.rawValue] = entry.value.rawValue
         }
         return encoded.isEmpty ? nil : encoded
@@ -2611,7 +2611,7 @@ final class AppModel {
     /// Starts a foreground LAN endpoint. iOS may suspend all networking after
     /// Tower leaves the foreground, so the export destination card communicates
     /// that Tower must remain open while a desktop client refreshes.
-    func startLANSharing() async {
+    func startLANSharing(listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi) async {
         guard !isLANSharingStarting, !isLANSharingActive else { return }
         guard hasExportableSources else {
             showToast(String(localized: "请先添加一个可用节点"), symbol: "exclamationmark.triangle.fill")
@@ -2625,9 +2625,15 @@ final class AppModel {
 
         let server = LANSubscriptionServer(
             token: lanSharingToken,
+            listenerEnvironment: listenerEnvironment,
             exactClientConfiguration: { [weak self] target in
                 self?.configuration(target: target, contentMode: .fullConfiguration)
                     ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0, skippedNodeCount: 0, ruleCount: 0)
+            },
+            nodeConfiguration: { [weak self] target in
+                self?.configuration(target: target, contentMode: .nodesOnly)
+                    ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0,
+                        skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
             }
         ) { [weak self] format in
             guard let self else {
@@ -2682,7 +2688,14 @@ final class AppModel {
         showToast(String(localized: "访问密钥已更换，旧链接已失效"), symbol: "key.fill")
     }
 
-    func lanSubscriptionURL(target: ClientTarget?) -> URL? {
+    func lanSubscriptionURL(target: ClientTarget?, contentMode: ExportContentMode = .fullConfiguration) -> URL? {
+        if contentMode == .nodesOnly {
+            guard let target, target.copiesAggregatedSubscription(mode: contentMode),
+                  let activeURL = lanSharingURL, let host = activeURL.host,
+                  let port = activeURL.port else { return nil }
+            return try? LANSubscriptionURLBuilder.make(host: host, port: UInt16(port),
+                token: lanSharingToken, target: target.rawValue, contentMode: contentMode)
+        }
         guard let url = lanSubscriptionURL(format: target.flatMap { LANSubscriptionFormat(target: $0) }) else { return nil }
         guard let target, [.surgeMac, .clashMac].contains(target),
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }

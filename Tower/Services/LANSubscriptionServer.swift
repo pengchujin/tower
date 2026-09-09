@@ -241,6 +241,7 @@ enum LANSubscriptionHTTPRouter {
         request: String,
         token: String,
         exactClientConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
+        nodeConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
         formatConfiguration: (LANSubscriptionFormat) -> GeneratedConfiguration
     ) -> LANSubscriptionHTTPResponse {
         let lines = request.components(separatedBy: "\r\n")
@@ -290,7 +291,20 @@ enum LANSubscriptionHTTPRouter {
         let target = format.generationTarget
         let exactClient = ClientTarget(rawValue: explicitTarget)
         let generated: GeneratedConfiguration
-        if let exactClient, [.surgeMac, .clashMac].contains(exactClient), let exactClientConfiguration {
+        // Mode belongs to the URL, never to the currently selected export tab.
+        let modeValues = components.queryItems?.filter { $0.name.lowercased() == "content" } ?? []
+        guard modeValues.count <= 1 else { return error(status: 400, message: "Invalid content mode") }
+        let modeValue = modeValues.isEmpty ? ExportContentMode.fullConfiguration.rawValue : (modeValues[0].value ?? "")
+        guard let mode = ExportContentMode(rawValue: modeValue) else {
+            return error(status: 400, message: "Invalid content mode")
+        }
+        if mode == .nodesOnly {
+            guard let exactClient, exactClient.copiesAggregatedSubscription(mode: mode),
+                  let nodeConfiguration else {
+                return error(status: 400, message: "Unsupported node subscription")
+            }
+            generated = nodeConfiguration(exactClient)
+        } else if let exactClient, [.surgeMac, .clashMac].contains(exactClient), let exactClientConfiguration {
             generated = exactClientConfiguration(exactClient)
         } else {
             generated = formatConfiguration(format)
@@ -347,7 +361,8 @@ enum LANSubscriptionURLBuilder {
         host: String,
         port: UInt16,
         token: String,
-        target: String?
+        target: String?,
+        contentMode: ExportContentMode = .fullConfiguration
     ) throws -> URL {
         var components = URLComponents()
         components.scheme = "http"
@@ -355,6 +370,9 @@ enum LANSubscriptionURLBuilder {
         components.port = Int(port)
         components.path = "/sub/\(token)"
         components.queryItems = [URLQueryItem(name: "target", value: target ?? "auto")]
+        if contentMode != .fullConfiguration {
+            components.queryItems?.append(URLQueryItem(name: "content", value: contentMode.rawValue))
+        }
         guard let url = components.url else { throw LANSubscriptionServerError.failedToStart }
         return url
     }
@@ -435,6 +453,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.jzb.tower.lan-subscription")
     private let configurationProvider: ConfigurationProvider
     private let exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
+    private let nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
     private let listenerEnvironment: LANSubscriptionListenerEnvironment
     private var listener: NWListener?
     private var didCompleteStart = false
@@ -443,12 +462,14 @@ final class LANSubscriptionServer: @unchecked Sendable {
         token: String,
         listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi,
         exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
+        nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
         configurationProvider: @escaping ConfigurationProvider
     ) {
         self.token = token
         self.listenerEnvironment = listenerEnvironment
         self.configurationProvider = configurationProvider
         self.exactClientConfiguration = exactClientConfiguration
+        self.nodeConfiguration = nodeConfiguration
     }
 
     func start() async throws -> URL {
@@ -517,6 +538,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
                     request: request,
                     token: self.token,
                     exactClientConfiguration: self.exactClientConfiguration,
+                    nodeConfiguration: self.nodeConfiguration,
                     formatConfiguration: self.configurationProvider
                 )
                 self.send(response.serialized(), on: connection)

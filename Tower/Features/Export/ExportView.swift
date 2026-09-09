@@ -148,7 +148,7 @@ struct ExportView: View {
         // Deliberately no .onDisappear teardown. Handing the link to another
         // app backgrounds Tower, and SwiftUI may call onDisappear when it does
         // — which killed the server before the client had fetched. Hiddify
-        // reported it as `Connection refused`. The 45-second timer and the
+        // reported it as `Connection refused`. The 3-minute timer and the
         // background-task expiry handler already bound the lifetime.
     }
 
@@ -177,15 +177,17 @@ struct ExportView: View {
     }
 
     private var copiesSubscription: Bool {
-        MacClientImportCapability.copiesSubscription(
+        model.selectedTarget.copiesAggregatedSubscription(mode: model.exportContentMode(for: model.selectedTarget))
+        || MacClientImportCapability.copiesSubscription(
             target: model.selectedTarget, isMac: TowerPlatform.isMac,
             surgeSchemeAvailable: surgeSchemeAvailable
         )
     }
 
-    private func copySubscription(for target: ClientTarget) async {
+    private func copySubscription(for target: ClientTarget, contentMode: ExportContentMode = .fullConfiguration) async {
+        model.setExportDestination(.lanSharing, isVisible: true)
         if !model.isLANSharingActive { await model.startLANSharing() }
-        guard let url = model.lanSubscriptionURL(target: target) else { return }
+        guard let url = model.lanSubscriptionURL(target: target, contentMode: contentMode) else { return }
         UIPasteboard.general.string = url.absoluteString
         model.showToast(String(localized: "局域网订阅链接已复制"), symbol: "doc.on.doc.fill")
     }
@@ -193,10 +195,25 @@ struct ExportView: View {
     @MainActor
     private func importConfiguration(_ configuration: GeneratedConfiguration) async {
         guard !isImporting else { return }
-        if copiesSubscription {
+        if configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode), !TowerPlatform.isMac {
             isImporting = true
             defer { isImporting = false }
-            await copySubscription(for: configuration.target)
+            do {
+                let url = try await directImportService.prepareNodeSubscriptionURL(configuration)
+                UIPasteboard.general.string = url.absoluteString
+                model.showToast(String(localized: "订阅链接已复制"), symbol: "doc.on.doc.fill")
+            } catch {
+                directImportService.stop()
+                model.showToast(error.localizedDescription, symbol: "exclamationmark.triangle.fill")
+            }
+            return
+        }
+        if configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode)
+            || MacClientImportCapability.copiesSubscription(target: configuration.target,
+                isMac: TowerPlatform.isMac, surgeSchemeAvailable: surgeSchemeAvailable) {
+            isImporting = true
+            defer { isImporting = false }
+            await copySubscription(for: configuration.target, contentMode: configuration.contentMode)
             return
         }
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
@@ -225,7 +242,7 @@ struct ExportView: View {
                 }
                 if TowerPlatform.isMac, configuration.target == .surgeMac {
                     surgeSchemeAvailable = false
-                    await copySubscription(for: configuration.target)
+                    await copySubscription(for: configuration.target, contentMode: configuration.contentMode)
                 } else {
                     export(configuration)
                 }
@@ -1195,6 +1212,9 @@ private struct ImportPrivacyNote: View {
     }
 
     private var title: String {
+        if target.copiesAggregatedSubscription(mode: contentMode) {
+            return String(localized: "复制聚合的订阅链接")
+        }
         if copiesSubscription { return String(localized: "复制订阅") }
         return target.supportsDirectImport(mode: contentMode)
             ? String(localized: "本机一键导出")
@@ -1202,6 +1222,12 @@ private struct ImportPrivacyNote: View {
     }
 
     private var detail: String {
+        if target.copiesAggregatedSubscription(mode: contentMode) {
+            if TowerPlatform.isMac {
+                return String(localized: "复制后，在 Surge 的“策略 → 策略组”中新建或编辑策略组，勾选“同时包含外部策略”，将链接粘贴到“URL 或本地路径”（policy-path）。链接聚合已启用且通过筛选的节点，刷新时保持塔台运行；可在“局域网共享”中停止服务。WireGuard 请使用完整配置导出。")
+            }
+            return String(localized: "复制后，请在 3 分钟内切换到 Surge，在策略组的外部策略（policy-path）中粘贴链接。只聚合已启用且通过筛选的节点，不替换规则。链接仅在本机临时有效；更新节点时回到塔台重新复制，再在 Surge 中刷新。WireGuard 请使用完整配置导出。")
+        }
         if copiesSubscription {
             if target == .surgeMac {
                 return String(localized: "点击“复制订阅”，打开 Surge Mac，在“更多 → 配置 → 从 URL 安装配置”中粘贴链接并安装，然后选择该配置使用。更新订阅时请保持塔台运行；可在塔台的“局域网共享”中停止服务。")
@@ -1215,7 +1241,7 @@ private struct ImportPrivacyNote: View {
             return String(localized: "生成的配置包含原始订阅链接，\(target.name) 可直接刷新远程节点。请只交给可信客户端；塔台规则与自有节点变化后仍需重新导出。")
         }
         if target.supportsDirectConfigurationImport {
-            return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 45 秒，不会上传；需要更新时回到塔台再次导入。")
+            return String(localized: "塔台会通过 \(target.name) 的 URL Scheme 打开客户端。配置只在本机的 127.0.0.1 临时地址保留 3 分钟，不会上传；需要更新时回到塔台再次导入。")
         }
         if target == .clashMac {
             return String(localized: "导出 YAML 文件后，在 ClashMac 的配置文件页面导入；也可以添加局域网订阅链接。")
@@ -1296,6 +1322,9 @@ private struct ImportActionBar: View {
     }
 
     private var importTitle: String {
+        if target.copiesAggregatedSubscription(mode: contentMode) {
+            return String(localized: "复制聚合的订阅链接")
+        }
         if copiesSubscription { return String(localized: "复制订阅") }
         switch contentMode {
         case .nodesOnly:

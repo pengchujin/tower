@@ -190,7 +190,7 @@ final class LocalCompatibilityCorpusTests: XCTestCase {
                     }
                 }
 
-                guard target.supportsNodesOnlyImport else { continue }
+                guard target.supportsNodesOnlyExport else { continue }
                 let generated = generator.generateNodeSubscription(
                     nodes: selected.nodes,
                     target: target,

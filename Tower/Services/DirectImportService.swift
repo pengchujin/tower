@@ -54,8 +54,10 @@ struct ClientImportURLBuilder {
 
         switch target {
         case .surge:
+            guard contentMode == .fullConfiguration else { throw DirectImportError.unsupportedTarget(target) }
             value = "surge:///install-config?url=\(encodedURL)"
         case .surgeMac:
+            guard contentMode == .fullConfiguration else { throw DirectImportError.unsupportedTarget(target) }
             // Mac 6.7+ registers this alias; it does not collide with Surge iOS.
             value = "surgeconfig:///install-config?url=\(encodedURL)"
         case .clash:
@@ -164,28 +166,10 @@ final class DirectImportService {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     func prepare(_ configuration: GeneratedConfiguration) async throws -> URL {
-        let previousServer = server
-        server = nil
-        stop()
-        await previousServer?.stopAndWait()
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
-
-        let server = LocalConfigurationServer(configuration: configuration)
-        let localURL = try await server.start()
-        self.server = server
-        beginBackgroundExecution()
-
-        expirationTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(45))
-            } catch {
-                return
-            }
-            self?.stop()
-        }
-
+        let localURL = try await prepareLocalResource(configuration)
         do {
             return try ClientImportURLBuilder.make(
                 target: configuration.target,
@@ -197,6 +181,37 @@ final class DirectImportService {
             stop()
             throw error
         }
+    }
+
+    /// Manual Surge import uses the same bounded loopback handoff as a scheme
+    /// import. The ordinary LAN listener closes as soon as iOS backgrounds us.
+    func prepareNodeSubscriptionURL(_ configuration: GeneratedConfiguration) async throws -> URL {
+        guard configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode) else {
+            throw DirectImportError.unsupportedTarget(configuration.target)
+        }
+        return try await prepareLocalResource(configuration)
+    }
+
+    private func prepareLocalResource(_ configuration: GeneratedConfiguration) async throws -> URL {
+        let previousServer = server
+        server = nil
+        stop()
+        await previousServer?.stopAndWait()
+
+        let server = LocalConfigurationServer(configuration: configuration)
+        let localURL = try await server.start()
+        self.server = server
+        beginBackgroundExecution()
+
+        expirationTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(180))
+            } catch {
+                return
+            }
+            self?.stop()
+        }
+        return localURL
     }
 
     func stop() {
@@ -232,19 +247,25 @@ final class LocalConfigurationServer: @unchecked Sendable {
     private let contentType: String
     private let profileName: String
     private let profileTitle: String
+    private let nodeSubscriptionTarget: ClientTarget?
     private let token: String
 
     /// Exposed for tests: the name and type the client will see.
     var servedFileName: String { fileName }
     var servedContentType: String { contentType }
     /// A stable, app-private endpoint lets clients recognize the next import as
-    /// the same Tower profile. The listener still exists for only 45 seconds.
+    /// the same Tower profile. The listener still exists for only 3 minutes.
     var configurationURL: URL {
-        URL(string: "http://127.0.0.1:\(Self.fixedLoopbackPort)/\(token)")!
+        var base = URL(string: "http://127.0.0.1:\(Self.fixedLoopbackPort)/\(token)")!
             .deletingLastPathComponent()
             .appendingPathComponent(profileName, isDirectory: true)
             .appendingPathComponent(token, isDirectory: true)
-            .appendingPathComponent(fileName, isDirectory: false)
+        // A later Loon / Shadowrocket .txt import must not serve a different
+        // dialect from a previously copied Surge resource URL.
+        if let nodeSubscriptionTarget {
+            base.appendPathComponent("nodes-\(nodeSubscriptionTarget.rawValue)", isDirectory: true)
+        }
+        return base.appendingPathComponent(fileName, isDirectory: false)
     }
     private var listener: NWListener?
     private var didResumeStart = false
@@ -254,6 +275,8 @@ final class LocalConfigurationServer: @unchecked Sendable {
         token: String = DirectImportAccessTokenStore.loadOrCreate()
     ) {
         body = Data(configuration.content.utf8)
+        nodeSubscriptionTarget = configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode)
+            ? configuration.target : nil
         self.token = token
         // Share sheets and URL-scheme clients receive exactly the same stable,
         // localized profile name instead of creating timestamped duplicates.

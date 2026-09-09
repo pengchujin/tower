@@ -206,6 +206,46 @@ final class DirectImportServiceTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testCopiedSurgeResourceUsesLoopbackAndCanBeUpdatedWithoutInstallingProfile() async throws {
+        let service = DirectImportService()
+        defer { service.stop() }
+        for target in [ClientTarget.surge, .surgeMac] {
+            func fixture(_ content: String) -> GeneratedConfiguration {
+                GeneratedConfiguration(target: target, content: content, supportedNodeCount: 1,
+                    skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly, fileExtensionOverride: "txt")
+            }
+            let first = try await service.prepareNodeSubscriptionURL(fixture("First = ss, first.example, 443"))
+            XCTAssertEqual(first.scheme, "http")
+            XCTAssertEqual(first.host, "127.0.0.1")
+            let (data, response) = try await URLSession.shared.data(from: first)
+            XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+            XCTAssertEqual(String(decoding: data, as: UTF8.self), "First = ss, first.example, 443")
+            let second = try await service.prepareNodeSubscriptionURL(fixture("Second = ss, second.example, 443"))
+            XCTAssertEqual(first, second)
+            let (updated, _) = try await URLSession.shared.data(from: first)
+            XCTAssertEqual(String(decoding: updated, as: UTF8.self), "Second = ss, second.example, 443")
+            let other = GeneratedConfiguration(target: .loon, content: "other dialect", supportedNodeCount: 1,
+                skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly, fileExtensionOverride: "txt")
+            _ = try await service.prepare(other)
+            let (_, oldResponse) = try await URLSession.shared.data(from: first)
+            XCTAssertEqual((oldResponse as? HTTPURLResponse)?.statusCode, 404)
+        }
+    }
+
+    func testSurgeNodeModeCopiesResourceInsteadOfInstallingAProfile() {
+        for target in [ClientTarget.surge, .surgeMac] {
+            XCTAssertEqual(target.supportedContentModes, [.fullConfiguration, .nodesOnly])
+            XCTAssertTrue(target.copiesAggregatedSubscription(mode: .nodesOnly))
+            XCTAssertFalse(target.copiesAggregatedSubscription(mode: .fullConfiguration))
+            XCTAssertTrue(target.supportsDirectImport(mode: .fullConfiguration))
+            XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly))
+            XCTAssertThrowsError(try ClientImportURLBuilder.make(target: target,
+                configurationURL: localURL, contentMode: .nodesOnly))
+        }
+        XCTAssertFalse(ClientTarget.shadowrocket.copiesAggregatedSubscription(mode: .nodesOnly))
+    }
+
     func testNodeOnlySchemesKeepExistingClientRules() throws {
         let shadowrocket = try ClientImportURLBuilder.make(
             target: .shadowrocket,

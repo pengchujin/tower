@@ -2,6 +2,42 @@ import XCTest
 
 @MainActor
 final class RuleCustomizationInteractionTests: XCTestCase {
+    func testRenameRuleCanCancelSaveAndPersistAcrossLaunches() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["--tab=rules", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)"]
+        app.launch()
+        let customize = app.buttons["编辑 ACL4SSR 默认"]
+        XCTAssertTrue(customize.waitForExistence(timeout: 10))
+        customize.tap()
+        let original = app.buttons["rule-group-identity-🌍 国外媒体"]
+        XCTAssertTrue(original.waitForExistence(timeout: 5))
+        original.tap()
+        let name = app.textFields["规则名称"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        app.buttons["取消"].tap()
+        XCTAssertTrue(original.waitForExistence(timeout: 5))
+        original.tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        let current = name.value as? String ?? ""
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count) + "媒体测试")
+        app.buttons["保存"].tap()
+        let renamed = app.buttons["rule-group-identity-🌍 媒体测试"]
+        XCTAssertTrue(renamed.waitForExistence(timeout: 5))
+        XCTAssertFalse(original.exists)
+        app.buttons["完成"].tap()
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(customize.waitForExistence(timeout: 10))
+        customize.tap()
+        XCTAssertTrue(renamed.waitForExistence(timeout: 5))
+        renamed.tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, "媒体测试")
+        app.buttons["取消"].tap()
+    }
+
     func testSaveSchemeCanCancelAndSaveFromNestedSheet() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

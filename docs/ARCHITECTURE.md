@@ -58,6 +58,7 @@ ConfigurationGenerator 按 ClientTarget 与能力矩阵输出 INI / YAML / JSON 
 
 - Stash、Clash、Clash Mi、Karing 共用部分 YAML，远端规则能力仍分开。
 - Hiddify、sing-box MT 各有协议矩阵和导入身份；Egern 使用独立 YAML 结构。
+- Surge / Surge Mac 的仅节点模式输出 `policy-path` 纯策略列表，主操作复制聚合订阅链接；WireGuard 需要独立配置节，继续使用完整配置。节点模式能力与 URL Scheme 导入能力分开建模。
 - V2Box 仅节点订阅；QuanX 分享完整文件，不假装远程资源 API 能导入策略组。
 - 名称必须转义，不能让不可信 remark 注入规则。
 - 代理集合仅为明确支持的完整配置传入 RemoteSubscriptionLink，自有节点内联。
@@ -75,7 +76,8 @@ ConfigurationCache 独立于 AppModel，完整配置和仅节点各有缓存族�
 - ReorderPlanner 用冻结几何计算插入槽及实际尺寸落点；ReorderAutoScroller 处理边缘滚动。
 - 活跃拖动与视觉落位分开，松手即释放输入；旧 completion 核对 token，不能清掉新手势。浮层以 presentation offset 衔接被打断的运动。
 - 行高和卡片适配 Dynamic Type；Reduce Motion 取消选择缩放，按钮表达选中语义，装饰勾号不重复朗读。
-- DirectImportService 只开放 127.0.0.1 的 45 秒服务；LANSubscriptionServer 是独立、随机密钥保护的前台共享入口。
+- Mac 的 Surge 聚合节点链接复用前台局域网服务，URL 显式携带目标和 `content=nodesOnly`；切换页面或完整配置不改变旧链接的节点语义，响应按当前已启用节点和该目标的协议筛选重新生成。Mac 需局域网连接并保持塔台运行。iPhone 复制节点链接复用 DirectImportService 的 127.0.0.1 / 3 分钟后台交接，不使用退后台即关闭的 LAN 服务；更新时重新复制。
+- DirectImportService 只开放 127.0.0.1 的 3 分钟服务；LANSubscriptionServer 是独立、随机密钥保护的前台共享入口。
 - ExportFileService / ProxyShareService 写完整保护的临时文件并清理。代理集合开启时，分享/LAN 响应可能含原始订阅凭据。
 
 ## 验证边界
