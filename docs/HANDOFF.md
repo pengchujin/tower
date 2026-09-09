@@ -6,7 +6,7 @@
 
 - 包含 Surge 聚合节点订阅、3 分钟临时导入、Mac 规则重命名闪退修复及 Surge IP 规则 no-resolve 补修。
 - Mac 核心测试 1049 项通过、33 项环境跳过；iOS 核心测试 1079 项通过、3 项环境跳过，均零失败；本地化提取 865 项通过，发布脚本测试通过，ACL4SSR 为上游最新且 77 个远程产物校验通过。
-- 发布代码提交 `3383f19`，正式版 Xcode 26.6 分别归档并上传 iPhone / Mac TestFlight；Mac 已处理完成，iPhone 正在处理。未手动分配内外测群组或提交 Beta 审核，现有内部组自动分发设置保持原样。
+- 发布代码提交 `3383f19`，正式版 Xcode 26.6 分别归档并上传 iPhone / Mac TestFlight；两端均已处理完成。未手动分配内外测群组或提交 Beta 审核，现有内部组自动分发设置保持原样。
 - GitHub `v1.0.12` 已公开，Developer ID 公证 Mac DMG 已通过 arm64 / x86_64 双架构、签名、stapler、Gatekeeper 及回下载 SHA-256 校验，发布版已在本机打开。README 下载链接及 Homebrew tap 同步更新，`brew style` 和实际 `brew upgrade` 通过；`brew audit` 被本机 macOS Beta 对默认 Xcode 版本的检查阻止，未修改全局工具链。
 
 ## Surge 网段规则 DNS 警告补修（1.0.12）
