@@ -1,10 +1,13 @@
 # 当前交接
 
-## 1.0.14（52）发布准备（2026-09-11）
+## 1.0.14（52）已发布 GitHub，已上传 App Store Connect（2026-09-11）
 
 - 汇总规则兼容、链接/文本/文件导入、Mihomo YAML 模板、节点筛选编辑、导入 Emoji 原样显示、卡片交互与 sing-box MT DNS / IPv6 修复。下文“未发布”章节为开发验收记录，最终发布状态以本节为准。
 - Mac Catalyst 全量 1,092 项 XCTest（34 跳过）及 85 项 Swift Testing，零失败。ACL4SSR 为上游最新快照，77 个远程规则产物哈希验证通过；发布脚本回归通过。
-- GitHub、正式包、公证和 App Store Connect 上传正在准备；由用户自行处理商店提交/发布。
+- iOS Simulator 全量 1,092 项 XCTest（4 跳过）及 85 项 Swift Testing，零失败；Xcode 本地化提取 981 项通过。正式构建来自提交 `13b4a42`，Mac mini M2 使用 Xcode 26.6，iOS 与 Mac 两端 Release 归档和 App Store Connect 上传均成功。网页会话未登录，Apple 后续处理状态及测试群组可用性未核实；没有提交审核或发布商店版本，由用户自行处理。
+- GitHub Release `v1.0.14` 已公开，包含通用 Mac DMG 和 SHA256SUMS.txt。Developer ID 签名、公证后应用导出、stapler、严格签名与 Gatekeeper 均通过；DMG 挂载与 GitHub 回下载哈希通过。公证版已实际启动，本机 Homebrew 已升级至 1.0.14（52），安装后的签名与启动通过。
+- Homebrew cask 已同步 1.0.14（52）及新 DMG SHA-256，补齐 verified 下载仓库声明；格式检查与发布机完整审计通过。本机 brew upgrade 安装及启动通过。
+- 52 构建真机安装脚本未找到唯一可用实体 iPhone，未完成该构建的手机覆盖安装；上一开发构建已有用户手机测试记录。证据位于 `.artifacts/release-1.0.14/` 和 `.artifacts/direct-1.0.14-52/`。
 
 ### 未发布：导入策略组保留原有 Emoji 状态
 
