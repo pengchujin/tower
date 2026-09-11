@@ -127,7 +127,7 @@ struct RuleScheme: Identifiable, Codable, Hashable {
     /// which node names they contain. Mixing the two makes service rules appear
     /// as candidates for one another and can create cyclic configurations.
     func groupEditorMode(for group: RuleSchemeGroup) -> RuleSchemeGroupEditorMode {
-        if group.kind == .smart { return .nodePatternsOnly }
+        if group.kind == .smart || group.isCustomNodeFilter == true { return .nodePatternsOnly }
         if isPrimaryNodeSelector(group.name) {
             return .routingTargets
         }
@@ -170,7 +170,8 @@ struct RuleScheme: Identifiable, Codable, Hashable {
         let manualTargets = candidateGroups.contains { Self.isManualRoutingTarget($0.name) }
             || excludedName.map(Self.isManualRoutingTarget) == true
             ? [] : ["🚀 手动切换"]
-        return (declaredCore + manualTargets + regionalTargets + ["DIRECT", "REJECT"])
+        let customTargets = candidateGroups.filter { $0.isCustomNodeFilter == true && $0.name != excludedName }.map(\.name)
+        return (declaredCore + manualTargets + regionalTargets + customTargets + ["DIRECT", "REJECT"])
             .filter { seen.insert($0).inserted }
     }
 
@@ -185,7 +186,11 @@ struct RuleScheme: Identifiable, Codable, Hashable {
     ) -> RuleScheme {
         let candidateFlows = customRuleFlows.filter { $0.schemeID == id && $0.isEnabled }
         var availableGroups = groups
-        var availableGroupNames = Set(groups.map(\.name))
+        for group in groupCustomization?.addedNodeGroups ?? [] {
+            availableGroups.removeAll { $0.name == group.name }
+            availableGroups.append(group)
+        }
+        var availableGroupNames = Set(availableGroups.map(\.name))
         var insertedGeneratedRuleSetIDs = Set<UUID>()
         for flow in candidateFlows {
             guard let group = flow.expansion.policyGroup,
@@ -194,10 +199,10 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             insertedGeneratedRuleSetIDs.insert(flow.id)
         }
         availableGroups = groupCustomization?.applying(to: availableGroups) ?? availableGroups
-        availableGroups = Self.injectMissingRoutingGroups(into: availableGroups)
+        availableGroups = Self.injectMissingRoutingGroups(into: availableGroups, customization: groupCustomization)
 
         let groupNames = Set(availableGroups.map(\.name))
-        let validPolicies = groupNames.union(["DIRECT", "REJECT", "direct", "reject"])
+        let validPolicies = groupNames.union(RoutingBuiltinPolicies.names)
         let expansions = candidateFlows.map { flow in
             groupCustomization?.applying(to: flow.expansion) ?? flow.expansion
         }.filter {
@@ -211,12 +216,12 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             let ruleset = RuleSchemeRuleset(
                 groupName: groupCustomization?.renamedGroupName(sourceRuleset.groupName)
                     ?? sourceRuleset.groupName,
-                resource: sourceRuleset.resource
+                resource: sourceRuleset.resource, options: sourceRuleset.options, provider: sourceRuleset.provider
             )
             guard !removedGroupNames.contains(ruleset.groupName) else { continue }
             if case .inline(let rule) = ruleset.resource, rule.uppercased() == "FINAL" {
                 finalRulesets.append(ruleset)
-            } else if enabledRuleGroupNames?.contains(ruleset.groupName) ?? true {
+            } else if RoutingBuiltinPolicies.names.contains(ruleset.groupName) || (enabledRuleGroupNames?.contains(ruleset.groupName) ?? true) {
                 ordinaryRulesets.append(ruleset)
             }
         }
@@ -235,8 +240,10 @@ struct RuleScheme: Identifiable, Codable, Hashable {
                     RuleSchemeRuleset(groupName: policyGroupName, resource: .remote(url))
                 )
             }
-            expansionRulesets.append(contentsOf: expansion.ruleSet.inlineRules.map {
-                RuleSchemeRuleset(groupName: policyGroupName, resource: .inline($0))
+            expansionRulesets.append(contentsOf: expansion.ruleSet.inlineRules.enumerated().map { index, body in
+                let explicitPolicy = expansion.ruleSet.inlinePolicies.indices.contains(index)
+                    ? expansion.ruleSet.inlinePolicies[index] : nil
+                return RuleSchemeRuleset(groupName: explicitPolicy ?? policyGroupName, resource: .inline(body))
             })
             let insertion = Self.customRulesetInsertionIndex(
                 for: expansion,
@@ -401,7 +408,7 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             )
         }
         result.rulesets = rulesets.map {
-            RuleSchemeRuleset(groupName: renamed($0.groupName), resource: $0.resource)
+            RuleSchemeRuleset(groupName: renamed($0.groupName), resource: $0.resource, options: $0.options, provider: $0.provider)
         }
         return result
     }
@@ -522,33 +529,44 @@ struct RuleScheme: Identifiable, Codable, Hashable {
     }
 
     private static func injectMissingRoutingGroups(
-        into groups: [RuleSchemeGroup]
+        into groups: [RuleSchemeGroup],
+        customization: RuleSchemeCustomization?
     ) -> [RuleSchemeGroup] {
         var result = groups
         var names = Set(groups.map(\.name))
-        let references = groups.flatMap(\.members).compactMap { member -> String? in
-            guard case .reference(let name) = member else { return nil }
-            return name
-        }
-        for reference in references {
-            guard !names.contains(reference) else { continue }
-            if isManualRoutingTarget(reference) {
-                names.insert(reference)
-                result.append(RuleSchemeGroup(name: reference, kind: .select, members: [.nodePattern(".*")]))
-                continue
+        var index = 0
+        while index < result.count {
+            let references = result[index].members.compactMap { member -> String? in
+                guard case .reference(let name) = member else { return nil }
+                return name
             }
-            guard let region = routingRegion(for: reference),
-                  names.insert(reference).inserted else { continue }
-            result.append(
-                RuleSchemeGroup(
-                    name: reference,
-                    kind: .urlTest,
-                    members: [.nodePattern(region.nodePattern)],
-                    testURLString: "http://www.gstatic.com/generate_204",
-                    interval: 300,
-                    tolerance: 50
-                )
-            )
+            index += 1
+            for reference in references {
+                guard !names.contains(reference) else { continue }
+                // Supplemental groups do not exist in the upstream array on
+                // which overrides were applied. Build their source definition,
+                // then apply saved edits once, just as for declared groups.
+                let sourceName = customization?.sourceGroupName(for: reference) ?? reference
+                let supplemental: RuleSchemeGroup
+                if isManualRoutingTarget(sourceName) {
+                    supplemental = RuleSchemeGroup(name: sourceName, kind: .select, members: [.nodePattern(".*")])
+                } else if let region = routingRegion(for: sourceName) {
+                    supplemental = RuleSchemeGroup(
+                        name: sourceName,
+                        kind: .urlTest,
+                        members: [.nodePattern(region.nodePattern)],
+                        testURLString: "http://www.gstatic.com/generate_204",
+                        interval: 300,
+                        tolerance: 50
+                    )
+                } else {
+                    continue
+                }
+                let edited = customization?.applying(to: [supplemental]) ?? [supplemental]
+                for group in edited where names.insert(group.name).inserted {
+                    result.append(group)
+                }
+            }
         }
         return result
     }
@@ -771,7 +789,13 @@ enum RuleSchemeNetworkSettingsDraftError: LocalizedError, Equatable {
 /// Editable, display-ready values for the native DNS form. Missing fields in
 /// imported schemes inherit Tower's safe defaults instead of appearing blank.
 struct RuleSchemeNetworkSettingsDraft: Equatable {
-    var ipv6Enabled: Bool
+    // Preserve an unspecified value when saving unrelated DNS settings.
+    // Exporters can then apply their own platform-compatible default.
+    var ipv6Override: Bool?
+    var ipv6Enabled: Bool {
+        get { ipv6Override ?? RuleSchemeNetworkSettings.towerDefault.ipv6Enabled ?? true }
+        set { ipv6Override = newValue }
+    }
     var dnsServers: [String]
     var encryptedDNSServers: [String]
     var proxyTestURLString: String
@@ -779,7 +803,7 @@ struct RuleSchemeNetworkSettingsDraft: Equatable {
 
     init(settings: RuleSchemeNetworkSettings?) {
         let defaults = RuleSchemeNetworkSettings.towerDefault
-        ipv6Enabled = settings?.ipv6Enabled ?? defaults.ipv6Enabled ?? true
+        ipv6Override = settings?.ipv6Enabled
         dnsServers = settings?.dnsServers.isEmpty == false
             ? settings?.dnsServers ?? defaults.dnsServers
             : defaults.dnsServers
@@ -819,7 +843,7 @@ struct RuleSchemeNetworkSettingsDraft: Equatable {
         let testURL = proxyTestURLString.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return RuleSchemeNetworkSettings(
-            ipv6Enabled: ipv6Enabled,
+            ipv6Enabled: ipv6Override,
             dnsServers: plainDNS,
             encryptedDNSServers: encryptedDNS,
             proxyTestURLString: testURL,
@@ -862,6 +886,8 @@ enum RuleSchemeGroupEditorMode: Equatable {
 /// overwrite the user's order, mode, or candidate policies.
 struct RuleSchemeCustomization: Codable, Hashable {
     let schemeID: String
+    /// User-owned filters survive source refreshes independently of overrides.
+    var addedNodeGroups: [RuleSchemeGroup]?
     var groupOrder: [String]
     /// Explicit rule priority, absent in older display-only customizations.
     var rulePriorityOrder: [String]?
@@ -879,6 +905,7 @@ struct RuleSchemeCustomization: Codable, Hashable {
 
     init(
         schemeID: String,
+        addedNodeGroups: [RuleSchemeGroup]? = nil,
         groupOrder: [String] = [],
         rulePriorityOrder: [String]? = nil,
         groupOverrides: [String: RuleSchemeGroupOverride] = [:],
@@ -888,6 +915,7 @@ struct RuleSchemeCustomization: Codable, Hashable {
         overridesNetworkSettings: Bool? = nil
     ) {
         self.schemeID = schemeID
+        self.addedNodeGroups = addedNodeGroups
         self.groupOrder = groupOrder
         self.rulePriorityOrder = rulePriorityOrder
         self.groupOverrides = groupOverrides
@@ -921,6 +949,13 @@ struct RuleSchemeCustomization: Codable, Hashable {
                 return removedNames.contains(name)
             }
             let kind = override?.kind ?? group.kind
+            var parameters = group.renamedParameters(using: renamedGroupName)
+            if let patterns = override?.sourceNodePatterns,
+               let data = try? JSONEncoder().encode(patterns),
+               let encoded = String(data: data, encoding: .utf8) {
+                parameters = parameters ?? [:]
+                parameters?["tower-source-patterns"] = encoded
+            }
             return RuleSchemeGroup(
                 name: visibleName,
                 kind: kind,
@@ -931,7 +966,8 @@ struct RuleSchemeCustomization: Codable, Hashable {
                 algorithm: kind == group.kind && override?.resetsSourceOptions != true ? group.algorithm : nil,
                 sourceType: kind == group.kind && override?.resetsSourceOptions != true ? group.sourceType : nil,
                 sourceFormat: kind == group.kind && override?.resetsSourceOptions != true ? group.sourceFormat : nil,
-                parameters: kind == group.kind && override?.resetsSourceOptions != true ? group.renamedParameters(using: renamedGroupName) : nil
+                parameters: kind == group.kind && override?.resetsSourceOptions != true ? parameters : nil,
+                isCustomNodeFilter: group.isCustomNodeFilter
             )
         }
 
@@ -962,19 +998,24 @@ struct RuleSchemeGroupOverride: Codable, Hashable {
     var kind: RuleSchemeGroup.Kind?
     var members: [RuleSchemeGroupMember]?
     var resetsSourceOptions: Bool?
+    var sourceNodePatterns: [String]?
 
     init(
         kind: RuleSchemeGroup.Kind? = nil,
         members: [RuleSchemeGroupMember]? = nil,
-        resetsSourceOptions: Bool? = nil
+        resetsSourceOptions: Bool? = nil,
+        sourceNodePatterns: [String]? = nil
     ) {
         self.kind = kind
         self.members = members
         self.resetsSourceOptions = resetsSourceOptions
+        self.sourceNodePatterns = sourceNodePatterns
     }
 }
 
 struct RuleSchemeGroup: Codable, Hashable {
+    /// App metadata, never emitted as a client configuration option.
+    let isCustomNodeFilter: Bool?
     enum Kind: String, Codable {
         case select
         case urlTest
@@ -1035,7 +1076,8 @@ struct RuleSchemeGroup: Codable, Hashable {
         algorithm: String? = nil,
         sourceType: String? = nil,
         sourceFormat: String? = nil,
-        parameters: [String: String]? = nil
+        parameters: [String: String]? = nil,
+        isCustomNodeFilter: Bool? = nil
     ) {
         self.name = name
         self.kind = kind
@@ -1047,6 +1089,7 @@ struct RuleSchemeGroup: Codable, Hashable {
         self.sourceType = sourceType
         self.sourceFormat = sourceFormat
         self.parameters = parameters
+        self.isCustomNodeFilter = isCustomNodeFilter
     }
 
     /// Only policy-valued fields are rewritten; SSIDs and regex keys remain literal.
@@ -1122,4 +1165,13 @@ struct RuleSchemeRuleset: Codable, Hashable {
 
     let groupName: String
     let resource: Resource
+    /// Options on a FINAL or remote reference survive persistence and group edits.
+    var options: [String]? = nil
+    var provider: RuleProviderMetadata? = nil
+}
+
+struct RuleProviderMetadata: Codable, Hashable {
+    var behavior: String?
+    var format: String?
+    var interval: Int?
 }

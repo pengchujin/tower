@@ -20,6 +20,8 @@ struct RuleSetEmissionPlanner {
         let url: URL
         let policyName: String
         let format: NativeFormat
+        var options: [String] = []
+        var provider: RuleProviderMetadata? = nil
     }
 
     struct InlineRule: Equatable {
@@ -35,6 +37,7 @@ struct RuleSetEmissionPlanner {
     struct Plan: Equatable {
         let entries: [Entry]
         let finalGroupName: String?
+        var finalOptions: [String] = []
 
         var remoteResources: [RemoteResource] {
             entries.compactMap {
@@ -64,12 +67,17 @@ struct RuleSetEmissionPlanner {
     ) -> Plan {
         var entries: [Entry] = []
         var finalGroupName: String?
+        var finalOptions: [String] = []
         var remoteIndex = 0
 
         for ruleset in scheme.rulesets {
             if ruleset.resource.domainSetURL != nil, !([.surge, .surgeMac].contains(target) && preferRuleSets) {
+                let options: [String]
+                if case .inline(let body) = ruleset.resource {
+                    options = RoutingRuleSyntax.condition(body)?.options ?? []
+                } else { options = ruleset.options ?? [] }
                 entries.append(contentsOf: repository.lines(for: ruleset.resource).map {
-                    .inline(InlineRule(policyName: ruleset.groupName, line: $0))
+                    .inline(InlineRule(policyName: ruleset.groupName, line: RuleResourceContent.applying(options, to: $0)))
                 })
                 continue
             }
@@ -77,13 +85,14 @@ struct RuleSetEmissionPlanner {
             case .inline(let line):
                 if line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "FINAL" {
                     finalGroupName = ruleset.groupName
+                    finalOptions = ruleset.options ?? []
                 } else {
                     entries.append(.inline(InlineRule(policyName: ruleset.groupName, line: line)))
                 }
 
             case .remote(let url):
                 let lines = repository.lines(for: ruleset.resource)
-                if preferRuleSets,
+                if preferRuleSets, ruleset.options == nil, ruleset.provider == nil,
                    [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target),
                    let optimized = optimizedClashEntries(
                     resource: ruleset.resource,
@@ -94,7 +103,7 @@ struct RuleSetEmissionPlanner {
                    ) {
                     entries.append(contentsOf: optimized.entries)
                     remoteIndex = optimized.finalRemoteIndex
-                } else if preferRuleSets,
+                } else if preferRuleSets, ruleset.options == nil, ruleset.provider == nil,
                           target == .singBox,
                           let optimized = optimizedSingBoxEntries(
                             resource: ruleset.resource,
@@ -106,7 +115,8 @@ struct RuleSetEmissionPlanner {
                     entries.append(contentsOf: optimized.entries)
                     remoteIndex = optimized.finalRemoteIndex
                 } else if preferRuleSets,
-                   let format = nativeFormat(
+                   RoutingRuleCapabilities.optionsSupported((ruleset.options ?? []).filter { !$0.hasPrefix("update-interval=") }, target: target),
+                   let format = providerFormat(ruleset, target: target, lines: lines) ?? nativeFormat(
                     for: target,
                     url: url,
                     lines: lines,
@@ -117,17 +127,18 @@ struct RuleSetEmissionPlanner {
                         identifier: identifier(for: url, index: remoteIndex),
                         url: url,
                         policyName: ruleset.groupName,
-                        format: format
+                        format: format,
+                        options: ruleset.options ?? [], provider: ruleset.provider
                     )))
                 } else {
-                    entries.append(contentsOf: lines.map {
-                        .inline(InlineRule(policyName: ruleset.groupName, line: $0))
+                    entries.append(contentsOf: RuleResourceContent.normalized(lines, behavior: ruleset.provider?.behavior).map {
+                        .inline(InlineRule(policyName: ruleset.groupName, line: RuleResourceContent.applying(ruleset.options ?? [], to: $0)))
                     })
                 }
             }
         }
 
-        return Plan(entries: entries, finalGroupName: finalGroupName)
+        return Plan(entries: entries, finalGroupName: finalGroupName, finalOptions: finalOptions)
     }
 
     /// MRS supports compact domain and CIDR tries, not the mixed `classical`
@@ -160,6 +171,7 @@ struct RuleSetEmissionPlanner {
         for alternative in alternatives {
             let shouldEmit: Bool
             let format: NativeFormat
+        var options: [String] = []
             let suffix: String
             switch alternative.behavior {
             case .domain:
@@ -226,6 +238,13 @@ struct RuleSetEmissionPlanner {
             return .inline(InlineRule(policyName: policyName, line: line))
         })
         return (entries, remoteIndex)
+    }
+
+    private func providerFormat(_ ruleset: RuleSchemeRuleset, target: ClientTarget, lines: [String]) -> NativeFormat? {
+        guard target.usesClashFormat, let metadata = ruleset.provider,
+              ["domain", "ipcidr", "domain-text", "ipcidr-text"].contains(metadata.behavior ?? ""),
+              !lines.isEmpty else { return nil }
+        return repository.isClashProviderYAML(ruleset.resource) ? .clashProviderYAML : .classicalText
     }
 
     private func nativeFormat(

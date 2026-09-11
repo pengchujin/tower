@@ -170,6 +170,24 @@ def check(binary, original, strict):
                 assert query(port, domain) == 0
                 counts = local.queries - before[0], remote.queries - before[1]
                 assert (counts[0] > 0 and counts[1] == 0) if expected == "local" else (counts[0] == 0 and counts[1] > 0), (selected, domain, counts)
+            # DNS has no selector-current-choice matcher. Verify the documented
+            # static projection after changing a business selector, while global
+            # mode still overrides it. The generated Local fixture has both paths.
+            groups = {o["tag"]: o for o in original["outbounds"]}
+            if "Proxy" in groups["Local"]["outbounds"]:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{api}/proxies/Local",
+                    data=json.dumps({"name": "Proxy"}).encode(), method="PUT",
+                    headers={"Content-Type": "application/json"})
+                with http.open(request, timeout=2):
+                    pass
+                for selected, expected in [("规则判定", "remote" if strict else "local"),
+                                           ("全局代理", "remote"), ("直接连接", "local")]:
+                    mode(selected)
+                    before = local.queries, remote.queries
+                    assert query(port, "switch.example.com") == 0
+                    counts = local.queries - before[0], remote.queries - before[1]
+                    assert (counts[0] > 0 and counts[1] == 0) if expected == "local" else (counts[0] == 0 and counts[1] > 0), (selected, counts)
             mode("规则判定")
             assert query(port, "ad.invalid") == 5
             assert proxy.connections > 0, "DNS must actually traverse the SOCKS peer"

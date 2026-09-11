@@ -62,7 +62,8 @@ struct RuleSchemeParser {
         name: String,
         summary: String,
         sourceURLString: String? = nil,
-        isBundled: Bool = false
+        isBundled: Bool = false,
+        useSelectedNodes: Bool = false
     ) throws -> RuleScheme {
         guard let text = String(data: data, encoding: .utf8)
             ?? String(data: data, encoding: .isoLatin1) else {
@@ -74,7 +75,8 @@ struct RuleSchemeParser {
             name: name,
             summary: summary,
             sourceURLString: sourceURLString,
-            isBundled: isBundled
+            isBundled: isBundled,
+            useSelectedNodes: useSelectedNodes
         )
     }
 
@@ -84,7 +86,8 @@ struct RuleSchemeParser {
         name: String,
         summary: String,
         sourceURLString: String? = nil,
-        isBundled: Bool = false
+        isBundled: Bool = false,
+        useSelectedNodes: Bool = false
     ) throws -> RuleScheme {
         let networkSettings = parseNetworkSettings(in: text)
         if text.lowercased().contains("[policy]") {
@@ -95,14 +98,14 @@ struct RuleSchemeParser {
             let object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any]
             let format = object?["proxy-groups"] != nil ? "clash" : object?["policy_groups"] != nil ? "egern" : "sing-box"
             return try nativeScheme(text: text, id: id, name: name, summary: summary,
-                                    sourceURLString: sourceURLString, isBundled: isBundled, format: format)
+                                    sourceURLString: sourceURLString, isBundled: isBundled, format: format, useSelectedNodes: useSelectedNodes)
         }
         let clashHeader = text.range(of: #"(?m)^\s*['"]?proxy-groups['"]?\s*:"#, options: .regularExpression) != nil
         let egernHeader = text.range(of: #"(?m)^\s*['"]?policy_groups['"]?\s*:"#, options: .regularExpression) != nil
         if clashHeader || egernHeader {
             return try nativeScheme(text: text, id: id, name: name, summary: summary,
                                     sourceURLString: sourceURLString, isBundled: isBundled,
-                                    format: egernHeader ? "egern" : "clash")
+                                    format: egernHeader ? "egern" : "clash", useSelectedNodes: useSelectedNodes)
         }
 
         // A complete Surge configuration carries the same information in
@@ -123,6 +126,7 @@ struct RuleSchemeParser {
         var groups: [RuleSchemeGroup] = []
         var rulesets: [RuleSchemeRuleset] = []
         var metadata: [String: RuleSchemeGroup] = [:]
+        var ruleMetadata: [RuleSchemeRuleset] = []
 
         for rawLine in text.components(separatedBy: .newlines) {
             let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -132,23 +136,36 @@ struct RuleSchemeParser {
                   !line.hasPrefix("#"),
                   !line.hasPrefix("[") else { continue }
 
-            if let encoded = value(of: "tower_group_metadata", in: line) {
+            if let encoded = value(of: "tower_rule_metadata", in: line) {
+                guard let data = Data(base64Encoded: encoded), let saved = try? JSONDecoder().decode([RuleSchemeRuleset].self, from: data) else { throw RuleSchemeParseError.unsupportedSyntax }
+                ruleMetadata = saved
+            } else if let encoded = value(of: "tower_group_metadata", in: line) {
                 guard let data = Data(base64Encoded: encoded),
                       let group = try? JSONDecoder().decode(RuleSchemeGroup.self, from: data),
                       metadata[group.name] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
                 metadata[group.name] = group
             } else if let value = value(of: "ruleset", in: line) {
-                if let ruleset = parseRuleset(value) { rulesets.append(ruleset) }
+                guard let ruleset = parseRuleset(value, sourceURLString: sourceURLString) else {
+                    throw RuleSchemeParseError.unsupportedSyntax
+                }
+                rulesets.append(ruleset)
             } else if let value = value(of: "custom_proxy_group", in: line) {
                 if let group = parseGroup(value) { groups.append(group) }
             }
         }
 
+        if ruleMetadata.count == rulesets.count {
+            rulesets = zip(rulesets, ruleMetadata).map { visible, saved in
+                visible.groupName == saved.groupName && visible.resource == saved.resource ? saved : visible
+            }
+        }
         groups = groups.map { group in
             guard let saved = metadata[group.name], saved.kind == group.kind,
                   saved.members == group.members else { return group }
             return RuleSchemeGroup(name: group.name, kind: group.kind, members: group.members,
-                                   testURLString: group.testURLString, interval: group.interval, tolerance: group.tolerance,
+                                   testURLString: saved.testURLString == nil && group.testURLString == "http://www.gstatic.com/generate_204" ? nil : group.testURLString,
+                                   interval: saved.interval == nil && group.interval == 300 ? nil : group.interval,
+                                   tolerance: saved.tolerance == nil && group.tolerance == 50 ? nil : group.tolerance,
                                    algorithm: saved.algorithm, sourceType: saved.sourceType, sourceFormat: saved.sourceFormat,
                                    parameters: saved.parameters)
         }
@@ -193,7 +210,7 @@ struct RuleSchemeParser {
     }
 
     private func nativeScheme(text: String, id: String, name: String, summary: String,
-                              sourceURLString: String?, isBundled: Bool, format: String) throws -> RuleScheme {
+                              sourceURLString: String?, isBundled: Bool, format: String, useSelectedNodes: Bool = false) throws -> RuleScheme {
         var drafts: [(String, String, [String], [String: Any])] = []
         var sourceBindings: [String: String] = [:]
         var rules: [RuleSchemeRuleset] = []
@@ -260,6 +277,14 @@ struct RuleSchemeParser {
                     if let address = string(provider["url"]) { sourceBindings[name] = Self.sourceURLHash(address) }
                 }
                 for item in root["proxy-groups"] as? [[String: Any]] ?? [] {
+                    // A rule-only import replaces subscription contents with Tower's
+                    // selected nodes, but a misspelled provider must not become all nodes.
+                    if useSelectedNodes {
+                        let declared = root["proxy-providers"] as? [String: Any] ?? [:]
+                        guard strings(item["use"]).allSatisfy({ declared[$0] != nil }) else {
+                            throw RuleSchemeParseError.unsupportedSyntax
+                        }
+                    }
                     guard let name = string(item["name"]), let type = string(item["type"]) else { throw RuleSchemeParseError.unsupportedSyntax }
                     drafts.append((name, type, strings(item["proxies"]), item))
                 }
@@ -267,10 +292,25 @@ struct RuleSchemeParser {
                 for raw in strings(root["rules"]) {
                     let fields = surgeFields(raw)
                     if fields.first?.uppercased() == "RULE-SET", fields.count >= 3 {
-                        guard let address = string(providers[fields[1]]?["url"]), let url = URL(string: address), url.scheme == "https" else { throw RuleSchemeParseError.unsupportedSyntax }
-                        rules.append(.init(groupName: fields[2], resource: .remote(url)))
+                        guard let provider = providers[fields[1]] else { throw RuleSchemeParseError.unsupportedSyntax }
+                        // Authenticated fetches require per-resource request metadata;
+                        // rejecting is preferable to saving an unusable anonymous URL.
+                        guard provider["header"] == nil, provider["headers"] == nil,
+                              provider["exclude-filter"] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
+                        let metadata = RuleProviderMetadata(behavior: string(provider["behavior"]), format: string(provider["format"]),
+                                                            interval: string(provider["interval"]).flatMap(Int.init))
+                        let options = Array(fields.dropFirst(3))
+                        if string(provider["type"]) == "inline" {
+                            let lines = RuleResourceContent.normalized(strings(provider["payload"]), behavior: metadata.behavior)
+                            for line in lines {
+                                rules.append(.init(groupName: fields[2], resource: .inline(RuleResourceContent.applying(options, to: line))))
+                            }
+                        } else {
+                            guard let address = string(provider["url"]), let url = URL(string: address), url.scheme == "https" else { throw RuleSchemeParseError.unsupportedSyntax }
+                            rules.append(.init(groupName: fields[2], resource: .remote(url), options: options.isEmpty ? nil : options, provider: metadata))
+                        }
                     } else {
-                        let canonical = fields.first?.uppercased() == "MATCH" ? (["FINAL"] + fields.dropFirst()).joined(separator: ",") : raw
+                        let canonical = fields.first?.uppercased() == "MATCH" ? "FINAL" + raw.dropFirst(5) : raw
                         guard let rule = parseSurgeRuleLine(canonical) else { throw RuleSchemeParseError.unsupportedSyntax }
                         rules.append(rule)
                     }
@@ -332,8 +372,7 @@ struct RuleSchemeParser {
             if type == "ssid", let data = try? JSONSerialization.data(withJSONObject: candidates),
                let encoded = String(data: data, encoding: .utf8) { parameters["ssid-members"] = encoded }
             var members = candidates.map { candidate -> RuleSchemeGroupMember in
-                let builtins = ["direct": "DIRECT", "reject": "REJECT", "reject-drop": "REJECT-DROP"]
-                if let builtin = builtins[candidate.lowercased()] { return .reference(builtin) }
+                if RoutingBuiltinPolicies.canonical.contains(candidate.uppercased()) { return .reference(candidate.uppercased()) }
                 return names.contains(candidate) ? .reference(candidate) : .nodePattern("^\(NSRegularExpression.escapedPattern(for: candidate))$")
             }
             if nativeKind(type) == .conditional {
@@ -363,6 +402,12 @@ struct RuleSchemeParser {
                 let pattern = parameters["filter"] ?? ".*"
                 members.append(.nodePattern(pattern))
                 sourcePatterns.append(pattern)
+            }
+            if format == "clash", useSelectedNodes {
+                // Importing a rule scheme does not import its proxy subscriptions.
+                // Keep group names, references and name filters, using Tower's pool.
+                parameters.removeValue(forKey: "use")
+                parameters.removeValue(forKey: "tower-source-bindings")
             }
             if !sourcePatterns.isEmpty, let data = try? JSONSerialization.data(withJSONObject: sourcePatterns),
                let json = String(data: data, encoding: .utf8) { parameters["tower-source-patterns"] = json }
@@ -458,6 +503,12 @@ struct RuleSchemeParser {
                 }
             case "[rule]":
                 ruleLines.append(line)
+            case "[remote rule]":
+                let fields = surgeFields(line)
+                let options = parameterFields(Array(fields.dropFirst()))
+                if options["enabled"] == "false" { continue }
+                guard let address = fields.first, let policy = options["policy"] ?? fields.dropFirst().first(where: { !$0.contains("=") }) else { throw RuleSchemeParseError.unsupportedSyntax }
+                ruleLines.append("RULE-SET,\(address),\(policy)")
             default:
                 continue
             }
@@ -496,7 +547,7 @@ struct RuleSchemeParser {
                     // Smart ignores nested groups; include-other-group explicitly
                     // copies their proxy members and is handled above.
                     if entry.kind != .smart { explicit += patterns(in: field, visiting: visiting) }
-                } else if !["DIRECT", "REJECT", "REJECT-DROP"].contains(field.uppercased()) {
+                } else if !RoutingBuiltinPolicies.canonical.contains(field.uppercased()) {
                     explicit.append("^\(NSRegularExpression.escapedPattern(for: field))$")
                 }
             }
@@ -527,7 +578,7 @@ struct RuleSchemeParser {
                     default: break
                     }
                 } else if entry.kind != .smart {
-                    if groupNames.contains(field) || ["DIRECT", "REJECT", "REJECT-DROP"].contains(field.uppercased()) {
+                    if groupNames.contains(field) || RoutingBuiltinPolicies.canonical.contains(field.uppercased()) {
                         members.append(.reference(field))
                     } else if !usesInclusion {
                         members.append(.nodePattern("^\(NSRegularExpression.escapedPattern(for: field))$"))
@@ -727,50 +778,25 @@ struct RuleSchemeParser {
     /// `RULE-SET,<url>,<策略>[,参数]`, `FINAL,<策略>` or an inline rule such as
     /// `DOMAIN,example.com,<策略>`.
     private func parseSurgeRuleLine(_ line: String) -> RuleSchemeRuleset? {
-        let parts = surgeFields(line).map(unquotedYAMLScalar)
-        guard parts.count >= 2 else { return nil }
+        guard let parts = RoutingRuleSyntax.fields(RoutingRuleSyntax.removingComment(line)), parts.count >= 2 else { return nil }
         let type = parts[0].uppercased()
-
-        // Logical rules nest comma-separated conditions inside parentheses, so
-        // they cannot be split this way and have no equivalent outside Surge.
-        guard !["AND", "OR", "NOT"].contains(type) else { return nil }
-
-        if type == "FINAL" {
-            return RuleSchemeRuleset(groupName: parts[1], resource: .inline("FINAL"))
+        if type == "FINAL" || type == "MATCH" {
+            return RuleSchemeRuleset(groupName: RoutingRuleSyntax.unquote(parts[1]), resource: .inline("FINAL"),
+                                     options: parts.count > 2 ? Array(parts.dropFirst(2)) : nil)
         }
-
-        if type == "DOMAIN-SET", parts.count >= 3 {
-            return RuleSchemeRuleset(groupName: parts[2], resource: .inline(parts.prefix(2).joined(separator: ",")))
+        guard parts.count >= 3, !parts[2].isEmpty else { return nil }
+        let policy = RoutingRuleSyntax.unquote(parts[2])
+        let options = Array(parts.dropFirst(3))
+        if type == "RULE-SET", let url = URL(string: RoutingRuleSyntax.unquote(parts[1])),
+           ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
+            return RuleSchemeRuleset(groupName: policy, resource: .remote(url), options: options.isEmpty ? nil : options)
         }
-
-        if type == "RULE-SET" {
-            guard parts.count >= 3,
-                  let url = URL(string: parts[1]),
-                  let scheme = url.scheme?.lowercased(),
-                  scheme == "https" || scheme == "http" else { return nil }
-            return RuleSchemeRuleset(groupName: parts[2], resource: .remote(url))
-        }
-
-        // Everything else ends with the policy, optionally followed by flags
-        // such as no-resolve which belong to the rule rather than the policy.
-        var fields = parts
-        var trailing: [String] = []
-        while let last = fields.last,
-              last.lowercased() == "no-resolve" || last.contains("=") {
-            trailing.insert(last, at: 0)
-            fields.removeLast()
-        }
-        guard fields.count >= 2 else { return nil }
-
-        let policy = fields.removeLast()
-        let rule = (fields + trailing.filter { $0.lowercased() == "no-resolve" })
-            .joined(separator: ",")
-        return RuleSchemeRuleset(groupName: policy, resource: .inline(rule))
+        let body = ([type, parts[1]] + options).joined(separator: ",")
+        guard RoutingRuleSyntax.condition(body) != nil else { return nil }
+        return RuleSchemeRuleset(groupName: policy, resource: .inline(body))
     }
 
-    /// Splits on the first comma only: an inline rule such as `[]GEOIP,CN`
-    /// contains commas of its own.
-    private func parseRuleset(_ value: String) -> RuleSchemeRuleset? {
+    private func parseRuleset(_ value: String, sourceURLString: String?) -> RuleSchemeRuleset? {
         guard let separator = value.firstIndex(of: ",") else { return nil }
         let groupName = String(value[..<separator]).trimmingCharacters(in: .whitespaces)
         let target = String(value[value.index(after: separator)...])
@@ -783,14 +809,57 @@ struct RuleSchemeParser {
             return RuleSchemeRuleset(groupName: groupName, resource: .inline(rule))
         }
 
+        if let url = acl4SSRRulesetURL(for: target, sourceURLString: sourceURLString) {
+            return RuleSchemeRuleset(groupName: groupName, resource: .remote(url))
+        }
+
         guard let url = URL(string: target),
               let scheme = url.scheme?.lowercased(),
               scheme == "https" || scheme == "http" else { return nil }
         return RuleSchemeRuleset(groupName: groupName, resource: .remote(url))
     }
 
+    /// ACL4SSR's local templates refer to subconverter's bundled checkout,
+    /// not to files next to the INI or on this device. Resolve that known
+    /// namespace into the normal HTTPS download/cache path. Other local
+    /// paths remain unsupported rather than silently losing their rules.
+    private func acl4SSRRulesetURL(for path: String, sourceURLString: String?) -> URL? {
+        guard path.hasPrefix("rules/ACL4SSR/Clash/"), path.hasSuffix(".list") else { return nil }
+        let repositoryPath = String(path.dropFirst("rules/ACL4SSR/".count))
+        func validPath(_ value: String) -> Bool {
+            value.split(separator: "/", omittingEmptySubsequences: false).allSatisfy { component in
+                !component.isEmpty && component != "." && component != ".."
+                    && component.utf8.allSatisfy {
+                        (65...90).contains($0) || (97...122).contains($0)
+                            || (48...57).contains($0) || [45, 46, 95].contains($0)
+                    }
+            }
+        }
+        guard validPath(repositoryPath) else { return nil }
+
+        var revision = "master"
+        if let sourceURLString, let source = URL(string: sourceURLString),
+           source.scheme?.lowercased() == "https" {
+            let prefixes: [String]
+            switch source.host?.lowercased() {
+            case "raw.githubusercontent.com": prefixes = ["/ACL4SSR/ACL4SSR/"]
+            case "github.com", "www.github.com": prefixes = ["/ACL4SSR/ACL4SSR/blob/", "/ACL4SSR/ACL4SSR/raw/"]
+            default: prefixes = []
+            }
+            if let prefix = prefixes.first(where: { source.path.lowercased().hasPrefix($0.lowercased()) }) {
+                let tail = String(source.path.dropFirst(prefix.count))
+                if let marker = tail.range(of: "/Clash/config/") {
+                    let sourceRevision = String(tail[..<marker.lowerBound])
+                    guard validPath(sourceRevision) else { return nil }
+                    revision = sourceRevision
+                }
+            }
+        }
+        return URL(string: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/\(revision)/\(repositoryPath)")
+    }
+
     private func parseGroup(_ value: String) -> RuleSchemeGroup? {
-        let fields = value.components(separatedBy: "`")
+        let fields = value.components(separatedBy: "`").map { $0.trimmingCharacters(in: .whitespaces) }
         guard fields.count >= 2 else { return nil }
 
         let name = fields[0].trimmingCharacters(in: .whitespaces)
@@ -804,7 +873,7 @@ struct RuleSchemeParser {
         var interval: Int?
         var tolerance: Int?
 
-        for field in fields.dropFirst(2) {
+        for (index, field) in fields.enumerated().dropFirst(2) {
             let entry = field.trimmingCharacters(in: .whitespaces)
             guard !entry.isEmpty else { continue }
 
@@ -813,8 +882,10 @@ struct RuleSchemeParser {
                 if !reference.isEmpty { members.append(.reference(reference)) }
             } else if entry.lowercased().hasPrefix("http://") || entry.lowercased().hasPrefix("https://") {
                 testURLString = entry
-            } else if isTimingField(entry) {
-                let numbers = entry.components(separatedBy: ",")
+            } else if ["url-test", "fallback", "load-balance"].contains(sourceType),
+                      index == fields.count - 1, testURLString == fields[index - 1],
+                      isTimingField(entry) {
+                let numbers = entry.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
                 interval = numbers.first.flatMap { Int($0) }
                 if numbers.count >= 3 { tolerance = Int(numbers[2]) }
             } else {
@@ -834,40 +905,88 @@ struct RuleSchemeParser {
         )
     }
 
-    /// The trailing `300,,50` field: only digits and commas, and it must carry
-    /// at least one comma so a node pattern of bare digits is not mistaken for
-    /// timing information.
+    /// `interval[,timeout][,tolerance]` accepts a bare interval too. The caller
+    /// checks group type and the position after the test URL, so numeric node
+    /// patterns (including comma-separated ones) remain member filters.
     private func isTimingField(_ entry: String) -> Bool {
-        entry.contains(",")
-            && entry.allSatisfy { $0.isNumber || $0 == "," }
+        let numbers = entry.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard (1...3).contains(numbers.count), !numbers[0].isEmpty else { return false }
+        return numbers.allSatisfy { value in
+            value.isEmpty || (value.utf8.allSatisfy { (48...57).contains($0) } && Int(value) != nil)
+        }
     }
 }
 
-/// Structured YAML subset for policy documents. Unsupported tags, aliases and
-/// multiline scalars fail explicitly instead of becoming plausible group names.
-private struct SchemeYAMLReader {
+/// Policy-document YAML reader. Resolves local templates without fetching or
+/// expanding routing databases. Bounded nesting and alias materialization keep
+/// a small source document from creating an unbounded object graph.
+struct SchemeYAMLReader {
     private struct Line { var indent: Int; var text: String }
-    private var lines: [Line]
-    private var index = 0
+    private struct Mapping {
+        var explicit: [String: Any] = [:]
+        var inherited: [String: Any] = [:]
+        var order: [String] = []
+        var hasMerge = false
 
-    init(_ text: String) {
-        lines = text.components(separatedBy: .newlines).compactMap { raw in
-            let clean = Self.removeComment(raw).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !clean.isEmpty, clean != "---", clean != "..." else { return nil }
-            return Line(indent: raw.prefix { $0 == " " }.count, text: clean)
+        mutating func append(_ key: String, _ value: Any) throws {
+            if key == "<<" {
+                guard !hasMerge else { throw RuleSchemeParseError.unsupportedSyntax }
+                hasMerge = true
+                let sources: [[String: Any]]
+                if let map = value as? [String: Any] { sources = [map] }
+                else if let maps = value as? [[String: Any]] { sources = maps }
+                else { throw RuleSchemeParseError.unsupportedSyntax }
+                for source in sources {
+                    for (name, item) in source where inherited[name] == nil { inherited[name] = item }
+                }
+            } else {
+                guard explicit[key] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
+                explicit[key] = value
+                order.append(key)
+            }
         }
+
+        var value: [String: Any] { inherited.merging(explicit) { _, explicit in explicit } }
     }
 
+    private let source: String
+    private var lines: [Line] = []
+    private var index = 0
+    private var depth = 0
+    private var remainingNodes = 200_000
+    private var remainingBytes = 16 * 1_024 * 1_024
+    private var anchors: [String: Any] = [:]
+    // Mapping order is meaningful for Egern's priorities, including aliases.
+    private var anchorOrders: [String: [String]] = [:]
+    private var lastMappingOrder: [String]?
+
+    init(_ text: String) { source = text }
+
     mutating func read() throws -> Any {
+        guard source.utf8.count <= 8 * 1_024 * 1_024 else { throw RuleSchemeParseError.unsupportedSyntax }
+        lines = try Self.logicalLines(source)
         guard let first = lines.first else { return [String: Any]() }
         let result = try block(first.indent)
         guard index == lines.count else { throw RuleSchemeParseError.unsupportedSyntax }
         return result
     }
 
+    private mutating func enter() throws {
+        guard depth < 64, remainingNodes > 0 else { throw RuleSchemeParseError.unsupportedSyntax }
+        depth += 1
+        remainingNodes -= 1
+    }
+
     private mutating func block(_ indent: Int) throws -> Any {
+        try enter()
+        defer { depth -= 1 }
         guard index < lines.count else { return NSNull() }
-        if lines[index].text.hasPrefix("- ") || lines[index].text == "-" {
+        let first = lines[index].text
+        if first.hasPrefix("&") || first.hasPrefix("*") || first.hasPrefix("{") || first.hasPrefix("[") {
+            index += 1
+            return try valueOrChild(first, parentIndent: indent - 1)
+        }
+        if first.hasPrefix("- ") || first == "-" {
             var array: [Any] = []
             while index < lines.count, lines[index].indent == indent,
                   lines[index].text.hasPrefix("- ") || lines[index].text == "-" {
@@ -877,85 +996,100 @@ private struct SchemeYAMLReader {
                     guard index < lines.count, lines[index].indent > indent else { throw RuleSchemeParseError.unsupportedSyntax }
                     array.append(try block(lines[index].indent))
                 } else if let pair = Self.pair(remainder), !remainder.hasPrefix("{") {
-                    // The first mapping key is on the sequence marker's line.
-                    var map: [String: Any] = [:]
+                    var mapping = Mapping()
                     let mapIndent = indent + 2
-                    map[try key(pair.0)] = try valueOrChild(pair.1, parentIndent: mapIndent)
-                    if index < lines.count, lines[index].indent > indent {
-                        guard let continuation = try block(lines[index].indent) as? [String: Any] else { throw RuleSchemeParseError.unsupportedSyntax }
-                        for (key, value) in continuation {
-                            guard map[key] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
-                            map[key] = value
-                        }
-                    }
-                    array.append(map)
+                    try append(pair, to: &mapping, parentIndent: mapIndent)
+                    try readMapping(at: mapIndent, into: &mapping)
+                    array.append(mapping.value)
                 } else {
-                    array.append(try scalar(remainder))
+                    array.append(try valueOrChild(remainder, parentIndent: indent))
                 }
             }
+            lastMappingOrder = nil
             return array
         }
-        var map: [String: Any] = [:]
+        var mapping = Mapping()
+        try readMapping(at: indent, into: &mapping)
+        lastMappingOrder = mapping.order
+        return mapping.value
+    }
+
+    private mutating func readMapping(at indent: Int, into mapping: inout Mapping) throws {
         while index < lines.count, lines[index].indent == indent {
             guard let pair = Self.pair(lines[index].text) else { throw RuleSchemeParseError.unsupportedSyntax }
             index += 1
-            let name = try key(pair.0)
-            guard map[name] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
-            let priorityOrder = name == "priorities" ? try priorityKeys(pair.1, parentIndent: indent) : nil
-            map[name] = try valueOrChild(pair.1, parentIndent: indent)
-            if let priorityOrder { map["tower-priority-order"] = priorityOrder }
+            try append(pair, to: &mapping, parentIndent: indent)
         }
-        return map
     }
 
-    private func priorityKeys(_ text: String, parentIndent: Int) throws -> [String] {
-        if text.hasPrefix("{"), text.hasSuffix("}") {
-            return try Self.fields(String(text.dropFirst().dropLast())).map { field in
-                guard let pair = Self.pair(field, flow: true) else { throw RuleSchemeParseError.unsupportedSyntax }
-                return try key(pair.0)
-            }
-        }
-        guard text.isEmpty, index < lines.count, lines[index].indent > parentIndent else { return [] }
-        let childIndent = lines[index].indent
-        var result: [String] = []
-        for line in lines[index...] {
-            guard line.indent >= childIndent else { break }
-            if line.indent == childIndent, let pair = Self.pair(line.text) { result.append(try key(pair.0)) }
-        }
-        return result
+    private mutating func append(_ pair: (String, String), to mapping: inout Mapping, parentIndent: Int?) throws {
+        let name = try key(pair.0)
+        let value: Any
+        if let parentIndent { value = try valueOrChild(pair.1, parentIndent: parentIndent) }
+        else { value = try scalar(pair.1) }
+        let order = lastMappingOrder
+        try mapping.append(name, value)
+        if name == "priorities", let order { mapping.explicit["tower-priority-order"] = order }
     }
 
     private mutating func valueOrChild(_ text: String, parentIndent: Int) throws -> Any {
+        if let (name, remainder) = try Self.anchor(text) {
+            guard anchors[name] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
+            let value = try valueOrChild(remainder, parentIndent: parentIndent)
+            anchors[name] = value
+            anchorOrders[name] = lastMappingOrder
+            return value
+        }
         if !text.isEmpty { return try scalar(text) }
         if index < lines.count, lines[index].indent > parentIndent ||
             (lines[index].indent == parentIndent && lines[index].text.hasPrefix("- ")) {
             return try block(lines[index].indent)
         }
+        lastMappingOrder = nil
         return NSNull()
     }
 
-    private func key(_ text: String) throws -> String {
-        guard let result = try scalar(text) as? String, result != "<<" else { throw RuleSchemeParseError.unsupportedSyntax }
+    private mutating func key(_ text: String) throws -> String {
+        guard let result = try scalar(text) as? String else { throw RuleSchemeParseError.unsupportedSyntax }
         return result
     }
 
-    private func scalar(_ raw: String) throws -> Any {
+    private mutating func scalar(_ raw: String) throws -> Any {
+        try enter()
+        defer { depth -= 1 }
+        lastMappingOrder = nil
         let text = raw.trimmingCharacters(in: .whitespaces)
+        remainingBytes -= text.utf8.count
+        guard remainingBytes >= 0 else { throw RuleSchemeParseError.unsupportedSyntax }
+        if let (name, remainder) = try Self.anchor(text) {
+            guard anchors[name] == nil, !remainder.isEmpty else { throw RuleSchemeParseError.unsupportedSyntax }
+            let value = try scalar(remainder)
+            anchors[name] = value
+            anchorOrders[name] = lastMappingOrder
+            return value
+        }
+        if text.hasPrefix("*") {
+            let name = String(text.dropFirst())
+            guard let value = anchors[name] else { throw RuleSchemeParseError.unsupportedSyntax }
+            try chargeAlias(value, at: depth)
+            lastMappingOrder = anchorOrders[name]
+            return value
+        }
         if text.hasPrefix("[") {
             guard text.hasSuffix("]") else { throw RuleSchemeParseError.unsupportedSyntax }
-            return try Self.fields(String(text.dropFirst().dropLast())).map { try scalar($0) }
+            let array = try Self.fields(String(text.dropFirst().dropLast())).map { try scalar($0) }
+            lastMappingOrder = nil
+            return array
         }
         if text.hasPrefix("{") {
             guard text.hasSuffix("}") else { throw RuleSchemeParseError.unsupportedSyntax }
-            var map: [String: Any] = [:]
-            for field in Self.fields(String(text.dropFirst().dropLast())) {
+            var mapping = Mapping()
+            for field in try Self.fields(String(text.dropFirst().dropLast())) {
                 guard let pair = Self.pair(field, flow: true) else { throw RuleSchemeParseError.unsupportedSyntax }
-                let name = try key(pair.0)
-                guard map[name] == nil else { throw RuleSchemeParseError.unsupportedSyntax }
-                map[name] = try scalar(pair.1)
-                if name == "priorities" { map["tower-priority-order"] = try priorityKeys(pair.1, parentIndent: 0) }
+                try append(pair, to: &mapping, parentIndent: nil)
             }
-            return map
+            lastMappingOrder = mapping.order
+            return mapping.value
         }
         if text.hasPrefix("\"") {
             guard let data = "[\(text)]".data(using: .utf8), let array = try? JSONSerialization.jsonObject(with: data) as? [String], let value = array.first else { throw RuleSchemeParseError.unsupportedSyntax }
@@ -965,7 +1099,7 @@ private struct SchemeYAMLReader {
             guard text.count >= 2, text.hasSuffix("'") else { throw RuleSchemeParseError.unsupportedSyntax }
             return String(text.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
         }
-        guard !["&", "*", "!", "|", ">"].contains(where: text.hasPrefix) else { throw RuleSchemeParseError.unsupportedSyntax }
+        guard !["!", "|", ">"].contains(where: text.hasPrefix) else { throw RuleSchemeParseError.unsupportedSyntax }
         if ["null", "~"].contains(text.lowercased()) { return NSNull() }
         if text == "true" { return true }
         if text == "false" { return false }
@@ -974,13 +1108,91 @@ private struct SchemeYAMLReader {
         return text
     }
 
+    private mutating func chargeAlias(_ value: Any, at level: Int) throws {
+        guard level < 64, remainingNodes > 0, remainingBytes >= 0 else { throw RuleSchemeParseError.unsupportedSyntax }
+        remainingNodes -= 1
+        if let string = value as? String { remainingBytes -= string.utf8.count }
+        else if let array = value as? [Any] { for item in array { try chargeAlias(item, at: level + 1) } }
+        else if let map = value as? [String: Any] {
+            for (key, item) in map {
+                remainingBytes -= key.utf8.count
+                try chargeAlias(item, at: level + 1)
+            }
+        }
+        guard remainingBytes >= 0 else { throw RuleSchemeParseError.unsupportedSyntax }
+    }
+
+    private static func anchor(_ text: String) throws -> (String, String)? {
+        guard text.hasPrefix("&") else { return nil }
+        let rest = text.dropFirst()
+        let name = rest.prefix { !$0.isWhitespace && !"[]{},".contains($0) }
+        guard !name.isEmpty else { throw RuleSchemeParseError.unsupportedSyntax }
+        return (String(name), rest.dropFirst(name.count).trimmingCharacters(in: .whitespaces))
+    }
+
+    /// Fold flow collections into logical lines while preserving quoted regexes,
+    /// URLs and comment markers. Documents are deliberately not concatenated.
+    private static func logicalLines(_ source: String) throws -> [Line] {
+        var result: [Line] = [], pending = "", indent = 0
+        var brackets: [Character] = [], quote: Character?, escaped = false
+        var ended = false, started = false
+        for raw in source.components(separatedBy: .newlines) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if pending.isEmpty, trimmed == "---" || trimmed == "..." {
+                if trimmed == "---" {
+                    guard !started, !ended else { throw RuleSchemeParseError.unsupportedSyntax }
+                    started = true
+                } else { ended = true }
+                continue
+            }
+            var clean = ""
+            for position in raw.indices {
+                let character = raw[position]
+                if let active = quote {
+                    if character == active && (active == "'" || !escaped) { quote = nil }
+                } else if character == "#", position == raw.startIndex || raw[raw.index(before: position)].isWhitespace {
+                    break
+                } else if Self.opensQuote(character, after: position == raw.startIndex ? nil : raw[raw.index(before: position)]) { quote = character }
+                else if character == "[" || character == "{" {
+                    guard brackets.count < 64 else { throw RuleSchemeParseError.unsupportedSyntax }
+                    brackets.append(character)
+                } else if character == "]" || character == "}" {
+                    guard brackets.popLast() == (character == "]" ? "[" : "{") else { throw RuleSchemeParseError.unsupportedSyntax }
+                }
+                clean.append(character)
+                escaped = character == "\\" && !escaped
+            }
+            clean = clean.trimmingCharacters(in: .whitespacesAndNewlines)
+            if clean.isEmpty { continue }
+            guard !ended else { throw RuleSchemeParseError.unsupportedSyntax }
+            if pending.isEmpty {
+                indent = raw.prefix { $0 == " " }.count
+                guard !raw.prefix(while: { $0.isWhitespace }).contains("\t") else { throw RuleSchemeParseError.unsupportedSyntax }
+            }
+            pending += (pending.isEmpty ? "" : " ") + clean
+            if brackets.isEmpty, quote == nil {
+                result.append(Line(indent: indent, text: pending))
+                pending = ""
+                started = true
+            }
+        }
+        guard pending.isEmpty, brackets.isEmpty, quote == nil else { throw RuleSchemeParseError.unsupportedSyntax }
+        return result
+    }
+
+    private static func opensQuote(_ character: Character, after previous: Character?) -> Bool {
+        guard character == "\"" || character == "'" else { return false }
+        guard let previous else { return true }
+        return previous.isWhitespace || "[{,:-'\"".contains(previous)
+    }
+
     private static func pair(_ text: String, flow: Bool = false) -> (String, String)? {
         var quote: Character?, depth = 0, escaped = false
         for index in text.indices {
             let character = text[index]
             if let active = quote {
-                if character == active && !escaped { quote = nil }
-            } else if character == "\"" || character == "'" { quote = character }
+                if character == active && (active == "'" || !escaped) { quote = nil }
+            } else if Self.opensQuote(character, after: index == text.startIndex ? nil : text[text.index(before: index)]) { quote = character }
             else if character == "[" || character == "{" { depth += 1 }
             else if character == "]" || character == "}" { depth -= 1 }
             else if character == ":", depth == 0 {
@@ -994,32 +1206,23 @@ private struct SchemeYAMLReader {
         return nil
     }
 
-    private static func fields(_ text: String) -> [String] {
-        var result: [String] = [], field = "", quote: Character?, depth = 0, escaped = false
+    private static func fields(_ text: String) throws -> [String] {
+        var result: [String] = [], field = "", quote: Character?, previous: Character?, depth = 0, escaped = false
         for character in text {
             if let active = quote {
-                if character == active && !escaped { quote = nil }
-            } else if character == "\"" || character == "'" { quote = character }
+                if character == active && (active == "'" || !escaped) { quote = nil }
+            } else if Self.opensQuote(character, after: previous) { quote = character }
             else if character == "[" || character == "{" { depth += 1 }
             else if character == "]" || character == "}" { depth -= 1 }
-            if character == ",", quote == nil, depth == 0 { result.append(field); field = "" }
-            else { field.append(character) }
+            if character == ",", quote == nil, depth == 0 {
+                guard !field.trimmingCharacters(in: .whitespaces).isEmpty else { throw RuleSchemeParseError.unsupportedSyntax }
+                result.append(field); field = ""
+            } else { field.append(character) }
             escaped = character == "\\" && !escaped
+            previous = character
         }
+        guard quote == nil, depth == 0 else { throw RuleSchemeParseError.unsupportedSyntax }
         if !field.trimmingCharacters(in: .whitespaces).isEmpty { result.append(field) }
         return result
-    }
-
-    private static func removeComment(_ text: String) -> String {
-        var quote: Character?, escaped = false
-        for index in text.indices {
-            let character = text[index]
-            if let active = quote {
-                if character == active && !escaped { quote = nil }
-            } else if character == "\"" || character == "'" { quote = character }
-            else if character == "#", index == text.startIndex || text[text.index(before: index)].isWhitespace { return String(text[..<index]) }
-            escaped = character == "\\" && !escaped
-        }
-        return text
     }
 }

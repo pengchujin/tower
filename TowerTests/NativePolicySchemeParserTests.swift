@@ -159,7 +159,7 @@ final class NativePolicySchemeParserTests: XCTestCase {
         XCTAssertEqual(migrated.updatedAt, scheme.updatedAt)
     }
 
-    func testYAMLAliasesAreRejectedRatherThanChangingMeaning() {
+    func testUndefinedYAMLAliasesAreRejectedRatherThanChangingMeaning() {
         XCTAssertThrowsError(try parse("""
         proxy-groups:
           - name: Main

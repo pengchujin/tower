@@ -330,7 +330,7 @@ final class ConfigurationCredentialTests: XCTestCase {
         )
         let generator = ConfigurationGenerator()
 
-        let clash = generator.generate(nodes: [], scheme: scheme, target: .clash).content
+        let clash = generator.generate(nodes: [], scheme: scheme, target: .clashMi).content
         let surge = generator.generate(nodes: [], scheme: scheme, target: .surge).content
 
         XCTAssertFalse(clash.contains("URL-REGEX"), "Clash Mi 不支持 URL-REGEX，写出后整份配置无法启动")

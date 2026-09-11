@@ -3,6 +3,7 @@ import UIKit
 
 struct RulesView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isImportPresented = false
     @State private var pendingDeletion: RuleScheme?
     @State private var editingImportedScheme: RuleScheme?
@@ -11,7 +12,7 @@ struct RulesView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 22) {
+            LazyVStack(spacing: 12) {
                 VStack(spacing: 8) {
                     RulesOverviewCard()
                     Label("点击规则方案即可修改规则", systemImage: "hand.tap")
@@ -46,7 +47,7 @@ struct RulesView: View {
                 Button {
                     isImportPresented = true
                 } label: {
-                    Label("导入规则链接", systemImage: "link.badge.plus")
+                    Label("导入规则", systemImage: "plus")
                 }
                 .accessibilityIdentifier("import-rule-scheme")
             }
@@ -70,7 +71,9 @@ struct RulesView: View {
             presenting: pendingDeletion
         ) { deletion in
             Button("删除", role: .destructive) {
-                model.deleteScheme(deletion)
+                withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
+                    model.deleteScheme(deletion)
+                }
                 pendingDeletion = nil
             }
             Button("取消", role: .cancel) { pendingDeletion = nil }
@@ -81,7 +84,7 @@ struct RulesView: View {
 
     private var builtInSection: some View {
         let schemes = model.ruleSchemes.filter(\.isBundled)
-        return LazyVStack(spacing: 12) {
+        return Group {
             SectionHeading(title: "本机规则", detail: String(localized: "安装后离线可用"))
             ForEach(schemes) { scheme in
                 RuleSchemeCard(
@@ -127,7 +130,7 @@ struct RulesView: View {
         let schemes = model.ruleSchemes.filter {
             !$0.isBundled && !SelfConfigurationSource.matches($0)
         }
-        LazyVStack(spacing: 12) {
+        Group {
             SectionHeading(title: "已导入", detail: String(localized: "\(schemes.count) 个方案"))
             if schemes.isEmpty {
                 Text("还没有导入规则，使用右上角按钮添加。")
@@ -151,6 +154,7 @@ struct RulesView: View {
                         onEdit: { editingImportedScheme = scheme },
                         onDelete: { pendingDeletion = scheme }
                     )
+
                 }
             }
         }
@@ -266,6 +270,26 @@ private struct RuleDisclosureRow: View {
     }
 }
 
+/// Imported groups display only the emoji actually present in their names.
+private struct RuleGroupEmoji: View {
+    let group: RuleSchemeGroup
+    let isVisible: Bool
+    let inferFromName: Bool
+
+    var body: some View {
+        let emoji = RulePolicyPresentation.emoji(for: group.name, kind: group.kind, inferFromName: inferFromName)
+        if !emoji.isEmpty {
+            Text(emoji)
+            .font(.body)
+            .frame(width: 28, height: 28)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            .opacity(isVisible ? 1 : 0)
+            .accessibilityHidden(!isVisible)
+            .animation(nil, value: isVisible)
+        }
+    }
+}
+
 private struct RuleDetailLine: View {
     let title: String
     let detail: String
@@ -363,47 +387,79 @@ private struct RuleSchemeCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 8) {
-                Button(action: onCustomize) {
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(scheme.name)
-                                .font(.headline)
-                            Text(scheme.localizedSummary())
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text("\(ruleCount.formatted()) 条 · \(previewScheme.groups.count) 个策略组")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                            if !isReady {
-                                Label("部分规则还没下载完成", systemImage: "exclamationmark.triangle.fill")
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 8) {
+                    Button(action: onCustomize) {
+                        HStack(alignment: .center, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(scheme.name)
+                                    .font(.headline)
+                                Text(scheme.localizedSummary())
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text("\(ruleCount.formatted()) 条 · \(previewScheme.groups.count) 个策略组")
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(.tertiary)
+                                if !isReady {
+                                    Label("部分规则还没下载完成", systemImage: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
                             }
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.tertiary)
                         }
-                        Spacer(minLength: 4)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(SelectionIndicatorButtonStyle())
-                .accessibilityIdentifier("rule-customization-\(scheme.id)")
-                .accessibilityLabel("编辑 \(scheme.name)")
-
-                Button(action: onSelect) {
-                    SelectionIndicator(isSelected: isSelected)
-                        .frame(width: 44, height: 44, alignment: .topTrailing)
                         .contentShape(Rectangle())
+                    }
+                    .buttonStyle(SelectionIndicatorButtonStyle())
+                    .accessibilityIdentifier("rule-customization-\(scheme.id)")
+                    .accessibilityLabel("编辑 \(scheme.name)")
+
+                    Button(action: onSelect) {
+                        SelectionIndicator(isSelected: isSelected)
+                            .frame(width: 44, height: 44, alignment: .topTrailing)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(SelectionIndicatorButtonStyle())
+                    .accessibilityLabel(isSelected ? "\(scheme.name)，当前使用" : "使用 \(scheme.name)")
                 }
-                .buttonStyle(SelectionIndicatorButtonStyle())
-                .accessibilityLabel(isSelected ? "\(scheme.name)，当前使用" : "使用 \(scheme.name)")
+                .padding(16)
+                .accessibilityIdentifier("scheme-\(scheme.id)")
+
+
+                Divider()
+
+                HStack(spacing: 0) {
+                    RuleDisclosureRow(title: String(localized: "查看策略组"), isExpanded: isExpanded) {
+                        withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
+                    }
+                    .accessibilityIdentifier("scheme-detail-\(scheme.id)")
+
+                    if let onRefresh {
+                        Divider().frame(height: 22)
+                        Button(action: onRefresh) {
+                            Group {
+                                if isRefreshing {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                }
+                            }
+                            .frame(width: 46, height: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isRefreshing)
+                        .accessibilityLabel("刷新 \(scheme.name)")
+                    }
+                }
             }
-            .padding(16)
-            .accessibilityIdentifier("scheme-\(scheme.id)")
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: TowerTheme.cornerRadius))
             .contextMenu {
                 if let onEdit {
                     Button(action: onEdit) {
@@ -421,36 +477,12 @@ private struct RuleSchemeCard: View {
                     }
                 }
             }
-
-            Divider()
-
-            HStack(spacing: 0) {
-                RuleDisclosureRow(title: String(localized: "查看策略组"), isExpanded: isExpanded) {
-                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
-                }
-                .accessibilityIdentifier("scheme-detail-\(scheme.id)")
-
-                if let onRefresh {
-                    Divider().frame(height: 22)
-                    Button(action: onRefresh) {
-                        Group {
-                            if isRefreshing {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                            }
-                        }
-                        .frame(width: 46, height: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isRefreshing)
-                    .accessibilityLabel("刷新 \(scheme.name)")
-                }
-            }
+            .modifier(RuleCardSwipeDeletion(onDelete: onDelete))
 
             if isExpanded {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                // Policy summaries are bounded; measure the full expanded height
+                // so scrolling does not change the card's estimated size.
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(previewScheme.groups, id: \.name) { group in
                         RuleDetailLine(title: group.name, detail: description(of: group))
                     }
@@ -477,12 +509,19 @@ private struct RuleSchemeCard: View {
                 .transition(.opacity)
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
         .towerCard()
         .overlay {
             RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous)
                 .stroke(isSelected ? Color.accentColor.opacity(0.65) : Color.clear, lineWidth: 1.5)
                 .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
         }
+        // As in SubscriptionCard, background and text share one moving frame.
+        .geometryGroup()
+        .contentShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius))
+        .transition(.opacity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("scheme-card-\(scheme.id)")
         .sensoryFeedback(.selection, trigger: isExpanded)
     }
 
@@ -547,83 +586,6 @@ private struct ImportedRuleSchemeEditor: View {
             }
         }
         .presentationDetents([.medium])
-    }
-}
-
-private struct ImportRuleSchemeSheet: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var requestsDiscard = false
-    @State private var urlString = ""
-    @State private var name = ""
-    @State private var errorMessage: String?
-    @State private var isSaving = false
-    @State private var saveTask: Task<Void, Never>?
-    @FocusState private var isURLFocused: Bool
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("https://…", text: $urlString, axis: .vertical)
-                        .lineLimit(2...6)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($isURLFocused)
-                        .accessibilityIdentifier("scheme-url-field")
-                } header: {
-                    Text("规则配置地址")
-                } footer: {
-                    Text("支持 Clash YAML、subconverter（`.ini`）和 Surge 配置。塔台会下载配置及其引用的规则列表并保存在本机。粘贴 GitHub、Gitee 的网页地址也可以，会自动转成文件本身的地址。")
-                }
-
-                Section("名称（可选）") {
-                    TextField("留空则使用文件名", text: $name)
-                }
-
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-            .navigationTitle("导入规则")
-            .navigationBarTitleDisplayMode(.inline)
-            .confirmDiscardChanges(hasChanges: !urlString.isEmpty || !name.isEmpty, isBusy: isSaving, requested: $requestsDiscard) { saveTask?.cancel(); if isSaving { model.cancelRuleImport() } }
-            .onDisappear { saveTask?.cancel(); if isSaving { model.cancelRuleImport() } }
-            .scrollDismissesKeyboard(.interactively)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { requestsDiscard = true }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "正在下载…" : "导入") {
-                        saveTask = Task { await save() }
-                    }
-                    .disabled(urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
-                    .accessibilityIdentifier("save-scheme")
-                }
-            }
-            .onAppear { isURLFocused = true }
-            .onChange(of: urlString) { errorMessage = nil }
-        }
-    }
-
-    private func save() async {
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
-
-        do {
-            try await model.importScheme(name: name, urlString: urlString)
-            dismiss()
-        } catch {
-            guard !Task.isCancelled, !(error is CancellationError) else { return }
-            errorMessage = error.localizedDescription
-        }
     }
 }
 
@@ -818,12 +780,14 @@ private struct RuleCustomizationSheet: View {
             }
             .sheet(item: $manualEditor) { request in
                 LocalRuleSetEditor(ruleSet: request.ruleSet)
+                    .environment(model)
             }
             .sheet(item: $catalogEditor) { request in
                 CatalogRuleRouteEditor(scheme: request.scheme, flow: request.flow)
             }
             .sheet(item: $groupEditor) { request in
                 RuleGroupEditor(scheme: request.scheme, group: request.group)
+                    .environment(model)
             }
             .sheet(item: $identityEditor, onDismiss: reloadEditingGroupsIfNeeded) { request in
                 RuleGroupIdentityEditor(model: model, scheme: request.scheme, group: request.group)
@@ -990,6 +954,7 @@ private struct RuleCustomizationSheet: View {
                         .foregroundStyle(Color.accentColor)
                 }
             }
+            .accessibilityIdentifier("local-rule-create")
             .listRowInsets(compactRuleRowInsets)
 
             ForEach(visibleLocalRuleSets) { ruleSet in
@@ -1093,6 +1058,7 @@ private struct RuleCustomizationSheet: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("local-rule-set-\(ruleSet.name)")
 
             Button {
                 if isAdded {
@@ -1146,6 +1112,7 @@ private struct RuleCustomizationSheet: View {
                 .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("rule-group-routing-" + group.name)
         }
     }
 
@@ -1170,14 +1137,7 @@ private struct RuleCustomizationSheet: View {
     }
 
     private func visibleRuleGroupEmoji(_ group: RuleSchemeGroup) -> some View {
-        let emojisVisible = model.ruleGroupEmojisAreEnabled(for: scheme)
-        return Text(RulePolicyPresentation.emoji(for: group.name, kind: group.kind))
-            .font(.body)
-            .frame(width: 28, height: 28)
-            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-            .opacity(emojisVisible ? 1 : 0)
-            .accessibilityHidden(!emojisVisible)
-            .animation(nil, value: emojisVisible)
+        RuleGroupEmoji(group: group, isVisible: model.ruleGroupEmojisAreEnabled(for: scheme), inferFromName: scheme.isBundled)
     }
 
     private func openIdentityEditor(for group: RuleSchemeGroup) {
@@ -1193,15 +1153,16 @@ private struct RuleCustomizationSheet: View {
     }
 
     private func groupSelectionSummary(_ group: RuleSchemeGroup) -> String {
+        if scheme.groupEditorMode(for: group) == .nodePatternsOnly {
+            return group.kind.displayTitle
+        }
         if let reference = group.members.compactMap({ member -> String? in
             guard case .reference(let name) = member else { return nil }
             return name
         }).first {
             return RulePolicyPresentation.nameWithoutLeadingEmoji(reference)
         }
-        return group.kind == .urlTest
-            ? String(localized: "自动选择")
-            : String(localized: "节点匹配")
+        return group.kind.displayTitle
     }
 
     private func categoryButton(_ category: RuleCatalogCategory?, title: String) -> some View {
@@ -1428,7 +1389,11 @@ private struct RuleSchemeNetworkSettingsEditor: View {
                 }
 
                 Section("网络") {
-                    Toggle("IPv6", isOn: $draft.ipv6Enabled)
+                    Picker("IPv6", selection: $draft.ipv6Override) {
+                        Text("默认").tag(nil as Bool?)
+                        Text("开启").tag(true as Bool?)
+                        Text("关闭").tag(false as Bool?)
+                    }
                 }
 
                 Section {
@@ -1774,12 +1739,13 @@ private struct RuleGroupIdentityEditor: View {
         self.model = model
         self.scheme = scheme
         self.group = group
-        _emoji = State(initialValue: RulePolicyPresentation.emoji(for: group.name, kind: group.kind))
+        _emoji = State(initialValue: RulePolicyPresentation.emoji(for: group.name, kind: group.kind, inferFromName: false))
         _name = State(initialValue: RulePolicyPresentation.nameWithoutLeadingEmoji(group.name))
     }
 
     private var selectedEmoji: String? {
         let value = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty { return "" }
         guard value.count == 1,
               let character = value.first,
               character.unicodeScalars.contains(where: { $0.properties.isEmoji }) else {
@@ -1811,7 +1777,7 @@ private struct RuleGroupIdentityEditor: View {
             }
             .navigationTitle("修改规则名称")
             .navigationBarTitleDisplayMode(.inline)
-            .confirmDiscardChanges(hasChanges: emoji != RulePolicyPresentation.emoji(for: group.name, kind: group.kind) || name != RulePolicyPresentation.nameWithoutLeadingEmoji(group.name), requested: $requestsDiscard)
+            .confirmDiscardChanges(hasChanges: emoji != RulePolicyPresentation.emoji(for: group.name, kind: group.kind, inferFromName: false) || name != RulePolicyPresentation.nameWithoutLeadingEmoji(group.name), requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { requestsDiscard = true }
@@ -1838,7 +1804,7 @@ private struct RuleGroupIdentityEditor: View {
         do {
             try model.renameRuleGroup(
                 named: group.name,
-                to: "\(selectedEmoji) \(trimmedName)",
+                to: selectedEmoji.isEmpty ? trimmedName : "\(selectedEmoji) \(trimmedName)",
                 for: scheme
             )
             dismiss()
@@ -1855,9 +1821,10 @@ private struct RuleGroupEditor: View {
     let scheme: RuleScheme
     let group: RuleSchemeGroup
     @State private var selectedReferences: [String]
-    @State private var selectedNodePatterns: Set<String>
+    @State private var nodeFilters: [EditableNodeNameFilter]
+    @State private var previewResult: NodeNameFilterPreviewResult?
     private let initialReferences: [String]
-    private let initialNodePatterns: Set<String>
+    private let initialNodeFilters: [EditableNodeNameFilter]
     @State private var selectedKind: RuleSchemeGroup.Kind
 
     init(scheme: RuleScheme, group: RuleSchemeGroup) {
@@ -1870,14 +1837,13 @@ private struct RuleGroupEditor: View {
             return name
         }.filter { seenReferences.insert($0).inserted }
         initialReferences = references
-        initialNodePatterns = Set(group.members.compactMap { member in
-            guard case .nodePattern(let pattern) = member else { return nil }; return pattern
-        })
+        let existingFilters = EditableNodeNameFilter.rows(for: group)
+        let filters = existingFilters.isEmpty
+            ? [EditableNodeNameFilter(pattern: "", isSourceBound: group.parameters?["tower-source-patterns"] != nil)]
+            : existingFilters
+        initialNodeFilters = filters
         _selectedReferences = State(initialValue: references)
-        _selectedNodePatterns = State(initialValue: Set(group.members.compactMap { member in
-            guard case .nodePattern(let pattern) = member else { return nil }
-            return pattern
-        }))
+        _nodeFilters = State(initialValue: filters)
     }
 
     private var editorMode: RuleSchemeGroupEditorMode {
@@ -1891,17 +1857,32 @@ private struct RuleGroupEditor: View {
         )
     }
 
-    private var nodePatternOptions: [String] {
-        group.members.compactMap { member in
-            guard case .nodePattern(let pattern) = member else { return nil }
-            return pattern
+    private var caseInsensitiveDefault: Bool {
+        group.sourceFormat == nil || group.sourceFormat == "subconverter"
+    }
+
+    private var sourceGroup: RuleSchemeGroup? {
+        let name = model.sourceRuleGroupName(group.name, for: scheme)
+        return scheme.groups.first { $0.name == name }
+    }
+
+    private var previewCandidates: [[String]] {
+        model.enabledNodes.map { node in
+            let presented = model.nodeForPresentation(node)
+            return [NodeRegionResolver.displayName(for: presented), presented.name]
         }
+    }
+
+    private var enabledPatterns: [String] { nodeFilters.filter(\.isEnabled).map(\.pattern) }
+
+    private var previewInput: NodeNameFilterPreviewInput {
+        .init(patterns: enabledPatterns, candidates: previewCandidates, insensitive: caseInsensitiveDefault)
     }
 
     private var saveIsDisabled: Bool {
         switch editorMode {
         case .routingTargets: selectedReferences.isEmpty
-        case .nodePatternsOnly: selectedNodePatterns.isEmpty
+        case .nodePatternsOnly: enabledPatterns.isEmpty || previewResult?.input != previewInput || previewResult?.error != nil
         }
     }
 
@@ -1925,77 +1906,65 @@ private struct RuleGroupEditor: View {
                 case .routingTargets:
                     OrderedPolicyCandidateSections(
                         selected: $selectedReferences,
-                        options: referenceOptions
+                        options: referenceOptions,
+                        scheme: scheme
                     )
 
                 case .nodePatternsOnly:
                     Section {
-                        ForEach(nodePatternOptions, id: \.self) { pattern in
-                            candidateRow(
-                                pattern == ".*" ? String(localized: "全部节点") : pattern,
-                                isSelected: selectedNodePatterns.contains(pattern),
-                                emoji: "🔎"
-                            ) {
-                                toggleNodePattern(pattern)
-                            }
+                        // Existing expressions keep their independent source scope.
+                        // They share one editing section; adding another filter is
+                        // unnecessary because keywords already match any term.
+                        ForEach(nodeFilters) { filter in
+                            NodeNameFilterFields(pattern: Binding(
+                                get: { nodeFilters.first { $0.id == filter.id }?.pattern ?? filter.pattern },
+                                set: { value in
+                                    if let index = nodeFilters.firstIndex(where: { $0.id == filter.id }) {
+                                        nodeFilters[index].pattern = value
+                                    }
+                                }
+                            ), caseInsensitiveDefault: caseInsensitiveDefault)
                         }
                     } header: {
                         Text("节点名称匹配")
                     }
+                    NodeNameFilterPreview(input: previewInput, result: previewResult)
+                    if let sourceGroup {
+                        Section {
+                            Button("恢复方案默认筛选") {
+                                nodeFilters = EditableNodeNameFilter.rows(for: sourceGroup)
+                            }
+                        }
+                    }
                 }
+            }
+            .task(id: previewInput) {
+                guard editorMode == .nodePatternsOnly else { return }
+                let input = previewInput
+                do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+                let result = await input.evaluate()
+                guard !Task.isCancelled, previewInput == input else { return }
+                previewResult = result
             }
             .navigationTitle(RulePolicyPresentation.nameWithoutLeadingEmoji(group.name))
             .navigationBarTitleDisplayMode(.inline)
-            .confirmDiscardChanges(hasChanges: selectedReferences != initialReferences || selectedNodePatterns != initialNodePatterns || selectedKind != group.kind, requested: $requestsDiscard)
+            .confirmDiscardChanges(hasChanges: selectedReferences != initialReferences || nodeFilters != initialNodeFilters || selectedKind != group.kind, requested: $requestsDiscard)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { requestsDiscard = true }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
+                        .accessibilityIdentifier("node-filter-group-save")
                         .disabled(saveIsDisabled)
                 }
             }
         }
     }
 
-    private func candidateRow(
-        _ policy: String,
-        isSelected: Bool,
-        emoji: String? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Text(emoji ?? RulePolicyPresentation.emoji(for: policy, kind: .select))
-                    .frame(width: 28)
-                Text(RulePolicyPresentation.nameWithoutLeadingEmoji(policy))
-                    .foregroundStyle(.primary)
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentColor)
-                    .opacity(isSelected ? 1 : 0)
-                    .accessibilityHidden(!isSelected)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityValue(isSelected ? "已选" : "未选")
-    }
-
-    private func toggleNodePattern(_ value: String) {
-        if selectedNodePatterns.contains(value) {
-            selectedNodePatterns.remove(value)
-        } else {
-            selectedNodePatterns.insert(value)
-        }
-    }
-
     private func save() {
         let referenceMembers = selectedReferences.map(RuleSchemeGroupMember.reference)
-        let patternMembers = nodePatternOptions.compactMap { pattern in
-            selectedNodePatterns.contains(pattern) ? RuleSchemeGroupMember.nodePattern(pattern) : nil
-        }
+        let patternMembers = nodeFilters.filter(\.isEnabled).map { RuleSchemeGroupMember.nodePattern($0.pattern) }
         let members: [RuleSchemeGroupMember]
         switch editorMode {
         case .routingTargets:
@@ -2016,7 +1985,9 @@ private struct RuleGroupEditor: View {
                 sourceFormat: group.sourceFormat,
                 parameters: group.parameters
             ),
-            for: scheme
+            for: scheme,
+            sourceNodePatterns: editorMode == .nodePatternsOnly && group.parameters?["tower-source-patterns"] != nil
+                ? nodeFilters.filter { $0.isEnabled && $0.isSourceBound }.map(\.pattern) : nil
         )
         dismiss()
     }
@@ -2028,6 +1999,7 @@ private struct RuleGroupEditor: View {
 private struct OrderedPolicyCandidateSections: View {
     @Binding var selected: [String]
     let options: [String]
+    let scheme: RuleScheme
 
     private var available: [String] {
         options.filter { !selected.contains($0) }
@@ -2037,8 +2009,7 @@ private struct OrderedPolicyCandidateSections: View {
         Section {
             ForEach(selected, id: \.self) { policy in
                 HStack(spacing: 12) {
-                    Text(RulePolicyPresentation.emoji(for: policy, kind: .select))
-                        .frame(width: 28)
+                    policyEmoji(policy)
                     Text(policyTitle(policy))
                     Spacer(minLength: 8)
                     if selected.first == policy {
@@ -2061,27 +2032,41 @@ private struct OrderedPolicyCandidateSections: View {
             Text("第一项是默认策略。可拖动排序；导入客户端后仍可手动切换。")
         }
 
-        if !available.isEmpty {
-            Section("可添加策略") {
-                ForEach(available, id: \.self) { policy in
-                    Button {
-                        selected.append(policy)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(RulePolicyPresentation.emoji(for: policy, kind: .select))
-                                .frame(width: 28)
-                            Text(policyTitle(policy))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "plus.circle")
-                                .font(.title3)
-                                .foregroundStyle(Color.accentColor)
-                        }
-                        .contentShape(Rectangle())
+        Section("可添加策略") {
+            ForEach(available, id: \.self) { policy in
+                Button {
+                    selected.append(policy)
+                } label: {
+                    HStack(spacing: 12) {
+                        policyEmoji(policy)
+                        Text(policyTitle(policy))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "plus.circle")
+                            .font(.title3)
+                            .foregroundStyle(Color.accentColor)
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
+            NavigationLink {
+                CustomNodeFilterCreator(scheme: scheme) { name in
+                    if !selected.contains(name) { selected.append(name) }
+                }
+            } label: {
+                Label("自定义节点筛选", systemImage: "plus.circle")
+                    .foregroundStyle(Color.accentColor)
+            }
+            .accessibilityIdentifier("custom-node-filter-create")
+        }
+    }
+
+    @ViewBuilder
+    private func policyEmoji(_ policy: String) -> some View {
+        let emoji = RulePolicyPresentation.emoji(for: policy, kind: .select, inferFromName: scheme.isBundled)
+        if !emoji.isEmpty {
+            Text(emoji).frame(width: 28)
         }
     }
 
@@ -2144,11 +2129,12 @@ private struct SaveCustomizedSchemeSheet: View {
 }
 
 enum RulePolicyPresentation {
-    static func emoji(for name: String, kind: RuleSchemeGroup.Kind) -> String {
-        if let first = name.first,
-           first.unicodeScalars.contains(where: { $0.properties.isEmoji }) {
+    static func emoji(for name: String, kind: RuleSchemeGroup.Kind, inferFromName: Bool = true) -> String {
+        if let first = name.trimmingCharacters(in: .whitespacesAndNewlines).first,
+           isEmoji(first) {
             return String(first)
         }
+        guard inferFromName else { return "" }
         let key = nameWithoutLeadingEmoji(name).lowercased()
         let mappings: [(needles: [String], emoji: String)] = [
             (["节点选择", "proxy"], "🚀"),
@@ -2182,10 +2168,18 @@ enum RulePolicyPresentation {
         return kind == .urlTest ? "⚡️" : "🧩"
     }
 
+    private static func isEmoji(_ character: Character) -> Bool {
+        // ASCII digits, # and * are emoji-capable scalars, but are ordinary
+        // policy-name text unless part of a keycap grapheme.
+        character.unicodeScalars.contains { $0.properties.isEmojiPresentation }
+            || (character.unicodeScalars.count > 1
+                && character.unicodeScalars.contains { $0.properties.isEmoji })
+    }
+
     static func nameWithoutLeadingEmoji(_ name: String) -> String {
         var result = name.trimmingCharacters(in: .whitespacesAndNewlines)
         while let first = result.first,
-              first.unicodeScalars.contains(where: { $0.properties.isEmoji }) {
+              isEmoji(first) {
             result.removeFirst()
             result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -2200,6 +2194,7 @@ private struct CatalogRuleRouteEditor: View {
     let scheme: RuleScheme
     let flow: CustomRuleFlow
     private let initialReferences: [String]
+    @State private var didLoadGroup = false
     @State private var selectedReferences: [String]
 
     init(scheme: RuleScheme, flow: CustomRuleFlow) {
@@ -2236,7 +2231,8 @@ private struct CatalogRuleRouteEditor: View {
             Form {
                 OrderedPolicyCandidateSections(
                     selected: $selectedReferences,
-                    options: policyOptions
+                    options: policyOptions,
+                    scheme: scheme
                 )
             }
             .navigationTitle("规则流向")
@@ -2251,7 +2247,11 @@ private struct CatalogRuleRouteEditor: View {
                         .disabled(selectedReferences.isEmpty)
                 }
             }
-            .onAppear { loadCurrentGroup() }
+            .onAppear {
+                guard !didLoadGroup else { return }
+                didLoadGroup = true
+                loadCurrentGroup()
+            }
         }
     }
 
@@ -2311,6 +2311,7 @@ private struct LocalRuleSetEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var requestsDiscard = false
+    @State private var didFocusName = false
     let existingRuleSet: LocalRuleSet?
     @State private var name: String
     @State private var rulesText: String
@@ -2325,14 +2326,8 @@ private struct LocalRuleSetEditor: View {
         _rulesText = State(initialValue: ruleSet?.ruleInputText ?? "")
     }
 
-    private var normalizedRuleCount: Int {
-        draft.normalizedRules.count
-    }
-
     private var ruleContentSummary: String {
-        draft.remoteRuleURL == nil
-            ? String(localized: "\(normalizedRuleCount) 条")
-            : String(localized: "远程规则集")
+        draft.remoteRuleURL == nil ? String(localized: "规则文本") : String(localized: "远程规则集")
     }
 
     private var draft: LocalRuleSet {
@@ -2384,6 +2379,7 @@ private struct LocalRuleSetEditor: View {
                         }
 
                         TextEditor(text: $rulesText)
+                            .accessibilityIdentifier("local-rules-text")
                             .font(.system(.footnote, design: .monospaced))
                             .scrollContentBackground(.hidden)
                             .frame(minHeight: 230)
@@ -2398,8 +2394,9 @@ private struct LocalRuleSetEditor: View {
                         Text(ruleContentSummary)
                     }
                 } footer: {
-                    Text("支持 HTTPS 的 Clash / Surge .list 规则集，也支持 DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP 等 TYPE,VALUE 写法。保存后会出现在“我的规则集”，点击加号才会加入当前规则。")
+                    Text("支持 HTTPS 规则集链接，或逐行输入条件规则。保存后点击加号加入当前方案。")
                 }
+                LocalRuleCompatibilityView(text: rulesText)
             }
             .navigationTitle(existingRuleSet == nil
                 ? String(localized: "新建规则集")
@@ -2417,7 +2414,7 @@ private struct LocalRuleSetEditor: View {
                     Button(isSaving ? "正在保存…" : "保存") { save() }
                         .disabled(
                             name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                || !draft.hasRuleContent
+                                || rulesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 || isSaving
                         )
                 }
@@ -2427,7 +2424,10 @@ private struct LocalRuleSetEditor: View {
                 }
             }
             .onAppear {
-                if existingRuleSet == nil { focusedField = .name }
+                if existingRuleSet == nil, !didFocusName {
+                    didFocusName = true
+                    focusedField = .name
+                }
             }
             .alert("无法保存规则集", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -2584,5 +2584,52 @@ private struct MacListReorderBridge: UIViewRepresentable {
             default: break
             }
         }
+    }
+}
+
+/// Keep the native swipe row bounded to the controls. Expanded summaries remain
+/// in the outer scroll view, outside both swipe translation and row self-sizing.
+private struct RuleCardSwipeDeletion: ViewModifier {
+    let onDelete: (() -> Void)?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let onDelete {
+            // The invisible copy supplies the controls' intrinsic height, including
+            // Dynamic Type. The native list never measures the expanded details.
+            content.hidden().accessibilityHidden(true)
+                .overlay {
+                    List {
+                        content
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                deleteButton(onDelete)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                deleteButton(onDelete)
+                            }
+                    }
+                    .listStyle(.plain)
+                    .scrollDisabled(true)
+                    .scrollContentBackground(.hidden)
+                    .scrollIndicators(.hidden)
+                    .contentMargins(.all, 0, for: .scrollContent)
+                    .environment(\.defaultMinListRowHeight, 0)
+                }
+                .clipped()
+        } else {
+            content
+        }
+    }
+
+    private func deleteButton(_ onDelete: @escaping () -> Void) -> some View {
+        // A destructive swipe action removes the native row before confirmation.
+        // Only the alert commits deletion; cancellation must leave the card intact.
+        Button(action: onDelete) {
+            Label("删除", systemImage: "trash")
+        }
+        .tint(.red)
     }
 }

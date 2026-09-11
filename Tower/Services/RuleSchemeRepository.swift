@@ -102,7 +102,7 @@ struct RuleSchemeRepository {
         return content.components(separatedBy: .newlines).contains { rawLine in
             rawLine
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}")) == "payload:"
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}")) .hasPrefix("payload:")
         }
     }
 
@@ -170,7 +170,7 @@ struct RuleSchemeRepository {
     static func sanitizedLines(from content: String) -> [String] {
         let rawLines = content.components(separatedBy: .newlines)
         let isClashProvider = rawLines.contains {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines) == "payload:"
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("payload:")
         }
         guard isClashProvider else {
             return rawLines
@@ -178,22 +178,10 @@ struct RuleSchemeRepository {
                 .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix(";") && !$0.hasPrefix("//") }
         }
 
-        var inPayload = false
-        return rawLines.compactMap { rawLine in
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line == "payload:" {
-                inPayload = true
-                return nil
-            }
-            guard inPayload, line.hasPrefix("- ") else { return nil }
-            let value = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-            guard value.count >= 2,
-                  let first = value.first,
-                  let last = value.last,
-                  (first == "\"" || first == "'"),
-                  first == last else { return value }
-            return String(value.dropFirst().dropLast())
-        }
+        var reader = SchemeYAMLReader(content)
+        if let object = try? reader.read() as? [String: Any], let payload = object["payload"] as? [String] { return payload }
+        return rawLines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
     }
 }
 

@@ -17,7 +17,7 @@ enum SingBoxDNSPolicy {
 
     static func apply(to configuration: inout [String: Any], nodeTags: [String],
                       preferredProxy: String?, domainRules: [[String: Any]],
-                      protection: RuleSchemeDNSProtectionMode) {
+                      protection: RuleSchemeDNSProtectionMode, ipv6Enabled: Bool? = nil) {
         guard var outbounds = configuration["outbounds"] as? [[String: Any]],
               var route = configuration["route"] as? [String: Any],
               var routeRules = route["rules"] as? [[String: Any]],
@@ -32,6 +32,24 @@ enum SingBoxDNSPolicy {
             if allowed.contains(tag) { return true }
             guard !visiting.contains(tag), let children = members[tag], !children.isEmpty else { return false }
             return children.allSatisfy { onlyLeaves($0, allowed: allowed, visiting: visiting.union([tag])) }
+        }
+        // DNS rules cannot inspect a selector's runtime selection. In standard
+        // mode project the exported default (including nested selectors), not
+        // all possible choices. Keep onlyLeaves above for proxy bootstrap safety.
+        let definitions = Dictionary(outbounds.compactMap { outbound -> (String, [String: Any])? in
+            guard let tag = outbound["tag"] as? String else { return nil }
+            return (tag, outbound)
+        }, uniquingKeysWith: { first, _ in first })
+        func defaultsToDirect(_ tag: String, visiting: Set<String> = []) -> Bool {
+            guard !visiting.contains(tag), let definition = definitions[tag] else { return false }
+            if definition["type"] as? String == "direct" { return true }
+            guard definition["type"] as? String == "selector",
+                  let children = members[tag], !children.isEmpty else {
+                return onlyLeaves(tag, allowed: ["DIRECT"])
+            }
+            let selected = definition["default"] as? String ?? children[0]
+            guard children.contains(selected) else { return false }
+            return defaultsToDirect(selected, visiting: visiting.union([tag]))
         }
         let concreteNodes = Set(nodeTags)
         var proxy: String?
@@ -85,7 +103,7 @@ enum SingBoxDNSPolicy {
         dns["servers"] = servers
         let fallback = proxy == nil ? "local" : "remote"
         let finalGroup = route["final"] as? String ?? "DIRECT"
-        let directFinal = onlyLeaves(finalGroup, allowed: ["DIRECT"])
+        let directFinal = defaultsToDirect(finalGroup)
         dns["final"] = protection != .strict && directFinal ? "local" : fallback
         var dnsRules: [[String: Any]] = [
             ["clash_mode": directMode, "action": "route", "server": "local"],
@@ -101,7 +119,7 @@ enum SingBoxDNSPolicy {
             if rule["action"] as? String == "reject" || rule["outbound"] as? String == "REJECT" {
                 projected["action"] = "reject"
             } else {
-                let direct = (rule["outbound"] as? String).map { onlyLeaves($0, allowed: ["DIRECT"]) } ?? false
+                let direct = (rule["outbound"] as? String).map { defaultsToDirect($0) } ?? false
                 projected["action"] = "route"
                 projected["server"] = protection != .strict && direct ? "local" : fallback
             }
@@ -134,6 +152,13 @@ enum SingBoxDNSPolicy {
         configuration["experimental"] = experimental
         configuration["outbounds"] = outbounds
         configuration["route"] = route
+        if let ipv6Enabled {
+            dns["strategy"] = ipv6Enabled ? "prefer_ipv4" : "ipv4_only"
+            for index in inbounds.indices where inbounds[index]["type"] as? String == "tun" {
+                inbounds[index]["address"] = ipv6Enabled
+                    ? ["172.19.0.1/30", "fdfe:dcba:9876::1/126"] : ["172.19.0.1/30"]
+            }
+        }
         configuration["dns"] = dns
         configuration["inbounds"] = inbounds
     }

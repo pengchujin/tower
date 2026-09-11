@@ -10,6 +10,7 @@ struct CustomRuleSetDefinition: Hashable {
     let name: String
     let remoteURL: URL?
     let inlineRules: [String]
+    var inlinePolicies: [String?] = []
 }
 
 struct RuleSetPolicyBinding: Hashable {
@@ -218,11 +219,13 @@ struct CustomRuleFlow: Identifiable, Codable, Hashable {
     /// consumed by configuration generation. Callers should use this view
     /// instead of guessing whether `name` or `policyName` is the ruleset name.
     var expansion: CustomRuleFlowExpansion {
+        let entries = LocalRoutingRuleDocument(rulesText).entries
         let ruleSet = CustomRuleSetDefinition(
             id: id,
             name: name,
             remoteURL: remoteRuleURL,
-            inlineRules: normalizedRules
+            inlineRules: entries.map(\.body),
+            inlinePolicies: entries.map(\.policy)
         )
         return CustomRuleFlowExpansion(
             ruleSet: ruleSet,
@@ -235,8 +238,8 @@ struct CustomRuleFlow: Identifiable, Codable, Hashable {
     }
 
     /// Accepts either `TYPE,value` or a line copied from a client config that
-    /// already carries an old policy. Tower owns the policy picker, so pasted
-    /// policies are removed while `no-resolve` is preserved.
+    /// already carries an old policy. Named groups follow the placement picker;
+    /// builtin actions are carried separately by expansion. Conditions and options stay intact.
     var normalizedRules: [String] {
         RuleSetInput.normalizedRules(from: rulesText)
     }
@@ -256,23 +259,6 @@ private enum RuleSetInput {
     }
 
     static func normalizedRules(from rulesText: String) -> [String] {
-        rulesText.components(separatedBy: .newlines).compactMap { rawLine in
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !line.isEmpty,
-                  !line.hasPrefix("#"),
-                  !line.hasPrefix(";"),
-                  !line.hasPrefix("//") else { return nil }
-
-            let parts = line.split(separator: ",", omittingEmptySubsequences: false).map {
-                $0.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            guard parts.count >= 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-
-            var normalized = [parts[0], parts[1]]
-            if parts.dropFirst(2).contains(where: { $0.lowercased() == "no-resolve" }) {
-                normalized.append("no-resolve")
-            }
-            return normalized.joined(separator: ",")
-        }
+        LocalRoutingRuleDocument(rulesText).entries.map(\.body)
     }
 }

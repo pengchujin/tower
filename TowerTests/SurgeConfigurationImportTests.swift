@@ -120,12 +120,17 @@ final class SurgeConfigurationImportTests: XCTestCase {
         XCTAssertTrue(inline.contains { $0 == ("FINAL", "Proxies") })
     }
 
-    func testLogicalRulesAreRejectedInsteadOfSilentlySkipped() {
-        let unsupported = conf.replacingOccurrences(of: "FINAL,Proxies", with:
+    func testLogicalRulesPreserveEveryConditionAndRejectPolicy() throws {
+        let input = conf.replacingOccurrences(of: "FINAL,Proxies", with:
             "AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT\nFINAL,Proxies")
-        XCTAssertThrowsError(try parser.parse(text: unsupported, id: "logical", name: "Logical", summary: "")) { error in
-            XCTAssertEqual(error as? RuleSchemeParseError, .unsupportedSyntax)
-        }
+        let scheme = try parser.parse(text: input, id: "logical", name: "Logical", summary: "")
+        XCTAssertTrue(scheme.rulesets.contains {
+            guard case .inline(let body) = $0.resource else { return false }
+            return $0.groupName == "REJECT" && body == "AND,((PROTOCOL,UDP),(DEST-PORT,443))"
+        })
+        XCTAssertEqual(RoutingRuleCapabilities.render(
+            "AND,((PROTOCOL,UDP),(DEST-PORT,443))", policy: "REJECT", target: .clashMi),
+            "AND,((NETWORK,UDP),(DST-PORT,443)),REJECT")
     }
 
     // MARK: - Round trip

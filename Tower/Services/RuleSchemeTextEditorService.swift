@@ -81,8 +81,8 @@ struct RuleSchemeTextEditorService {
         }
 
         let groupNames = Set(parsed.groups.map(\.name))
-        let builtins = Set(["DIRECT", "REJECT"])
-        for ruleset in parsed.rulesets where !groupNames.contains(ruleset.groupName) {
+        let builtins = RoutingBuiltinPolicies.names
+        for ruleset in parsed.rulesets where !groupNames.contains(ruleset.groupName) && !builtins.contains(ruleset.groupName) {
             throw RuleSchemeTextValidationError.unknownPolicy(
                 name: ruleset.groupName,
                 line: lineNumber(containing: ruleset.groupName, in: text)
@@ -255,6 +255,9 @@ struct RuleSchemeTextEditorService {
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
+        if scheme.rulesets.contains(where: { $0.options != nil || $0.provider != nil }), let data = try? encoder.encode(scheme.rulesets) {
+            lines.append("tower_rule_metadata=\(data.base64EncodedString())")
+        }
         lines += scheme.groups.compactMap { group in
             guard let data = try? encoder.encode(group) else { return nil }
             return "tower_group_metadata=\(data.base64EncodedString())"

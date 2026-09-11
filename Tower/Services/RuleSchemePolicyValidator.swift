@@ -61,7 +61,7 @@ enum RuleSchemePolicyValidator {
         nodeNames: Set<String>,
         allowUnresolvedPatterns: Bool = false
     ) -> [Issue] {
-        let builtins: Set<String> = ["DIRECT", "REJECT", "REJECT-DROP", "direct", "reject"]
+        let builtins = RoutingBuiltinPolicies.names
         var issues: [Issue] = []
         var seenIssues: Set<Issue> = []
         func append(_ code: Code, _ names: [String]) {

@@ -1608,8 +1608,12 @@ final class RuleCustomizationTests: XCTestCase {
         )
         model.importedSchemes = [first, second]
 
+        model.selectScheme(first)
+        XCTAssertEqual(model.selectedPresetID, first.id)
+
         model.deleteScheme(first)
 
+        XCTAssertEqual(model.selectedPresetID, AppModel.defaultRuleSchemeID)
         XCTAssertEqual(model.importedSchemes.map(\.id), [second.id])
         XCTAssertTrue(downloadStore.hasCachedRules(for: sharedURL))
 

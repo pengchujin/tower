@@ -5,12 +5,14 @@ enum RuleGroupRenameError: LocalizedError {
     case emptyName
     case missingGroup
     case duplicateName
+    case invalidNodeGroupName
 
     var errorDescription: String? {
         switch self {
         case .emptyName: String(localized: "规则名称不能为空。")
         case .missingGroup: String(localized: "找不到要修改的规则。")
         case .duplicateName: String(localized: "已经存在同名规则。")
+        case .invalidNodeGroupName: String(localized: "请使用其他名称，避开内置策略名、逗号和换行。")
         }
     }
 }
@@ -495,7 +497,7 @@ final class AppModel {
         customizableScheme(for: scheme).groups
     }
 
-    func updateRuleGroup(_ group: RuleSchemeGroup, for scheme: RuleScheme) {
+    func updateRuleGroup(_ group: RuleSchemeGroup, for scheme: RuleScheme, sourceNodePatterns: [String]? = nil) {
         var customization = ruleSchemeCustomizations[scheme.id]
             ?? RuleSchemeCustomization(schemeID: scheme.id)
         if customization.groupOrder.isEmpty {
@@ -507,7 +509,8 @@ final class AppModel {
         customization.groupOverrides[group.name] = RuleSchemeGroupOverride(
             kind: group.kind,
             members: group.members,
-            resetsSourceOptions: resetsOptions ? true : nil
+            resetsSourceOptions: resetsOptions ? true : nil,
+            sourceNodePatterns: sourceNodePatterns ?? customization.groupOverrides[group.name]?.sourceNodePatterns
         )
         ruleSchemeCustomizations[scheme.id] = customization
         persist()
@@ -582,13 +585,12 @@ final class AppModel {
             customization.groupOverrides[newName] = existingOverride
         }
         customization.groupOverrides = customization.groupOverrides.mapValues { override in
-            RuleSchemeGroupOverride(
-                kind: override.kind,
-                members: override.members?.map { member in
-                    guard case .reference(let name) = member, name == oldName else { return member }
-                    return .reference(newName)
-                }
-            )
+            var renamed = override
+            renamed.members = override.members?.map { member in
+                guard case .reference(let name) = member, name == oldName else { return member }
+                return .reference(newName)
+            }
+            return renamed
         }
         if let removedNames = customization.removedGroupNames {
             customization.removedGroupNames = Set(
@@ -787,6 +789,11 @@ final class AppModel {
     /// to a scheme before it can affect generated configurations.
     func saveLocalRuleSet(_ ruleSet: LocalRuleSet) async throws {
         try Task.checkCancellation()
+        if ruleSet.remoteRuleURL == nil {
+            let document = LocalRoutingRuleDocument(ruleSet.rulesText)
+            if let error = document.firstError { throw error }
+            guard !document.entries.isEmpty else { throw LocalRoutingRuleDocument.InvalidLine(number: 1) }
+        }
         let generation = ruleOperationGeneration
         let token = UUID()
         localRuleSaveTokens[ruleSet.id] = token
@@ -923,13 +930,12 @@ final class AppModel {
             customization.groupOverrides[newName] = oldOverride
         }
         customization.groupOverrides = customization.groupOverrides.mapValues { override in
-            RuleSchemeGroupOverride(
-                kind: override.kind,
-                members: override.members?.map { member in
-                    guard case .reference(let name) = member, name == oldName else { return member }
-                    return .reference(newName)
-                }
-            )
+            var renamed = override
+            renamed.members = override.members?.map { member in
+                guard case .reference(let name) = member, name == oldName else { return member }
+                return .reference(newName)
+            }
+            return renamed
         }
         if var removed = customization.removedGroupNames, removed.remove(oldName) != nil {
             removed.insert(newName)
@@ -1007,6 +1013,11 @@ final class AppModel {
 
         var removed = customization.removedGroupNames ?? []
         removed.insert(groupName)
+        if customization.addedNodeGroups?.contains(where: { $0.name == sourceName }) == true {
+            customization.addedNodeGroups?.removeAll { $0.name == sourceName }
+            removed.insert(sourceName)
+            customization.groupOverrides[sourceName] = nil
+        }
         customization.removedGroupNames = removed
         customization.groupRenames?[sourceName] = nil
         if customization.groupRenames?.isEmpty == true {
@@ -1025,6 +1036,39 @@ final class AppModel {
             selectedRuleGroups[scheme.id] = selected
         }
         persist()
+    }
+
+    @discardableResult
+    func createNodeFilterGroup(name: String, pattern: String, kind: RuleSchemeGroup.Kind, for scheme: RuleScheme) throws -> RuleSchemeGroup {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw RuleGroupRenameError.emptyName }
+        guard !RoutingBuiltinPolicies.names.contains(name.uppercased()),
+              !name.contains(where: { $0.isNewline || ",=`".contains($0) }) else {
+            throw RuleGroupRenameError.invalidNodeGroupName
+        }
+        let existingNames = customizableRuleGroups(for: scheme).map(\.name)
+            + scheme.routingTargetGroupNames()
+            + (ruleSchemeCustomizations[scheme.id]?.groupRenames?.keys.map { $0 } ?? [])
+        guard !existingNames.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) else {
+            throw RuleGroupRenameError.duplicateName
+        }
+        guard [.select, .urlTest, .fallback].contains(kind) else { throw NodeNameFilterMatcher.Failure.invalid }
+        _ = try NodeNameFilterMatcher.preview(pattern, candidates: [], caseInsensitive: true)
+        let group = RuleSchemeGroup(name: name, kind: kind, members: [.nodePattern(pattern)],
+                                   testURLString: "http://www.gstatic.com/generate_204", interval: 300, tolerance: 50,
+                                   isCustomNodeFilter: true)
+        var customization = ruleSchemeCustomizations[scheme.id] ?? RuleSchemeCustomization(schemeID: scheme.id)
+        // Reusing a previously deleted name must not revive stale memberships.
+        if customization.removedGroupNames?.contains(name) == true {
+            for key in customization.groupOverrides.keys {
+                customization.groupOverrides[key]?.members?.removeAll { $0 == .reference(name) }
+            }
+            customization.removedGroupNames?.remove(name)
+        }
+        customization.addedNodeGroups = (customization.addedNodeGroups ?? []) + [group]
+        ruleSchemeCustomizations[scheme.id] = customization
+        persist()
+        return group
     }
 
     /// Installs a maintained catalog rule only after its payload is available
@@ -1148,6 +1192,14 @@ final class AppModel {
     }
 
     func importScheme(name: String, urlString: String) async throws {
+        try await importScheme { try await self.schemeImportService.importScheme(from: urlString, name: name) }
+    }
+
+    func importScheme(name: String, text: String, fileName: String? = nil) async throws {
+        try await importScheme { try await self.schemeImportService.importScheme(text: text, name: name, fileName: fileName) }
+    }
+
+    private func importScheme(load: () async throws -> RuleImportResult) async throws {
         try Task.checkCancellation()
         guard !isImportingScheme else { throw CancellationError() }
         let generation = ruleOperationGeneration
@@ -1156,7 +1208,7 @@ final class AppModel {
         isImportingScheme = true
         defer { if ruleImportToken == token { cancelRuleImport() } }
 
-        let result = try await schemeImportService.importScheme(from: urlString, name: name)
+        let result = try await load()
         try Task.checkCancellation()
         guard ruleOperationGeneration == generation, ruleImportToken == token else { throw CancellationError() }
         importedSchemes.append(result.scheme)

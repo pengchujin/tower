@@ -9,8 +9,8 @@ struct SingBoxModeTests {
     private func document(mode: RuleSchemeDNSProtectionMode = .standard,
                           nodes: [ProxyNode]? = nil, target: ClientTarget = .singBox) throws -> [String: Any] {
         let scheme = RuleScheme(id: "mode-test", name: "Modes", summary: "", groups: [
-            .init(name: "Proxy", kind: .select, members: [.reference("DIRECT"), .nodePattern(".*")]),
-            .init(name: "Local", kind: .select, members: [.reference("DIRECT")])
+            .init(name: "Proxy", kind: .select, members: [.nodePattern(".*"), .reference("DIRECT")]),
+            .init(name: "Local", kind: .select, members: [.reference("DIRECT"), .reference("Proxy")])
         ], rulesets: [
             .init(groupName: "Proxy", resource: .inline("DOMAIN,private.example.com")),
             .init(groupName: "Local", resource: .inline("DOMAIN-SUFFIX,example.com")),
@@ -20,6 +20,63 @@ struct SingBoxModeTests {
         ], networkSettings: .init(dnsProtectionMode: mode))
         let content = ConfigurationGenerator().generate(nodes: nodes ?? [proxy], scheme: scheme, target: target).content
         return try #require(JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any])
+    }
+
+    @Test func editingDNSDoesNotTurnUnspecifiedIPv6On() throws {
+        var draft = RuleSchemeNetworkSettingsDraft(settings: nil)
+        draft.dnsServers = ["119.29.29.29"]
+        #expect(try draft.validatedSettings().ipv6Enabled == nil)
+        draft.ipv6Enabled = true
+        #expect(try draft.validatedSettings().ipv6Enabled == true)
+        draft.ipv6Override = nil
+        #expect(try draft.validatedSettings().ipv6Enabled == nil)
+        draft.ipv6Enabled = false
+        #expect(try draft.validatedSettings().ipv6Enabled == false)
+    }
+
+    @Test func ipv6DefaultsAreTargetSpecificAndExplicitValuesSurvive() throws {
+        for enabled in [nil, false, true] as [Bool?] {
+            for target in [ClientTarget.singBox, .hiddify] {
+                var scheme = RuleScheme(id: "ipv6", name: "IPv6", summary: "", groups: [
+                    .init(name: "Proxy", kind: .select, members: [.nodePattern(".*")])
+                ], rulesets: [.init(groupName: "Proxy", resource: .inline("FINAL"))])
+                if let enabled { scheme.networkSettings = .init(ipv6Enabled: enabled) }
+                let content = ConfigurationGenerator().generate(nodes: [proxy], scheme: scheme, target: target).content
+                let config = try #require(JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any])
+                let expected = enabled ?? (target != .singBox)
+                let dns = try #require(config["dns"] as? [String: Any])
+                #expect(dns["strategy"] as? String == (expected ? "prefer_ipv4" : "ipv4_only"))
+                let tun = try #require((config["inbounds"] as? [[String: Any]])?.first)
+                #expect((tun["address"] as? [String])?.contains(where: { $0.contains(":") }) == expected)
+            }
+        }
+    }
+
+    @Test func dnsFollowsNestedDefaultsWithoutWeakeningStrictMode() throws {
+        for directFirst in [true, false] {
+            for protection in [RuleSchemeDNSProtectionMode.standard, .strict] {
+                var config: [String: Any] = [
+                    "outbounds": [
+                        ["tag": "Business", "type": "selector", "outbounds": ["Nested", "node"]],
+                        ["tag": "Nested", "type": "selector", "outbounds": ["node", "DIRECT"],
+                         "default": directFirst ? "DIRECT" : "node"],
+                        ["tag": "node", "type": "shadowsocks"], ["tag": "DIRECT", "type": "direct"]
+                    ],
+                    "route": ["rules": [["action": "hijack-dns"]], "final": "Business"],
+                    "dns": ["servers": [["tag": "local"], ["tag": "remote"]]]
+                ]
+                SingBoxDNSPolicy.apply(to: &config, nodeTags: ["node"], preferredProxy: "Business",
+                    domainRules: [["domain_suffix": ["qq.com", "baidu.com"], "outbound": "Business"]],
+                    protection: protection)
+                let dns = try #require(config["dns"] as? [String: Any])
+                let expected = directFirst && protection == .standard ? "local" : "remote"
+                #expect(dns["final"] as? String == expected)
+                let rules = try #require(dns["rules"] as? [[String: Any]])
+                #expect(rules.first { $0["domain_suffix"] != nil }?["server"] as? String == expected)
+                let servers = try #require(dns["servers"] as? [[String: Any]])
+                #expect(servers.first { $0["tag"] as? String == "remote" }?["detour"] as? String != "Business")
+            }
+        }
     }
 
     @Test func chineseModesHaveAnIndependentGlobalSelectorAndMatchingDNS() throws {

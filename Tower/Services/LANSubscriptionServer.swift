@@ -39,6 +39,7 @@ enum LANSubscriptionServerError: LocalizedError {
 /// expose format aliases such as Surfboard and automatic User-Agent routing.
 enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
     case clash
+    case stash
     case surge
     case surfboard
     case shadowrocket
@@ -53,7 +54,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
     /// The existing generator whose document dialect this LAN client reads.
     var generationTarget: ClientTarget {
         switch self {
-        case .clash: .clash
+        case .clash: .clashMi
+        case .stash: .clash
         // Surfboard is a first-class target in subconverter, whose converter
         // emits its Surge-compatible dialect via proxyToSurge(..., -3, ...).
         // Keep its URL and UA routing distinct while reusing Tower's Surge
@@ -70,7 +72,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     var displayName: String {
         switch self {
-        case .clash: "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki / Stash"
+        case .clash: "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki"
+        case .stash: "Stash"
         case .surge: "Surge"
         case .surfboard: "Surfboard"
         case .shadowrocket: "Shadowrocket"
@@ -88,6 +91,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
     var appIconAssetName: String {
         switch self {
         case .clash: "ClientClash"
+        case .stash: "ClientStash"
         case .surge: "ClientSurge"
         case .surfboard: "ClientSurfboard"
         case .shadowrocket: "ClientShadowrocket"
@@ -114,7 +118,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
 
     init?(target: ClientTarget) {
         switch target {
-        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing: self = .clash
+        case .clash: self = .stash
+        case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing: self = .clash
         case .surge, .surgeMac: self = .surge
         case .shadowrocket: self = .shadowrocket
         case .loon: self = .loon
@@ -148,6 +153,7 @@ enum LANSubscriptionTargetResolver {
         if agent.contains("quantumult") || agent.contains("quanx") { return .quanx }
         if agent.contains("hiddify") { return .hiddify }
         if agent.contains("sing-box") || agent.contains("singbox") { return .singBox }
+        if agent.contains("stash") { return .stash }
         if agent.contains("karing") { return .clash }
         if agent.contains("openclash") || agent.contains("nikki") || agent.contains("clash") || agent.contains("mihomo") || agent.contains("stash") { return .clash }
         if agent.contains("surfboard") { return .surfboard }
@@ -175,7 +181,7 @@ enum LANSubscriptionTargetResolver {
         "openclash": .clash,
         "nikki": .clash,
         "mihomo": .clash,
-        "stash": .clash,
+        "stash": .stash,
         "surge": .surge,
         "surge-mac": .surge,
         "surfboard": .surfboard,

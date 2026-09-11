@@ -160,7 +160,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list"))
         XCTAssertTrue(source.contains("DOMAIN,apple.comscoreresearch.com"))
         XCTAssertTrue(source.contains("IP-CIDR,17.0.0.0/8,no-resolve"))
-        XCTAssertFalse(source.contains(".swipeActions"))
+        XCTAssertTrue(source.contains("RuleCardSwipeDeletion"))
         XCTAssertTrue(source.contains("pendingDeletion = .group("))
         XCTAssertTrue(source.contains("custom-rule-flow-editor"))
         XCTAssertTrue(source.contains("scrollDismissesKeyboard(.interactively)"))
@@ -171,7 +171,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testEachRuleSchemeOpensItsOwnCustomizationWithoutBottomShortcut() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
-        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor: View"))
         let cardSource = String(source[cardStart.lowerBound..<nextCardStart.lowerBound])
 
         XCTAssertFalse(
@@ -192,7 +192,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testRuleSchemeInlinePreviewUsesTheSameLiveSchemeAsCustomization() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
-        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor: View"))
         let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
 
         XCTAssertEqual(
@@ -246,17 +246,17 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertFalse(editorSource.contains(".font(.system(.body, design: .monospaced))"))
     }
 
-    func testRulesPageDoesNotExposeSwipeEditingOrDeletion() throws {
+    func testRulesPageSupportsSwipeDeletionAndContextMenu() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let importedSection = try XCTUnwrap(source.range(of: "private var importedSchemesSection"))
         let overviewStart = try XCTUnwrap(source.range(of: "private struct RulesOverviewCard"))
         let importedSource = String(source[importedSection.lowerBound..<overviewStart.lowerBound])
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard"))
-        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet"))
+        let editorStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor"))
         let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
 
         XCTAssertFalse(source.contains("private struct ImportedRuleSchemeRow"))
-        XCTAssertFalse(source.contains(".swipeActions"))
+        XCTAssertTrue(source.contains("RuleCardSwipeDeletion"))
         XCTAssertFalse(source.contains("DragGesture(minimumDistance:"))
         XCTAssertTrue(importedSource.contains("onEdit: { editingImportedScheme = scheme }"))
         XCTAssertTrue(importedSource.contains("onDelete: { pendingDeletion = scheme }"))
@@ -325,13 +325,9 @@ final class RepositoryConsistencyTests: XCTestCase {
     }
 
     func testRuleImportSheetUsesImportAsItsConfirmationAction() throws {
-        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
-        let sheetStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
-        let nextType = try XCTUnwrap(source.range(of: "private struct CatalogRuleEditorRequest"))
-        let sheetSource = String(source[sheetStart.lowerBound..<nextType.lowerBound])
-
-        XCTAssertTrue(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导入\")"))
-        XCTAssertFalse(sheetSource.contains("Button(isSaving ? \"正在下载…\" : \"导出\")"))
+        let sheetSource = try sourceText("Tower/Features/Rules/ImportRuleSchemeSheet.swift")
+        XCTAssertTrue(sheetSource.contains("Button(isSaving ? \"正在导入…\" : \"导入\")"))
+        XCTAssertFalse(sheetSource.contains("Button(isSaving ? \"正在导入…\" : \"导出\")"))
     }
 
     func testSettingsResetRequiresExplicitDestructiveConfirmation() throws {
@@ -473,7 +469,10 @@ final class RepositoryConsistencyTests: XCTestCase {
         let menuSource = String(sheetSource[menuStart.lowerBound..<confirmationStart.lowerBound])
         let emojiStart = try XCTUnwrap(sheetSource.range(of: "private func visibleRuleGroupEmoji"))
         let identityStart = try XCTUnwrap(sheetSource.range(of: "private func openIdentityEditor"))
-        let emojiSource = String(sheetSource[emojiStart.lowerBound..<identityStart.lowerBound])
+        let emojiCall = String(sheetSource[emojiStart.lowerBound..<identityStart.lowerBound])
+        let componentStart = try XCTUnwrap(source.range(of: "private struct RuleGroupEmoji: View"))
+        let componentEnd = try XCTUnwrap(source.range(of: "private struct RuleDetailLine: View"))
+        let emojiSource = String(source[componentStart.lowerBound..<componentEnd.lowerBound])
 
         XCTAssertTrue(
             sheetSource.contains("Label(\"显示策略组 Emoji\", systemImage: \"face.smiling\")")
@@ -488,11 +487,11 @@ final class RepositoryConsistencyTests: XCTestCase {
             sheetSource.components(separatedBy: "visibleRuleGroupEmoji(group)").count - 1,
             1
         )
-        XCTAssertTrue(emojiSource.contains("let emojisVisible = model.ruleGroupEmojisAreEnabled(for: scheme)"))
+        XCTAssertTrue(emojiCall.contains("RuleGroupEmoji(group: group, isVisible: model.ruleGroupEmojisAreEnabled(for: scheme), inferFromName: scheme.isBundled)"))
         XCTAssertTrue(emojiSource.contains(".frame(width: 28, height: 28)"))
-        XCTAssertTrue(emojiSource.contains(".opacity(emojisVisible ? 1 : 0)"))
-        XCTAssertTrue(emojiSource.contains(".accessibilityHidden(!emojisVisible)"))
-        XCTAssertTrue(emojiSource.contains(".animation(nil, value: emojisVisible)"))
+        XCTAssertTrue(emojiSource.contains(".opacity(isVisible ? 1 : 0)"))
+        XCTAssertTrue(emojiSource.contains(".accessibilityHidden(!isVisible)"))
+        XCTAssertTrue(emojiSource.contains(".animation(nil, value: isVisible)"))
         XCTAssertFalse(emojiSource.contains("if model.ruleGroupEmojisAreEnabled"))
     }
 
@@ -530,7 +529,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testRuleSelectionDoesNotAnimateTheCardTextPosition() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
-        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor: View"))
         let cardSource = String(source[cardStart.lowerBound..<nextCardStart.lowerBound])
 
         XCTAssertFalse(
@@ -551,7 +550,7 @@ final class RepositoryConsistencyTests: XCTestCase {
 
         let rules = try sourceText("Tower/Features/Rules/RulesView.swift")
         let cardStart = try XCTUnwrap(rules.range(of: "private struct RuleSchemeCard: View"))
-        let nextCardStart = try XCTUnwrap(rules.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let nextCardStart = try XCTUnwrap(rules.range(of: "private struct ImportedRuleSchemeEditor: View"))
         let cardSource = String(rules[cardStart.lowerBound..<nextCardStart.lowerBound])
 
         XCTAssertFalse(indicatorSource.contains("if isSelected"))
@@ -593,20 +592,16 @@ final class RepositoryConsistencyTests: XCTestCase {
         )
     }
 
-    func testRuleSchemeContextMenuOnlyPreviewsTheCompactHeader() throws {
+    func testRuleSchemeContextMenuKeepsTheNativeHeaderPreview() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard: View"))
-        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportRuleSchemeSheet: View"))
+        let nextCardStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor: View"))
         let cardSource = String(source[cardStart.lowerBound..<nextCardStart.lowerBound])
-        let detailDivider = try XCTUnwrap(cardSource.range(of: "\n\n            Divider()"))
-        let compactHeader = String(cardSource[..<detailDivider.lowerBound])
-        let expandableContent = String(cardSource[detailDivider.lowerBound...])
-
-        XCTAssertTrue(
-            compactHeader.contains(".contextMenu"),
-            "长按菜单必须挂在固定高度的标题区，不能把展开后的全部策略组做成系统预览"
-        )
-        XCTAssertFalse(expandableContent.contains(".contextMenu"))
+        let expansion = try XCTUnwrap(cardSource.range(of: "if isExpanded {"))
+        let menu = try XCTUnwrap(cardSource.range(of: ".contextMenu {"))
+        XCTAssertLessThan(menu.lowerBound, expansion.lowerBound,
+                          "长按菜单锚定原始顶部控件，不能把整条展开列表作为预览")
+        XCTAssertFalse(cardSource.contains("} preview:"), "不替换成自定义摘要预览")
     }
 
     /// Renewal reminders and automatic refresh both answer "what should Tower

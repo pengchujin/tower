@@ -157,13 +157,13 @@ final class LANSubscriptionServerTests: XCTestCase {
 
     func testExplicitTargetsAndDesktopAliasesResolve() throws {
         let expected: [String: ClientTarget] = [
-            "clash": .clash,
-            "clash-mi": .clash,
-            "clashmi": .clash,
-            "karing": .clash,
-            "openclash": .clash,
-            "nikki": .clash,
-            "mihomo": .clash,
+            "clash": .clashMi,
+            "clash-mi": .clashMi,
+            "clashmi": .clashMi,
+            "karing": .clashMi,
+            "openclash": .clashMi,
+            "nikki": .clashMi,
+            "mihomo": .clashMi,
             "stash": .clash,
             "surge": .surge,
             "surfboard": .surge,
@@ -219,12 +219,13 @@ final class LANSubscriptionServerTests: XCTestCase {
 
     func testAutoTargetUsesClientUserAgent() throws {
         let expected: [(String, ClientTarget)] = [
-            ("clash.meta", .clash),
-            ("OpenClash/v0.46.014", .clash),
-            ("Nikki/1.6.3", .clash),
-            ("Clash-Verge/2.3", .clash),
-            ("Clash Mi/1.0", .clash),
-            ("Karing/1.2", .clash),
+            ("clash.meta", .clashMi),
+            ("Stash/3.0", .clash),
+            ("OpenClash/v0.46.014", .clashMi),
+            ("Nikki/1.6.3", .clashMi),
+            ("Clash-Verge/2.3", .clashMi),
+            ("Clash Mi/1.0", .clashMi),
+            ("Karing/1.2", .clashMi),
             ("Surge iOS/5.14", .surge),
             ("Surfboard/2.33.0", .surge),
             ("Shadowrocket/1997 CFNetwork", .shadowrocket),
@@ -265,7 +266,7 @@ final class LANSubscriptionServerTests: XCTestCase {
     func testClashLANFormatNamesItsCompatibleClientsInUserFacingOrder() {
         XCTAssertEqual(
             LANSubscriptionFormat.clash.displayName,
-            "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki / Stash"
+            "Clash / Clash Verge / ClashMac / Clash Mi / Karing / OpenClash / Nikki"
         )
     }
 

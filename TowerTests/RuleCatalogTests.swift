@@ -458,6 +458,17 @@ final class RuleCatalogTests: XCTestCase {
         )
     }
 
+    func testImportedPolicyNamesDoNotAcquireInferredEmoji() {
+        for name in ["节点选择", "Apple", "Telegram", "dns", "广告拦截", "1 香港", "#Proxy"] {
+            XCTAssertEqual(RulePolicyPresentation.emoji(for: name, kind: .select, inferFromName: false), "")
+            XCTAssertEqual(RulePolicyPresentation.nameWithoutLeadingEmoji(name), name)
+        }
+        XCTAssertEqual(RulePolicyPresentation.emoji(for: "🍎 Apple", kind: .select, inferFromName: false), "🍎")
+        XCTAssertEqual(RulePolicyPresentation.emoji(for: "🇯🇵 日本", kind: .select, inferFromName: false), "🇯🇵")
+        XCTAssertEqual(RulePolicyPresentation.emoji(for: "♻️ 自动选择", kind: .urlTest, inferFromName: false), "♻️")
+        XCTAssertEqual(RulePolicyPresentation.nameWithoutLeadingEmoji("🍎 Apple"), "Apple")
+    }
+
     func testChineseNetflixPolicyUsesStreamingEmoji() {
         XCTAssertEqual(
             RulePolicyPresentation.emoji(for: "奈飞视频", kind: .select),

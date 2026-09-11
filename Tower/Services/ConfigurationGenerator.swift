@@ -162,6 +162,14 @@ struct ConfigurationGenerator {
         scheme.groups = scheme.groups.map { group in
             let downgrade = group.kind == .smart && ![ClientTarget.surge, .surgeMac, .egern].contains(target)
             var parameters = group.parameters
+            // Source exclusions still constrain local materialization when the
+            // destination cannot emit these native options. Keep their internal
+            // meaning separate from the options passed to the client.
+            if parameters?["tower-source-patterns"] != nil {
+                for key in ["exclude-filter", "exclude-type"] {
+                    if let value = parameters?[key] { parameters?["tower-source-" + key] = value }
+                }
+            }
             if downgrade {
                 downgradedSmart = true
                 parameters?["priorities"] = nil
@@ -240,7 +248,7 @@ struct ConfigurationGenerator {
         if missingDomainSets {
             diagnostics.append(String(localized: "部分规则还没下载完成") + " · " + String(localized: "刷新规则"))
         }
-        let capabilityBlocked = !diagnostics.isEmpty
+        var capabilityBlocked = !diagnostics.isEmpty
         diagnostics += adaptationDiagnostics
         if downgradedSmart {
             diagnostics.append(String(localized: "当前客户端不支持 Smart，已转换为延迟优选。"))
@@ -255,7 +263,7 @@ struct ConfigurationGenerator {
         }
         let knownPolicies = Set(scheme.groups.map(\.name)
             + supported.map { NodeRegionResolver.displayName(for: $0) }
-            + ["DIRECT", "REJECT", "REJECT-DROP", "direct", "reject", "reject-drop"])
+            + Array(RoutingBuiltinPolicies.names))
         let references = scheme.groups.flatMap(\.members).compactMap { member -> String? in
             guard case .reference(let name) = member else { return nil }
             return name
@@ -270,6 +278,28 @@ struct ConfigurationGenerator {
             target: target,
             preferRuleSets: preferRuleSets
         )
+        if !rulePlan.finalOptions.isEmpty,
+           !RoutingRuleCapabilities.surgeTargets.contains(target) {
+            capabilityBlocked = true
+            let body = (["FINAL", rulePlan.finalGroupName ?? ""] + rulePlan.finalOptions).joined(separator: ",")
+            diagnostics.append(String(localized: "无法转换规则：\(body) → \(target.name)。"))
+        }
+        var unsupportedRuleCount = 0
+        for rule in rulePlan.inlineRules {
+            let supportedRule: Bool
+            if target.usesSingBoxFormat { supportedRule = RoutingRuleCapabilities.singBoxCondition(rule.line) != nil }
+            else if target == .egern { supportedRule = egernRule(rule.line, policy: rule.policyName) != nil }
+            else { supportedRule = mappedRule(rule.line, policyName: rule.policyName, target: target) != nil }
+            if !supportedRule {
+                unsupportedRuleCount += 1
+                if rule.policyName.uppercased().hasPrefix("REJECT") { capabilityBlocked = true }
+                diagnostics.append(String(localized: "无法转换规则：\(rule.line) → \(target.name)。"))
+            }
+        }
+        for policy in Set(scheme.rulesets.map(\.groupName) + references) where RoutingBuiltinPolicies.names.contains(policy) && !RoutingBuiltinPolicies.supports(policy, target: target) {
+            capabilityBlocked = true
+            diagnostics.append(String(localized: "当前客户端不支持内置策略：\(policy)。"))
+        }
         let content: String
         switch target {
         case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
@@ -351,7 +381,7 @@ struct ConfigurationGenerator {
             content: unknownPolicies.isEmpty && !capabilityBlocked ? content : "",
             supportedNodeCount: inlineNodes.count,
             skippedNodeCount: nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }.count - inlineNodes.count,
-            ruleCount: ruleCount(for: scheme, schemes: schemes),
+            ruleCount: capabilityBlocked || !unknownPolicies.isEmpty ? 0 : max(0, ruleCount(for: scheme, schemes: schemes) - unsupportedRuleCount),
             fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
             remoteSourceCount: remoteEntries.count,
             diagnostics: diagnostics,
@@ -575,6 +605,8 @@ struct ConfigurationGenerator {
                     return false
                 }
                 if ["tower-source-patterns", "tower-source-tags"].contains(key) { return stringArray(value) == nil }
+                if key == "tower-source-exclude-filter" { return !isSafeNativeOption("exclude-filter", value: value) }
+                if key == "tower-source-exclude-type" { return !isSafeNativeOption("exclude-type", value: value) }
                 if represented.contains(key) { return false }
                 if nativeOptionKeys(sourceFormat: group.sourceFormat, target: target).contains(key),
                    isSafeNativeOption(key, value: value) { return false }
@@ -904,10 +936,10 @@ struct ConfigurationGenerator {
     }
 
     private func sourceNodeAllowed(_ node: ProxyNode, parameters: [String: String], caseInsensitive: Bool) -> Bool {
-        if let exclude = parameters["exclude-filter"],
+        if let exclude = parameters["tower-source-exclude-filter"] ?? parameters["exclude-filter"],
            let expression = try? NSRegularExpression(pattern: exclude, options: caseInsensitive ? [.caseInsensitive] : []),
            expression.firstMatch(in: node.name, range: NSRange(node.name.startIndex..., in: node.name)) != nil { return false }
-        if let excluded = parameters["exclude-type"] {
+        if let excluded = parameters["tower-source-exclude-type"] ?? parameters["exclude-type"] {
             let kind = node.kind == .shadowsocks ? "ss" : node.kind.rawValue.lowercased()
             if excluded.lowercased().split(separator: "|").map(String.init).contains(kind) { return false }
         }
@@ -1273,18 +1305,20 @@ struct ConfigurationGenerator {
                 }
                 output += "  \(resource.identifier):\n"
                 output += "    type: http\n"
-                output += "    behavior: \(provider.behavior)\n"
-                output += "    format: \(provider.format)\n"
+                output += "    behavior: \(resource.provider?.behavior?.replacingOccurrences(of: "-text", with: "") ?? provider.behavior)\n"
+                output += "    format: \(resource.provider?.format ?? provider.format)\n"
                 output += "    url: \(yaml(resource.url.absoluteString))\n"
                 output += "    path: ./ruleset/\(resource.identifier).\(provider.fileExtension)\n"
-                output += "    interval: 86400\n"
+                let referenceInterval = resource.options.first { $0.hasPrefix("update-interval=") }.flatMap { Int($0.dropFirst("update-interval=".count)) }
+                output += "    interval: \(resource.provider?.interval ?? referenceInterval ?? 86400)\n"
             }
         }
         output += "\nrules:\n"
         for entry in rulePlan.entries {
             switch entry {
             case .remote(let resource):
-                let noResolve = resource.format == .clashIPCIDRMRS ? ",no-resolve" : ""
+                let options = resource.options.filter { !$0.hasPrefix("update-interval=") }
+                let noResolve = options.isEmpty ? (resource.format == .clashIPCIDRMRS ? ",no-resolve" : "") : "," + options.joined(separator: ",")
                 output += "  - RULE-SET,\(resource.identifier),\(resource.policyName)\(noResolve)\n"
             case .inline(let rule):
                 // The document dialect is Clash YAML for all three callers,
@@ -1382,14 +1416,16 @@ struct ConfigurationGenerator {
         for entry in rulePlan.entries {
             switch entry {
             case .remote(let resource):
-                output += "RULE-SET,\(resource.url.absoluteString),\(confName(resource.policyName)),update-interval=86400\n"
+                var options = resource.options
+                if !options.contains(where: { $0.hasPrefix("update-interval=") }) { options.append("update-interval=\(resource.provider?.interval ?? 86400)") }
+                output += (["RULE-SET", resource.url.absoluteString, confName(resource.policyName)] + options).joined(separator: ",") + "\n"
             case .inline(let rule):
                 if let mapped = mappedRule(rule.line, policyName: rule.policyName, target: target) {
                     output += mapped + "\n"
                 }
             }
         }
-        if let final = rulePlan.finalGroupName { output += "FINAL,\(confName(final))\n" }
+        if let final = rulePlan.finalGroupName { output += (["FINAL", confName(final)] + rulePlan.finalOptions).joined(separator: ",") + "\n" }
         return output
     }
 
@@ -3031,6 +3067,15 @@ struct ConfigurationGenerator {
     /// names come from the imported file rather than from `RulePolicy`.
     private func mappedRule(_ rule: String, policyName: String, target: ClientTarget) -> String? {
         let policyName = [.surge, .surgeMac, .loon, .quanx].contains(target) ? confName(policyName) : policyName
+        if RoutingRuleCapabilities.compiledTargets.contains(target) {
+            return RoutingRuleCapabilities.render(rule, policy: policyName, target: target)
+        }
+        // The legacy emitters have no recursive dialect conversion. Passing an
+        // outer AND through their CSV path would leave Mihomo-only children in
+        // a Loon/Shadowrocket profile and incorrectly report it as compatible.
+        if let condition = RoutingRuleSyntax.condition(rule), condition.children != nil {
+            return nil
+        }
         var parts = rule.split(separator: ",", omittingEmptySubsequences: false).map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -3041,7 +3086,7 @@ struct ConfigurationGenerator {
         // Clash/Mihomo does not implement Surge's URL-REGEX dialect. These
         // expressions may inspect the URL path, so converting them to a domain
         // rule would silently change their meaning; omit them for Clash only.
-        if target.usesClashFormat, ruleType == "URL-REGEX" {
+        if target.usesClashFormat, target != .clash, ruleType == "URL-REGEX" {
             return nil
         }
 
@@ -3461,7 +3506,7 @@ extension ConfigurationGenerator {
         if target == .singBox {
             SingBoxDNSPolicy.apply(to: &configuration, nodeTags: nodeTags,
                 preferredProxy: RulePolicy.select.configurationName,
-                domainRules: singBoxRules(preset: preset), protection: .standard)
+                domainRules: singBoxRules(preset: preset), protection: .standard, ipv6Enabled: false)
         }
 
         guard let data = try? JSONSerialization.data(
@@ -3969,9 +4014,17 @@ extension ConfigurationGenerator {
             case .inline(let inline):
                 let parts = inline.line.split(separator: ",", omittingEmptySubsequences: false)
                     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                guard parts.count >= 2,
-                      let field = Self.singBoxRuleFields[parts[0].uppercased()],
-                      !parts[1].isEmpty else { continue }
+                guard parts.count >= 2 else { continue }
+                guard let field = Self.singBoxRuleFields[parts[0].uppercased()], !parts[1].isEmpty,
+                      !parts.contains("src") else {
+                    flushPending()
+                    if var rule = RoutingRuleCapabilities.singBoxCondition(inline.line) {
+                        if inline.policyName.uppercased() == "REJECT" { rule["action"] = "reject" }
+                        else { rule["outbound"] = inline.policyName }
+                        rules.append(rule)
+                    }
+                    continue
+                }
                 if pendingGroup != inline.policyName {
                     flushPending()
                     pendingGroup = inline.policyName
@@ -4053,7 +4106,8 @@ extension ConfigurationGenerator {
             SingBoxDNSPolicy.apply(to: &configuration,
                 nodeTags: nodes.map { NodeRegionResolver.displayName(for: $0) },
                 preferredProxy: remoteDetour, domainRules: dnsDomainRules,
-                protection: schemeDNSProtectionMode(scheme))
+                protection: schemeDNSProtectionMode(scheme),
+                ipv6Enabled: scheme.networkSettings?.ipv6Enabled ?? false)
         }
 
         guard let data = try? JSONSerialization.data(

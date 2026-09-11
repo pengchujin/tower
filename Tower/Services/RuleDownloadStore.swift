@@ -153,7 +153,7 @@ private final class RuleFileCache: @unchecked Sendable {
             isClashProvider: content.components(separatedBy: .newlines).contains { rawLine in
                 rawLine
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}")) == "payload:"
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}")) .hasPrefix("payload:")
             }
         )
 
