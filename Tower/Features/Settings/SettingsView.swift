@@ -873,7 +873,7 @@ private struct URLPanel: View {
     /// Which address the image on screen encodes. Without it there is no way
     /// to tell a current code from one left over by a format change.
     @State private var qrRenderedURL: URL?
-    @State private var qrFailed = false
+    @State private var qrFailedURL: URL?
     @State private var didCopy = false
 
     var body: some View {
@@ -926,45 +926,51 @@ private struct URLPanel: View {
         // image, skipped rendering, and was then cleared — leaving the panel
         // permanently blank after switching client format.
         .task(id: qrTaskID) {
-            guard isShowingQRCode, qrRenderedURL != url else { return }
+            guard isShowingQRCode, qrRenderedURL != url || qrImage == nil else { return }
             // A code for the previous address is worse than no code: it looks
             // right and sends the other machine somewhere else.
             qrImage = nil
-            qrFailed = false
+            qrFailedURL = nil
             await renderQRCode()
         }
     }
 
     private var qrTaskID: String { "\(url.absoluteString)-\(isShowingQRCode)" }
 
-    @ViewBuilder
     private var qrCode: some View {
-        if let qrImage {
-            VStack(spacing: 8) {
-                Image(uiImage: qrImage)
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFit()
-                    .frame(width: 190, height: 190)
-                    .padding(13)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 5)
-                Text("用客户端扫这个码")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("局域网订阅地址的二维码")
-        } else if qrFailed {
-            Label("无法生成二维码", systemImage: "exclamationmark.triangle")
+        // The same adaptive square and caption reserve the final layout while
+        // rendering or reporting failure. Only a code for this URL may appear.
+        VStack(spacing: 8) {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: 216)
+                .overlay {
+                    if qrRenderedURL == url, let qrImage {
+                        Image(uiImage: qrImage)
+                            .resizable()
+                            .interpolation(.none)
+                            .scaledToFit()
+                            .padding(13)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .shadow(color: .black.opacity(0.08), radius: 12, y: 5)
+                            .transition(.asymmetric(insertion: .opacity, removal: .identity))
+                            .accessibilityLabel("局域网订阅地址的二维码")
+                    } else if qrFailedURL == url {
+                        Label("无法生成二维码", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(13)
+                    } else {
+                        ProgressView()
+                    }
+                }
+            Text("用客户端扫这个码")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, minHeight: 120)
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 120)
+                .opacity(qrRenderedURL == url && qrImage != nil ? 1 : 0)
+                .accessibilityHidden(qrRenderedURL != url || qrImage == nil)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func action(
@@ -1002,21 +1008,21 @@ private struct URLPanel: View {
 
     @MainActor
     private func renderQRCode() async {
-        qrFailed = false
+        qrFailedURL = nil
         // The address carries the access key, so the PNG is as sensitive as the
         // link. The shared builder writes it with complete protection into a
         // folder it purges before each render.
         guard let artifact = await QRCodeShareArtifactBuilder.make(value: url.absoluteString, id: UUID()) else {
             guard !Task.isCancelled else { return }
-            qrFailed = true
+            withAnimation(TowerMotion.selection(reduceMotion: reduceMotion)) {
+                qrFailedURL = url
+            }
             return
         }
         guard !Task.isCancelled else { return }
-        qrRenderedURL = url
-        if reduceMotion {
+        withAnimation(TowerMotion.selection(reduceMotion: reduceMotion)) {
+            qrRenderedURL = url
             qrImage = artifact.image
-        } else {
-            withAnimation(.easeOut(duration: 0.16)) { qrImage = artifact.image }
         }
     }
 }

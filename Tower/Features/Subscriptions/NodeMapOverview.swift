@@ -466,7 +466,7 @@ struct ExpandableNodeRow: View {
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .accessibilityLabel(
                     isExpanded
                         ? String(localized: "收起 \(NodeRegionResolver.displayName(for: presentedNode))")

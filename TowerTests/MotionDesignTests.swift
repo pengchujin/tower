@@ -64,7 +64,7 @@ final class MotionDesignTests: XCTestCase {
         )
     }
 
-    func testDisclosureHeadersAnimateOnlyTheirChevrons() throws {
+    func testDisclosureHeadersPreserveGeometryWithSubtlePressFeedback() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -101,10 +101,11 @@ final class MotionDesignTests: XCTestCase {
 
         for header in [subscriptionHeader, nodeHeader, reminderHeader] {
             XCTAssertTrue(header.contains(".rotationEffect(.degrees(isExpanded ? 180 : 0))"))
-            XCTAssertTrue(header.contains(".buttonStyle(.plain)"))
+            XCTAssertTrue(header.contains(".buttonStyle(.plain)")
+                || header.contains(".buttonStyle(SelectionIndicatorButtonStyle())"))
             XCTAssertFalse(
                 header.contains(".buttonStyle(ResponsivePressButtonStyle())"),
-                "展开按钮不能让名称、图标和整行跟着缩放或改变透明度"
+                "展开按钮允许局部明暗反馈，但不能让名称、图标和整行跟着缩放"
             )
         }
     }

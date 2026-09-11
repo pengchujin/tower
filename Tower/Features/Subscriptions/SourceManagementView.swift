@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SourceManagementView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     private let initialRoute: SourceManagementRoute
     @State private var tab: SourceManagementTab
@@ -37,6 +38,9 @@ struct SourceManagementView: View {
                 NodeFilterSections(searchText: $searchText)
             }
         }
+        // Search cancellation restores many rows in the same transaction as
+        // the system search bar/keyboard dismissal. Do not animate that diff.
+        .animation(nil, value: searchText)
         .accessibilityIdentifier("source-management-list")
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -200,7 +204,9 @@ struct SourceManagementView: View {
                 HStack {
                     Text("已选择 \(selectedItemCount) 项")
                         .font(.subheadline.weight(.semibold))
-                        .contentTransition(.numericText())
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion)) { content in
+                            content.contentTransition(reduceMotion ? .opacity : .numericText(value: Double(selectedItemCount)))
+                        }
 
                     Spacer()
 

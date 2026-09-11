@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ExportView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var surgeSchemeAvailable = false
     @State private var preparedConfiguration: GeneratedConfiguration?
     @State private var preparedRequest: ConfigurationRequest?
@@ -34,33 +35,48 @@ struct ExportView: View {
                     activateLANSharing: activateLANSharing
                 )
 
-                if isLANSharingSelected {
-                    LANSharingDestinationCard()
-                    LANSharingGuide()
-                } else {
-                    ExportContentModePicker()
-                    if let displayedConfiguration = configuration ?? preparedConfiguration {
-                        ConversionSummary(configuration: displayedConfiguration)
+                VStack(spacing: 22) {
+                    if isLANSharingSelected {
+                        LANSharingDestinationCard()
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                        LANSharingGuide()
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
                     } else {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 160)
-                    }
-                    ProtocolFilter()
-                    if let displayedConfiguration = configuration ?? preparedConfiguration {
-                        ImportPrivacyNote(
-                            copiesSubscription: copiesSubscription,
-                            target: displayedConfiguration.target,
-                            contentMode: displayedConfiguration.contentMode,
-                            embedsRemoteSubscriptions: model.embedRemoteSubscriptionLinks
-                                && model.selectedTarget.supportsEmbeddedRemoteSubscriptions
-                        )
-                        ConfigurationPreview(configuration: displayedConfiguration) {
-                            guard let configuration else { return }
-                            previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                        ExportContentModePicker()
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                        if let displayedConfiguration = configuration ?? preparedConfiguration {
+                            ConversionSummary(configuration: displayedConfiguration)
+                                .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 160)
+                                .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
                         }
-                        .disabled(configuration == nil)
+                        ProtocolFilter()
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                        if let displayedConfiguration = configuration ?? preparedConfiguration {
+                            ImportPrivacyNote(
+                                copiesSubscription: copiesSubscription,
+                                target: displayedConfiguration.target,
+                                contentMode: displayedConfiguration.contentMode,
+                                embedsRemoteSubscriptions: model.embedRemoteSubscriptionLinks
+                                    && model.selectedTarget.supportsEmbeddedRemoteSubscriptions
+                            )
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                            ConfigurationPreview(configuration: displayedConfiguration) {
+                                guard let configuration else { return }
+                                previewPayload = ConfigurationPreviewPayload(configuration: configuration)
+                            }
+                            .disabled(configuration == nil)
+                            .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                        }
                     }
                 }
+                // Keep content changes local: client taps and horizontal scrolling
+                // must remain immediate, including while configuration work finishes.
+                .contentTransition(.opacity)
+                .animation(reduceMotion ? nil : TowerMotion.selection(reduceMotion: false), value: preparedRequest)
+                .animation(reduceMotion ? nil : TowerMotion.selection(reduceMotion: false), value: selectedDestinationID)
             }
             .frame(maxWidth: TowerPlatform.isMac ? TowerTheme.macContentMaxWidth : .infinity)
             .padding(.horizontal, TowerPlatform.isMac ? 28 : TowerTheme.pagePadding)
@@ -104,27 +120,31 @@ struct ExportView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isLANSharingSelected {
-                ImportActionBar(
-                    copiesSubscription: copiesSubscription,
-                    target: model.selectedTarget,
-                    contentMode: model.exportContentMode(for: model.selectedTarget),
-                    isImporting: isImporting,
-                    isDisabled: configuration?.hasExportableProxies != true,
-                    importAction: {
-                        guard let configuration else { return }
-                        Task { await importConfiguration(configuration) }
-                    },
-                    shareAction: {
-                        guard let configuration else { return }
-                        export(configuration)
-                    },
-                    copyAction: {
-                        guard let configuration else { return }
-                        copy(configuration)
-                    }
-                )
+            VStack(spacing: 0) {
+                if !isLANSharingSelected {
+                    ImportActionBar(
+                        copiesSubscription: copiesSubscription,
+                        target: model.selectedTarget,
+                        contentMode: model.exportContentMode(for: model.selectedTarget),
+                        isImporting: isImporting,
+                        isDisabled: configuration?.hasExportableProxies != true,
+                        importAction: {
+                            guard let configuration else { return }
+                            Task { await importConfiguration(configuration) }
+                        },
+                        shareAction: {
+                            guard let configuration else { return }
+                            export(configuration)
+                        },
+                        copyAction: {
+                            guard let configuration else { return }
+                            copy(configuration)
+                        }
+                    )
+                    .transition(.opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)))
+                }
             }
+            .animation(reduceMotion ? nil : TowerMotion.selection(reduceMotion: false), value: isLANSharingSelected)
         }
         .sheet(item: $sharePayload) { payload in
             ActivitySheet(items: [payload.url])
@@ -1056,6 +1076,7 @@ private struct ProtocolSymbolBadge: View {
 }
 
 private struct ConversionSummary: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     let configuration: GeneratedConfiguration
 
@@ -1065,9 +1086,13 @@ private struct ConversionSummary: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(configuration.hasExportableProxies ? "转换已就绪" : "暂时无法导出")
                         .font(.title3.weight(.semibold))
+                        .contentTransition(.opacity)
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: configuration.hasExportableProxies)
                     Text(summarySubtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .contentTransition(.opacity)
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: summarySubtitle)
                 }
                 Spacer()
                 Image(systemName: configuration.hasExportableProxies ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
@@ -1111,6 +1136,7 @@ private struct ConversionSummary: View {
 }
 
 private struct ConfigurationPreview: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let configuration: GeneratedConfiguration
     let onOpen: () -> Void
 
@@ -1122,6 +1148,8 @@ private struct ConfigurationPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "配置预览", detail: configuration.fileName)
             ConfigurationSummaryView(text: preview)
+                .contentTransition(.opacity)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: preview)
                 .frame(height: 220)
                 .background(Color.black.opacity(0.045), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -1137,6 +1165,7 @@ private struct ConfigurationPreview: View {
 }
 
 private struct ConfigurationPreviewSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let configuration: GeneratedConfiguration
@@ -1144,17 +1173,20 @@ private struct ConfigurationPreviewSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
                 if let highlightedSpans {
                     ConfigurationTextView(
                         text: configuration.content,
                         spans: highlightedSpans
                     )
+                    .transition(.opacity)
                 } else {
                     ProgressView("正在加载完整配置…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity)
                 }
             }
+            .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: highlightedSpans != nil)
             .background(Color(uiColor: .secondarySystemBackground))
             .navigationTitle(configuration.target.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -1177,15 +1209,18 @@ private struct ConfigurationPreviewSheet: View {
             // enough to keep the sheet interactive while it happened.
             .task {
                 let content = configuration.content
-                highlightedSpans = await Task.detached(priority: .userInitiated) {
+                let spans = await Task.detached(priority: .userInitiated) {
                     ConfigurationSyntaxHighlighter.spans(in: content)
                 }.value
+                guard !Task.isCancelled else { return }
+                highlightedSpans = spans
             }
         }
     }
 }
 
 private struct ImportPrivacyNote: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var copiesSubscription = false
     let target: ClientTarget
     let contentMode: ExportContentMode
@@ -1199,15 +1234,21 @@ private struct ImportPrivacyNote: View {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(.green)
+                        .contentTransition(.opacity)
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: title)
                     Text(target.name)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .contentTransition(.opacity)
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: target.name)
                 }
             }
             Text(detail)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.opacity)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: detail)
         }
         .padding(16)
         .background(.green.opacity(0.075), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -1253,6 +1294,7 @@ private struct ImportPrivacyNote: View {
 }
 
 private struct ImportActionBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var copiesSubscription = false
     let target: ClientTarget
     let contentMode: ExportContentMode
@@ -1266,12 +1308,18 @@ private struct ImportActionBar: View {
         HStack(spacing: 11) {
             Button(action: importAction) {
                 HStack(spacing: 9) {
-                    if isImporting {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        ClientAppIcon(target: target, size: 27)
+                    ZStack {
+                        if isImporting {
+                            ProgressView()
+                                .tint(.white)
+                                .transition(.opacity)
+                        } else {
+                            ClientAppIcon(target: target, size: 27)
+                                .transition(.opacity)
+                        }
                     }
+                    .frame(width: 27, height: 27)
+                    .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isImporting)
                     Text(importTitle)
                         .font(.headline)
                         .lineLimit(1)

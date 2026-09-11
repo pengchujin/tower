@@ -78,21 +78,8 @@ struct AppRootView: View {
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.04)))
                 .zIndex(1)
             }
-            if model.isReplayingMacOnboarding {
-                GeometryReader { geometry in
-                    ZStack {
-                        Color.black.opacity(0.18).ignoresSafeArea()
-                        WelcomeView { model.isReplayingMacOnboarding = false }
-                            .frame(width: min(720, max(300, geometry.size.width - 48)),
-                                   height: min(960, max(300, geometry.size.height - 48)))
-                            .background(Color(uiColor: .systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
-                            .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+            MacOnboardingOverlay()
                 .zIndex(2)
-            }
         }
     }
 
@@ -122,6 +109,42 @@ struct AppRootView: View {
         .background { TabSelectionFeedback() }
         .modifier(SubscriptionRefreshProgressModifier())
         .towerToast()
+    }
+}
+
+/// Keep the desktop welcome surface's transition independent of the settings
+/// sheet being dismissed by its trigger.
+private struct MacOnboardingOverlay: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPresented = false
+
+    var body: some View {
+        ZStack {
+            if isPresented {
+                Color.black.opacity(0.18)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(0)
+                GeometryReader { geometry in
+                    WelcomeView { model.isReplayingMacOnboarding = false }
+                        .frame(width: min(720, max(300, geometry.size.width - 48)),
+                               height: min(960, max(300, geometry.size.height - 48)))
+                        .background(Color(uiColor: .systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
+                .zIndex(1)
+            }
+        }
+        .allowsHitTesting(isPresented)
+        .onChange(of: model.isReplayingMacOnboarding, initial: true) { _, value in
+            withTransaction(Transaction(animation: TowerMotion.disclosure(reduceMotion: reduceMotion))) {
+                isPresented = value
+            }
+        }
     }
 }
 
@@ -196,38 +219,71 @@ private struct ToastOverlay: View {
     }
 }
 
-/// Observe progress in a separate modifier, keeping the entire tab tree stable.
+/// Presentation has its own transaction: a native refresh can suppress animations
+/// in the update that starts the task. Do not disable the underlying scroll view
+/// while its pull gesture and refresh indicator are returning to rest.
 private struct SubscriptionRefreshProgressModifier: ViewModifier {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var presentedProgress: Presentation?
+
+    private struct Presentation: Equatable {
+        let id: UUID
+        let title: String
+        let sources: [String]
+    }
+
+    private var progress: Presentation? {
+        guard let progress = model.subscriptionRefreshProgress else { return nil }
+        return Presentation(
+            id: progress.id,
+            title: progress.title,
+            sources: model.subscriptions.filter {
+                progress.sourceIDs.contains($0.id) && model.refreshingSourceIDs.contains($0.id)
+            }.map(\.name)
+        )
+    }
 
     func body(content: Content) -> some View {
         content
-            .disabled(model.subscriptionRefreshProgress != nil)
-            .accessibilityHidden(model.subscriptionRefreshProgress != nil)
+            .accessibilityHidden(presentedProgress != nil)
             .overlay {
                 ZStack {
-                    if let progress = model.subscriptionRefreshProgress {
+                    if let presentedProgress {
                         Color.black.opacity(0.18)
                             .ignoresSafeArea()
+                            .contentShape(Rectangle())
+                            .onTapGesture { }
                             .accessibilityHidden(true)
                             .transition(.opacity)
+                            .zIndex(0)
                         TaskProgressCard(
-                            title: progress.title,
-                            sources: model.subscriptions.filter {
-                                progress.sourceIDs.contains($0.id) && model.refreshingSourceIDs.contains($0.id)
-                            }.map(\.name),
+                            title: presentedProgress.title,
+                            sources: presentedProgress.sources,
                             message: "可随时取消，已更新的订阅会保留。",
                             identifier: "subscription-refresh-progress",
                             onCancel: model.cancelSubscriptionRefresh
                         )
                         .padding(24)
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.92).combined(with: .opacity))
+                        .zIndex(1)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .animation(reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.3, dampingFraction: 1),
-                    value: model.subscriptionRefreshProgress != nil)
+                .allowsHitTesting(presentedProgress != nil)
+            }
+            .onChange(of: progress, initial: true) { _, newProgress in
+                let visibilityChanged = (presentedProgress == nil) != (newProgress == nil)
+                let animation: Animation = reduceMotion
+                    ? .easeInOut(duration: 0.18)
+                    : visibilityChanged
+                        ? .spring(response: 0.36, dampingFraction: 1)
+                        : .easeInOut(duration: 0.2)
+                // A fresh transaction also clears disablesAnimations inherited
+                // from UIKit's refresh handling, without animating model writes.
+                withTransaction(Transaction(animation: animation)) {
+                    presentedProgress = newProgress
+                }
             }
     }
 }

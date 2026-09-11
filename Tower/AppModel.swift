@@ -339,13 +339,18 @@ final class AppModel {
                                    "🇧🇷 巴西", "🇲🇽 墨西哥", "🇦🇷 阿根廷", "🇿🇦 南非", "🇹🇷 土耳其", "🇦🇪 阿联酋"]
                     let sourceCount = min(16, max(1, count / 30))
                     snapshot.subscriptions = (0..<sourceCount).map { index in
-                        SubscriptionSource(
+                        let usage = SubscriptionUsage(
+                            uploadBytes: Int64(index + 1) * 1_073_741_824,
+                            downloadBytes: Int64(index + 1) * 4_294_967_296,
+                            totalBytes: 214_748_364_800,
+                            expiresAt: Date.now.addingTimeInterval(Double(index + 7) * 86_400)
+                        )
+                        return SubscriptionSource(
                             name: index == 0 ? "云帆机场" : "测试订阅 \(index + 1)",
-                            urlString: "https://example.invalid/performance/\(index)", lastUpdatedAt: .now,
-                            usage: SubscriptionUsage(uploadBytes: Int64(index + 1) * 1_073_741_824,
-                                                     downloadBytes: Int64(index + 1) * 4_294_967_296,
-                                                     totalBytes: 214_748_364_800,
-                                                     expiresAt: .now.addingTimeInterval(Double(index + 7) * 86_400)))
+                            urlString: "https://example.invalid/performance/\(index)",
+                            lastUpdatedAt: Date.now,
+                            usage: usage
+                        )
                     }
                     let kinds: [ProxyKind] = [.shadowsocks, .trojan, .vmess, .vless, .hysteria2, .anytls]
                     snapshot.nodes = (0..<count).map { index in

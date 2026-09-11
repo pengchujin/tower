@@ -189,6 +189,7 @@ struct ImportRuleSchemeSheet: View {
                             } else if let importProgress, isSaving {
                                 TaskProgressCard(title: importProgress.title, sources: importProgress.sources,
                                     message: "可随时取消，已填写的内容会保留。", identifier: "scheme-import-progress", onCancel: cancel)
+                                    .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: importProgress)
                             }
                         }
                         .padding(24)

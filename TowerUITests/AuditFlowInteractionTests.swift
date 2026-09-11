@@ -3,6 +3,36 @@ import UIKit
 
 @MainActor
 final class AuditFlowInteractionTests: XCTestCase {
+    func testManagementSearchCancellationRestoresNodes() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchEnvironment["TOWER_PERFORMANCE_NODE_COUNT"] = "300"
+        app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        let management = app.buttons["source-management-button"]
+        XCTAssertTrue(management.waitForExistence(timeout: 15))
+        management.tap()
+        app.segmentedControls.buttons["导出筛选"].tap()
+        let search = app.searchFields.firstMatch
+        app.swipeDown()
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        for query in ["31", "no-matching-node", "31"] {
+            search.tap()
+            search.typeText(query)
+            let cancel = app.buttons["关闭"].firstMatch
+            XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+            cancel.tap()
+            let count = app.staticTexts["节点 · 300 / 300"]
+            XCTAssertTrue(count.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["toggle-all-filtered-nodes"].isEnabled)
+            XCTAssertFalse(app.keyboards.firstMatch.exists)
+        }
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "management-search-restored"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     func testSubscriptionRefreshUsesCenteredProgressAndCanCancel() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
@@ -12,8 +42,8 @@ final class AuditFlowInteractionTests: XCTestCase {
         XCTAssertTrue(app.buttons["add-source-button"].waitForExistence(timeout: 15))
         let summary = app.staticTexts["准备您的节点"].firstMatch
         let originalY = summary.frame.minY
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.30))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
         start.press(forDuration: 0.05, thenDragTo: end)
         let card = app.descendants(matching: .any)["subscription-refresh-progress"].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 5))
@@ -324,13 +354,19 @@ final class AuditFlowInteractionTests: XCTestCase {
         let app = launch()
         app.tabBars.buttons["导出"].tap()
         let preview = app.buttons["preview-config"]
+        let exportBar = app.buttons["export-config"]
         for _ in 0..<6 {
-            if preview.exists && preview.isHittable { break }
+            // AX can report the button as hittable while the pinned export
+            // bar still covers its center. Reveal the entire tap target.
+            if preview.exists && preview.isHittable && preview.frame.maxY < exportBar.frame.minY { break }
             app.swipeUp()
         }
         XCTAssertTrue(preview.isHittable)
+        XCTAssertLessThan(preview.frame.maxY, exportBar.frame.minY)
         preview.tap()
-        app.navigationBars.buttons["preview-copy"].tap()
+        let copy = app.buttons["preview-copy"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 5))
+        copy.tap()
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "preview-copy-feedback"
         attachment.lifetime = .keepAlways

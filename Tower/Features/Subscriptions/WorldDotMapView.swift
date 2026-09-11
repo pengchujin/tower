@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 /// The land grid the map draws, loaded once from the bundled snapshot.
 ///
@@ -318,6 +319,9 @@ struct WorldDotMapView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewport = Viewport()
+    @State private var viewportPresentation = ViewportPresentation()
+    @State private var viewportAnimationToken: UUID?
+    @State private var previousDragTranslation: CGSize = .zero
     @State private var displayedLevel: DetailLevel = .overview
     @State private var magnifyStartViewport: Viewport?
     @State private var dragStartViewport: Viewport?
@@ -363,38 +367,43 @@ struct WorldDotMapView: View {
                 size: geometry.size
             )
             ZStack(alignment: .topLeading) {
-                if RenderPlanner.usesDetailCanvas(
-                    detailLevel: displayedLevel,
-                    isManipulatingViewport: isManipulatingViewport,
-                    isRecenteringSelection: isRecenteringSelection
-                ) {
-                    WorldDotDetailCanvas(
-                        grid: grid,
-                        layout: layout,
-                        scale: viewport.scale,
-                        coveredCells: paint.coveredCells,
-                        selectedCells: paint.selectedCells,
-                        latencyBands: paint.latencyBands,
-                        colorScheme: colorScheme
-                    )
-                    .equatable()
-                    .frame(width: geometry.size.width * viewport.scale, height: geometry.size.height * viewport.scale)
-                    .drawingGroup()
-                    .offset(RenderPlanner.rasterOrigin(size: geometry.size, scale: viewport.scale, offset: viewport.offset))
-                } else {
-                    WorldDotCanvas(
-                        grid: grid,
-                        layout: layout,
-                        coveredCells: paint.coveredCells,
-                        selectedCells: paint.selectedCells,
-                        latencyBands: paint.latencyBands,
-                        colorScheme: colorScheme
-                    )
-                    .equatable()
-                    .drawingGroup()
-                    .scaleEffect(viewport.scale)
-                    .offset(viewport.offset)
+                ZStack(alignment: .topLeading) {
+                    if RenderPlanner.usesDetailCanvas(
+                        detailLevel: displayedLevel,
+                        isManipulatingViewport: isManipulatingViewport,
+                        isRecenteringSelection: isRecenteringSelection
+                    ) {
+                        // Rasterize at the target density, normalize back to map
+                        // coordinates, then apply the single presentation transform.
+                        WorldDotDetailCanvas(
+                            grid: grid, layout: layout, scale: viewport.scale,
+                            coveredCells: paint.coveredCells, selectedCells: paint.selectedCells,
+                            latencyBands: paint.latencyBands, colorScheme: colorScheme
+                        )
+                        .equatable()
+                        .frame(width: geometry.size.width * viewport.scale, height: geometry.size.height * viewport.scale)
+                        .drawingGroup()
+                        .scaleEffect(1 / viewport.scale, anchor: .topLeading)
+                        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                    } else {
+                        WorldDotCanvas(
+                            grid: grid, layout: layout,
+                            coveredCells: paint.coveredCells, selectedCells: paint.selectedCells,
+                            latencyBands: paint.latencyBands, colorScheme: colorScheme
+                        )
+                        .equatable()
+                        .drawingGroup()
+                    }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .transaction { transaction in
+                    // Raster replacement is discrete. Only the stable outer
+                    // transform interpolates, so pixels and recorded pose agree.
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
+                .modifier(TrackedViewportTransform(viewport: viewport, baseSize: geometry.size,
+                    recorder: viewportPresentation))
 
                 ForEach(displayItems) { item in
                     WorldDotHitTarget(item: item) {
@@ -465,11 +474,12 @@ struct WorldDotMapView: View {
             )
             .highPriorityGesture(
                 panGesture(in: geometry.size),
-                including: viewport.scale > Viewport.minimumScale + 0.001 ? .gesture : .none
+                including: viewport.scale > Viewport.minimumScale + 0.001 || viewportAnimationToken != nil ? .gesture : .none
             )
             .onChange(of: geometry.size) { _, size in
                 let normalized = viewport.normalized(in: size)
-                viewport = normalized
+                viewportAnimationToken = nil
+                updateViewportWithoutAnimation(normalized)
                 displayedLevel = normalized.level
             }
             .onChange(of: selectedMarkerID) { _, markerID in
@@ -614,17 +624,16 @@ struct WorldDotMapView: View {
     private func magnifyGesture(in size: CGSize) -> some Gesture {
         MagnifyGesture()
             .onChanged { value in
-                isManipulatingViewport = true
                 if magnifyStartViewport == nil {
-                    cancelSelectionRecenter()
+                    takeOverViewport()
                     magnifyStartViewport = viewport
                 }
                 guard let start = magnifyStartViewport else { return }
-                viewport = start.zoomed(
+                updateViewportWithoutAnimation(start.zoomed(
                     to: start.scale * value.magnification,
                     anchor: value.startAnchor,
                     in: size
-                )
+                ))
             }
             .onEnded { value in
                 guard let start = magnifyStartViewport else { return }
@@ -634,7 +643,7 @@ struct WorldDotMapView: View {
                     in: size
                 ).normalized(in: size)
                 magnifyStartViewport = nil
-                isManipulatingViewport = false
+                isManipulatingViewport = dragStartViewport != nil
                 withViewportAnimation {
                     viewport = settled
                     displayedLevel = settled.level
@@ -718,31 +727,52 @@ struct WorldDotMapView: View {
     private func panGesture(in size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 1)
             .onChanged { value in
-                isManipulatingViewport = true
                 if dragStartViewport == nil {
-                    cancelSelectionRecenter()
+                    takeOverViewport()
                     dragStartViewport = viewport
+                    previousDragTranslation = .zero
                 }
-                guard let start = dragStartViewport else { return }
-                viewport = start.translated(
-                    by: PanMotion.tracked(value.translation),
-                    in: size
-                )
+                // Incremental deltas consume overshoot at the edge. Reversing
+                // responds immediately instead of retracing an invisible gap.
+                let delta = PanMotion.delta(from: previousDragTranslation, to: value.translation)
+                updateViewportWithoutAnimation(viewport.translated(by: delta, in: size))
+                previousDragTranslation = value.translation
             }
             .onEnded { value in
-                guard let start = dragStartViewport else { return }
-                let translation = PanMotion.settled(
-                    translation: value.translation,
-                    predictedEndTranslation: value.predictedEndTranslation,
+                guard dragStartViewport != nil else { return }
+                let remaining = PanMotion.delta(from: previousDragTranslation, to: value.translation)
+                let released = viewport.translated(by: remaining, in: size)
+                let momentum = PanMotion.settled(
+                    translation: .zero,
+                    predictedEndTranslation: PanMotion.delta(from: value.translation, to: value.predictedEndTranslation),
                     reduceMotion: reduceMotion
                 )
-                let settled = start.translated(by: translation, in: size)
+                let settled = released.translated(by: momentum, in: size)
                 dragStartViewport = nil
-                isManipulatingViewport = false
+                previousDragTranslation = .zero
+                isManipulatingViewport = magnifyStartViewport != nil
                 withViewportAnimation {
                     viewport = settled
+                    if magnifyStartViewport == nil { displayedLevel = settled.level }
                 }
             }
+    }
+
+    private func takeOverViewport() {
+        let visible = viewportPresentation.value
+        cancelSelectionRecenter()
+        viewportAnimationToken = nil
+        updateViewportWithoutAnimation(visible)
+        isManipulatingViewport = true
+    }
+
+    private func updateViewportWithoutAnimation(_ value: Viewport) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            viewport = value
+            viewportPresentation.value = value
+        }
     }
 
     /// Track the finger one-to-one while it is down. The earlier damped drag
@@ -753,6 +783,10 @@ struct WorldDotMapView: View {
     enum PanMotion {
         static let trackingFactor: CGFloat = 1
         static let momentumFactor: CGFloat = 0.04
+
+        static func delta(from previous: CGSize, to current: CGSize) -> CGSize {
+            tracked(CGSize(width: current.width - previous.width, height: current.height - previous.height))
+        }
 
         static func tracked(_ translation: CGSize) -> CGSize {
             CGSize(
@@ -795,6 +829,8 @@ struct WorldDotMapView: View {
             cancelSelectionRecenter()
             withAnimation(nil) {
                 viewport = target
+                viewportPresentation.value = target
+                viewportAnimationToken = nil
                 displayedLevel = target.level
             }
             return
@@ -803,6 +839,7 @@ struct WorldDotMapView: View {
         let token = UUID()
         let labelSnapshot = captureLabelSnapshot(in: size)
         selectionRecenterToken = token
+        viewportAnimationToken = token
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -816,6 +853,7 @@ struct WorldDotMapView: View {
         } completion: {
             guard selectionRecenterToken == token else { return }
             selectionRecenterToken = nil
+            if viewportAnimationToken == token { viewportAnimationToken = nil }
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
@@ -874,12 +912,47 @@ struct WorldDotMapView: View {
     }
 
     private func withViewportAnimation(_ updates: () -> Void) {
-        withAnimation(
-            reduceMotion
-                ? nil
-                : .spring(response: 0.34, dampingFraction: 1),
-            updates
-        )
+        let token = UUID()
+        viewportAnimationToken = reduceMotion ? nil : token
+        withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 1),
+                      completionCriteria: .removed, updates) {
+            guard viewportAnimationToken == token else { return }
+            viewportAnimationToken = nil
+        }
+        if reduceMotion { viewportPresentation.value = viewport }
+    }
+
+    /// The rendered transform is also the gesture's source of truth. Recording
+    /// does not publish per-frame state or invalidate the map's planning work.
+    final class ViewportPresentation {
+        private let storage = OSAllocatedUnfairLock(initialState: Viewport())
+        var value: Viewport {
+            get { storage.withLock { $0 } }
+            set { storage.withLock { $0 = newValue } }
+        }
+    }
+
+    struct TrackedViewportTransform: GeometryEffect {
+        var viewport: Viewport
+        let baseSize: CGSize
+        let recorder: ViewportPresentation
+
+        var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+            get { AnimatablePair(viewport.scale, AnimatablePair(viewport.offset.width, viewport.offset.height)) }
+            set {
+                viewport = Viewport(scale: newValue.first,
+                    offset: CGSize(width: newValue.second.first, height: newValue.second.second))
+                recorder.value = viewport
+            }
+        }
+
+        func effectValue(size: CGSize) -> ProjectionTransform {
+            recorder.value = viewport
+            let origin = RenderPlanner.rasterOrigin(size: baseSize, scale: viewport.scale, offset: viewport.offset)
+            let scale = viewport.scale
+            return ProjectionTransform(CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
+                tx: origin.width, ty: origin.height))
+        }
     }
 
     enum DetailLevel: Equatable {

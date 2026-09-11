@@ -702,7 +702,7 @@ private struct SubscriptionCard: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .accessibilityLabel(isExpanded
                     ? String(localized: "收起 \(source.name) 的节点")
                     : String(localized: "展开 \(source.name) 的节点"))

@@ -96,14 +96,22 @@ struct WelcomeView: View {
     private var footer: some View {
         VStack(spacing: 16) {
             HStack(spacing: 6) {
-                ForEach(0..<4) { _ in
+                ForEach(0..<4) { index in
                     Circle().fill(Color.secondary.opacity(0.18)).frame(width: 7, height: 7)
                         .frame(width: 24)
+                        .overlay {
+                            if reduceMotion {
+                                Capsule().fill(Color.accentColor).frame(width: 24, height: 7)
+                                    .opacity(page == index ? 1 : 0)
+                            }
+                        }
                 }
             }
             .overlay(alignment: .leading) {
-                Capsule().fill(Color.accentColor).frame(width: 24, height: 7)
-                    .offset(x: CGFloat(page * 30) * (layoutDirection == .rightToLeft ? -1 : 1))
+                if !reduceMotion {
+                    Capsule().fill(Color.accentColor).frame(width: 24, height: 7)
+                        .offset(x: CGFloat(page * 30) * (layoutDirection == .rightToLeft ? -1 : 1))
+                }
             }
             .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: page)
             .accessibilityElement(children: .ignore)

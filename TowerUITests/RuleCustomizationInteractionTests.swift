@@ -340,7 +340,8 @@ final class RuleCustomizationInteractionTests: XCTestCase {
         let remove = app.buttons["删除关键词 hk"]
         XCTAssertTrue(remove.waitForExistence(timeout: 5)); remove.tap()
         XCTAssertFalse(groupSave.isEnabled, "Deleting the last keyword must not select all nodes")
-        XCTAssertTrue(app.staticTexts["node-filter-empty-prompt"].exists)
+        // The previous preview stays in place until the debounced result arrives.
+        XCTAssertTrue(app.staticTexts["node-filter-empty-prompt"].waitForExistence(timeout: 5))
         XCTAssertTrue(help.exists)
     }
 

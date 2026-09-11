@@ -5,6 +5,56 @@ import SwiftUI
 /// The home map is a flat dot grid rather than a MapKit globe. The grid ships
 /// as a text bitmap, so the parse and the projection onto it are what can break.
 final class WorldDotMapTests: XCTestCase {
+    func testPanReversesImmediatelyAfterOvershootingEveryEdge() {
+        let size = CGSize(width: 320, height: 180)
+        for sign: CGFloat in [-1, 1] {
+            let start = WorldDotMapView.Viewport(scale: 2)
+            let overshoot = CGSize(width: sign * 900, height: sign * 900)
+            let edge = start.translated(by: overshoot, in: size)
+            let reversal = CGSize(width: overshoot.width - sign * 5, height: overshoot.height - sign * 7)
+            let moved = edge.translated(by: WorldDotMapView.PanMotion.delta(from: overshoot, to: reversal), in: size)
+            XCTAssertEqual(moved.offset.width, edge.offset.width - sign * 5, accuracy: 0.001)
+            XCTAssertEqual(moved.offset.height, edge.offset.height - sign * 7, accuracy: 0.001)
+        }
+    }
+
+    func testMapTransformRecordsInterpolatedViewportForGestureHandoff() {
+        let size = CGSize(width: 320, height: 180)
+        let recorder = WorldDotMapView.ViewportPresentation()
+        let target = WorldDotMapView.Viewport(scale: 3, offset: CGSize(width: 100, height: -40))
+        var effect = WorldDotMapView.TrackedViewportTransform(viewport: target,
+            baseSize: size, recorder: recorder)
+        // Mimic SwiftUI's presentation value halfway through a zoom/recenter.
+        effect.animatableData = AnimatablePair(2, AnimatablePair(40, -15))
+        let transform = effect.effectValue(size: size)
+        let visible = recorder.value
+        XCTAssertEqual(visible.scale, 2)
+        XCTAssertEqual(visible.offset, CGSize(width: 40, height: -15))
+        XCTAssertNotEqual(visible, target)
+        let point = CGPoint(x: 70, y: 45)
+        let expected = visible.transform(point, in: size)
+        XCTAssertEqual(point.x * transform.m11 + transform.m31, expected.x, accuracy: 0.001)
+        XCTAssertEqual(point.y * transform.m22 + transform.m32, expected.y, accuracy: 0.001)
+        let continued = visible.translated(by: CGSize(width: 3, height: 4), in: size)
+        XCTAssertEqual(continued.offset, CGSize(width: 43, height: -11))
+    }
+
+    func testTargetDensityRasterNormalizesBeforePresentationZoom() {
+        let size = CGSize(width: 320, height: 180)
+        let point = CGPoint(x: 60, y: 120)
+        let visible = WorldDotMapView.Viewport(scale: 2, offset: CGSize(width: 22, height: -33))
+        let effect = WorldDotMapView.TrackedViewportTransform(viewport: visible,
+            baseSize: size, recorder: .init())
+        let transform = effect.effectValue(size: size)
+        for rasterScale: CGFloat in [1, 1.8, 2.8, 4.2] {
+            // Both raster paths normalize to the same base map coordinates.
+            let normalized = CGPoint(x: point.x * rasterScale / rasterScale, y: point.y * rasterScale / rasterScale)
+            let expected = visible.transform(point, in: size)
+            XCTAssertEqual(normalized.x * transform.m11 + transform.m31, expected.x, accuracy: 0.001)
+            XCTAssertEqual(normalized.y * transform.m22 + transform.m32, expected.y, accuracy: 0.001)
+        }
+    }
+
     func testCountryLatencyUsesMedianAndWaitsBeforeDeclaringFailure() {
         let nodes = (0..<3).map { ProxyNode(kind: .trojan, name: "US \($0)", server: "example.com", port: 443, rawURI: "") }
         var results: [UUID: NodeLatencyMeasurement] = [:]

@@ -77,6 +77,7 @@ enum NodeExportGroupSelectionState: Equatable {
 }
 
 struct NodeFilterSections: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -119,7 +120,11 @@ struct NodeFilterSections: View {
             } header: {
                 HStack(spacing: 12) {
                     Text("节点 · \(includedFilteredNodeCount) / \(filteredNodes.count)")
-                        .contentTransition(.numericText())
+                        // Scope motion to glyphs; a header transaction must not
+                        // animate the List's row diff when search is dismissed.
+                        .animation(TowerMotion.selection(reduceMotion: reduceMotion)) { content in
+                            content.contentTransition(reduceMotion ? .opacity : .numericText(value: Double(includedFilteredNodeCount)))
+                        }
                     Spacer()
                     bulkSelectionButton(
                         filteredNodes: filteredNodes,

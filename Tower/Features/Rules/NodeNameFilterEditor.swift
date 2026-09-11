@@ -160,7 +160,7 @@ struct NodeNameFilterFields: View {
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .foregroundStyle(Color.accentColor)
                 .accessibilityIdentifier("node-keyword-add")
                 Text("例如 jp、hk，可筛选名称中包含这些文字的节点；多个关键词满足任意一个即可。")
@@ -174,7 +174,7 @@ struct NodeNameFilterFields: View {
                     draft.regex = draft.pattern
                     draft.usesRegex = true
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
                 .foregroundStyle(Color.accentColor)
                 .font(.subheadline)
                 .frame(minHeight: 44)
@@ -221,7 +221,7 @@ struct NodeNameFilterFields: View {
                 Image(systemName: "xmark").font(.caption.weight(.semibold))
                     .frame(width: 28, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SelectionIndicatorButtonStyle())
             .accessibilityLabel("删除关键词 \(keyword.value)")
         }
         .font(.subheadline)
@@ -308,35 +308,69 @@ struct NodeNameFilterPreviewResult: Sendable {
 }
 
 struct NodeNameFilterPreview: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let input: NodeNameFilterPreviewInput
     let result: NodeNameFilterPreviewResult?
 
+    // Animate only newly completed content, not the list's layout or every edit.
+    private var resultTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.animation(TowerMotion.selection(reduceMotion: reduceMotion)),
+            removal: .identity
+        )
+    }
+
+    private var isCurrent: Bool { result?.input == input }
+
+    private var inputIsEmpty: Bool {
+        input.patterns.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
     var body: some View {
         Section {
-            if input.patterns.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            if inputIsEmpty && (result == nil || isCurrent) {
                 Text("请添加关键词")
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("node-filter-empty-prompt")
-            } else if let result, result.input == input {
-                if let error = result.error {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                } else {
-                    Text("匹配 \(result.matches.count) / \(input.candidates.count) 个节点")
-                        .accessibilityIdentifier("node-filter-match-count")
-                    if result.matches.isEmpty {
-                        Text("暂无匹配节点。可以保存以匹配以后新增的节点，也可以调整关键词。")
-                            .foregroundStyle(.secondary)
+                    .transition(resultTransition)
+            } else if let result {
+                // Keep the last preview in place while typing. Its status is
+                // explicit in the header and stale results never validate Save.
+                Group {
+                    if let error = result.error {
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                            .transition(resultTransition)
+                    } else {
+                        Text("匹配 \(result.matches.count) / \(result.input.candidates.count) 个节点")
+                            .accessibilityIdentifier("node-filter-match-count")
+                            .transition(resultTransition)
+                        if result.matches.isEmpty {
+                            Text("暂无匹配节点。可以保存以匹配以后新增的节点，也可以调整关键词。")
+                                .foregroundStyle(.secondary)
+                                .transition(resultTransition)
+                        }
+                        ForEach(Array(result.matches.prefix(30)), id: \.self) { index in
+                            Text(result.input.candidates[index].first ?? "").textSelection(.enabled)
+                                .transition(resultTransition)
+                        }
+                        if result.matches.count > 30 {
+                            Text("仅展示前 30 个匹配名称。")
+                                .foregroundStyle(.secondary)
+                                .transition(resultTransition)
+                        }
                     }
-                    ForEach(Array(result.matches.prefix(30)), id: \.self) { index in
-                        Text(input.candidates[index].first ?? "").textSelection(.enabled)
-                    }
-                    if result.matches.count > 30 { Text("仅展示前 30 个匹配名称。").foregroundStyle(.secondary) }
                 }
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion)) { content in
+                    content.opacity(isCurrent ? 1 : 0.45)
+                }
+                .accessibilityHidden(!isCurrent)
             } else {
                 ProgressView("正在匹配…")
             }
         } header: {
-            Text("名称匹配预览")
+            Text(result != nil && !isCurrent ? "正在匹配…" : "名称匹配预览")
+                .contentTransition(.opacity)
+                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isCurrent)
         } footer: {
             Text("基于已启用且勾选的本地节点。来源限制、其他排除条件与客户端支持的协议仍会影响最终候选；未下载的节点无法预览。")
         }

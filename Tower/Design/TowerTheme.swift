@@ -323,11 +323,13 @@ struct CheckmarkToggleStyle: ToggleStyle {
 
 /// A floating task surface leaves the form's geometry unchanged while importing.
 struct TaskProgressCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     let sources: [String]
     let message: LocalizedStringKey
     let identifier: String
     let onCancel: () -> Void
+    @State private var sourceAreaHeight: CGFloat = 22
     var body: some View {
         VStack(spacing: 18) {
             ProgressView()
@@ -336,23 +338,33 @@ struct TaskProgressCard: View {
                 .accessibilityHidden(true)
             Text(title)
                 .font(.headline)
+                .contentTransition(.opacity)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
-            if !sources.isEmpty {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(sources.indices, id: \.self) { index in
-                            Text(verbatim: sources[index])
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: .infinity)
-                        }
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(sources.indices, id: \.self) { index in
+                        Text(verbatim: sources[index])
+                            .contentTransition(.opacity)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(maxHeight: 96)
-                .fixedSize(horizontal: false, vertical: true)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: TaskSourceHeightKey.self, value: proxy.size.height)
+                    }
+                }
+            }
+            .frame(height: sourceAreaHeight)
+            .animation(reduceMotion ? nil : TowerMotion.disclosure(reduceMotion: false), value: sourceAreaHeight)
+            .onPreferenceChange(TaskSourceHeightKey.self) { height in
+                // Keep the space already used by this task as sources finish.
+                // Long names remain scrollable; never retain an old source.
+                sourceAreaHeight = max(sourceAreaHeight, min(96, ceil(height)))
             }
             Text(message)
                 .font(.caption)
@@ -375,6 +387,13 @@ struct TaskProgressCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier(identifier)
+    }
+}
+
+private struct TaskSourceHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

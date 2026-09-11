@@ -266,7 +266,7 @@ private struct RuleDisclosureRow: View {
             .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SelectionIndicatorButtonStyle())
     }
 }
 
@@ -452,7 +452,7 @@ private struct RuleSchemeCard: View {
                             .frame(width: 46, height: 44)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(SelectionIndicatorButtonStyle())
                         .disabled(isRefreshing)
                         .accessibilityLabel("刷新 \(scheme.name)")
                     }
@@ -1057,7 +1057,7 @@ private struct RuleCustomizationSheet: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SelectionIndicatorButtonStyle())
             .accessibilityIdentifier("local-rule-set-\(ruleSet.name)")
 
             Button {
@@ -1071,7 +1071,7 @@ private struct RuleCustomizationSheet: View {
                     .font(.title3)
                     .foregroundStyle(isAdded ? Color.green : Color.accentColor)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SelectionIndicatorButtonStyle())
             .accessibilityLabel(isAdded ? "从当前规则移除" : "加入当前规则")
             .accessibilityValue(isAdded ? "已添加" : "未添加")
         }
@@ -1111,7 +1111,7 @@ private struct RuleCustomizationSheet: View {
                 .foregroundStyle(Color.accentColor)
                 .frame(minHeight: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SelectionIndicatorButtonStyle())
             .accessibilityIdentifier("rule-group-routing-" + group.name)
         }
     }
@@ -1179,7 +1179,7 @@ private struct RuleCustomizationSheet: View {
                     in: Capsule()
                 )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SelectionIndicatorButtonStyle())
     }
 
     private func catalogRow(_ entry: RuleCatalogEntry) -> some View {
@@ -1216,7 +1216,7 @@ private struct RuleCustomizationSheet: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SelectionIndicatorButtonStyle())
         .disabled(isInstalling)
         .listRowInsets(compactRuleRowInsets)
         .accessibilityIdentifier("catalog-entry-\(entry.id)")
@@ -1437,7 +1437,7 @@ private struct RuleSchemeNetworkSettingsEditor: View {
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(SelectionIndicatorButtonStyle())
                     .accessibilityLabel("测试服务")
                     .accessibilityValue(latencyTestPreset.title)
 
@@ -1557,7 +1557,7 @@ private struct RuleSchemeNetworkSettingsEditor: View {
                     .symbolRenderingMode(.hierarchical)
                     .frame(width: 44, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SelectionIndicatorButtonStyle())
             .accessibilityLabel("删除 DNS 服务器")
         }
     }
@@ -1627,7 +1627,7 @@ private struct RuleSchemeConfigurationEditor: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     Button {
-                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.22)) {
+                        withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
                             showsHelp.toggle()
                         }
                     } label: {
@@ -1642,7 +1642,7 @@ private struct RuleSchemeConfigurationEditor: View {
                         }
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(SelectionIndicatorButtonStyle())
                     .padding(.horizontal, 16)
                     .frame(minHeight: 48)
 
@@ -1657,7 +1657,7 @@ private struct RuleSchemeConfigurationEditor: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 12)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(.opacity)
                     }
                 }
                 .background(Color(uiColor: .secondarySystemGroupedBackground))
@@ -2048,7 +2048,7 @@ private struct OrderedPolicyCandidateSections: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SelectionIndicatorButtonStyle())
             }
             NavigationLink {
                 CustomNodeFilterCreator(scheme: scheme) { name in
