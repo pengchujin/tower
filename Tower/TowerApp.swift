@@ -120,6 +120,7 @@ struct AppRootView: View {
         }
         .tint(.accentColor)
         .background { TabSelectionFeedback() }
+        .modifier(SubscriptionRefreshProgressModifier())
         .towerToast()
     }
 }
@@ -192,5 +193,41 @@ private struct ToastOverlay: View {
         reduceMotion
             ? .easeOut(duration: 0.15)
             : .spring(response: 0.35, dampingFraction: 1)
+    }
+}
+
+/// Observe progress in a separate modifier, keeping the entire tab tree stable.
+private struct SubscriptionRefreshProgressModifier: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .disabled(model.subscriptionRefreshProgress != nil)
+            .accessibilityHidden(model.subscriptionRefreshProgress != nil)
+            .overlay {
+                ZStack {
+                    if let progress = model.subscriptionRefreshProgress {
+                        Color.black.opacity(0.18)
+                            .ignoresSafeArea()
+                            .accessibilityHidden(true)
+                            .transition(.opacity)
+                        TaskProgressCard(
+                            title: progress.title,
+                            sources: model.subscriptions.filter {
+                                progress.sourceIDs.contains($0.id) && model.refreshingSourceIDs.contains($0.id)
+                            }.map(\.name),
+                            message: "可随时取消，已更新的订阅会保留。",
+                            identifier: "subscription-refresh-progress",
+                            onCancel: model.cancelSubscriptionRefresh
+                        )
+                        .padding(24)
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.3, dampingFraction: 1),
+                    value: model.subscriptionRefreshProgress != nil)
+            }
     }
 }

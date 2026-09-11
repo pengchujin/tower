@@ -53,6 +53,17 @@ final class AppModel {
     var isReplayingMacOnboarding = false
     var selectedTab: AppTab = .subscriptions
     var refreshingSourceIDs: Set<UUID> = []
+    var subscriptionRefreshProgress: SubscriptionRefreshProgress?
+    @ObservationIgnored private var presentedSubscriptionRefreshTask: Task<Void, Never>?
+
+    struct SubscriptionRefreshProgress {
+        let id = UUID()
+        let sourceIDs: Set<UUID>
+        var completedIDs: Set<UUID> = []
+        var title: String {
+            String(localized: "正在刷新订阅（\(completedIDs.count)/\(sourceIDs.count)）")
+        }
+    }
     var nodeLatencies: [UUID: NodeLatencyMeasurement] = [:]
     var latencyTestingNodeIDs: Set<UUID> = []
     var selectedLatencyTestMode: NodeLatencyTestMode = .automatic
@@ -358,7 +369,16 @@ final class AppModel {
         self.persistence = persistence
         #endif
         self.cloudSync = cloudSync
+        #if DEBUG
+        if let run = ProcessInfo.processInfo.environment["TOWER_UI_TEST_RUN"], UUID(uuidString: run) != nil,
+           ProcessInfo.processInfo.environment["TOWER_REFRESH_UI_TEST"] == "1" {
+            self.subscriptionService = RefreshPresentationTestFetcher(nodes: Self.demoSnapshot.nodes)
+        } else {
+            self.subscriptionService = subscriptionService
+        }
+        #else
         self.subscriptionService = subscriptionService
+        #endif
         self.ruleRepository = ruleRepository
         self.downloadStore = downloadStore
         // The repository resolves imported rule lists through the same store the
@@ -1191,12 +1211,12 @@ final class AppModel {
         isImportingScheme = false
     }
 
-    func importScheme(name: String, urlString: String) async throws {
-        try await importScheme { try await self.schemeImportService.importScheme(from: urlString, name: name) }
+    func importScheme(name: String, urlString: String, originalRulesetURLs: Set<URL> = [], progress: RuleImportProgressHandler? = nil) async throws {
+        try await importScheme { try await self.schemeImportService.importScheme(from: urlString, name: name, originalRulesetURLs: originalRulesetURLs, progress: progress) }
     }
 
-    func importScheme(name: String, text: String, fileName: String? = nil) async throws {
-        try await importScheme { try await self.schemeImportService.importScheme(text: text, name: name, fileName: fileName) }
+    func importScheme(name: String, text: String, fileName: String? = nil, originalRulesetURLs: Set<URL> = [], progress: RuleImportProgressHandler? = nil) async throws {
+        try await importScheme { try await self.schemeImportService.importScheme(text: text, name: name, fileName: fileName, originalRulesetURLs: originalRulesetURLs, progress: progress) }
     }
 
     private func importScheme(load: () async throws -> RuleImportResult) async throws {
@@ -1988,6 +2008,9 @@ final class AppModel {
     private func finishSourceUpdate(_ ticket: UUID, sourceID: UUID) {
         guard sourceUpdates.accepts(ticket, for: sourceID) else { return }
         refreshingSourceIDs.remove(sourceID)
+        if subscriptionRefreshProgress?.sourceIDs.contains(sourceID) == true {
+            subscriptionRefreshProgress?.completedIDs.insert(sourceID)
+        }
         sourceUpdates.finish(ticket, for: sourceID)
     }
 
@@ -2027,6 +2050,51 @@ final class AppModel {
         }
         nodes.append(contentsOf: replacements)
         excludedNodeIDs.formUnion(carriedExclusions)
+    }
+
+    /// Foreground refresh owns its lifetime independently of the pull gesture.
+    /// Background auto-refresh uses the existing non-modal entry points.
+    func startSubscriptionRefresh(sourceIDs: [UUID], singleSource: Bool = false) {
+        guard subscriptionRefreshProgress == nil else { return }
+        let requestedIDs = Set(sourceIDs)
+        let sources = subscriptions.filter { requestedIDs.contains($0.id) }
+        guard !sources.isEmpty else { return }
+        let progress = SubscriptionRefreshProgress(sourceIDs: Set(sources.map(\.id)))
+        subscriptionRefreshProgress = progress
+        presentedSubscriptionRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            if singleSource, let source = sources.first {
+                await updateSubscription(id: source.id)
+            } else {
+                await refreshSubscriptions(sources)
+            }
+            guard subscriptionRefreshProgress?.id == progress.id else { return }
+            subscriptionRefreshProgress = nil
+            presentedSubscriptionRefreshTask = nil
+        }
+    }
+
+    func cancelSubscriptionRefresh() {
+        guard let progress = subscriptionRefreshProgress else { return }
+        presentedSubscriptionRefreshTask?.cancel()
+        presentedSubscriptionRefreshTask = nil
+        var cancelledIDs = progress.sourceIDs
+        if let batch = subscriptionRefreshBatch, !batch.sourceIDs.isDisjoint(with: cancelledIDs) {
+            batch.task.cancel()
+            cancelledIDs.formUnion(batch.sourceIDs)
+            subscriptionRefreshBatch = nil
+        }
+        for id in cancelledIDs {
+            sourceUpdates.invalidate(id)
+            sourceRefreshOperations.removeValue(forKey: id)?.task.cancel()
+            refreshingSourceIDs.remove(id)
+        }
+        subscriptionRefreshProgress = nil
+        // A batch delays persistence until the end. Keep successes already applied,
+        // while invalidated tickets reject any response that arrives after cancel.
+        sortNodesToMatchSubscriptionOrder()
+        persist()
+        Task { [weak self] in await self?.synchronizeRenewalReminders(showFailure: false) }
     }
 
     /// Match pressing each subscription's manual update button while keeping
@@ -2078,6 +2146,7 @@ final class AppModel {
     private func coordinateSubscriptionRefresh(sourceIDs: [UUID]) async {
         var pendingIDs = sourceIDs
         while !pendingIDs.isEmpty {
+            guard !Task.isCancelled else { return }
             if let active = subscriptionRefreshBatch {
                 let coveredIDs = Set(pendingIDs).intersection(active.sourceIDs)
                 await active.task.value
@@ -2980,6 +3049,9 @@ final class AppModel {
                 + customRuleFlows.compactMap(\.remoteRuleURL)
         )
 
+        presentedSubscriptionRefreshTask?.cancel()
+        presentedSubscriptionRefreshTask = nil
+        subscriptionRefreshProgress = nil
         subscriptionRefreshBatch?.task.cancel()
         subscriptionRefreshBatch = nil
         for operation in sourceRefreshOperations.values {
@@ -3199,6 +3271,9 @@ final class AppModel {
         countryResolutionDates.removeAll()
         nodeNetworkOrganizations.removeAll()
         countryResolutionInFlightNodeIDs.removeAll()
+        presentedSubscriptionRefreshTask?.cancel()
+        presentedSubscriptionRefreshTask = nil
+        subscriptionRefreshProgress = nil
         subscriptionRefreshBatch?.task.cancel()
         subscriptionRefreshBatch = nil
         sourceUpdates.invalidateAll()
@@ -3723,3 +3798,19 @@ struct SubscriptionRefreshReport: Identifiable, Equatable, Sendable {
     let totalCount: Int
     let failures: [SubscriptionRefreshFailure]
 }
+
+#if DEBUG
+/// Isolated UI fixture: exercises the real refresh lifecycle without a provider request.
+private struct RefreshPresentationTestFetcher: SubscriptionFetching {
+    let nodes: [ProxyNode]
+    func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
+        try await Task.sleep(for: .seconds(8))
+        let refreshed = nodes.filter { $0.sourceID != nil }.map { node in
+            var node = node
+            node.sourceID = source.id
+            return node
+        }
+        return ImportResult(nodes: refreshed, rejectedLineCount: 0, usage: nil)
+    }
+}
+#endif

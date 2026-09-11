@@ -1113,14 +1113,15 @@ final class SubscriptionInteractionTests: XCTestCase {
             rootSource.contains("@State private var isRefreshing"),
             "更新进度状态放在整页会让千节点筛选列表跟着每次动画重算"
         )
-        XCTAssertTrue(buttonSource.contains("@State private var isRefreshing"))
+        XCTAssertFalse(buttonSource.contains("@State private var isRefreshing"))
+        XCTAssertFalse(rootSource.contains("model.subscriptionRefreshProgress"))
+        XCTAssertTrue(buttonSource.contains("model.subscriptionRefreshProgress != nil"))
         XCTAssertTrue(buttonSource.contains("Button(\"更新\") {"))
         XCTAssertFalse(buttonSource.contains("ProgressView()"))
         XCTAssertFalse(buttonSource.contains("arrow.clockwise"))
         XCTAssertFalse(buttonSource.contains(".buttonStyle(.plain)"))
         XCTAssertFalse(buttonSource.contains(".font(.subheadline"))
-        XCTAssertTrue(buttonSource.contains("isRefreshing = true"))
-        XCTAssertTrue(buttonSource.contains("await model.refreshSubscriptions(sources)"))
+        XCTAssertTrue(buttonSource.contains("model.startSubscriptionRefresh(sourceIDs: sources.map(\\.id))"))
         #else
         throw XCTSkip("该测试检查批量更新按钮的状态范围，只在模拟器构建环境运行")
         #endif

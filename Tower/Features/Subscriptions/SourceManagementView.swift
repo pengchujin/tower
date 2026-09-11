@@ -437,17 +437,13 @@ struct SourceManagementView: View {
 /// the toolbar control, not the management list and its thousand-node filters.
 private struct SubscriptionRefreshToolbarButton: View {
     @Environment(AppModel.self) private var model
-    @State private var isRefreshing = false
+    private var isRefreshing: Bool { model.subscriptionRefreshProgress != nil }
     let sources: [SubscriptionSource]
 
     var body: some View {
         Button("更新") {
             guard !sources.isEmpty, !isRefreshing else { return }
-            isRefreshing = true
-            Task {
-                await model.refreshSubscriptions(sources)
-                isRefreshing = false
-            }
+            model.startSubscriptionRefresh(sourceIDs: sources.map(\.id))
         }
         .disabled(sources.isEmpty || isRefreshing)
         .accessibilityLabel(isRefreshing ? String(localized: "更新中") : String(localized: "更新"))

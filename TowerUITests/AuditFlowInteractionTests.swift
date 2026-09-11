@@ -3,6 +3,40 @@ import UIKit
 
 @MainActor
 final class AuditFlowInteractionTests: XCTestCase {
+    func testSubscriptionRefreshUsesCenteredProgressAndCanCancel() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchEnvironment["TOWER_REFRESH_UI_TEST"] = "1"
+        app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.buttons["add-source-button"].waitForExistence(timeout: 15))
+        let summary = app.staticTexts["准备您的节点"].firstMatch
+        let originalY = summary.frame.minY
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.30))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
+        start.press(forDuration: 0.05, thenDragTo: end)
+        let card = app.descendants(matching: .any)["subscription-refresh-progress"].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        let window = app.windows.firstMatch.frame
+        XCTAssertEqual(card.frame.midX, window.midX, accuracy: 8)
+        XCTAssertLessThan(abs(card.frame.midY - window.midY), window.height * 0.15)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "subscription-refresh-centered"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["subscription-refresh-progress-cancel"].tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: card)
+        waitForExpectations(timeout: 3)
+        XCTAssertTrue(app.buttons["add-source-button"].isEnabled)
+        XCTAssertEqual(summary.frame.minY, originalY, accuracy: 8, "Pull indicator must retract without shifting the page")
+        // A fresh pull after cancellation must run normally and dismiss on success.
+        start.press(forDuration: 0.05, thenDragTo: end)
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: card)
+        waitForExpectations(timeout: 15)
+        XCTAssertTrue(app.buttons["add-source-button"].isEnabled)
+        XCTAssertFalse(app.staticTexts["更新失败"].exists)
+        app.terminate()
+    }
+
     private func launch() -> XCUIApplication {
         handleClipboardPermission()
         let app = XCUIApplication()

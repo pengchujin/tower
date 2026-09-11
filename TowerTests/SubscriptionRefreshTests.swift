@@ -112,8 +112,81 @@ private struct NamedSubscriptionFetcher: SubscriptionFetching {
     }
 }
 
+private actor HeldSubscriptionFetcher: SubscriptionFetching {
+    let firstID: UUID
+    private(set) var requestedIDs: [UUID] = []
+    private var continuation: CheckedContinuation<Void, Never>?
+    init(firstID: UUID) { self.firstID = firstID }
+    func fetch(_ source: SubscriptionSource) async throws -> ImportResult {
+        requestedIDs.append(source.id)
+        if source.id != firstID {
+            // Deliberately ignore cancellation, like a late network callback.
+            await withCheckedContinuation { continuation = $0 }
+        }
+        return ImportResult(nodes: [], rejectedLineCount: 0, usage: nil)
+    }
+    func release() { continuation?.resume(); continuation = nil }
+}
+
 @MainActor
 final class SubscriptionRefreshTests: XCTestCase {
+    func testForegroundRefreshProgressCancelRetainsSuccessAndRejectsLateResponse() async throws {
+        let first = SubscriptionSource(name: "First", urlString: "https://same.example/one")
+        let held = SubscriptionSource(name: "Held", urlString: "https://same.example/two")
+        let queued = SubscriptionSource(name: "Queued", urlString: "https://same.example/three")
+        let fetcher = HeldSubscriptionFetcher(firstID: first.id)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("refresh-progress-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = PersistenceStore(fileURL: url)
+        let model = AppModel(persistence: store, subscriptionService: fetcher, arguments: [])
+        model.subscriptions = [first, held, queued]
+        model.startSubscriptionRefresh(sourceIDs: [first.id, held.id, queued.id])
+        XCTAssertEqual(model.subscriptionRefreshProgress?.sourceIDs.count, 3)
+        let deadline = ContinuousClock.now + .seconds(3)
+        while await fetcher.requestedIDs.count < 2, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(model.subscriptionRefreshProgress?.completedIDs, [first.id])
+        XCTAssertTrue(model.refreshingSourceIDs.contains(held.id))
+        model.cancelSubscriptionRefresh()
+        XCTAssertNil(model.subscriptionRefreshProgress)
+        XCTAssertTrue(model.refreshingSourceIDs.isEmpty)
+        await fetcher.release()
+        try await Task.sleep(for: .milliseconds(50))
+        let requestedIDs = await fetcher.requestedIDs
+        XCTAssertEqual(requestedIDs, [first.id, held.id], "Cancel must not start queued sources")
+        XCTAssertNotNil(model.subscriptions[0].lastUpdatedAt)
+        XCTAssertNil(model.subscriptions[1].lastUpdatedAt, "Ignore late results after cancel")
+        XCTAssertNil(model.subscriptionRefreshReport, "Cancel is not a failure")
+        XCTAssertNil(model.toast)
+        let reopened = AppModel(persistence: store, subscriptionService: fetcher, arguments: [])
+        XCTAssertNotNil(reopened.subscriptions.first { $0.id == first.id }?.lastUpdatedAt)
+        XCTAssertNil(reopened.subscriptions.first { $0.id == held.id }?.lastUpdatedAt)
+    }
+
+    func testForegroundSingleRefreshDismissesProgressAndPreservesResult() async throws {
+        let source = SubscriptionSource(name: "One", urlString: "https://one.example/sub")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("refresh-single-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let fetcher = OverlappingRefreshFetcher()
+        let model = AppModel(persistence: PersistenceStore(fileURL: url), subscriptionService: fetcher, arguments: [])
+        model.subscriptions = [source]
+        model.startSubscriptionRefresh(sourceIDs: [source.id], singleSource: true)
+        // Repeated gestures join the presentation rather than launching a second fetch.
+        model.startSubscriptionRefresh(sourceIDs: [source.id])
+        let deadline = ContinuousClock.now + .seconds(3)
+        while model.subscriptionRefreshProgress != nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertNil(model.subscriptionRefreshProgress)
+        XCTAssertNotNil(model.subscriptions[0].lastUpdatedAt)
+        XCTAssertNotNil(model.toast)
+        let requestedIDs = await fetcher.requestedIDs
+        XCTAssertEqual(requestedIDs, [source.id])
+        model.startSubscriptionRefresh(sourceIDs: [])
+        XCTAssertNil(model.subscriptionRefreshProgress)
+    }
+
     /// Speed comes from hitting different providers at once. Hitting one
     /// provider several times at once is the thing that gets rate-limited, and
     /// a 429 costs more than the wait it saved.

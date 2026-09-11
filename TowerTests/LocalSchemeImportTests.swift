@@ -233,6 +233,115 @@ final class LocalSchemeImportTests: XCTestCase {
         try output.content.write(to: root.appendingPathComponent(".artifacts/provider-import-redo/generated-clash.yaml"), atomically: true, encoding: .utf8)
     }
 
+    @MainActor
+    func testPartialRuleDownloadFailureDoesNotSaveOrSelectIncompleteScheme() async throws {
+        let fixture = makeFixture()
+        defer { fixture.session.invalidateAndCancel(); try? FileManager.default.removeItem(at: fixture.folder) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fixture.folder.appendingPathComponent("state.json")),
+            schemeImportService: fixture.service, downloadStore: fixture.store, arguments: [])
+        let selection = model.selectedPresetID
+        let input = "[custom]\ncustom_proxy_group=Proxy`select`.*\nruleset=Proxy,https://example.invalid/ok.list\nruleset=REJECT,https://example.invalid/timeout.list\nruleset=Proxy,[]FINAL"
+        do {
+            try await model.importScheme(name: "Incomplete", text: input)
+            XCTFail("Missing REJECT rules must not be accepted as a complete import")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("timeout.list"), error.localizedDescription)
+        }
+        XCTAssertTrue(model.importedSchemes.isEmpty)
+        XCTAssertEqual(model.selectedPresetID, selection)
+    }
+
+    @MainActor
+    func testDownloadProgressReportsParsingAndCompletedSources() async throws {
+        let fixture = makeFixture()
+        defer { fixture.session.invalidateAndCancel(); try? FileManager.default.removeItem(at: fixture.folder) }
+        var updates: [RuleImportProgress] = []
+        let input = "[custom]\ncustom_proxy_group=Proxy`select`.*\nruleset=Proxy,https://example.invalid/ok.list\nruleset=Proxy,[]FINAL"
+        _ = try await fixture.service.importScheme(text: input, name: "", progress: { updates.append($0) })
+        XCTAssertEqual(updates.first?.stage, .parsing)
+        XCTAssertTrue(updates.contains { $0.stage == .rules && $0.completed == 0 && $0.total == 1 && $0.sources == ["example.invalid · ok.list"] })
+        XCTAssertEqual(updates.last?.completed, 1)
+        XCTAssertEqual(updates.last?.sources, [])
+        updates = []
+        _ = try await fixture.service.importScheme(from: "https://example.invalid/config.yaml", name: "", progress: { updates.append($0) })
+        XCTAssertEqual(updates.first?.stage, .configuration)
+        XCTAssertEqual(updates.last?.stage, .parsing)
+    }
+
+    func testMirrorRetryIsExplicitAndPersistsOriginalAddress() async throws {
+        let fixture = makeFixture()
+        defer { fixture.session.invalidateAndCancel(); try? FileManager.default.removeItem(at: fixture.folder) }
+        let mirror = URL(string: "https://ghp.ci/https://raw.githubusercontent.com/example/rules/main/ads.yaml")!
+        let original = try XCTUnwrap(RuleSchemeImportService.originalGitHubURL(for: mirror))
+        let input = """
+        proxy-groups: [{name: Proxy, type: select, proxies: [DIRECT]}]
+        rule-providers:
+          ads: {type: http, behavior: classical, format: yaml, interval: 180, url: \(mirror.absoluteString)}
+        rules: ['RULE-SET,ads,REJECT,no-resolve', 'MATCH,Proxy']
+        """
+        do {
+            _ = try await fixture.service.importScheme(text: input, name: "")
+            XCTFail("Must not silently bypass the mirror")
+        } catch let error as RuleImportDownloadError {
+            XCTAssertEqual(error.retryableMirrorURLs, [mirror])
+            XCTAssertEqual(error.failures.map(\.url), [mirror])
+        }
+        let result = try await fixture.service.importScheme(text: input, name: "", originalRulesetURLs: [mirror])
+        XCTAssertEqual(result.scheme.remoteRulesetURLs, [original])
+        XCTAssertEqual(result.scheme.rulesets.first?.groupName, "REJECT")
+        XCTAssertEqual(result.scheme.rulesets.first?.options, ["no-resolve"])
+        XCTAssertEqual(result.scheme.rulesets.first?.provider?.interval, 180)
+        XCTAssertNotNil(fixture.store.lines(for: original))
+        XCTAssertNil(fixture.store.lines(for: mirror))
+        let reopened = try RuleSchemeTextEditorService().validatedScheme(from: XCTUnwrap(result.scheme.rawConfigurationText), replacing: result.scheme)
+        XCTAssertEqual(reopened.rulesets, result.scheme.rulesets)
+        XCTAssertFalse(try XCTUnwrap(reopened.rawConfigurationText).contains("ghp.ci"))
+        let failed = await fixture.service.refreshRulesets(for: reopened)
+        XCTAssertEqual(failed, 0)
+    }
+
+    func testMirrorRecognitionDoesNotForwardUntrustedNestedURLs() {
+        for value in [
+            "https://unknown.example/https://raw.githubusercontent.com/a/b/main/file",
+            "https://ghp.ci/https://raw.githubusercontent.com.evil.example/a/b/file",
+            "https://ghp.ci/https://user@raw.githubusercontent.com/a/b/file",
+            "https://ghp.ci/http://raw.githubusercontent.com/a/b/file",
+            "https://ghp.ci/https://raw.githubusercontent.com/a/b/file?token=private",
+            "https://ghp.ci/https://localhost/a/b/file"
+        ] { XCTAssertNil(RuleSchemeImportService.originalGitHubURL(for: URL(string: value)!)) }
+    }
+
+    func testHTMLRulesAreRejectedInsteadOfCachedAsSuccessful() async throws {
+        let fixture = makeFixture()
+        defer { fixture.session.invalidateAndCancel(); try? FileManager.default.removeItem(at: fixture.folder) }
+        let input = "[custom]\ncustom_proxy_group=Proxy`select`.*\nruleset=REJECT,https://example.invalid/html.list\nruleset=Proxy,[]FINAL"
+        do { _ = try await fixture.service.importScheme(text: input, name: ""); XCTFail("HTML is not a rule list") }
+        catch let error as RuleImportDownloadError { XCTAssertEqual(error.failures.count, 1) }
+        XCTAssertNil(fixture.store.lines(for: URL(string: "https://example.invalid/html.list")!))
+    }
+
+    @MainActor
+    func testCancelDuringRulesStageDoesNotSaveScheme() async throws {
+        let fixture = makeFixture()
+        defer { fixture.session.invalidateAndCancel(); try? FileManager.default.removeItem(at: fixture.folder) }
+        let model = AppModel(persistence: PersistenceStore(fileURL: fixture.folder.appendingPathComponent("state.json")),
+            schemeImportService: fixture.service, downloadStore: fixture.store, arguments: [])
+        let started = expectation(description: "rules stage")
+        let input = "[custom]\ncustom_proxy_group=Proxy`select`.*\nruleset=REJECT,https://example.invalid/hang.list\nruleset=Proxy,[]FINAL"
+        let task = Task {
+            try await model.importScheme(name: "Cancelled", text: input, progress: { update in
+                if update.stage == .rules { started.fulfill() }
+            })
+        }
+        await fulfillment(of: [started], timeout: 5)
+        task.cancel()
+        model.cancelRuleImport()
+        do { try await task.value; XCTFail("Cancelled import succeeded") } catch is CancellationError { }
+        XCTAssertTrue(model.importedSchemes.isEmpty)
+        XCTAssertFalse(model.isImportingScheme)
+        XCTAssertNil(fixture.store.lines(for: URL(string: "https://example.invalid/hang.list")!))
+    }
+
     private func makeFixture() -> (service: RuleSchemeImportService, store: RuleDownloadStore, session: URLSession, folder: URL) {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let configuration = URLSessionConfiguration.ephemeral
@@ -248,6 +357,11 @@ private final class LocalImportURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         guard let url = request.url else { return }
+        if url.lastPathComponent == "hang.list" { return }
+        if url.lastPathComponent == "timeout.list" || url.host == "ghp.ci" {
+            client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
+            return
+        }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         if url.lastPathComponent == "config.yaml" {
             let text = "proxy-providers:\n  CNIX: {type: http, url: '请填写订阅'}\nproxy-groups:\n  - {name: PROXY, type: select, proxies: [CNIX, DIRECT]}\n  - {name: CNIX, type: select, use: [CNIX]}\nrules: ['MATCH,PROXY']"
@@ -256,7 +370,7 @@ private final class LocalImportURLProtocol: URLProtocol {
             return
         }
         let name = url.deletingPathExtension().lastPathComponent
-        let content = url.pathExtension == "txt" ? "payload:\n  - 'DOMAIN,\(name).example'\n" : "DOMAIN,fixture.example\n"
+        let content = url.lastPathComponent == "html.list" ? "<!DOCTYPE html><html>Error</html>" : url.pathExtension == "txt" ? "payload:\n  - 'DOMAIN,\(name).example'\n" : "DOMAIN,fixture.example\n"
         client?.urlProtocol(self, didLoad: Data(content.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }

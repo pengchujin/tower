@@ -24,11 +24,52 @@ enum RuleImportError: LocalizedError, Equatable {
     }
 }
 
+/// Progress carries only display-safe source names, never URL credentials or query strings.
+struct RuleImportProgress: Sendable, Equatable {
+    enum Stage: Sendable { case configuration, parsing, rules }
+    let stage: Stage
+    var completed = 0
+    var total = 0
+    var sources: [String] = []
+
+    var title: String {
+        switch stage {
+        case .configuration: String(localized: "正在下载配置…")
+        case .parsing: String(localized: "正在解析配置…")
+        case .rules: String(localized: "正在下载引用的规则（\(completed)/\(total)）")
+        }
+    }
+}
+
+typealias RuleImportProgressHandler = @MainActor @Sendable (RuleImportProgress) -> Void
+
+struct RuleImportDownloadFailure: Sendable, Equatable {
+    let url: URL
+    let reason: String
+
+    static func sourceName(_ url: URL) -> String {
+        // Mirrors embed a second URL in their path; show the actual file's basename.
+        let filename = url.lastPathComponent
+        return [url.host ?? "", filename].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+struct RuleImportDownloadError: LocalizedError, Sendable {
+    let failures: [RuleImportDownloadFailure]
+    var isRulesetFailure = true
+    var errorDescription: String? {
+        let detail = failures.map { "\(RuleImportDownloadFailure.sourceName($0.url))：\($0.reason)" }.joined(separator: "\n")
+        return String(localized: "下载未完成，尚未导入。") + "\n" + detail
+    }
+    var retryableMirrorURLs: Set<URL> {
+        guard isRulesetFailure else { return [] }
+        return Set(failures.map(\.url).filter { RuleSchemeImportService.originalGitHubURL(for: $0) != nil })
+    }
+}
+
 struct RuleImportResult {
     let scheme: RuleScheme
-    /// Lists that could not be fetched. The scheme is still usable; these
-    /// simply contribute no rules, and the count is surfaced to the user rather
-    /// than hidden.
+    /// Successful imports have no missing lists. Kept for existing callers.
     let failedRulesetCount: Int
 }
 
@@ -52,7 +93,7 @@ struct RuleSchemeImportService {
         return fileURL.host ?? String(localized: "导入的规则")
     }
 
-    func importScheme(from urlString: String, name: String) async throws -> RuleImportResult {
+    func importScheme(from urlString: String, name: String, originalRulesetURLs: Set<URL> = [], progress: RuleImportProgressHandler? = nil) async throws -> RuleImportResult {
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let entered = URL(string: trimmed), entered.host != nil else {
             throw RuleImportError.invalidURL
@@ -66,7 +107,15 @@ struct RuleSchemeImportService {
         let url = Self.rawFileURL(for: entered)
 
         let generation = store.writeGeneration
-        let payload = try await fetch(url)
+        try Task.checkCancellation()
+        await progress?(RuleImportProgress(stage: .configuration, sources: [RuleImportDownloadFailure.sourceName(url)]))
+        let payload: Data
+        do { payload = try await fetch(url) }
+        catch {
+            try Task.checkCancellation()
+            throw RuleImportDownloadError(failures: [downloadFailure(url, error: error)], isRulesetFailure: false)
+        }
+        await progress?(RuleImportProgress(stage: .parsing))
         guard !Self.looksLikeWebPage(payload) else {
             throw RuleImportError.receivedWebPage
         }
@@ -84,34 +133,113 @@ struct RuleSchemeImportService {
             scheme = persistableRuleTemplate(scheme)
         }
 
-        let failed = await downloadRulesets(scheme.remoteRulesetURLs, generation: generation)
-        try Task.checkCancellation()
-        guard failed < scheme.remoteRulesetURLs.count || scheme.remoteRulesetURLs.isEmpty else {
-            throw RuleImportError.noRulesetsDownloaded
-        }
-        return RuleImportResult(scheme: scheme, failedRulesetCount: failed)
+        scheme = replacingMirrors(in: scheme, urls: originalRulesetURLs)
+        try await downloadRequiredRulesets(scheme.remoteRulesetURLs, generation: generation, progress: progress)
+        return RuleImportResult(scheme: scheme, failedRulesetCount: 0)
     }
 
     /// Imports a local configuration without retaining node credentials or its file path.
-    func importScheme(text: String, name: String, fileName: String? = nil) async throws -> RuleImportResult {
+    func importScheme(text: String, name: String, fileName: String? = nil, originalRulesetURLs: Set<URL> = [], progress: RuleImportProgressHandler? = nil) async throws -> RuleImportResult {
         try Task.checkCancellation()
         guard text.utf8.count <= Self.maximumLocalBytes else { throw RuleImportError.fileTooLarge }
         let content = text.trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}"))
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RuleImportError.emptyBody }
         guard !Self.looksLikeWebPage(Data(content.prefix(1_024).utf8)) else { throw RuleImportError.receivedWebPage }
         let generation = store.writeGeneration
+        await progress?(RuleImportProgress(stage: .parsing))
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let filename = fileName.map { URL(fileURLWithPath: $0).lastPathComponent }
         var scheme = try parser.parse(text: content, id: "imported-\(UUID().uuidString)",
             name: title.isEmpty ? (filename ?? String(localized: "导入的规则")) : title,
             summary: String(localized: "从本地配置导入"), useSelectedNodes: true)
         scheme = persistableRuleTemplate(scheme)
-        let failed = await downloadRulesets(scheme.remoteRulesetURLs, generation: generation)
-        try Task.checkCancellation()
-        guard failed < scheme.remoteRulesetURLs.count || scheme.remoteRulesetURLs.isEmpty else {
-            throw RuleImportError.noRulesetsDownloaded
+        scheme = replacingMirrors(in: scheme, urls: originalRulesetURLs)
+        try await downloadRequiredRulesets(scheme.remoteRulesetURLs, generation: generation, progress: progress)
+        return RuleImportResult(scheme: scheme, failedRulesetCount: 0)
+    }
+
+    /// Only a known mirror wrapping an HTTPS GitHub file is eligible. No arbitrary
+    /// nested URLs, credentials or extra query parameters are forwarded to another host.
+    static func originalGitHubURL(for url: URL) -> URL? {
+        guard url.scheme == "https", url.host?.lowercased() == "ghp.ci",
+              url.user == nil, url.password == nil, url.port == nil,
+              url.query == nil, url.fragment == nil,
+              url.path.hasPrefix("/https://"),
+              let original = URL(string: String(url.path.dropFirst())),
+              original.scheme == "https", original.user == nil, original.password == nil,
+              original.port == nil, original.query == nil, original.fragment == nil,
+              ["raw.githubusercontent.com", "gist.githubusercontent.com"].contains(original.host?.lowercased() ?? ""),
+              original.pathComponents.count >= 4 else { return nil }
+        return original
+    }
+
+    private func replacingMirrors(in original: RuleScheme, urls: Set<URL>) -> RuleScheme {
+        guard !urls.isEmpty else { return original }
+        var scheme = original
+        scheme.rulesets = scheme.rulesets.map { ruleset in
+            guard let url = ruleset.resource.downloadURL, urls.contains(url),
+                  let replacement = Self.originalGitHubURL(for: url) else { return ruleset }
+            let resource: RuleSchemeRuleset.Resource
+            switch ruleset.resource {
+            case .remote: resource = .remote(replacement)
+            case .inline(let line):
+                var fields = line.components(separatedBy: ",")
+                fields[1] = replacement.absoluteString
+                resource = .inline(fields.joined(separator: ","))
+            }
+            return RuleSchemeRuleset(groupName: ruleset.groupName, resource: resource,
+                options: ruleset.options, provider: ruleset.provider)
         }
-        return RuleImportResult(scheme: scheme, failedRulesetCount: failed)
+        // Reopening, refreshing and exporting must use the same successful address.
+        return persistableRuleTemplate(scheme)
+    }
+
+    private func downloadFailure(_ url: URL, error: Error) -> RuleImportDownloadFailure {
+        let reason = (error as? URLError)?.code == .timedOut
+            ? String(localized: "连接超时，请检查网络或重试。")
+            : error.localizedDescription
+        return RuleImportDownloadFailure(url: url, reason: reason)
+    }
+
+    private func downloadRequiredRulesets(_ urls: [URL], generation: UUID, progress: RuleImportProgressHandler?) async throws {
+        var failures: [RuleImportDownloadFailure] = []
+        var completed = 0
+        for start in stride(from: 0, to: urls.count, by: Self.batchSize) {
+            try Task.checkCancellation()
+            let batch = Array(urls[start..<min(start + Self.batchSize, urls.count)])
+            var pending = batch
+            await progress?(RuleImportProgress(stage: .rules, completed: completed, total: urls.count,
+                sources: pending.map(RuleImportDownloadFailure.sourceName)))
+            await withTaskGroup(of: (URL, RuleImportDownloadFailure?).self) { group in
+                for url in batch {
+                    group.addTask {
+                        do {
+                            let data = try await fetch(url)
+                            guard !Self.looksLikeWebPage(data) else { throw RuleImportError.receivedWebPage }
+                            guard let content = String(data: data, encoding: .utf8)
+                                ?? String(data: data, encoding: .isoLatin1) else { throw RuleSchemeParseError.notReadableText }
+                            try Task.checkCancellation()
+                            try store.store(content, for: url, generation: generation)
+                            return (url, nil)
+                        } catch { return (url, downloadFailure(url, error: error)) }
+                    }
+                }
+                for await (url, failure) in group {
+                    completed += 1
+                    pending.removeAll { $0 == url }
+                    if let failure { failures.append(failure) }
+                    if !Task.isCancelled {
+                        await progress?(RuleImportProgress(stage: .rules, completed: completed, total: urls.count,
+                            sources: pending.map(RuleImportDownloadFailure.sourceName)))
+                    }
+                }
+            }
+        }
+        try Task.checkCancellation()
+        guard failures.isEmpty else {
+            // Stable source order even when requests finish in a different order.
+            throw RuleImportDownloadError(failures: urls.compactMap { url in failures.first { $0.url == url } })
+        }
     }
 
     private func persistableRuleTemplate(_ parsed: RuleScheme) -> RuleScheme {

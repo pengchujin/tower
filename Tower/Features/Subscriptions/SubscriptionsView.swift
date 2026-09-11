@@ -12,7 +12,7 @@ struct SubscriptionsView: View {
     @State private var editingLocalNode: ProxyNode?
 
     var body: some View {
-        ScrollViewReader { proxy in
+        ScrollViewReader { _ in
             ScrollView {
                 LazyVStack(spacing: 22) {
                     Color.clear
@@ -104,16 +104,8 @@ struct SubscriptionsView: View {
                 }
             }
             .refreshable {
-                await model.refreshAllSubscriptions()
-                // A refresh replaces the subscription rows, and the new
-                // identities leave the scroll view holding the offset the
-                // spinner had pushed it to — so the list stays pulled down
-                // with a gap above it. Returning to the anchor is what the
-                // gesture implies anyway: you pulled from the top to see the
-                // top.
-                withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 1)) {
-                    proxy.scrollTo(SubscriptionScrollTarget.top, anchor: .top)
-                }
+                model.startSubscriptionRefresh(sourceIDs: model.subscriptions.map(\.id))
+                // Hand off immediately so the native pull indicator can retract.
             }
             .sheet(isPresented: $isAddSourcePresented) {
                 AddSourceSheet()
@@ -187,7 +179,7 @@ struct SubscriptionsView: View {
                 SectionHeading(title: "订阅", detail: String(localized: "\(model.subscriptions.count) 个来源"))
                 ForEach(displayedSubscriptions) { source in
                     SubscriptionCard(source: source) {
-                        Task { await model.updateSubscription(id: source.id) }
+                        model.startSubscriptionRefresh(sourceIDs: [source.id], singleSource: true)
                     } onEdit: {
                         subscriptionNameDraft = SubscriptionNameDraft(text: source.name)
                         editingSubscription = source

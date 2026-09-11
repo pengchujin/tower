@@ -24,6 +24,7 @@ struct ImportRuleSchemeSheet: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var source: Source = .link
     @State private var requestsDiscard = false
     @State private var urlString = ""
@@ -33,6 +34,8 @@ struct ImportRuleSchemeSheet: View {
     @State private var showsFilePicker = false
     @State private var name = ""
     @State private var errorMessage: String?
+    @State private var importProgress: RuleImportProgress?
+    @State private var downloadError: RuleImportDownloadError?
     @State private var isSaving = false
     @State private var saveTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
@@ -123,12 +126,6 @@ struct ImportRuleSchemeSheet: View {
                     TextField("留空则自动命名", text: $name)
                         .accessibilityIdentifier("scheme-import-name")
                 }
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline).foregroundStyle(.orange)
-                    }
-                }
             }
             .disabled(isSaving)
             .navigationTitle("导入规则")
@@ -139,7 +136,10 @@ struct ImportRuleSchemeSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { requestsDiscard = true }
+                    Button("取消") {
+                        if isSaving { cancel() }
+                        else { requestsDiscard = true }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "正在导入…" : "导入") {
@@ -163,12 +163,53 @@ struct ImportRuleSchemeSheet: View {
             }
             .onAppear { focusedField = .url }
             .onChange(of: source) { _, value in
-                errorMessage = nil
+                clearImportError()
                 focusedField = value == .link ? .url : value == .text ? .text : nil
             }
-            .onChange(of: urlString) { errorMessage = nil }
-            .onChange(of: configurationText) { errorMessage = nil }
+            .onChange(of: urlString) { clearImportError() }
+            .onChange(of: configurationText) { clearImportError() }
         }
+        .disabled(showsTaskOverlay)
+        .accessibilityHidden(showsTaskOverlay)
+        .overlay {
+            GeometryReader { geometry in
+                ZStack {
+                    if showsTaskOverlay {
+                        Color.black.opacity(0.18)
+                            .ignoresSafeArea()
+                            .accessibilityHidden(true)
+                            .transition(.opacity)
+                        Group {
+                            if let errorMessage {
+                                RuleImportFailureCard(
+                                    message: errorMessage, downloadError: downloadError,
+                                    maximumDetailsHeight: max(80, min(280, geometry.size.height - 330)),
+                                    onConfirm: clearImportError
+                                )
+                            } else if let importProgress, isSaving {
+                                TaskProgressCard(title: importProgress.title, sources: importProgress.sources,
+                                    message: "可随时取消，已填写的内容会保留。", identifier: "scheme-import-progress", onCancel: cancel)
+                            }
+                        }
+                        .padding(24)
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.3, dampingFraction: 1),
+                    value: showsTaskOverlay)
+                .animation(.easeOut(duration: reduceMotion ? 0.12 : 0.18), value: errorMessage != nil)
+            }
+        }
+    }
+
+    private var showsTaskOverlay: Bool {
+        errorMessage != nil || (isSaving && importProgress != nil)
+    }
+
+    private func clearImportError() {
+        errorMessage = nil
+        downloadError = nil
     }
 
     private func cancel() {
@@ -178,7 +219,7 @@ struct ImportRuleSchemeSheet: View {
 
     private func readFile(_ url: URL) async {
         isSaving = true
-        errorMessage = nil
+        clearImportError()
         defer { isSaving = false }
         do {
             let content = try await Task.detached(priority: .userInitiated) {
@@ -197,17 +238,88 @@ struct ImportRuleSchemeSheet: View {
         isSaving = true
         errorMessage = nil
         focusedField = nil
-        defer { isSaving = false }
+        downloadError = nil
+        defer { isSaving = false; importProgress = nil }
+        let progress: RuleImportProgressHandler = { value in
+            guard !Task.isCancelled else { return }
+            importProgress = value
+        }
         do {
             switch source {
-            case .link: try await model.importScheme(name: name, urlString: urlString)
-            case .text: try await model.importScheme(name: name, text: configurationText)
-            case .file: try await model.importScheme(name: name, text: fileText, fileName: fileName)
+            case .link: try await model.importScheme(name: name, urlString: urlString, progress: progress)
+            case .text: try await model.importScheme(name: name, text: configurationText, progress: progress)
+            case .file: try await model.importScheme(name: name, text: fileText, fileName: fileName, progress: progress)
             }
             dismiss()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
+            downloadError = error as? RuleImportDownloadError
             errorMessage = error.localizedDescription
         }
     }
+}
+
+/// Errors stay in the same task layer; details scroll without moving the form.
+private struct RuleImportFailureCard: View {
+    let message: String
+    let downloadError: RuleImportDownloadError?
+    let maximumDetailsHeight: CGFloat
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text("导入失败")
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let downloadError {
+                        Text("下载未完成，尚未导入。")
+                            .foregroundStyle(.secondary)
+                        ForEach(downloadError.failures.indices, id: \.self) { index in
+                            let failure = downloadError.failures[index]
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(verbatim: RuleImportDownloadFailure.sourceName(failure.url))
+                                    .fontWeight(.medium)
+                                Text(verbatim: failure.reason)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+                    } else {
+                        Text(verbatim: message)
+                    }
+
+                }
+                .font(.footnote)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+            }
+            .frame(maxHeight: maximumDetailsHeight)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("scheme-import-error-details")
+            Button(action: onConfirm) {
+                Text("确定")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .padding(.vertical, 2)
+                    .foregroundStyle(.white)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14))
+                    .contentShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .accessibilityIdentifier("scheme-import-error-confirm")
+        }
+        .padding(24)
+        .frame(maxWidth: 340)
+        .modifier(TaskModalSurface())
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityIdentifier("scheme-import-error")
+    }
+
 }

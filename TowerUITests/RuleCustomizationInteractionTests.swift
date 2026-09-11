@@ -2,6 +2,93 @@ import XCTest
 
 @MainActor
 final class RuleCustomizationInteractionTests: XCTestCase {
+    private func verifyLiveRuleImportFailureStaysInOverlay() throws {
+        guard let url = ProcessInfo.processInfo.environment["TOWER_IMPORT_FAILURE_UI_URL"] else {
+            throw XCTSkip("Requires an explicitly supplied public configuration with missing rule files")
+        }
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["--tab=rules", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        let entry = app.buttons["import-rule-scheme"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 15)); entry.tap()
+        let field = app.textFields["scheme-url-field"].exists
+            ? app.textFields["scheme-url-field"] : app.textViews["scheme-url-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText(url)
+        app.buttons["save-scheme"].tap()
+        let failure = app.descendants(matching: .any)["scheme-import-error"].firstMatch
+        XCTAssertTrue(failure.waitForExistence(timeout: 45))
+        let window = app.windows.firstMatch.frame
+        XCTAssertEqual(failure.frame.midX, window.midX, accuracy: 8)
+        XCTAssertLessThan(abs(failure.frame.midY - window.midY), window.height * 0.15)
+        XCTAssertLessThan(failure.frame.height, window.height - 48)
+        XCTAssertEqual(failure.buttons.count, 1)
+        XCTAssertTrue(app.buttons["scheme-import-error-confirm"].isHittable)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "rule-import-failure-overlay"; shot.lifetime = .keepAlways; add(shot)
+        let details = app.scrollViews["scheme-import-error-details"]
+        XCTAssertTrue(details.exists)
+        details.swipeUp()
+        XCTAssertTrue(app.buttons["scheme-import-error-confirm"].isHittable, "Actions must remain visible while scrolling errors")
+        app.buttons["scheme-import-error-confirm"].tap()
+        XCTAssertEqual(field.value as? String, url, "Return to editing must keep the draft")
+        XCTAssertFalse(failure.exists)
+        XCTAssertTrue(app.buttons["scheme-import-source-link"].isHittable, "The form must not be pushed down by an inline error")
+        app.buttons["save-scheme"].tap()
+        XCTAssertTrue(failure.waitForExistence(timeout: 45))
+        app.buttons["scheme-import-error-confirm"].tap()
+        app.terminate()
+    }
+
+    func testLiveMirrorImportProgressCancelAndOriginalRetry() throws {
+        if ProcessInfo.processInfo.environment["TOWER_IMPORT_FAILURE_UI_URL"] != nil {
+            try verifyLiveRuleImportFailureStaysInOverlay()
+            return
+        }
+        guard let url = ProcessInfo.processInfo.environment["TOWER_IMPORT_UI_URL"] else {
+            throw XCTSkip("Requires an explicitly supplied public configuration with an unavailable mirror")
+        }
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["--tab=rules", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        let entry = app.buttons["import-rule-scheme"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 15)); entry.tap()
+        let field = app.textFields["scheme-url-field"].exists
+            ? app.textFields["scheme-url-field"] : app.textViews["scheme-url-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText(url)
+        app.buttons["save-scheme"].tap()
+        let source = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "ghp.ci")).firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 20))
+        let progressShot = XCTAttachment(screenshot: app.screenshot())
+        progressShot.name = "import-download-progress"; progressShot.lifetime = .keepAlways; add(progressShot)
+        let card = app.descendants(matching: .any)["scheme-import-progress"].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        let window = app.windows.firstMatch.frame
+        XCTAssertEqual(card.frame.midX, window.midX, accuracy: 8)
+        XCTAssertLessThan(abs(card.frame.midY - window.midY), window.height * 0.15)
+        app.buttons["scheme-import-progress-cancel"].coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
+        let save = app.buttons["save-scheme"]
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: save)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(field.value as? String, url, "Cancel must retain the input draft")
+        save.tap()
+        let failure = app.descendants(matching: .any)["scheme-import-error"].firstMatch
+        XCTAssertTrue(failure.waitForExistence(timeout: 45))
+        XCTAssertEqual(failure.frame.midX, window.midX, accuracy: 8)
+        XCTAssertLessThan(abs(failure.frame.midY - window.midY), window.height * 0.15)
+        XCTAssertEqual(failure.buttons.count, 1, "Failure offers only confirmation")
+        let confirm = app.buttons["scheme-import-error-confirm"]
+        XCTAssertTrue(confirm.isHittable)
+        let failedShot = XCTAttachment(screenshot: app.screenshot())
+        failedShot.name = "import-mirror-timeout"; failedShot.lifetime = .keepAlways; add(failedShot)
+        confirm.tap()
+        XCTAssertFalse(failure.exists)
+        XCTAssertEqual(field.value as? String, url, "Confirmation must retain the input draft")
+        XCTAssertTrue(save.isEnabled)
+        app.terminate()
+    }
+
     func testImportFullConfigurationAsText() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

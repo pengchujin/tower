@@ -47,7 +47,7 @@ struct RulesView: View {
                 Button {
                     isImportPresented = true
                 } label: {
-                    Label("导入规则", systemImage: "plus")
+                    Label("导入规则", systemImage: "link")
                 }
                 .accessibilityIdentifier("import-rule-scheme")
             }

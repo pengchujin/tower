@@ -320,3 +320,82 @@ struct CheckmarkToggleStyle: ToggleStyle {
         .sensoryFeedback(.selection, trigger: configuration.isOn)
     }
 }
+
+/// A floating task surface leaves the form's geometry unchanged while importing.
+struct TaskProgressCard: View {
+    let title: String
+    let sources: [String]
+    let message: LocalizedStringKey
+    let identifier: String
+    let onCancel: () -> Void
+    var body: some View {
+        VStack(spacing: 18) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(.accentColor)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            if !sources.isEmpty {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(sources.indices, id: \.self) { index in
+                            Text(verbatim: sources[index])
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .frame(maxHeight: 96)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(action: onCancel) {
+                Text("取消")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    .contentShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(ResponsivePressButtonStyle())
+            .foregroundStyle(Color.accentColor)
+            .accessibilityIdentifier("\(identifier)-cancel")
+        }
+        .padding(24)
+        .frame(maxWidth: 340)
+        .modifier(TaskModalSurface())
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+/// Shared material, contrast and depth for loading and failure states.
+struct TaskModalSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(reduceTransparency || contrast == .increased
+                        ? AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground))
+                        : AnyShapeStyle(.regularMaterial))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(contrast == .increased ? 0.35 : 0.06), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+    }
+}
