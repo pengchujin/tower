@@ -1,12 +1,15 @@
 # 当前交接
 
-## 1.0.15（53）发布准备（2026-09-11）
+## 1.0.15（53）已发布 GitHub，已上传 App Store Connect（2026-09-11）
 
 - 本版汇总居中导入进度、完整下载校验、单一确定按钮的错误浮层、订阅刷新进度与取消，以及规则导入链接图标恢复。下方过程记录中早期重试和原始地址按钮已按用户要求移除，以最终单按钮设计为准。
 - 53 构建已覆盖安装并启动实体 iPhone，严格签名及版本核对通过。Mac mini M2 正式版 Xcode 26.6 已完成发布预检；内置 ACL4SSR 为上游最新快照，77 个已发布远程产物哈希验证通过，发布脚本回归通过。
 - GitHub issue 核对：#18 的 sing-box 三模式、#26/#27 的名称关键词及正则筛选、#28 的 sing-box MT IPv6/DNS 调整已实现；#22 原始闪退已修复，但后续 Mac 中文输入重复拼音仍未修复，保持打开。
 - Mac Catalyst 全量 1,100 项 XCTest（34 跳过）与 85 项 Swift Testing 通过；iOS 全量 1,100 项 XCTest（4 跳过）与 85 项 Swift Testing 通过，均零失败。iOS 首轮发现旧按钮本地状态源码断言与统一任务状态冲突，按现有设计更新后重跑全量通过。Xcode 提取 994 条本地化通过。
-- 正式归档、GitHub 发布与 App Store Connect 上传状态将在执行后补记；用户自行提交审核和发布商店版本。证据位于 `.artifacts/release-1.0.15/` 与 `.artifacts/direct-1.0.15-53/`。
+- 源码提交 `d53263d` 已推送；M2 正式版 Xcode 26.6 完成 iOS 与 Mac Release 归档及 App Store Connect 上传，两端命令退出码均为 0，已核对归档版本及 Bundle ID。Apple 后续处理、测试群组可用性未核实；未提交审核或发布商店版本，后续由用户操作。
+- GitHub Release `v1.0.15` 已公开，包含通用 Mac DMG 与 SHA256SUMS.txt。公证提交后额外执行 `-exportNotarizedApp` 取回带票据应用；严格签名、stapler、Gatekeeper、DMG 挂载、GitHub 回下载哈希均通过。公证版已实际启动。
+- README 下载按钮和 Homebrew cask 已同步新版本及 SHA-256；本机格式检查、M2 完整审计通过。本机审计被 Homebrew 对正式版 Xcode 26.6 的版本检查阻止，未更改全局工具链，转由 M2 完成。Homebrew 已将本机升级至 1.0.15（53），安装后签名、公证和启动通过。
+- #18、#26、#27、#28 已逐条回复修复范围并关闭；#22 已回复剩余中文输入问题并保持打开。证据位于 `.artifacts/release-1.0.15/` 与 `.artifacts/direct-1.0.15-53/`。
 
 ## 未发布：导入错误统一浮层，单一确定按钮（2026-09-11）
 

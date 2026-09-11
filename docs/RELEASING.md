@@ -1,5 +1,8 @@
 # TestFlight 发布流程
 
+
+公证的 `xcodebuild -exportArchive` 返回上传成功后，还须在正式发布机使用同一归档执行 `xcodebuild -exportNotarizedApp -archivePath <归档路径> -exportPath <公证版导出目录>`。仅有公证提交成功不代表该目录已包含应用；取回后再验证 `stapler validate`、严格签名与 Gatekeeper，通过后制作 DMG。
+
 ## Mac Homebrew 分发
 
 独立 tap 仓库为 https://github.com/pengchujin/homebrew-tap ，安装命令为 `brew install --cask pengchujin/tap/tower`。
