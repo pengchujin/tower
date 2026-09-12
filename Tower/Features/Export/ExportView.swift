@@ -1266,6 +1266,9 @@ private struct ImportPrivacyNote: View {
 
     private var detail: String {
         if target.copiesAggregatedSubscription(mode: contentMode) {
+            if target.usesClashFormat {
+                return String(localized: "将链接添加到现有配置的代理集合（proxy-providers），不含规则或策略组。刷新时需保持塔台运行；链接失效后请重新复制。")
+            }
             if TowerPlatform.isMac {
                 return String(localized: "复制后，在 Surge 的“策略 → 策略组”中新建或编辑策略组，勾选“同时包含外部策略”，将链接粘贴到“URL 或本地路径”（policy-path）。链接聚合已启用且通过筛选的节点，刷新时保持塔台运行；可在“局域网共享”中停止服务。WireGuard 请使用完整配置导出。")
             }

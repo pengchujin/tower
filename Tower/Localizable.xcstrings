@@ -1,6 +1,100 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "将链接添加到现有配置的代理集合（proxy-providers），不含规则或策略组。刷新时需保持塔台运行；链接失效后请重新复制。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف الرابط إلى proxy-providers في إعداداتك الحالية. لا يتضمن قواعد أو مجموعات سياسات. أبقِ Tower قيد التشغيل عند التحديث، وانسخ الرابط مجددًا إذا انتهت صلاحيته."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füge den Link unter proxy-providers in deiner bestehenden Konfiguration hinzu. Er enthält keine Regeln oder Richtliniengruppen. Lass Tower beim Aktualisieren geöffnet und kopiere den Link erneut, wenn er abläuft."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add the link to proxy-providers in your existing configuration. It contains no rules or policy groups. Keep Tower running while refreshing; copy the link again if it expires."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añade el enlace a proxy-providers en tu configuración actual. No incluye reglas ni grupos de políticas. Mantén Tower abierto al actualizar y vuelve a copiar el enlace si caduca."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez le lien à proxy-providers dans votre configuration actuelle. Il ne contient ni règles ni groupes de stratégies. Gardez Tower ouvert pendant l’actualisation et recopiez le lien s’il expire."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tambahkan tautan ke proxy-providers dalam konfigurasi yang ada. Tautan tidak berisi aturan atau grup kebijakan. Biarkan Tower berjalan saat menyegarkan; salin ulang tautan jika kedaluwarsa."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存の設定のプロキシプロバイダー（proxy-providers）にリンクを追加してください。ルールやポリシーグループは含まれません。更新中は Tower を起動したままにし、リンクが無効になった場合は再度コピーしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기존 설정의 프록시 공급자(proxy-providers)에 링크를 추가하세요. 규칙이나 정책 그룹은 포함되지 않습니다. 새로 고칠 때 Tower를 실행 상태로 유지하고, 링크가 만료되면 다시 복사하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione o link a proxy-providers na configuração existente. Ele não inclui regras nem grupos de políticas. Mantenha o Tower aberto ao atualizar e copie o link novamente se ele expirar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте ссылку в proxy-providers существующей конфигурации. Она не содержит правил и групп политик. Не закрывайте Tower при обновлении; если срок действия ссылки истечёт, скопируйте её заново."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพิ่มลิงก์ใน proxy-providers ของการกำหนดค่าที่มีอยู่ โดยไม่มีรายการกฎหรือกลุ่มนโยบาย เปิด Tower ไว้ขณะรีเฟรช และคัดลอกลิงก์ใหม่หากลิงก์หมดอายุ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantıyı mevcut yapılandırmanızdaki proxy-providers bölümüne ekleyin. Kural veya ilke grubu içermez. Yenilerken Tower’ı açık tutun; bağlantının süresi dolarsa yeniden kopyalayın."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm liên kết vào proxy-providers trong cấu hình hiện có. Liên kết không chứa quy tắc hoặc nhóm chính sách. Giữ Tower chạy khi làm mới; sao chép lại liên kết nếu hết hạn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将链接添加到现有配置的代理集合（proxy-providers），不含规则或策略组。刷新时需保持塔台运行；链接失效后请重新复制。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將連結加入現有設定的代理集合（proxy-providers），不含規則或策略群組。重新整理時需保持塔台執行；連結失效後請重新複製。"
+          }
+        }
+      }
+    },
     "%@ %lld 个节点": {
       "localizations": {
         "ar": {

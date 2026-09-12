@@ -5,7 +5,7 @@ import XCTest
 
 final class LANSubscriptionServerTests: XCTestCase {
     @MainActor
-    func testAggregatedSurgeURLKeepsNodeModeAndReflectsSourceChanges() async throws {
+    func testAggregatedURLKeepsNodeModeAndReflectsSourceChanges() async throws {
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("tower-node-sub-\(UUID()).json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let store = PersistenceStore(fileURL: fileURL)
@@ -19,14 +19,13 @@ final class LANSubscriptionServerTests: XCTestCase {
         try store.save(AppSnapshot(subscriptions: [first, second], nodes: nodes,
             selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge))
         let model = AppModel(persistence: store, arguments: [])
-        model.setExportContentMode(.nodesOnly, for: .surge)
-        model.setExportContentMode(.nodesOnly, for: .surgeMac)
+        let targets = ClientTarget.allCases.filter { $0.copiesAggregatedSubscription(mode: .nodesOnly) }
+        for target in targets { model.setExportContentMode(.nodesOnly, for: target) }
         let reloaded = AppModel(persistence: store, arguments: [])
-        XCTAssertEqual(reloaded.exportContentMode(for: .surge), .nodesOnly)
-        XCTAssertEqual(reloaded.exportContentMode(for: .surgeMac), .nodesOnly)
+        for target in targets { XCTAssertEqual(reloaded.exportContentMode(for: target), .nodesOnly) }
         await model.startLANSharing(listenerEnvironment: .loopback)
         defer { model.stopLANSharing() }
-        for target in [ClientTarget.surge, .surgeMac] {
+        for target in targets {
             let url = try XCTUnwrap(model.lanSubscriptionURL(target: target, contentMode: .nodesOnly))
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
@@ -49,21 +48,21 @@ final class LANSubscriptionServerTests: XCTestCase {
             XCTAssertEqual(model.lanSubscriptionURL(target: target, contentMode: .nodesOnly), url)
             let fullURL = try XCTUnwrap(model.lanSubscriptionURL(target: target))
             let (full, _) = try await session.data(from: fullURL)
-            XCTAssertTrue(String(decoding: full, as: UTF8.self).contains("[Rule]"))
+            XCTAssertTrue(String(decoding: full, as: UTF8.self).contains(target.usesClashFormat ? "rules:" : "[Rule]"))
             model.setNode(nodes[0], included: false)
             let (empty, _) = try await session.data(from: url)
-            XCTAssertTrue(empty.isEmpty)
+            XCTAssertEqual(String(decoding: empty, as: UTF8.self), target.usesClashFormat ? "proxies:\n  []\n" : "")
             model.setNode(nodes[0], included: true)
             model.setExcluded(true, kind: .shadowsocks, for: target)
             let (filtered, _) = try await session.data(from: url)
-            XCTAssertTrue(filtered.isEmpty)
+            XCTAssertEqual(String(decoding: filtered, as: UTF8.self), target.usesClashFormat ? "proxies:\n  []\n" : "")
             model.setExcluded(false, kind: .shadowsocks, for: target)
             model.setSubscriptions([second], enabled: true)
         }
     }
 
     func testNodeRouteValidatesModeTargetAndTokenBeforeGenerating() {
-        for query in ["target=clash&content=nodesOnly", "target=surge&content=typo", "target=surge&content=",
+        for query in ["target=sing-box&content=nodesOnly", "target=surge&content=typo", "target=surge&content=",
                       "target=surge&content=nodesOnly&content=fullConfiguration"] {
             let response = LANSubscriptionHTTPRouter.response(
                 request: "GET /sub/test?\(query) HTTP/1.1\r\n\r\n", token: "test",

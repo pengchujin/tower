@@ -641,7 +641,7 @@ struct ConfigurationGenerator {
                 ruleCount: 0,
                 profileName: profileName,
                 contentMode: .nodesOnly,
-                fileExtensionOverride: "txt"
+                fileExtensionOverride: target.usesClashFormat ? "yaml" : "txt"
             )
         }
 
@@ -669,6 +669,10 @@ struct ConfigurationGenerator {
             let links = supported.map { generator.canonicalLink(for: $0) }
                 .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             content = Data(links.joined(separator: "\n").utf8).base64EncodedString()
+        case .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing:
+            content = "proxies:\n" + (supported.isEmpty
+                ? "  []\n"
+                : supported.map { clashNode($0, target: target) }.joined(separator: "\n") + "\n")
         case .surge, .surgeMac:
             content = supported.map { surgeNode($0, shadowrocket: false) }.joined(separator: "\n")
                 + (supported.isEmpty ? "" : "\n")
@@ -698,7 +702,7 @@ struct ConfigurationGenerator {
             ruleCount: 0,
             profileName: profileName,
             contentMode: .nodesOnly,
-            fileExtensionOverride: "txt"
+            fileExtensionOverride: target.usesClashFormat ? "yaml" : "txt"
         )
     }
 
@@ -2286,6 +2290,13 @@ struct ConfigurationGenerator {
             if let obfs = hysteria2Obfs(node) {
                 let key = shadowrocket ? "obfsParam" : "salamander-password"
                 components.append("\(key)=\(confValue(obfs.password))")
+            }
+            if !shadowrocket, let pin = node.certificateFingerprint, !pin.isEmpty {
+                // Hysteria URIs accept colon-separated certificate digests;
+                // Surge expects the same SHA-256 bytes as 64 hex characters.
+                let fingerprint = pin.replacingOccurrences(of: ":", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                appendValue(fingerprint, key: "server-cert-fingerprint-sha256", to: &components)
             }
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
         case .hysteria:

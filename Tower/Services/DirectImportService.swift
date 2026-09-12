@@ -183,7 +183,7 @@ final class DirectImportService {
         }
     }
 
-    /// Manual Surge import uses the same bounded loopback handoff as a scheme
+    /// Manual node subscription import uses the same bounded loopback handoff as a scheme
     /// import. Unlike LAN sharing, this exposes only a loopback resource.
     func prepareNodeSubscriptionURL(_ configuration: GeneratedConfiguration) async throws -> URL {
         guard configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode) else {

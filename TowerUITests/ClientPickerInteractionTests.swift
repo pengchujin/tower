@@ -26,6 +26,30 @@ final class ClientPickerInteractionTests: XCTestCase {
         XCTAssertTrue(action.label.contains("复制聚合的订阅链接"), action.label)
     }
 
+    func testClashNodeModeOffersCopyAndRestoresFullExport() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--tab=export", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)"]
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launch()
+        let stash = app.buttons["client-clash"]
+        XCTAssertTrue(stash.waitForExistence(timeout: 10))
+        for _ in 0..<2 {
+            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 45, dy: stash.frame.midY))
+                .press(forDuration: 0.01, thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 365, dy: stash.frame.midY)))
+        }
+        stash.tap()
+        let modes = app.segmentedControls["export-content-mode"]
+        XCTAssertTrue(modes.waitForExistence(timeout: 10))
+        modes.buttons["仅节点"].tap()
+        let action = app.buttons["export-config"]
+        XCTAssertTrue(action.label.contains("复制聚合的订阅链接"), action.label)
+        action.tap()
+        XCTAssertTrue(app.staticTexts["tower-toast"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["tower-toast"].label, "订阅链接已复制")
+        modes.buttons["完整配置"].tap()
+        XCTAssertTrue(action.label.contains("一键导出到 Stash"), action.label)
+    }
+
     func testSwitchingClientsKeepsExportBarAndViewportStable() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

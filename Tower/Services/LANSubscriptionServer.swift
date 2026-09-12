@@ -170,6 +170,7 @@ enum LANSubscriptionTargetResolver {
 
     private static let explicitFormats: [String: LANSubscriptionFormat] = [
         "clash": .clash,
+        "clash-apple": .clash,
         "clash-mi": .clash,
         "clashmi": .clash,
         "karing": .clash,

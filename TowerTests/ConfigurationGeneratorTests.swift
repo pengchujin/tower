@@ -644,6 +644,28 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
+    func testAllClashNodeSubscriptionsContainOnlyProxyYAML() {
+        for target in ClientTarget.allCases.filter(\.usesClashFormat) {
+            XCTAssertEqual(target.supportedContentModes, [.fullConfiguration, .nodesOnly], target.name)
+            XCTAssertTrue(target.copiesAggregatedSubscription(mode: .nodesOnly), target.name)
+            XCTAssertFalse(target.supportsDirectImport(mode: .nodesOnly), target.name)
+            let result = ConfigurationGenerator().generateNodeSubscription(
+                nodes: nodes, target: target, excludedKinds: [.vmess], profileName: "Nodes")
+            XCTAssertEqual(result.fileName, "Nodes.yaml", target.name)
+            XCTAssertEqual(result.supportedNodeCount, 1, target.name)
+            XCTAssertEqual(result.skippedNodeCount, 1, target.name)
+            XCTAssertEqual(result.ruleCount, 0, target.name)
+            let rootKeys = result.content.split(separator: "\n").filter { !$0.hasPrefix(" ") }
+            XCTAssertEqual(rootKeys, ["proxies:"], target.name)
+            let parsed = SubscriptionParser().parse(data: Data(result.content.utf8), sourceID: UUID())
+            XCTAssertEqual(parsed.nodes.count, 1, target.name)
+            XCTAssertEqual(parsed.nodes.first?.server, nodes.first?.server, target.name)
+            XCTAssertEqual(parsed.nodes.first?.password, nodes.first?.password, target.name)
+            let empty = ConfigurationGenerator().generateNodeSubscription(nodes: [], target: target)
+            XCTAssertEqual(empty.content, "proxies:\n  []\n", target.name)
+        }
+    }
+
     func testNodeOnlyResourcesContainNodesWithoutRulesOrGroups() {
         let generator = ConfigurationGenerator()
 

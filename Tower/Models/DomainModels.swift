@@ -1264,11 +1264,11 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
     }
 
     var supportsNodesOnlyExport: Bool {
-        supportsNodesOnlyImport || self == .surge || self == .surgeMac
+        supportsNodesOnlyImport || usesClashFormat || self == .surge || self == .surgeMac
     }
 
     func copiesAggregatedSubscription(mode: ExportContentMode) -> Bool {
-        mode == .nodesOnly && (self == .surge || self == .surgeMac)
+        mode == .nodesOnly && (usesClashFormat || self == .surge || self == .surgeMac)
     }
 
     func supportsDirectImport(mode: ExportContentMode) -> Bool {

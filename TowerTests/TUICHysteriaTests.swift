@@ -432,6 +432,25 @@ final class TUICHysteriaTests: XCTestCase {
     /// `password=`, so both clients keep it. This pins the verified spelling
     /// against a future reader who compares the manual to the code and
     /// "corrects" it; see docs/HANDOFF.md.
+    func testHysteria2CertificatePinSurvivesPersistenceAndSurgeExport() throws {
+        let compactPin = String(repeating: "AB", count: 32)
+        let colonPin = Array(repeating: "AB", count: 32).joined(separator: ":")
+        for pin in [compactPin, colonPin] {
+            let parsed = try XCTUnwrap(parser.parseURI(hysteria2URI + "&pinSHA256=\(pin)&fp=chrome"))
+            let node = try JSONDecoder().decode(ProxyNode.self, from: JSONEncoder().encode(parsed))
+            XCTAssertEqual(node.certificateFingerprint, pin)
+            XCTAssertEqual(node.fingerprint, "chrome")
+            for target: ClientTarget in [.surge, .surgeMac] {
+                let line = try proxyLine(for: node, target: target)
+                XCTAssertTrue(line.contains("server-cert-fingerprint-sha256=\(compactPin)"), line)
+                XCTAssertFalse(line.contains("server-cert-fingerprint-sha256=chrome"), line)
+                XCTAssertTrue(line.contains("skip-cert-verify=true"), line)
+            }
+        }
+        let unpinned = try XCTUnwrap(parser.parseURI(hysteria2URI))
+        XCTAssertFalse(try proxyLine(for: unpinned, target: .surge).contains("server-cert-fingerprint-sha256"))
+    }
+
     func testHysteria2KeepsThePasswordSpellingVerifiedOnDevice() throws {
         let node = try XCTUnwrap(parser.parseURI(hysteria2URI))
 

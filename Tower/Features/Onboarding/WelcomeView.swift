@@ -4,7 +4,7 @@ import SwiftUI
 struct WelcomeView: View {
     static let repositoryURL = URL(string: "https://github.com/pengchujin/tower")!
     var onContinue: () -> Void
-    private let readableContentWidth: CGFloat = 680
+    private let readableContentWidth: CGFloat = TowerPlatform.isMac ? 760 : 680
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var page = 0
@@ -54,7 +54,10 @@ struct WelcomeView: View {
             footer
         }
         .frame(maxWidth: readableContentWidth)
-        .frame(maxWidth: .infinity)
+        // Keep the desktop journey together instead of pinning its controls
+        // to the bottom of a tall window, far away from the example.
+        .frame(maxHeight: TowerPlatform.isMac ? 760 : .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(TowerTheme.background.ignoresSafeArea())
         .sensoryFeedback(.selection, trigger: page)
     }
@@ -521,10 +524,34 @@ private struct WelcomeEntrance: ViewModifier {
 /// A local, interactive sample. It never generates or opens a real configuration.
 private struct WelcomeExportExample: View {
     let isActive: Bool
-    @State private var client: ClientTarget = .shadowrocket
+    @State private var client: ClientTarget = TowerPlatform.isMac ? .surgeMac : .shadowrocket
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectionNamespace
-    private let clients: [ClientTarget] = [.shadowrocket, .surge, .egern, .clash]
+    private var clients: [ClientTarget] {
+        TowerPlatform.isMac
+            ? [.surgeMac, .clashVerge, .clashMac, .singBox]
+            : [.shadowrocket, .surge, .egern, .clash]
+    }
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var exportPreviewTitle: String {
+        // Demonstrate the Mac subscription-copy path without probing installed
+        // apps or starting an import from this replayable example.
+        if TowerPlatform.isMac && [.surgeMac, .clashMac].contains(client) {
+            return String(localized: "复制订阅")
+        }
+        return client.primaryImportTitle
+    }
+
+    private var clientColumns: [GridItem] {
+        if TowerPlatform.isMac {
+            // Adaptive columns reserve empty slots on wide desktop windows.
+            // Explicit columns let these four examples fill the content width.
+            let count = dynamicTypeSize.isAccessibilitySize ? 2 : 4
+            return Array(repeating: GridItem(.flexible(), spacing: 12), count: count)
+        }
+        return [GridItem(.adaptive(minimum: 70), spacing: 12)]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -536,7 +563,7 @@ private struct WelcomeExportExample: View {
             .modifier(WelcomeEntrance(active: isActive, order: 1))
 
             // A wrapping grid keeps the sample swipe gesture available for paging.
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: clientColumns, spacing: 12) {
                 ForEach(Array(clients.enumerated()), id: \.element.id) { index, target in
                     Button {
                         withAnimation(TowerMotion.selection(reduceMotion: reduceMotion)) { client = target }
@@ -592,9 +619,10 @@ private struct WelcomeExportExample: View {
                         .frame(width: 30, height: 30)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .id(client).transition(.opacity.combined(with: .scale(scale: reduceMotion ? 1 : 0.9)))
-                    Text("一键导出到 \(client.name)").font(.subheadline.weight(.semibold)).contentTransition(.opacity)
+                    Text(exportPreviewTitle).font(.subheadline.weight(.semibold)).contentTransition(.opacity)
                     Spacer()
-                    Image(systemName: "arrow.up.forward.app").font(.title3)
+                    Image(systemName: TowerPlatform.isMac && [.surgeMac, .clashMac].contains(client)
+                          ? "doc.on.doc" : "arrow.up.forward.app").font(.title3)
                 }
                 .foregroundStyle(.white).padding(14)
                 .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 16))
