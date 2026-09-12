@@ -418,3 +418,50 @@ struct TaskModalSurface: ViewModifier {
             .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
     }
 }
+
+/// Keep the native swipe row bounded to the controls. Expanded summaries remain
+/// in the outer scroll view, outside both swipe translation and row self-sizing.
+struct CardSwipeDeletion: ViewModifier {
+    let onDelete: (() -> Void)?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let onDelete {
+            // The invisible copy supplies the controls' intrinsic height, including
+            // Dynamic Type. The native list never measures the expanded details.
+            content.hidden().accessibilityHidden(true)
+                .overlay {
+                    List {
+                        content
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                deleteButton(onDelete)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                deleteButton(onDelete)
+                            }
+                    }
+                    .listStyle(.plain)
+                    .scrollDisabled(true)
+                    .scrollContentBackground(.hidden)
+                    .scrollIndicators(.hidden)
+                    .contentMargins(.all, 0, for: .scrollContent)
+                    .environment(\.defaultMinListRowHeight, 0)
+                }
+                .clipped()
+        } else {
+            content
+        }
+    }
+
+    private func deleteButton(_ onDelete: @escaping () -> Void) -> some View {
+        // A destructive swipe action removes the native row before confirmation.
+        // Only the alert commits deletion; cancellation must leave the card intact.
+        Button(action: onDelete) {
+            Label("删除", systemImage: "trash")
+        }
+        .tint(.red)
+    }
+}

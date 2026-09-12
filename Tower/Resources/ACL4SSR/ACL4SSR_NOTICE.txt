@@ -3,7 +3,7 @@ ACL4SSR rules
 
 Source:      ACL4SSR/ACL4SSR
 Source URL:  https://github.com/ACL4SSR/ACL4SSR
-Revision:    f7c4233b2bc706c89668753b18a9f899d7e9f9bf
+Revision:    75f0101039d71724b6e998b34604c2e053580e0c
 License:     CC BY-SA 4.0
              https://creativecommons.org/licenses/by-sa/4.0/
 

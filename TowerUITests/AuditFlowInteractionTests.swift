@@ -3,6 +3,103 @@ import UIKit
 
 @MainActor
 final class AuditFlowInteractionTests: XCTestCase {
+    func testLocalNodeDeletionAndSubscriptionContextMenu() {
+        let app = launch()
+        let source = app.buttons["展开 云帆机场 的节点"]
+        for _ in 0..<6 where !source.isHittable { app.swipeUp() }
+        XCTAssertTrue(source.isHittable)
+        source.press(forDuration: 0.7)
+        let speed = app.buttons["测速"].firstMatch
+        XCTAssertTrue(speed.waitForExistence(timeout: 5))
+        let menuShot = XCTAttachment(screenshot: app.screenshot())
+        menuShot.name = "subscription-context-speed-test"
+        menuShot.lifetime = .keepAlways
+        add(menuShot)
+        speed.tap()
+        let local = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "展开", "自建")).firstMatch
+        for _ in 0..<6 where !local.isHittable { app.swipeUp() }
+        XCTAssertTrue(local.isHittable)
+        local.press(forDuration: 0.7)
+        XCTAssertTrue(app.buttons["编辑"].firstMatch.waitForExistence(timeout: 5))
+        let localMenuShot = XCTAttachment(screenshot: app.screenshot())
+        localMenuShot.name = "local-node-whole-card-menu"
+        localMenuShot.lifetime = .keepAlways
+        add(localMenuShot)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.12)).tap()
+        let inclusion = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "node-inclusion-")).firstMatch
+        XCTAssertTrue(inclusion.exists)
+        XCTAssertEqual(inclusion.frame.midY, local.frame.midY, accuracy: 2)
+        for right in [true, false] {
+            if right { local.swipeRight() } else { local.swipeLeft() }
+            let delete = app.buttons["删除"].firstMatch
+            XCTAssertTrue(delete.waitForExistence(timeout: 5))
+            delete.tap()
+            XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+            app.alerts.buttons["取消"].tap()
+            XCTAssertEqual(inclusion.frame.midY, local.frame.midY, accuracy: 2)
+        }
+        local.swipeLeft()
+        app.buttons["删除"].firstMatch.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        app.alerts.buttons["删除"].tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: local)
+        waitForExpectations(timeout: 5)
+    }
+
+    func testSubscriptionSwipeDeletionFromBothSides() {
+        let app = launchPerformanceFixture()
+        let collapsed = app.buttons["展开 云帆机场 的节点"]
+        for _ in 0..<6 where !collapsed.isHittable { app.swipeUp() }
+        XCTAssertTrue(collapsed.isHittable)
+        // The lower summary must respond too, not just the title row.
+        let facts = app.staticTexts["60 个节点"].firstMatch
+        XCTAssertTrue(facts.isHittable)
+        facts.swipeLeft()
+        let summaryDelete = app.buttons["删除"].firstMatch
+        XCTAssertTrue(summaryDelete.waitForExistence(timeout: 5))
+        summaryDelete.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        app.alerts.buttons["取消"].tap()
+        collapsed.tap()
+        let header = app.buttons["收起 云帆机场 的节点"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        let initialX = header.frame.minX
+        header.press(forDuration: 0.7)
+        XCTAssertTrue(app.buttons["编辑"].firstMatch.waitForExistence(timeout: 5))
+        let previewTitle = app.staticTexts["云帆机场"].firstMatch
+        XCTAssertTrue(previewTitle.exists)
+        XCTAssertGreaterThan(previewTitle.frame.width, 60, "Expanded preview must retain readable width")
+        let previewShot = XCTAttachment(screenshot: app.screenshot())
+        previewShot.name = "expanded-subscription-bounded-menu"
+        previewShot.lifetime = .keepAlways
+        add(previewShot)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.12)).tap()
+        XCTAssertTrue(header.exists, "Dismissing the menu must preserve expansion")
+        for swipeRight in [true, false] {
+            if swipeRight { header.swipeRight() } else { header.swipeLeft() }
+            let delete = app.buttons["删除"].firstMatch
+            XCTAssertTrue(delete.waitForExistence(timeout: 5))
+            XCTAssertTrue(delete.isHittable)
+            XCTAssertLessThanOrEqual(delete.frame.maxY, app.staticTexts["香港 · Perf 0"].frame.minY)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = swipeRight ? "subscription-leading-delete" : "subscription-trailing-delete"
+            shot.lifetime = .keepAlways
+            add(shot)
+            delete.tap()
+            XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+            app.alerts.buttons["取消"].tap()
+            XCTAssertTrue(header.exists)
+            XCTAssertEqual(header.frame.minX, initialX, accuracy: 2)
+        }
+        header.swipeLeft()
+        app.buttons["删除"].firstMatch.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        app.alerts.buttons["删除"].tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: header)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(collapsed.exists)
+    }
+
     func testManagementSearchCancellationRestoresNodes() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

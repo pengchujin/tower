@@ -117,7 +117,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(cardSource.contains(".towerCard()"))
         XCTAssertTrue(
             cardSource.contains(
-                "ExpandableNodeRow(node: node, usesInsetBackground: false, showsInclusionToggle: true)"
+                "ExpandableNodeRow(node: node, usesInsetBackground: false, showsInclusionToggle: true,"
             ),
             "自有节点应使用白色外层卡片，并显示参与导出的勾选控件"
         )
@@ -160,7 +160,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list"))
         XCTAssertTrue(source.contains("DOMAIN,apple.comscoreresearch.com"))
         XCTAssertTrue(source.contains("IP-CIDR,17.0.0.0/8,no-resolve"))
-        XCTAssertTrue(source.contains("RuleCardSwipeDeletion"))
+        XCTAssertTrue(source.contains("CardSwipeDeletion"))
         XCTAssertTrue(source.contains("pendingDeletion = .group("))
         XCTAssertTrue(source.contains("custom-rule-flow-editor"))
         XCTAssertTrue(source.contains("scrollDismissesKeyboard(.interactively)"))
@@ -256,7 +256,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
 
         XCTAssertFalse(source.contains("private struct ImportedRuleSchemeRow"))
-        XCTAssertTrue(source.contains("RuleCardSwipeDeletion"))
+        XCTAssertTrue(source.contains("CardSwipeDeletion"))
         XCTAssertFalse(source.contains("DragGesture(minimumDistance:"))
         XCTAssertTrue(importedSource.contains("onEdit: { editingImportedScheme = scheme }"))
         XCTAssertTrue(importedSource.contains("onDelete: { pendingDeletion = scheme }"))

@@ -412,6 +412,7 @@ struct ExpandableNodeRow: View {
     let resolvesRegionOnAppear: Bool
     let usesInsetBackground: Bool
     let showsInclusionToggle: Bool
+    let onDelete: (() -> Void)?
     @State private var isExpanded = false
     @State private var showsCountryPicker = false
     @State private var sharePayload: SharePayload?
@@ -421,12 +422,14 @@ struct ExpandableNodeRow: View {
         resolvesRegionOnAppear: Bool = true,
         usesInsetBackground: Bool = true,
         showsInclusionToggle: Bool = false,
-        initiallyExpanded: Bool = false
+        initiallyExpanded: Bool = false,
+        onDelete: (() -> Void)? = nil
     ) {
         self.node = node
         self.resolvesRegionOnAppear = resolvesRegionOnAppear
         self.usesInsetBackground = usesInsetBackground
         self.showsInclusionToggle = showsInclusionToggle
+        self.onDelete = onDelete
         self._isExpanded = State(initialValue: initiallyExpanded)
     }
 
@@ -466,7 +469,7 @@ struct ExpandableNodeRow: View {
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(SelectionIndicatorButtonStyle())
+                .buttonStyle(.plain)
                 .accessibilityLabel(
                     isExpanded
                         ? String(localized: "收起 \(NodeRegionResolver.displayName(for: presentedNode))")
@@ -496,10 +499,11 @@ struct ExpandableNodeRow: View {
                     .labelsHidden()
                     .toggleStyle(CheckmarkToggleStyle())
                     .frame(width: 34, height: 44)
-                    .transaction { $0.animation = nil }
+                    .accessibilityIdentifier("node-inclusion-\(node.id)")
                     .accessibilityLabel("启用 \(NodeRegionResolver.displayName(for: presentedNode))")
                 }
             }
+            .modifier(CardSwipeDeletion(onDelete: onDelete))
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 9) {
@@ -554,6 +558,8 @@ struct ExpandableNodeRow: View {
             usesInsetBackground ? Color.primary.opacity(0.045) : Color.clear,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
+        .geometryGroup()
+        .clipped()
         .task(id: "\(node.server)|\(isExpanded)") {
             if isExpanded { await model.resolveNetworkDetails(for: node) }
         }

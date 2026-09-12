@@ -674,58 +674,87 @@ private struct SubscriptionCard: View {
             usage: source.usage
         )
 
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Button {
-                    withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "airplane")
-                            .font(.headline)
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 38, height: 38)
-                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(source.name)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    Button {
+                        withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "airplane")
                                 .font(.headline)
-                                .lineLimit(1)
-                            Text(source.safeHost)
-                                .font(.caption)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 38, height: 38)
+                                .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(source.name)
+                                    .font(.headline)
+                                    .lineLimit(1)
+                                Text(source.safeHost)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.bold))
                                 .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
                         }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(SelectionIndicatorButtonStyle())
-                .accessibilityLabel(isExpanded
-                    ? String(localized: "收起 \(source.name) 的节点")
-                    : String(localized: "展开 \(source.name) 的节点"))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isExpanded
+                        ? String(localized: "收起 \(source.name) 的节点")
+                        : String(localized: "展开 \(source.name) 的节点"))
 
-                Toggle(
-                    "启用 \(source.name)",
-                    isOn: Binding(
-                        get: { source.isEnabled },
-                        set: { model.setSubscription(source, enabled: $0) }
+                    Toggle(
+                        "启用 \(source.name)",
+                        isOn: Binding(
+                            get: { source.isEnabled },
+                            set: { model.setSubscription(source, enabled: $0) }
+                        )
                     )
+                    .labelsHidden()
+                    .toggleStyle(CheckmarkToggleStyle())
+                    .frame(width: 44, height: 44)
+                    .accessibilityLabel("启用 \(source.name)")
+                }
+
+                if let remainingBytes = metrics.remainingBytes {
+                    SubscriptionTrafficBar(
+                        remainingBytes: remainingBytes,
+                        totalBytes: metrics.totalBytes,
+                        usedFraction: metrics.usedFraction
+                    )
+                }
+
+                SubscriptionFactsRow(
+                    metrics: metrics,
+                    source: source,
+                    isRefreshing: isRefreshing,
+                    onRefresh: onRefresh,
+                    onShare: { sharePayload = SharePayloadFactory.subscription(source) }
                 )
-                .labelsHidden()
-                .toggleStyle(CheckmarkToggleStyle())
-                .frame(width: 44, height: 44)
-                .accessibilityLabel("启用 \(source.name)")
             }
-            // Scoped to the header. On the whole card a long press anywhere —
-            // including a node row in the expanded list — lifted the entire
-            // subscription into the preview, which read as the card turning
-            // into a delete affordance.
+            .contentShape(Rectangle())
+            .modifier(CardSwipeDeletion(onDelete: onDelete))
+            .padding(14)
+            // Own a bounded preview surface; the outer card joins it to the
+            // expanded list without making that list part of the menu snapshot.
+            .background(Color(uiColor: .secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
+            .geometryGroup()
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
             .contextMenu {
                 Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
                 Button(action: onRefresh) { Label("更新订阅", systemImage: "arrow.triangle.2.circlepath") }
+                Button {
+                    Task { await model.testLatencies(model.nodes(for: source), force: true) }
+                } label: {
+                    Label("测速", systemImage: "gauge.with.dots.needle.50percent")
+                }
+                .disabled(model.nodes(for: source).isEmpty)
                 Button {
                     sharePayload = SharePayloadFactory.subscription(source)
                 } label: {
@@ -733,22 +762,6 @@ private struct SubscriptionCard: View {
                 }
                 Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
             }
-
-            if let remainingBytes = metrics.remainingBytes {
-                SubscriptionTrafficBar(
-                    remainingBytes: remainingBytes,
-                    totalBytes: metrics.totalBytes,
-                    usedFraction: metrics.usedFraction
-                )
-            }
-
-            SubscriptionFactsRow(
-                metrics: metrics,
-                source: source,
-                isRefreshing: isRefreshing,
-                onRefresh: onRefresh,
-                onShare: { sharePayload = SharePayloadFactory.subscription(source) }
-            )
 
             if isExpanded {
                 // Lazy, not a plain VStack: a large airport expands to several
@@ -767,16 +780,19 @@ private struct SubscriptionCard: View {
                             }
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
+                .clipped()
                 .transition(.opacity)
             }
 
         }
-        .padding(14)
         .towerCard()
         // A map region's node list can move this whole card by a large amount.
         // Keep text and the progress bar in the same animated
         // coordinate space, instead of independently interpolating their origins.
         .geometryGroup()
+        .clipped()
         .sensoryFeedback(.selection, trigger: isExpanded)
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
@@ -971,12 +987,15 @@ private struct LocalNodeCard: View {
     let onDelete: () -> Void
 
     var body: some View {
-        ExpandableNodeRow(node: node, usesInsetBackground: false, showsInclusionToggle: true)
+        ExpandableNodeRow(node: node, usesInsetBackground: false, showsInclusionToggle: true,
+                          onDelete: onDelete)
             .padding(5)
             .towerCard()
-        .contextMenu {
-            Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
-            Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
-        }
+            .geometryGroup()
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
+            .contextMenu {
+                Button(action: onEdit) { Label("编辑", systemImage: "pencil") }
+                Button(role: .destructive, action: onDelete) { Label("删除", systemImage: "trash") }
+            }
     }
 }
