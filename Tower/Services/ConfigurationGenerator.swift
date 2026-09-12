@@ -717,6 +717,9 @@ struct ConfigurationGenerator {
     ) -> Bool {
         let supportsKind = supportedKindsOverride?.contains(node.kind) ?? target.supports(node.kind)
         guard supportsKind, !excludedKinds.contains(node.kind) else { return false }
+        // sing-box supports SPKI/public-key hashes, not leaf-certificate hashes.
+        // Never silently discard a pin or relabel it as a public-key digest.
+        if [.singBox, .hiddify].contains(target), certificatePin(node) != nil { return false }
         // An id that is neither a UUID nor short enough for Xray's name mapping
         // has no faithful form; writing it blank would look fine and never
         // connect.
@@ -2291,13 +2294,6 @@ struct ConfigurationGenerator {
                 let key = shadowrocket ? "obfsParam" : "salamander-password"
                 components.append("\(key)=\(confValue(obfs.password))")
             }
-            if !shadowrocket, let pin = node.certificateFingerprint, !pin.isEmpty {
-                // Hysteria URIs accept colon-separated certificate digests;
-                // Surge expects the same SHA-256 bytes as 64 hex characters.
-                let fingerprint = pin.replacingOccurrences(of: ":", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                appendValue(fingerprint, key: "server-cert-fingerprint-sha256", to: &components)
-            }
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
         case .hysteria:
             // Shadowrocket only; Surge has no Hysteria 1 server type and
@@ -2354,6 +2350,9 @@ struct ConfigurationGenerator {
             if node.tls { appendSurgeTLS(node, includeTLSFlag: false, to: &components) }
         case .unknown:
             components = ["direct"]
+        }
+        if !shadowrocket {
+            appendValue(certificatePin(node), key: "server-cert-fingerprint-sha256", to: &components)
         }
         if shadowrocket, node.kind == .vless { components.append("udp-relay=true") }
         return "\(name) = \(components.joined(separator: ", "))"
@@ -2447,6 +2446,19 @@ struct ConfigurationGenerator {
             appendValue(node.hostHeader, key: "host", to: &values)
             if transport == "xhttp" { appendValue(node.transportMode, key: "mode", to: &values) }
         }
+    }
+
+    /// Leaf-certificate SHA-256, distinct from both uTLS and public-key pins.
+    /// Intrinsically TLS protocols also cover snapshots with an old false flag.
+    private func certificatePin(_ node: ProxyNode) -> String? {
+        guard !node.usesReality,
+              [.trojan, .hysteria, .hysteria2, .tuic, .anytls].contains(node.kind)
+                || (node.tls && [.vmess, .vless, .http, .socks5, .shadowsocks].contains(node.kind)),
+              let raw = node.certificateFingerprint else { return nil }
+        let pin = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        return pin.isEmpty ? nil : pin
     }
 
     private func appendSurgeTLS(
@@ -2755,6 +2767,7 @@ struct ConfigurationGenerator {
             values.append("public-key=\(loonQuoted(node.realityPublicKey ?? ""))")
             appendValue(node.realityShortID, key: "short-id", to: &values)
         }
+        appendValue(certificatePin(node), key: "tls-cert-sha256", to: &values)
         return "\(name) = \(values.joined(separator: ","))"
     }
 
@@ -3015,6 +3028,7 @@ struct ConfigurationGenerator {
                 let bytes = protocols.flatMap { [UInt8($0.utf8.count)] + Array($0.utf8) }
                 values.append("tls-alpn=\(bytes.map { String(format: "%02x", $0) }.joined())")
             }
+            appendValue(certificatePin(node), key: "tls-cert-sha256", to: &values)
             if node.skipCertificateVerification { values.append("tls-verification=false") }
         }
         if node.kind == .vless, let flow = node.flow, !flow.isEmpty {

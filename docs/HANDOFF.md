@@ -1,5 +1,14 @@
 # 当前交接
 
+## 未发布：补齐证书指纹导出（2026-09-12）
+
+- 修复 Surge / Surge Mac 的 Trojan、TUIC、AnyTLS、TLS VMess、HTTPS、SOCKS5-TLS 指纹遗漏，Hysteria 2 复用同一输出路径；完整配置和仅节点都保留 `server-cert-fingerprint-sha256`，规范化冒号及连字符，不修改原 TLS 验证开关，不把普通 TCP 或 REALITY 当成证书固定校验。
+- Loon / Quantumult X 补齐官方 `tls-cert-sha256` 字段；Trojan 重建节点分享/订阅 URI 时保留 `pinSHA256`。Egern、Clash 系原有字段输出保留。sing-box / Hiddify 只有公钥哈希能力，无法从证书哈希推导公钥哈希；这类节点现在明确跳过并计数，不静默丢指纹。
+- 测试先复现遗漏再修复。全量 Mac Catalyst：1,111 项 XCTest（34 跳过、零失败）及 85 项 Swift Testing 通过；真实私有语料由最新解析器和生成器输出，新增 6 项回归覆盖协议/格式矩阵、纯 TCP、URI 回读及不支持的目标。
+- Surge Mac 6.4.4 实际连接：Hysteria 2 与 Trojan 各自的普通/冒号正确指纹成功，错误/缺失指纹失败。负向测试必须使用独立服务端端口：同端口多个策略在本轮出现了正确连接建立后错误指纹也成功的现象，与连接复用有关，不计为可靠负向证据。Surge 原配置和运行时环境已恢复核对一致。
+- 用户先前已用 iPhone 验证 Egern 两协议的正确/冒号指纹都成功；本轮 Loon、Quantumult X 仅完成官方字段和自动回归验证，未做真实客户端连接测试。临时独立端口服务已清理，用户取得的订阅和原测试服务保留至约定期限。
+- 真机安装脚本未找到唯一可用的实体 iPhone，Xcode 将设备列为不可用，本轮尚未覆盖安装或启动修复版。源码随本次更新提交，尚未打包发布；用户可在另一台电脑拉取构建，安装后需重新导出。脱敏证据位于 `.artifacts/issue29-report/`。
+
 ## 未发布：Clash 系客户端仅节点导出（2026-09-11）
 
 - Stash、Clash、Clash Verge、ClashMac、FlClash、Mihomo Party、Clash Mi、Karing 增加“完整配置 / 仅节点”，按客户端保存选择。仅节点复用对应客户端节点写入器，输出只有 `proxies` 的 YAML，不包含规则、策略组或远程代理集合；保留筛选、跳过计数、名称转义和去重，空列表输出合法 YAML。

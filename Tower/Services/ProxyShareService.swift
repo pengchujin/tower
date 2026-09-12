@@ -258,10 +258,10 @@ struct ProxyNodeShareLinkGenerator {
            !ports.isEmpty {
             queryItems.append(URLQueryItem(name: "mport", value: ports))
         }
-        if node.kind == .hysteria2,
+        if [.hysteria2, .trojan].contains(node.kind),
            let fingerprint = node.certificateFingerprint,
            !fingerprint.isEmpty {
-            // Hysteria 2 URI producers use pinSHA256 for the certificate pin.
+            // Preserve pinSHA256 when rebuilding Hysteria 2 or Trojan subscriptions.
             queryItems.append(URLQueryItem(name: "pinSHA256", value: fingerprint))
         }
         if node.kind == .hysteria {
