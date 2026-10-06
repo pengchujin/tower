@@ -98,11 +98,12 @@ final class LocalRoutingRuleEditorTests: XCTestCase {
             let result = ConfigurationGenerator().generate(nodes: [node], scheme: selected, target: target, preferRuleSets: false)
             // Creating this ignored directory opts a local QA run into emitting
             // the same three small profiles for installed core validators.
+            // Best effort: a sandboxed test host (Mac Catalyst) cannot write it.
             let evidence = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
                 .deletingLastPathComponent().appendingPathComponent(".artifacts/rule-ui/core")
             if FileManager.default.fileExists(atPath: evidence.path), [.clashMi, .surge, .singBox].contains(target) {
                 let ext = target == .surge ? "conf" : (target == .singBox ? "json" : "yaml")
-                try Data(result.content.utf8).write(to: evidence.appendingPathComponent(target.rawValue + "." + ext), options: [.atomic, .completeFileProtection])
+                try? Data(result.content.utf8).write(to: evidence.appendingPathComponent(target.rawValue + "." + ext), options: [.atomic, .completeFileProtection])
             }
             if target.usesSingBoxFormat {
                 XCTAssertFalse(result.hasInvalidPolicyReferences)

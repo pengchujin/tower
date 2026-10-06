@@ -180,8 +180,9 @@ final class LocalSchemeImportTests: XCTestCase {
             if [.surgeMac, .singBox].contains(target) {
                 let audit = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
                     .appendingPathComponent(".artifacts/provider-import-redo")
+                // Best effort: a sandboxed test host (Mac Catalyst) cannot write it.
                 if FileManager.default.fileExists(atPath: audit.path) {
-                    try generated.content.write(to: audit.appendingPathComponent("small-\(target.rawValue).conf"), atomically: true, encoding: .utf8)
+                    try? generated.content.write(to: audit.appendingPathComponent("small-\(target.rawValue).conf"), atomically: true, encoding: .utf8)
                 }
             }
         }
@@ -230,7 +231,8 @@ final class LocalSchemeImportTests: XCTestCase {
         XCTAssertEqual(groups.first { $0["name"] as? String == "CNIX" }?["proxies"] as? [String], ["Selected node"])
         XCTAssertEqual(output.content.components(separatedBy: "RULE-SET,").count - 1, 11)
         XCTAssertLessThan(output.content.utf8.count, 20_000)
-        try output.content.write(to: root.appendingPathComponent(".artifacts/provider-import-redo/generated-clash.yaml"), atomically: true, encoding: .utf8)
+        // Local audit evidence only; a sandboxed test host cannot write it.
+        try? output.content.write(to: root.appendingPathComponent(".artifacts/provider-import-redo/generated-clash.yaml"), atomically: true, encoding: .utf8)
     }
 
     @MainActor
