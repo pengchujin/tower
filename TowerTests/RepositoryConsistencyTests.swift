@@ -359,7 +359,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(source.contains("ConfigurationManagementCard(configurationNameDraft:"), source)
         XCTAssertFalse(source.contains("CloudSyncCard()"), source)
         XCTAssertFalse(source.contains("ResetAllConfigurationCard("), source)
-        XCTAssertTrue(management.contains("CloudSyncControls()"), management)
+        XCTAssertTrue(management.contains("CloudSyncControls(configurationNameDraft:"), management)
         XCTAssertTrue(management.contains("ResetAllConfigurationRow(configurationNameDraft:"), management)
         XCTAssertTrue(source.contains("Text(\"同步到我的 iCloud\")"), source)
         XCTAssertTrue(source.contains("Text(\"重置所有配置\")"), source)

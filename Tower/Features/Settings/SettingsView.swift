@@ -62,7 +62,7 @@ private struct ConfigurationManagementCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            CloudSyncControls()
+            CloudSyncControls(configurationNameDraft: $configurationNameDraft)
 
             ResetAllConfigurationRow(configurationNameDraft: $configurationNameDraft)
                 .padding(17)
@@ -159,6 +159,7 @@ private struct AutoRefreshSection: View {
 /// happens rather than "sync your settings" — the user is agreeing to put
 /// subscription URLs and node passwords in their iCloud account.
 private struct CloudSyncControls: View {
+    @Binding var configurationNameDraft: ConfigurationNameDraft
     @Environment(AppModel.self) private var model
     @State private var isConfirming = false
     @State private var isConfirmingDisable = false
@@ -232,7 +233,12 @@ private struct CloudSyncControls: View {
             if let issue = model.cloudSyncIssue {
                 Text(issue).font(.caption).foregroundStyle(.orange)
             }
-            Button("恢复同步备份") { showsRecovery = true }
+            Button("恢复同步备份") {
+                // Save a typed name first: the restore then backs it up, and
+                // the chosen version's name is not overridden by the draft.
+                model.setConfigurationName(configurationNameDraft.committedName)
+                showsRecovery = true
+            }
                 .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
 
             Text("同步会合并各设备的改动。发生冲突时暂停同步并保留备份；所有设备请更新到支持此机制的版本。")

@@ -2051,22 +2051,30 @@ struct ConfigurationNameDraft: Equatable {
             }
         }
     }
-    private var hasLoadedPersistedName = false
     /// SwiftUI can publish one transient empty string when a focused text
     /// field is dismissed from a parent toolbar. Keep the last value the user
     /// actually entered so that teardown event cannot reset a valid name.
     private var lastValidText: String?
+    /// The saved name this draft was loaded from or last followed. Closing
+    /// Settings commits the draft, so an untouched draft must not keep a name
+    /// that a restore or an iCloud pull has since replaced.
+    private var savedName: String
 
     init(text: String = "") {
         self.text = text
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         self.lastValidText = trimmed.isEmpty ? nil : text
+        self.savedName = ExportFilePresentation.profileName(text)
     }
 
-    mutating func loadPersistedNameIfNeeded(_ name: String) {
-        guard !hasLoadedPersistedName else { return }
-        text = name
-        hasLoadedPersistedName = true
+    /// Whether the user has typed a name that differs from the saved one.
+    var isEdited: Bool { committedName != savedName }
+
+    /// Follows a saved name that changed while Settings was open. A name the
+    /// user is typing wins; otherwise the draft takes the new saved name.
+    mutating func followSavedName(_ name: String) {
+        if !isEdited { text = name }
+        savedName = ExportFilePresentation.profileName(name)
     }
 
     var committedName: String {

@@ -266,6 +266,11 @@ struct ExportView: View {
             guard !isPresented else { return }
             model.setConfigurationName(configurationNameDraft.committedName)
         }
+        // A restore or an iCloud pull can replace the name while Settings is
+        // open. Without this, closing it writes the stale draft back.
+        .onChange(of: model.configurationName) { _, name in
+            configurationNameDraft.followSavedName(name)
+        }
         .fullScreenCover(item: $previewPayload) { payload in
             ConfigurationPreviewSheet(configuration: payload.configuration)
         }

@@ -1,5 +1,12 @@
 # 当前交接
 
+## 未发布：恢复备份后配置名称被旧草稿覆盖（2026-10-06）
+
+- 修复 [DEVICE_AUDIT_2026-10-01.md](DEVICE_AUDIT_2026-10-01.md) 问题三，1.0.23（61）仍带此问题。根因：设置页打开时复制的名称草稿在关闭时无条件写回，期间被恢复或 iCloud 拉取替换的名称会被覆盖。
+- `ConfigurationNameDraft` 记录载入时的已保存名称：未编辑时跟随 `model.configurationName` 的变化，用户正在输入的名称优先。进入「恢复同步备份」前先提交草稿，使输入中的名称进入恢复前备份，所选版本的名称不再被草稿覆盖。删除未使用的 `loadPersistedNameIfNeeded`。
+- 三处测试的本地 `.artifacts` 证据写入改为尽力而为：Mac Catalyst 测试进程沙盒无法写仓库目录时不再判失败，断言不变。
+- Mac Catalyst TowerTests 1,320 项 XCTest（36 跳过、0 失败）及 106 项 Swift Testing 通过。iOS 27.0 模拟器 `CloudRecoveryInteractionTests` 2 项通过；撤掉 App 修改时恢复用例按预期失败（`-QA塔台` ≠ `塔台`）。尚未真机验收；未递增版本、推送或发布。
+
 ## 1.0.23（61）Mac 直接分发补充（2026-10-02）
 
 - 用户补充要求更新 GitHub Release 和 Homebrew。复用发布源码 `48889b4` 的 Mac 通用归档，完成 Developer ID 签名、Apple 公证与票据取回；严格签名、stapler、Gatekeeper、arm64 / x86_64 和 DMG 挂载版本检查通过。

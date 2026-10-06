@@ -308,14 +308,36 @@ final class ExportPresentationTests: XCTestCase {
         XCTAssertEqual(draft.committedName, "家庭网络配置")
     }
 
-    func testConfigurationNameDraftLoadsThePersistedNameOnlyOncePerEditingSession() {
-        var draft = ConfigurationNameDraft()
+    func testUntouchedConfigurationNameDraftFollowsARestoredName() {
+        var draft = ConfigurationNameDraft(text: "-QA塔台")
 
-        draft.loadPersistedNameIfNeeded("塔台")
-        draft.text = "tower"
-        draft.loadPersistedNameIfNeeded("塔台")
+        draft.followSavedName("塔台")
 
-        XCTAssertEqual(draft.text, "tower", "视图再次出现时不能用旧配置覆盖正在输入的名称")
+        XCTAssertFalse(draft.isEdited)
+        XCTAssertEqual(draft.text, "塔台")
+        XCTAssertEqual(draft.committedName, "塔台", "关闭设置时不能把恢复前的旧名称写回去")
+    }
+
+    func testEditedConfigurationNameDraftKeepsTypedNameWhenSavedNameChanges() {
+        var draft = ConfigurationNameDraft(text: "塔台")
+        draft.text = "家庭网络"
+
+        draft.followSavedName("iCloud 名称")
+
+        XCTAssertTrue(draft.isEdited)
+        XCTAssertEqual(draft.text, "家庭网络", "正在输入的名称不能被同步拉下来的名称覆盖")
+        XCTAssertEqual(draft.committedName, "家庭网络")
+        draft.text = "iCloud 名称"
+        XCTAssertFalse(draft.isEdited)
+    }
+
+    func testFollowedConfigurationNameSurvivesATransientEmptyWrite() {
+        var draft = ConfigurationNameDraft(text: "-QA塔台")
+
+        draft.followSavedName("塔台")
+        draft.text = ""
+
+        XCTAssertEqual(draft.committedName, "塔台", "结束编辑时的临时空值不能退回跟随前的旧名称")
     }
 
     func testConfigurationNameDraftKeepsTheLastValidNameWhenTextFieldEndsWithATransientEmptyWrite() {
