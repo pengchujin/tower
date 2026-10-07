@@ -1,12 +1,16 @@
 # 当前交接
 
-## 1.0.24（63）双平台发布准备（2026-10-07）
+## 1.0.24（63）双平台上传（2026-10-07）
 
 - 用户要求将 iOS 与 Mac TestFlight 均更新到 1.0.24（63）。相对 62，本轮不修改应用功能代码。
 - 按发布门禁将 ACL4SSR 固定至最新上游 `802e3abf065f8609e7d9073ba506158dbe2ba6e7`；32 份规则内容及 77 个 MRS/SRS 二进制与上一快照一致。产物已独立发布于 `a49747b`；使用本机 Mihomo 1.19.31 / sing-box 1.14.2 重新生成并进行回读校验。
-- 本机正式版 `/Applications/Xcode.app` 当前为 Xcode 27.0（27A266a）；已在 Accounts 界面确认账号与团队。iOS / Mac TowerTests 均通过 1,321 项 XCTest（分别跳过 6 / 36 项，0 失败）及 106 项 Swift Testing；两个 xcodebuild 测试命令均返回 0。iOS 收尾时模拟器诊断采集停顿，仅终止本轮 simctl diagnose 后正常结束，测试结果已保留。归档上传状态待完成后补充。
+- 本机正式版 `/Applications/Xcode.app` 当前为 Xcode 27.0（27A266a）；已在 Accounts 界面确认账号与团队。iOS / Mac TowerTests 均通过 1,321 项 XCTest（分别跳过 6 / 36 项，0 失败）及 106 项 Swift Testing；两个 xcodebuild 测试命令均返回 0。iOS 收尾时模拟器诊断采集停顿，仅终止本轮 simctl diagnose 后正常结束，测试结果已保留。发布源码 `be14455` 已推送 `origin/main`。
 
 - 发布脚本测试、规则更新器 20 项测试、上游新鲜度、77 个远程产物 SHA-256 回读校验通过。实体 iPhone 已覆盖安装并成功启动 1.0.24（63）。
+
+- iOS / Mac Catalyst Release 自动签名归档均成功，核对 `com.jzb.tower`、1.0.24（63）及签名团队，严格签名验证通过；Mac 包包含 arm64 / x86_64。两端分别于北京时间 13:16 / 13:18 上传成功，导出命令均返回 0，Apple 回报「Uploaded package is processing」。归档与私有日志位于本机 `~/Builds/Tower-TestFlight-1.0.24-63/` 及 `~/Builds/Tower-TestFlight-1.0.24-63-mac/`。
+
+- Safari 的 App Store Connect 已分别确认 iOS 与 macOS 的 1.0.24（63）上传记录，最后核对均为「正在处理」。尚未确认处理完成或测试群组可用性；本轮未操作测试群组、外部 Beta 审核、App Store 正式发布、GitHub Release 或 Homebrew。
 
 ## 1.0.24（62）双平台上传（2026-10-07）
 
