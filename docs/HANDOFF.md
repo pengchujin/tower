@@ -1,5 +1,11 @@
 # 当前交接
 
+## 1.0.24（62）双平台上传（2026-10-07）
+
+- 发布源码 `2283ffd` 已推送 `origin/main`，工作区干净。本机正式 Xcode 27.1 自动签名完成 iOS / Mac Catalyst Release 归档，两端均为 `com.jzb.tower`、1.0.24（62）；严格签名验证通过，Mac 包包含 arm64 / x86_64。
+- iPhone、Mac 分别在北京时间 10:51、10:54 上传成功，两个 `xcodebuild -exportArchive` 均返回 0，App Store Connect 回报「Uploaded package is processing」。上传成功不等同于处理完成或外部 Beta 审核通过；本轮不操作测试群组、外部审核、App Store 正式发布、GitHub Release 或 Homebrew。
+- 本机 `Config/release.local.sh` 未填团队；按文档从未过期且匹配 `com.jzb.tower` 的描述文件确认唯一团队（与 Xcode 账号一致），只保存在当次进程变量中。归档和日志位于本机 `~/Builds/Tower-TestFlight-1.0.24-62/` 与 `~/Builds/Tower-TestFlight-1.0.24-62-mac/`。
+
 ## 1.0.24（62）发布准备（2026-10-07）
 
 - 用户要求推送 iOS 与 Mac TestFlight 1.0.23（62）；1.0.23 已获批、预发布通道关闭，首次 iOS 上传被 App Store Connect 拒绝，经用户确认改为 1.0.24（62）。本版本包含下列 10-06 名称草稿修复及以下改动；上传结果见本节后续补充。
