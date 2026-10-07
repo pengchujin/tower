@@ -160,4 +160,70 @@ final class CloudSnapshotMergeTests: XCTestCase {
             guard case CloudSyncError.downloading = error else { return XCTFail("Unexpected error: \(error)") }
         }
     }
+
+    /// Pruning keeps every record's id and parent link, so the history only
+    /// grows. A recursive ancestor walk overflowed the 512 KB stack of the
+    /// cooperative thread that syncs at about 420 records and crashed the app
+    /// on every launch; run the merge on a stack that size with far more.
+    func testLongPrunedHistoryMergesOnASmallStack() throws {
+        typealias Commit = CloudSnapshotJournal.Commit
+        let journal = CloudSnapshotJournal(directory: FileManager.default.temporaryDirectory)
+        var records: [String: Commit] = [:]
+        var previous: [String] = []
+        for _ in 0..<5_000 {
+            let id = UUID().uuidString
+            records[id] = Commit(id: id, parents: previous, snapshot: nil)
+            previous = [id]
+        }
+        let base = fixture()
+        let baseID = UUID().uuidString
+        records[baseID] = Commit(id: baseID, parents: previous, snapshot: base)
+        var left = base; left.configurationName = "Left"
+        var right = base; right.nodes[0].name = "Right"
+        for snapshot in [left, right] {
+            let id = UUID().uuidString
+            records[id] = Commit(id: id, parents: [baseID], snapshot: snapshot)
+        }
+
+        var merged: AppSnapshot?
+        var failure: Error?
+        let done = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            do { merged = try journal.snapshot(records) } catch { failure = error }
+            done.signal()
+        }
+        thread.stackSize = 512 * 1024
+        thread.start()
+        XCTAssertEqual(done.wait(timeout: .now() + 30), .success)
+        XCTAssertNil(failure)
+        XCTAssertEqual(merged?.configurationName, "Left")
+        XCTAssertEqual(merged?.nodes.first?.name, "Right")
+    }
+
+    func testCyclicHistoryIsAConflict() {
+        typealias Commit = CloudSnapshotJournal.Commit
+        let journal = CloudSnapshotJournal(directory: FileManager.default.temporaryDirectory)
+        let (a, b, head) = (UUID().uuidString, UUID().uuidString, UUID().uuidString)
+        let records: [String: Commit] = [
+            a: Commit(id: a, parents: [b], snapshot: nil),
+            b: Commit(id: b, parents: [a], snapshot: nil),
+            head: Commit(id: head, parents: [a], snapshot: fixture()),
+        ]
+        XCTAssertThrowsError(try journal.ancestors(head, commits: records)) { error in
+            guard case CloudSyncError.conflict = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+    }
+
+    func testAncestorsVisitSharedHistoryOnce() throws {
+        typealias Commit = CloudSnapshotJournal.Commit
+        let journal = CloudSnapshotJournal(directory: FileManager.default.temporaryDirectory)
+        let (root, left, right, head) = (UUID().uuidString, UUID().uuidString, UUID().uuidString, UUID().uuidString)
+        let records: [String: Commit] = [
+            root: Commit(id: root, parents: [], snapshot: nil),
+            left: Commit(id: left, parents: [root], snapshot: nil),
+            right: Commit(id: right, parents: [root], snapshot: nil),
+            head: Commit(id: head, parents: [left, right], snapshot: fixture()),
+        ]
+        XCTAssertEqual(try journal.ancestors(head, commits: records), [root, left, right, head])
+    }
 }

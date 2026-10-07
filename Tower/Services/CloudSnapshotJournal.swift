@@ -89,9 +89,9 @@ struct CloudSnapshotJournal {
             return nil
         }
         guard var merged = commits[first]?.snapshot else { throw CloudSyncError.conflict }
-        var common = try ancestors(first, commits: commits, visiting: [])
+        var common = try ancestors(first, commits: commits)
         for id in ids.dropFirst() {
-            common.formIntersection(try ancestors(id, commits: commits, visiting: []))
+            common.formIntersection(try ancestors(id, commits: commits))
             // A common ancestor closest to the heads is a shared baseline.
             let closest = closestAncestors(in: common, commits: commits)
             guard closest.count <= 1 else { throw CloudSyncError.conflict }
@@ -105,32 +105,58 @@ struct CloudSnapshotJournal {
         return merged
     }
 
+    /// `common` is an intersection of ancestor sets, so it is closed under
+    /// ancestry: anything in it that is an older ancestor of another member
+    /// is also the parent of some member. The closest ones are therefore the
+    /// members no member names as a parent — one pass over the parent links
+    /// instead of an ancestor walk per pair, which was cubic in the history.
     private func closestAncestors(in common: Set<String>, commits: [String: Commit]) -> [String] {
-        common.filter { candidate in
-            !common.contains { other in
-                other != candidate && ((try? ancestors(other, commits: commits, visiting: []).contains(candidate)) ?? false)
-            }
-        }.sorted()
+        let parentsInCommon = Set(common.flatMap { commits[$0]?.parents ?? [] })
+        return common.filter { !parentsInCommon.contains($0) }.sorted()
     }
 
     /// Baselines the current heads merge against; pruning them would turn a
     /// mergeable pair of edits into a conflict.
     private func mergeBases(of ids: [String], commits: [String: Commit]) -> Set<String> {
-        guard let first = ids.first, var common = try? ancestors(first, commits: commits, visiting: []) else { return [] }
+        guard let first = ids.first, var common = try? ancestors(first, commits: commits) else { return [] }
         var bases = Set<String>()
         for id in ids.dropFirst() {
-            guard let other = try? ancestors(id, commits: commits, visiting: []) else { return bases }
+            guard let other = try? ancestors(id, commits: commits) else { return bases }
             common.formIntersection(other)
             bases.formUnion(closestAncestors(in: common, commits: commits))
         }
         return bases
     }
 
-    private func ancestors(_ id: String, commits: [String: Commit], visiting: Set<String>) throws -> Set<String> {
-        guard !visiting.contains(id), let commit = commits[id] else { throw CloudSyncError.conflict }
-        var visiting = visiting; visiting.insert(id)
+    /// Every record reachable from `id`, itself included. Throws on a missing
+    /// record or a cycle.
+    ///
+    /// Iterative on purpose. The history grows by one record per sync and
+    /// pruning keeps every id and parent link, so a recursive walk took one
+    /// stack frame per sync and overflowed a cooperative thread's 512 KB stack
+    /// at about 420 records: the app crashed seconds after every launch
+    /// (device crash logs, 2026-10-07).
+    func ancestors(_ id: String, commits: [String: Commit]) throws -> Set<String> {
+        guard commits[id] != nil else { throw CloudSyncError.conflict }
         var result: Set<String> = [id]
-        for parent in commit.parents { result.formUnion(try ancestors(parent, commits: commits, visiting: visiting)) }
+        // Records on the current path; reaching one again is a cycle.
+        var onPath: Set<String> = [id]
+        var stack: [(id: String, nextParent: Int)] = [(id, 0)]
+        while let top = stack.last {
+            let parents = commits[top.id]?.parents ?? []
+            guard top.nextParent < parents.count else {
+                onPath.remove(top.id)
+                stack.removeLast()
+                continue
+            }
+            stack[stack.count - 1].nextParent += 1
+            let parent = parents[top.nextParent]
+            guard commits[parent] != nil, !onPath.contains(parent) else { throw CloudSyncError.conflict }
+            // Already walked from another branch, without finding a cycle.
+            guard result.insert(parent).inserted else { continue }
+            onPath.insert(parent)
+            stack.append((parent, 0))
+        }
         return result
     }
 
