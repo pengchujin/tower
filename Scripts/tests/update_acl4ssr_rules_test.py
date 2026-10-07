@@ -793,8 +793,8 @@ class UpdateACL4SSRRulesTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("not\nbundled inside the Tower app", bundle_notice)
-            self.assertIn("Compilers:   Mihomo v1.19.30", hosted_notice)
-            self.assertIn("sing-box 1.14.0 (source format v2)", hosted_notice)
+            self.assertIn(f"Compilers:   Mihomo {updater.MIHOMO_VERSION}", hosted_notice)
+            self.assertIn(f"sing-box {updater.SING_BOX_VERSION} (source format v2)", hosted_notice)
 
     def test_incomplete_behavior_is_never_partially_published(self) -> None:
         revision = "abcdef1234567890abcdef1234567890abcdef12"

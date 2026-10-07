@@ -121,9 +121,15 @@ struct AddSourceSheet: View {
                     .disabled(isSaveDisabled)
                     .accessibilityIdentifier("save-source")
                 }
+                // Only manual entry needs a way out of the keyboard: its port
+                // and similar fields use a number pad, which has no return
+                // key. Pasting and scanning dismiss with a scroll, as the
+                // page already allows, without a control floating over it.
                 ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("完成") { focusedField = nil }
+                    if entryMode == .manual {
+                        Spacer()
+                        KeyboardDismissButton(title: "完成") { focusedField = nil }
+                    }
                 }
             }
             .confirmDiscardChanges(hasChanges: hasChanges, isBusy: isSaving, requested: $requestsDiscard) { saveTask?.cancel() }
@@ -208,15 +214,28 @@ struct AddSourceSheet: View {
                 .focused($focusedField, equals: .source)
                 .accessibilityIdentifier("source-value-field")
 
-            Button {
-                pasteFromClipboard()
-            } label: {
-                Label("从剪贴板重新粘贴", systemImage: "doc.on.clipboard")
+            // One quiet row under the field: what was recognised on the
+            // left, paste again on the right. The page title already says
+            // what goes in the field, so the section has no header.
+            HStack(spacing: 12) {
+                detectionLabel
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    pasteFromClipboard()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 36, height: 36)
+                        .background(Color.accentColor.opacity(0.12), in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(ResponsivePressButtonStyle())
+                .accessibilityLabel(Text("从剪贴板重新粘贴"))
             }
-
-            detectionLabel
-        } header: {
-            Text("订阅或节点")
+            .padding(.vertical, -4)
         } footer: {
             Text("可一次粘贴多条链接，每行一条。支持 HTTP 和 HTTPS 订阅，以及 SS、SSR、VMess、VLESS、Trojan、Hysteria 2、AnyTLS、SOCKS5、HTTP(S) 节点。HTTP 订阅会明文传输订阅地址和节点内容。")
         }
@@ -271,6 +290,7 @@ struct AddSourceSheet: View {
                         .lineLimit(3)
                         .textSelection(.enabled)
                     detectionLabel
+                        .font(.subheadline)
                 }
             }
         } footer: {
@@ -703,7 +723,6 @@ struct AddSourceSheet: View {
             // A quiet hint, not a row that looks as tappable as the paste
             // action above it.
             Text("等待有效的订阅链接或节点协议")
-                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }

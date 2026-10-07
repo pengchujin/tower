@@ -1677,7 +1677,7 @@ private struct RuleSchemeConfigurationEditor: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("收起键盘") { editorFocused = false }
+                    KeyboardDismissButton(title: "收起键盘") { editorFocused = false }
                 }
             }
             .alert("无法保存配置", isPresented: Binding(
@@ -2408,7 +2408,7 @@ private struct LocalRuleSetEditor: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("收起键盘") { focusedField = nil }
+                    KeyboardDismissButton(title: "收起键盘") { focusedField = nil }
                 }
             }
             .onAppear {

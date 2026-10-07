@@ -105131,6 +105131,288 @@
           }
         }
       }
+    },
+    "支持 Clash / Mihomo、Surge 和 subconverter 配置。GitHub、Gitee 网页地址会自动转为文件地址。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يدعم إعدادات Clash / Mihomo وSurge وsubconverter. تُحوَّل روابط صفحات GitHub وGitee تلقائيًا إلى روابط الملفات."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützt Clash-/Mihomo-, Surge- und subconverter-Konfigurationen. GitHub- und Gitee-Seitenlinks werden automatisch in Dateilinks umgewandelt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supports Clash / Mihomo, Surge and subconverter configurations. GitHub and Gitee page links are converted to file links automatically."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admite configuraciones de Clash / Mihomo, Surge y subconverter. Los enlaces de páginas de GitHub y Gitee se convierten automáticamente en enlaces de archivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prend en charge les configurations Clash / Mihomo, Surge et subconverter. Les liens de pages GitHub et Gitee sont convertis automatiquement en liens de fichier."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mendukung konfigurasi Clash / Mihomo, Surge, dan subconverter. Tautan halaman GitHub dan Gitee otomatis diubah menjadi tautan file."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo、Surge、subconverter の設定に対応しています。GitHub と Gitee のページ URL は自動的にファイルの URL に変換されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo, Surge 및 subconverter 구성을 지원합니다. GitHub 및 Gitee 페이지 주소는 파일 주소로 자동 변환됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatível com configurações do Clash / Mihomo, Surge e subconverter. Links de páginas do GitHub e do Gitee são convertidos automaticamente em links de arquivo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поддерживаются конфигурации Clash / Mihomo, Surge и subconverter. Ссылки на страницы GitHub и Gitee автоматически преобразуются в ссылки на файлы."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รองรับการตั้งค่า Clash / Mihomo, Surge และ subconverter ลิงก์หน้าเว็บ GitHub และ Gitee จะถูกแปลงเป็นลิงก์ไฟล์โดยอัตโนมัติ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo, Surge ve subconverter yapılandırmalarını destekler. GitHub ve Gitee sayfa bağlantıları otomatik olarak dosya bağlantılarına dönüştürülür."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hỗ trợ cấu hình Clash / Mihomo, Surge và subconverter. Liên kết trang GitHub và Gitee được tự động chuyển thành liên kết tệp."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 Clash / Mihomo、Surge 和 subconverter 配置。GitHub、Gitee 网页地址会自动转为文件地址。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支援 Clash / Mihomo、Surge 和 subconverter 設定。GitHub、Gitee 網頁位址會自動轉為檔案位址。"
+          }
+        }
+      }
+    },
+    "支持 Clash / Mihomo、Surge 和 subconverter 配置。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يدعم إعدادات Clash / Mihomo وSurge وsubconverter."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützt Clash-/Mihomo-, Surge- und subconverter-Konfigurationen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supports Clash / Mihomo, Surge and subconverter configurations."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admite configuraciones de Clash / Mihomo, Surge y subconverter."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prend en charge les configurations Clash / Mihomo, Surge et subconverter."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mendukung konfigurasi Clash / Mihomo, Surge, dan subconverter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo、Surge、subconverter の設定に対応しています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo, Surge 및 subconverter 구성을 지원합니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatível com configurações do Clash / Mihomo, Surge e subconverter."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поддерживаются конфигурации Clash / Mihomo, Surge и subconverter."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รองรับการตั้งค่า Clash / Mihomo, Surge และ subconverter"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clash / Mihomo, Surge ve subconverter yapılandırmalarını destekler."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hỗ trợ cấu hình Clash / Mihomo, Surge và subconverter."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 Clash / Mihomo、Surge 和 subconverter 配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支援 Clash / Mihomo、Surge 和 subconverter 設定。"
+          }
+        }
+      }
+    },
+    "只导入规则和策略组，不导入节点；策略组使用塔台中已启用的节点，引用的规则列表会下载到本机。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تُستورد القواعد ومجموعات السياسات فقط دون العُقد؛ تستخدم مجموعات السياسات العُقد المفعّلة في Tower، وتُنزَّل قوائم القواعد المشار إليها إلى هذا الجهاز."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importiert nur Regeln und Richtliniengruppen, keine Nodes. Die Gruppen verwenden die in Tower aktivierten Nodes; referenzierte Regellisten werden auf dieses Gerät geladen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only rules and policy groups are imported, not nodes. The groups use the nodes enabled in Tower, and referenced rule lists are downloaded to this device."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo se importan reglas y grupos de políticas, no nodos. Los grupos usan los nodos activados en Tower y las listas de reglas referenciadas se descargan en este dispositivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seuls les règles et les groupes de stratégies sont importés, pas les nœuds. Les groupes utilisent les nœuds activés dans Tower et les listes de règles référencées sont téléchargées sur cet appareil."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya aturan dan grup kebijakan yang diimpor, bukan node. Grup menggunakan node yang diaktifkan di Tower, dan daftar aturan yang dirujuk diunduh ke perangkat ini."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールとポリシーグループのみを読み込み、ノードは読み込みません。グループは Tower で有効なノードを使い、参照されているルールリストはこのデバイスにダウンロードされます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "규칙과 정책 그룹만 가져오며 노드는 가져오지 않습니다. 그룹은 Tower에서 활성화된 노드를 사용하고, 참조된 규칙 목록은 이 기기에 다운로드됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Só regras e grupos de políticas são importados, não nós. Os grupos usam os nós ativados no Tower, e as listas de regras referenciadas são baixadas para este dispositivo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Импортируются только правила и группы политик, без узлов. Группы используют узлы, включённые в Tower, а связанные списки правил загружаются на это устройство."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "นำเข้าเฉพาะกฎและกลุ่มนโยบาย ไม่นำเข้าโหนด กลุ่มจะใช้โหนดที่เปิดใช้ใน Tower และรายการกฎที่อ้างอิงจะถูกดาวน์โหลดมาไว้ในอุปกรณ์นี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca kurallar ve politika grupları içe aktarılır, düğümler aktarılmaz. Gruplar Tower'da etkin düğümleri kullanır; başvurulan kural listeleri bu cihaza indirilir."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ nhập quy tắc và nhóm chính sách, không nhập nút. Các nhóm dùng các nút đã bật trong Tower, và danh sách quy tắc được tham chiếu sẽ tải về thiết bị này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只导入规则和策略组，不导入节点；策略组使用塔台中已启用的节点，引用的规则列表会下载到本机。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只匯入規則和策略組，不匯入節點；策略組使用塔台中已啟用的節點，引用的規則列表會下載到本機。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

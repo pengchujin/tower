@@ -48,30 +48,38 @@ struct ImportRuleSchemeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // The same segmented control as adding a subscription: one
+                // quiet track and a raised segment, not three tiles where the
+                // selected one is a solid accent block.
                 Section {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 4) {
                         ForEach(Source.allCases) { mode in
                             Button { source = mode } label: {
-                                VStack(spacing: 6) {
+                                HStack(spacing: 6) {
                                     Image(systemName: mode.symbol)
-                                        .font(.headline.weight(.semibold))
                                     Text(mode.title)
-                                        .font(.caption.weight(.semibold))
                                         .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
                                 }
-                                .foregroundStyle(source == mode ? Color.white : Color.primary)
-                                .frame(maxWidth: .infinity, minHeight: 62)
-                                .background(
-                                    source == mode ? Color.accentColor : Color.primary.opacity(0.055),
-                                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                )
-                                .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(source == mode ? Color.accentColor : Color.secondary)
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .background {
+                                    if source == mode {
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                                            .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                                    }
+                                }
+                                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             }
                             .buttonStyle(ResponsivePressButtonStyle())
                             .accessibilityAddTraits(source == mode ? .isSelected : [])
                             .accessibilityIdentifier("scheme-import-source-\(mode.rawValue)")
                         }
                     }
+                    .padding(4)
+                    .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                     .listRowBackground(Color.clear)
                 }
@@ -87,10 +95,10 @@ struct ImportRuleSchemeSheet: View {
                     } header: {
                         Text("规则配置地址")
                     } footer: {
-                        Text("支持 Clash YAML、subconverter（`.ini`）和 Surge 配置。塔台会下载配置及其引用的规则列表并保存在本机。粘贴 GitHub、Gitee 的网页地址也可以，会自动转成文件本身的地址。")
+                        Text("支持 Clash / Mihomo、Surge 和 subconverter 配置。GitHub、Gitee 网页地址会自动转为文件地址。")
                     }
                 } else if source == .text {
-                    Section("配置文本") {
+                    Section {
                         PasteButton(payloadType: String.self) { values in
                             if let value = values.first { configurationText = value }
                         }
@@ -101,6 +109,10 @@ struct ImportRuleSchemeSheet: View {
                             .autocorrectionDisabled()
                             .focused($focusedField, equals: .text)
                             .accessibilityIdentifier("scheme-text-field")
+                    } header: {
+                        Text("配置文本")
+                    } footer: {
+                        Text("支持 Clash / Mihomo、Surge 和 subconverter 配置。")
                     }
                 } else {
                     Section {
@@ -118,13 +130,15 @@ struct ImportRuleSchemeSheet: View {
                         Text("支持 .yaml、.yml、.conf、.ini、.json 和 .txt 文本配置。")
                     }
                 }
+                // What an import brings in, said once at the end instead of
+                // as a second paragraph repeating the formats.
                 Section {
-                    Text("支持完整 Clash / Mihomo、Surge 和 subconverter 配置。仅提取规则、策略组和支持的网络设置，不导入节点。节点名称筛选会保留，实际匹配塔台已启用的节点；引用的 HTTPS 规则列表会下载并保存在本机。")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-                Section("名称（可选）") {
                     TextField("留空则自动命名", text: $name)
                         .accessibilityIdentifier("scheme-import-name")
+                } header: {
+                    Text("名称（可选）")
+                } footer: {
+                    Text("只导入规则和策略组，不导入节点；策略组使用塔台中已启用的节点，引用的规则列表会下载到本机。")
                 }
             }
             .disabled(isSaving)
@@ -148,10 +162,7 @@ struct ImportRuleSchemeSheet: View {
                     .disabled(inputIsEmpty || isSaving)
                     .accessibilityIdentifier("save-scheme")
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("收起键盘") { focusedField = nil }
-                }
+
             }
             .fileImporter(isPresented: $showsFilePicker, allowedContentTypes: [.data]) { result in
                 switch result {

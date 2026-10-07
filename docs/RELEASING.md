@@ -42,9 +42,9 @@ python3 Scripts/update_acl4ssr_rules.py --verify-published
 ```sh
 python3 Scripts/update_acl4ssr_rules.py --latest \
   --mihomo <Mihomo 可执行文件路径> \
-  --mihomo-version v1.19.30 \
+  --mihomo-version 1.19.31 \
   --sing-box <sing-box 可执行文件路径> \
-  --sing-box-version 1.14.0
+  --sing-box-version 1.14.2
 ```
 
 更新器会先解析上游最新提交号，再下载三份 ACL4SSR 配置及其引用的全部规则集，把 URL 固定到该提交，并重新生成 `Tower/Resources/ACL4SSR/ACL4SSR_manifest.json` 中的来源、规则数量和 SHA-256。同时它只把没有额外参数的 `DOMAIN` / `DOMAIN-SUFFIX` 转成 domain 行为的 MRS；`IP-CIDR` / `IP-CIDR6` / `IP6-CIDR` 只有在该列表的每一行都恰好带一个 `no-resolve` 时才转成 ipcidr MRS，并在清单中写入 `noResolve: true`。任一同类行无法无损转换时，整类规则都保留给生成器内联。
@@ -63,9 +63,9 @@ MRS 与 SRS 最后都放到 `Rulesets/ACL4SSR/<提交号>/`，不随 App 打包�
    python3 Scripts/update_acl4ssr_rules.py --revision <ACL4SSR 完整提交号> \
      --artifact-commit <ARTIFACT_COMMIT> \
      --mihomo <Mihomo 可执行文件路径> \
-     --mihomo-version v1.19.30 \
+     --mihomo-version 1.19.31 \
      --sing-box <sing-box 可执行文件路径> \
-     --sing-box-version 1.14.0
+     --sing-box-version 1.14.2
    ```
 
    生成后 `ACL4SSR_manifest.json` 必须包含 `artifactCommit`】【，】【所有 MRS/SRS URL 都必须含该完整 SHA，不能再含 `/main/`。
@@ -83,9 +83,9 @@ MRS 与 SRS 最后都放到 `Rulesets/ACL4SSR/<提交号>/`，不随 App 打包�
 ```sh
 python3 Scripts/update_acl4ssr_rules.py --revision <完整提交号> \
   --mihomo <Mihomo 可执行文件路径> \
-  --mihomo-version v1.19.30 \
+  --mihomo-version 1.19.31 \
   --sing-box <sing-box 可执行文件路径> \
-  --sing-box-version 1.14.0
+  --sing-box-version 1.14.2
 ```
 
 ## 本地配置

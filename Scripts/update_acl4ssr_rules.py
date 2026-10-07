@@ -22,11 +22,11 @@ from typing import NamedTuple
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-ACL4SSR_REVISION = "7102021bafc77e8d19377603d8b39d3a37cc0264"
+ACL4SSR_REVISION = "802e3abf065f8609e7d9073ba506158dbe2ba6e7"
 RAW_BASE = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR"
 LATEST_REVISION_URL = "https://api.github.com/repos/ACL4SSR/ACL4SSR/commits/master"
-MIHOMO_VERSION = "v1.19.30"
-SING_BOX_VERSION = "1.14.0"
+MIHOMO_VERSION = "1.19.31"
+SING_BOX_VERSION = "1.14.2"
 SING_BOX_SOURCE_FORMAT_VERSION = 2
 ARTIFACT_REPOSITORY_RAW = "https://raw.githubusercontent.com/pengchujin/tower"
 MRS_PUBLIC_BASE = f"{ARTIFACT_REPOSITORY_RAW}/main/Rulesets/ACL4SSR"

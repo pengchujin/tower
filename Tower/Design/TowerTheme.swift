@@ -217,6 +217,22 @@ struct RowIconButtonLabel: View {
     }
 }
 
+/// The keyboard toolbar's way out: the system's dismiss-keyboard glyph, not
+/// a word. On iOS 26 and later the toolbar floats as a glass button over the
+/// content, where a text label read as a stray control laid over the page.
+/// The title stays as the accessibility label.
+struct KeyboardDismissButton: View {
+    let title: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "keyboard.chevron.compact.down")
+        }
+        .accessibilityLabel(Text(title))
+    }
+}
+
 struct SectionHeading: View {
     let title: LocalizedStringKey
     var detail: String?

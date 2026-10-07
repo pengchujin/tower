@@ -62,9 +62,8 @@ struct SourceManagementView: View {
                 SubscriptionRefreshToolbarButton(sources: subscriptionsToRefresh)
             }
         }
-        // A selection task owns the bottom edge; the tab bar under the action
-        // bar stacked two strips of chrome on top of each other.
-        .toolbar(tab.supportsBatchSelection ? .hidden : .automatic, for: .tabBar)
+        // The tab bar stays: hiding it on a pushed page brings it back in one
+        // frame after the pop finishes, an abrupt jump on returning home.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             batchActionBar
         }

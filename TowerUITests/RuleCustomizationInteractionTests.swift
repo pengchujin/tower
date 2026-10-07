@@ -687,8 +687,10 @@ final class RuleCustomizationInteractionTests: XCTestCase {
         XCTAssertTrue(openAIGroup.waitForExistence(timeout: 5))
         app.buttons["关闭"].tap()
         app.buttons["完成"].tap()
-        XCTAssertTrue(app.staticTexts["12 组"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "12 个策略组")).firstMatch.exists)
+        // The scheme card's summary line carries the count since the rules
+        // page lost its separate overview card.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "12 个策略组")).firstMatch
+            .waitForExistence(timeout: 5))
         customize.tap()
         search.tap()
         search.typeText("OpenAI")
@@ -698,7 +700,8 @@ final class RuleCustomizationInteractionTests: XCTestCase {
         XCTAssertEqual(catalog.value as? String, "未添加")
         app.buttons["关闭"].tap()
         app.buttons["完成"].tap()
-        XCTAssertTrue(app.staticTexts["11 组"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "11 个策略组")).firstMatch
+            .waitForExistence(timeout: 5))
         customize.tap()
         XCTAssertFalse(openAIGroup.exists)
         let attachment = XCTAttachment(screenshot: app.screenshot())
