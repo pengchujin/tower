@@ -295,7 +295,10 @@ final class SubscriptionInteractionTests: XCTestCase {
         XCTAssertTrue(source.contains("case paste"))
         XCTAssertTrue(source.contains("case scan"))
         XCTAssertTrue(source.contains("case manual"))
-        XCTAssertTrue(source.contains("minHeight: 62"), "三种添加方式需要足够大的触控高度")
+        // A segmented control: 40-point segments inside a 4-point track pad,
+        // so each target is 48 points tall, above the 44-point minimum.
+        XCTAssertTrue(source.contains("minHeight: 40") && source.contains(".padding(4)"),
+                      "三种添加方式需要足够大的触控高度")
         #else
         throw XCTSkip("该测试检查 SwiftUI 源码，只在模拟器构建环境运行")
         #endif
@@ -493,7 +496,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         #endif
     }
 
-    func testSubscriptionCardUsesAirplaneIconInsteadOfCloud() throws {
+    func testSubscriptionCardUsesAntennaIconInsteadOfCloud() throws {
         #if targetEnvironment(simulator)
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -504,7 +507,8 @@ final class SubscriptionInteractionTests: XCTestCase {
         let end = try XCTUnwrap(source.range(of: "private struct LocalNodeCard"))
         let cardSource = String(source[start.lowerBound..<end.lowerBound])
 
-        XCTAssertTrue(cardSource.contains("Image(systemName: \"airplane\")"))
+        // The same antenna as the Subscriptions tab, not a cloud.
+        XCTAssertTrue(cardSource.contains("antenna.radiowaves.left.and.right"))
         XCTAssertFalse(cardSource.contains("Image(systemName: \"cloud.fill\")"))
         #else
         throw XCTSkip("该测试检查订阅卡片图标，只在模拟器构建环境运行")
@@ -563,7 +567,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         let announcementCall = try XCTUnwrap(
             cardSource.range(of: "SubscriptionAnnouncementSection(notices: source.usage?.distinctNotices ?? [])")
         )
-        let nodeRows = try XCTUnwrap(cardSource.range(of: "ForEach(model.nodes(for: source))"))
+        let nodeRows = try XCTUnwrap(cardSource.range(of: "ForEach(nodes)"))
 
         XCTAssertLessThan(
             announcementCall.lowerBound,
@@ -626,7 +630,7 @@ final class SubscriptionInteractionTests: XCTestCase {
             "未测速的紧凑行应留空，测试后再直接显示结果"
         )
         XCTAssertTrue(
-            rowSource.contains("Image(systemName: \"square.and.arrow.up\")"),
+            rowSource.contains("RowIconButtonLabel(symbol: \"square.and.arrow.up\")"),
             "紧凑行右侧应直接提供分享"
         )
         XCTAssertFalse(
@@ -660,9 +664,11 @@ final class SubscriptionInteractionTests: XCTestCase {
             trafficSource.contains(".background(Color.green.opacity(0.08)"),
             "流量信息条不应再使用淡绿色围合背景"
         )
+        // Refresh and share are plain tinted icons with a 44-point target,
+        // not filled chips competing with the traffic bar.
         XCTAssertTrue(
-            compactInfoSource.contains(".background(Color.primary.opacity(0.055)"),
-            "次要操作应使用中性按钮底色"
+            compactInfoSource.contains("RowIconButtonLabel(symbol: \"arrow.triangle.2.circlepath\")"),
+            "次要操作应使用无底色的图标按钮"
         )
         XCTAssertTrue(
             compactInfoSource.contains("expiryDaysRemaining <= 3 ? Color.orange : Color.secondary"),
@@ -1067,13 +1073,16 @@ final class SubscriptionInteractionTests: XCTestCase {
 
         XCTAssertTrue(theme.contains("static let actionBarButtonHeight: CGFloat = 50"))
         XCTAssertTrue(theme.contains("static let actionBarButtonCornerRadius: CGFloat = 16"))
+        // The export bar keeps its one prominent 50-point action; batch
+        // management's actions are secondary, tinted 44-point buttons. Both
+        // bars share the same scroll-edge material and press response.
+        XCTAssertTrue(export.contains("TowerTheme.actionBarButtonHeight"))
+        XCTAssertTrue(export.contains("TowerTheme.actionBarButtonCornerRadius"))
         for source in [management, export] {
-            XCTAssertTrue(source.contains("TowerTheme.actionBarButtonHeight"))
-            XCTAssertTrue(source.contains("TowerTheme.actionBarButtonCornerRadius"))
+            XCTAssertTrue(source.contains("BottomBarEdgeBackground()"))
             XCTAssertTrue(source.contains(".buttonStyle(ResponsivePressButtonStyle())"))
         }
-        XCTAssertTrue(management.contains(".background(.bar)"))
-        XCTAssertTrue(management.contains(".font(.headline)"))
+        XCTAssertTrue(management.contains("minHeight: 44"))
         XCTAssertFalse(management.contains(".buttonStyle(.bordered)"))
         #else
         throw XCTSkip("该测试检查批量操作栏样式，只在模拟器构建环境运行")

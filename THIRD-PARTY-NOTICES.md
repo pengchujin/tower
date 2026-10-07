@@ -9,7 +9,7 @@
 ## ACL4SSR 规则
 
 - **来源**：https://github.com/ACL4SSR/ACL4SSR
-- **固定版本**：`7ec917109533597bd7f646cf2c01ad8f1db6c88d`
+- **固定版本**：`7102021bafc77e8d19377603d8b39d3a37cc0264`
 - **本地路径**：`Tower/Resources/ACL4SSR/`（3 份 `.ini` 配置 + 32 个 `.list` 规则）
 - **托管派生资源**：`Rulesets/ACL4SSR/<固定版本>/`（不随 App 打包）
 - **许可证**：**CC BY-SA 4.0**（https://creativecommons.org/licenses/by-sa/4.0/）
