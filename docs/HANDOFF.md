@@ -1,9 +1,16 @@
 # 当前交接
 
-## 1.0.25（64）发布准备（2026-10-07）
+## 1.0.25（64）双平台与 Mac 分发发布（2026-10-07）
 
 - 用户授权双平台 TestFlight、GitHub Release 与 Homebrew 更新。纳入工作区的添加订阅、导入规则分段控件与文案、键盘收起图标、管理页返回时保留 tab bar，以及对应交互测试调整；版本统一为 1.0.25（64）。更新日志见 [1.0.25](releases/1.0.25.md)。
-- ACL4SSR `802e3ab` 仍为上游最新版本，77 个远程产物摘要回读通过；同步修正更新器默认提交号、Mihomo / sing-box 版本与现有快照的一致性，规则更新器 20 项测试及发布脚本测试通过。Xcode 本地化提取 1,120/1,120 通过。iOS / Mac TowerTests 各 1,321 项 XCTest（分别跳过 6 / 36 项，零失败）及 106 项 Swift Testing 通过。真机 UI 自动化三次均在测试宿主建立 IDE 连接前退出（exit 74），全新构建目录仍可复现，没有执行测试用例；模拟器四项交互（剪贴板自动填充、手动输入收起键盘、导入完整规则文本、策略组增删计数）全部通过；实体 iPhone 1.0.25（64）已覆盖安装并成功启动，实际操作待用户确认。发布结果待完成后补充。
+- ACL4SSR `802e3ab` 仍为上游最新版本，77 个远程产物摘要回读通过；同步修正更新器默认提交号、Mihomo / sing-box 版本与现有快照的一致性，规则更新器 20 项测试及发布脚本测试通过。Xcode 本地化提取 1,120/1,120 通过。iOS / Mac TowerTests 各 1,321 项 XCTest（分别跳过 6 / 36 项，零失败）及 106 项 Swift Testing 通过。真机 UI 自动化三次均在测试宿主建立 IDE 连接前退出（exit 74），全新构建目录仍可复现，没有执行测试用例；模拟器四项交互（剪贴板自动填充、手动输入收起键盘、导入完整规则文本、策略组增删计数）全部通过；实体 iPhone 1.0.25（64）已覆盖安装并成功启动，用户随后在实体 iPhone 检查上述操作并确认「都正常」。
+
+- 发布源码 `1174e45` 已推送。正式 Xcode 27.0 完成 iOS / Mac Catalyst Release 自动签名归档；版本、构建号、Bundle ID、签名团队及严格签名验证通过，Mac 为 arm64 / x86_64 通用包。两端分别于北京时间 15:02 / 15:05 上传成功，两个导出命令均返回 0。
+- Safari App Store Connect 的 iOS / macOS 上传记录均已显示 1.0.25（64）「完成」。这证明 Apple 上传处理完成；本轮未操作测试群组、外部 Beta 审核或 App Store 正式审核，群组可用性没有另外验收。
+- 同一 Mac 归档完成 Developer ID 导出、Apple 公证及公证包取回；Hardened Runtime、严格签名、stapler、Gatekeeper、DMG 挂载版本检查通过。公证包本机启动后持续运行。
+- GitHub [v1.0.25](https://github.com/pengchujin/tower/releases/tag/v1.0.25) 已公开并设为 Latest，附 `Tower-1.0.25-64-macOS-universal.dmg` 和 `SHA256SUMS.txt`；回下载 SHA-256 一致：`c9867d18342ddbb2897e0e047993d73247a8fae3c6a57fad46649ad99ae86025`。README 下载入口已更新。
+- Homebrew tap 提交 `6ba7f85` 已推送，cask 为 `1.0.25,64`；style、audit、实际升级全部通过。本机 `/Applications/塔台.app` 版本、Developer ID、严格签名、公证票据、Gatekeeper 与双架构复核通过，安装后已启动并持续运行。
+- 归档与私有日志位于本机 `~/Builds/Tower-TestFlight-1.0.25-64/`、`~/Builds/Tower-TestFlight-1.0.25-64-mac/`、`~/Builds/Tower-Direct-1.0.25-64/`；测试材料在忽略目录 `.artifacts/release-1.0.25-64/`。
 
 ## 1.0.24（63）双平台上传（2026-10-07）
 
