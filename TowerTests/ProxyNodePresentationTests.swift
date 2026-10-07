@@ -14,12 +14,12 @@ final class ProxyNodePresentationTests: XCTestCase {
             rawURI: "vmess://test"
         )
 
-        XCTAssertEqual(node.protocolSummary, "VMESS / WS / TLS / UDP")
+        XCTAssertEqual(node.protocolSummary, "VMess / WS / TLS / UDP")
     }
 
     func testProtocolSummaryMatchesCommonProxyKinds() {
-        XCTAssertEqual(node(kind: .shadowsocks).protocolSummary, "SHADOWSOCKS / UDP")
-        XCTAssertEqual(node(kind: .hysteria2, tls: true).protocolSummary, "HYSTERIA 2 / UDP")
+        XCTAssertEqual(node(kind: .shadowsocks).protocolSummary, "Shadowsocks / UDP")
+        XCTAssertEqual(node(kind: .hysteria2, tls: true).protocolSummary, "Hysteria 2 / UDP")
         XCTAssertEqual(node(kind: .http, tls: true).protocolSummary, "HTTPS")
     }
 

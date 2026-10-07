@@ -90,6 +90,13 @@ final class AuditFlowInteractionTests: XCTestCase {
         XCTAssertTrue(collapsed.isHittable)
         // The lower summary must respond too, not just the title row.
         let facts = app.staticTexts["60 个节点"].firstMatch
+        // The shorter overview card can leave this row under the tab bar.
+        // Nudge without momentum: a full swipe pushes the card's top, and
+        // its swipe actions, under the navigation bar.
+        for _ in 0..<4 where !facts.isHittable {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)))
+        }
         XCTAssertTrue(facts.isHittable)
         facts.swipeLeft()
         let summaryDelete = app.buttons["删除"].firstMatch
@@ -209,7 +216,9 @@ final class AuditFlowInteractionTests: XCTestCase {
         app.launchArguments = ["-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launch()
         XCTAssertTrue(app.buttons["add-source-button"].waitForExistence(timeout: 15))
-        let summary = app.staticTexts["准备您的节点"].firstMatch
+        // The introduction only shows before any source exists; the counts
+        // are the card's stable content.
+        let summary = app.buttons["overview-subscriptions"].firstMatch
         let originalY = summary.frame.minY
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))

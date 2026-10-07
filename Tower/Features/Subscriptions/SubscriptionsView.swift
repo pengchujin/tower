@@ -21,6 +21,15 @@ struct SubscriptionsView: View {
                     if TowerPlatform.isMac {
                         macHeader
                             .padding(.bottom, 10)
+                        // Counts first, then the map, as on iPhone: the
+                        // map's latency key sits right above the region list
+                        // that opens under it.
+                        if !model.subscriptions.isEmpty || !model.localNodes.isEmpty {
+                            MacSubscriptionSummary { metric in
+                                sourceManagementRoute = metric.managementRoute
+                            }
+                            .padding(.bottom, 10)
+                        }
                         if isMacMapExpanded {
                             NodeMapOverview(nodes: model.enabledNodes) {
                                 proxy.scrollTo(SubscriptionScrollTarget.selectedRegionNodes)
@@ -31,18 +40,15 @@ struct SubscriptionsView: View {
                             .accessibilityIdentifier("inline-node-map")
                             .padding(.bottom, 10)
                         }
-                        if !model.subscriptions.isEmpty || !model.localNodes.isEmpty {
-                            MacSubscriptionSummary { metric in
-                                sourceManagementRoute = metric.managementRoute
-                            }
-                            .padding(.bottom, 10)
-                        }
+                    } else if model.subscriptions.isEmpty && model.localNodes.isEmpty {
+                        // A first visit has nothing to map or count: the add
+                        // card below is the page, not the third card down.
                     } else {
-                        SubscriptionOverviewCard { metric in
+                        // Once there is something to manage, the counts belong
+                        // to the map they describe: one card, not two.
+                        NodeMapOverview(nodes: model.enabledNodes, header: SubscriptionMetricsRow { metric in
                             sourceManagementRoute = metric.managementRoute
-                        }
-                        .padding(.bottom, 10)
-                        NodeMapOverview(nodes: model.enabledNodes) {
+                        }) {
                             proxy.scrollTo(SubscriptionScrollTarget.selectedRegionNodes)
                         }
                         .equatable()
@@ -66,18 +72,25 @@ struct SubscriptionsView: View {
                                 Button("继续选择规则", systemImage: "arrow.right") {
                                     model.tabSelection = .rules
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .buttonStyle(.bordered)
                                 .controlSize(.large)
                                 .accessibilityIdentifier("continue-to-rules")
                             }
                         } else {
-                            Button {
-                                model.tabSelection = .rules
-                            } label: {
-                                PrimaryActionLabel(title: "继续选择规则", symbol: "arrow.right")
+                            VStack(spacing: 12) {
+                                // The privacy promise closes the page, next to the
+                                // step it leads into, as on the Mac.
+                                PrivacyBadge()
+                                Button {
+                                    model.tabSelection = .rules
+                                } label: {
+                                    // The tab bar reaches Rules too; this is a hint for the
+                                    // next step, not the page's one main action.
+                                    PrimaryActionLabel(title: "继续选择规则", symbol: "arrow.right", isProminent: false)
+                                }
+                                .buttonStyle(ResponsivePressButtonStyle())
+                                .accessibilityIdentifier("continue-to-rules")
                             }
-                            .buttonStyle(ResponsivePressButtonStyle())
-                            .accessibilityIdentifier("continue-to-rules")
                         }
                     }
                 }
@@ -491,43 +504,38 @@ private struct EditSubscriptionSheet: View {
     }
 }
 
+/// The same four counts as the iPhone card, in the same order, icons and
+/// tints; only the spacing is the Mac's, with room between the columns.
 private struct MacSubscriptionSummary: View {
     @Environment(AppModel.self) private var model
     let onMetricTap: (SubscriptionOverviewMetric) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
-            metric(model.enabledSubscriptionCount, title: "已启用", symbol: "link",
-                   target: .subscriptions, enabled: !model.subscriptions.isEmpty, id: "overview-subscriptions")
-            Divider().frame(height: 32)
-            metric(model.enabledNodes.count, title: "节点", symbol: "network",
+            metric(model.enabledNodes.count, label: "节点", symbol: "network", tint: .blue,
                    target: .nodes, enabled: !model.availableNodes.isEmpty, id: "overview-nodes")
             Divider().frame(height: 32)
-            metric(model.coveredCountryCount, title: "地区", symbol: "globe.asia.australia",
+            metric(model.coveredCountryCount, label: "地区", symbol: "globe.asia.australia.fill", tint: .teal,
                    target: .regions, enabled: model.coveredCountryCount > 0, id: "overview-regions")
             Divider().frame(height: 32)
-            metric(model.localNodes.count, title: "自有节点", symbol: "server.rack",
+            metric(model.enabledSubscriptionCount, total: model.subscriptions.count,
+                   label: "订阅", symbol: "antenna.radiowaves.left.and.right", tint: .indigo,
+                   target: .subscriptions, enabled: !model.subscriptions.isEmpty, id: "overview-subscriptions")
+            Divider().frame(height: 32)
+            metric(model.localNodes.count, label: "自有节点", symbol: "server.rack", tint: .orange,
                    target: .localNodes, enabled: !model.localNodes.isEmpty, id: "overview-local-nodes")
         }
         .padding(.vertical, 16)
         .towerCard()
     }
 
-    private func metric(_ count: Int, title: LocalizedStringKey, symbol: String,
-                        target: SubscriptionOverviewMetric, enabled: Bool, id: String) -> some View {
+    private func metric(_ value: Int, total: Int? = nil, label: LocalizedStringKey, symbol: String,
+                        tint: Color, target: SubscriptionOverviewMetric, enabled: Bool,
+                        id: String) -> some View {
         Button { onMetricTap(target) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Label(title, systemImage: symbol)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(count, format: .number)
-                    .font(.title2.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .contentShape(Rectangle())
+            MetricPill(value: value, total: total, label: label, symbol: symbol, tint: tint)
+                .padding(.horizontal, 20)
+                .contentShape(Rectangle())
         }
         .buttonStyle(ResponsivePressButtonStyle())
         .disabled(!enabled)
@@ -535,70 +543,50 @@ private struct MacSubscriptionSummary: View {
     }
 }
 
-private struct SubscriptionOverviewCard: View {
+/// The counts above the home map, inside its card. It reads the model itself:
+/// the map's card is `equatable()` and rebuilds only when its nodes change.
+///
+/// Ordered by what the map shows — nodes, then the regions they cover — then
+/// where they come from. Each count has its own icon and tint, the same
+/// shape as the Mac summary.
+private struct SubscriptionMetricsRow: View {
     @Environment(AppModel.self) private var model
     let onMetricTap: (SubscriptionOverviewMetric) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("准备您的节点")
-                        .font(.title2.weight(.bold))
-                    Text("集中管理代理订阅和自建节点，再转换成常用客户端配置。")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 12)
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            }
-
-            HStack(spacing: 10) {
-                Button { onMetricTap(.subscriptions) } label: {
-                    MetricPill(value: model.enabledSubscriptionCount, label: "已启用")
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .frame(maxWidth: .infinity)
-                .disabled(model.subscriptions.isEmpty)
-                .accessibilityHint("跳到订阅列表")
-                .accessibilityIdentifier("overview-subscriptions")
-                Divider().frame(height: 38)
-                Button { onMetricTap(.nodes) } label: {
-                    MetricPill(value: model.enabledNodes.count, label: "节点")
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .frame(maxWidth: .infinity)
-                .disabled(model.availableNodes.isEmpty)
-                .accessibilityHint("打开节点筛选")
-                .accessibilityIdentifier("overview-nodes")
-                Divider().frame(height: 38)
-                Button { onMetricTap(.regions) } label: {
-                    MetricPill(value: model.coveredCountryCount, label: "地区")
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .frame(maxWidth: .infinity)
-                .disabled(model.coveredCountryCount == 0)
-                .accessibilityHint("按国家地区筛选节点")
-                .accessibilityIdentifier("overview-regions")
-                Divider().frame(height: 38)
-                Button { onMetricTap(.localNodes) } label: {
-                    MetricPill(value: model.localNodes.count, label: "自有节点")
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .frame(maxWidth: .infinity)
-                .disabled(model.localNodes.isEmpty)
-                .accessibilityHint("跳到自有节点列表")
-                .accessibilityIdentifier("overview-local-nodes")
-            }
-            PrivacyBadge()
+        HStack(spacing: 8) {
+            metric(model.enabledNodes.count, label: "节点", symbol: "network", tint: .blue,
+                   target: .nodes, enabled: !model.availableNodes.isEmpty,
+                   hint: "打开节点筛选", id: "overview-nodes")
+            metric(model.coveredCountryCount, label: "地区", symbol: "globe.asia.australia.fill", tint: .teal,
+                   target: .regions, enabled: model.coveredCountryCount > 0,
+                   hint: "按国家地区筛选节点", id: "overview-regions")
+            // Enabled out of all, so a switched-off subscription is visible
+            // here rather than only as a smaller node count.
+            metric(model.enabledSubscriptionCount, total: model.subscriptions.count,
+                   label: "订阅", symbol: "antenna.radiowaves.left.and.right", tint: .indigo,
+                   target: .subscriptions, enabled: !model.subscriptions.isEmpty,
+                   hint: "跳到订阅列表", id: "overview-subscriptions")
+            metric(model.localNodes.count, label: "自有节点", symbol: "server.rack", tint: .orange,
+                   target: .localNodes, enabled: !model.localNodes.isEmpty,
+                   hint: "跳到自有节点列表", id: "overview-local-nodes")
         }
-        .padding(20)
-        .towerCard()
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func metric(_ value: Int, total: Int? = nil, label: LocalizedStringKey, symbol: String,
+                        tint: Color, target: SubscriptionOverviewMetric, enabled: Bool,
+                        hint: LocalizedStringKey, id: String) -> some View {
+        Button { onMetricTap(target) } label: {
+            MetricPill(value: value, total: total, label: label, symbol: symbol, tint: tint)
+        }
+        .buttonStyle(ResponsivePressButtonStyle())
+        .frame(maxWidth: .infinity)
+        .disabled(!enabled)
+        .accessibilityHint(hint)
+        .accessibilityIdentifier(id)
     }
 }
 
@@ -628,6 +616,8 @@ private struct SubscriptionEmptyState: View {
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .accessibilityIdentifier("empty-add-source")
+            // The one promise worth making before anything is added.
+            PrivacyBadge()
         }
         .padding(22)
         .towerCard()
@@ -687,7 +677,7 @@ private struct SubscriptionCard: View {
                         withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) { isExpanded.toggle() }
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "airplane")
+                            Image(systemName: "antenna.radiowaves.left.and.right")
                                 .font(.headline)
                                 .foregroundStyle(Color.accentColor)
                                 .frame(width: 38, height: 38)
@@ -780,11 +770,14 @@ private struct SubscriptionCard: View {
 
                     // Built only while expanded. Asking for it unconditionally
                     // copied every node of every subscription on every redraw.
-                    ForEach(model.nodes(for: source)) { node in
+                    let nodes = model.nodes(for: source)
+                    ForEach(nodes) { node in
                         CompactNodeRow(node: node)
                             .overlay(alignment: .bottom) {
-                                Divider()
-                                    .padding(.leading, 42)
+                                if node.id != nodes.last?.id {
+                                    Divider()
+                                        .padding(.leading, 42)
+                                }
                             }
                     }
                 }
@@ -946,25 +939,18 @@ private struct SubscriptionFactsRow: View {
                     if isRefreshing {
                         ProgressView()
                             .controlSize(.mini)
+                            .frame(width: 44, height: 44)
                     } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                        RowIconButtonLabel(symbol: "arrow.triangle.2.circlepath")
                     }
                 }
-                .frame(width: 30, height: 30)
-                .background(Color.primary.opacity(0.055), in: Circle())
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .disabled(isRefreshing)
             .accessibilityLabel(isRefreshing ? "正在更新" : "更新订阅")
 
             Button(action: onShare) {
-                Image(systemName: "square.and.arrow.up")
-                    .frame(width: 30, height: 30)
-                    .background(Color.primary.opacity(0.055), in: Circle())
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                RowIconButtonLabel(symbol: "square.and.arrow.up")
             }
             .buttonStyle(ResponsivePressButtonStyle())
             .accessibilityLabel("分享 \(source.name)")

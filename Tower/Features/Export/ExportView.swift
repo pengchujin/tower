@@ -19,6 +19,8 @@ struct ExportView: View {
     @State private var isProtocolFilterPresented = false
     @State private var isLANSharingSelected = false
     @State private var configurationNameDraft = ConfigurationNameDraft()
+    /// Long enough for the Settings sheet to finish sliding away.
+    static let settingsDismissDelay: Duration = .milliseconds(450)
     @State private var previewPayload: ConfigurationPreviewPayload?
     /// The cold request that has been generating long enough to say so.
     @State private var pendingStatusRequest: ConfigurationRequest?
@@ -101,14 +103,14 @@ struct ExportView: View {
                                 .padding(.bottom, model.selectedTarget.supportedContentModes.count > 1 ? 12 : 0)
                             if model.exportContentMode(for: model.selectedTarget) == .fullConfiguration {
                                 Button { model.selectedTab = .rules } label: {
-                                    ExportOptionRow(title: "规则方案", value: model.activeRuleName, symbol: "list.bullet.rectangle", showsChevron: false)
+                                    ExportOptionRow(title: "规则方案", value: model.activeRuleName, symbol: "list.bullet.rectangle")
                                 }
                                 .buttonStyle(.plain)
                                 Divider()
                             }
                             if ProtocolFilterPolicy.isVisible(compatibleKindCount: model.filterableKinds(for: model.selectedTarget).count) {
                                 Button { isProtocolFilterPresented = true } label: {
-                                    ExportOptionRow(title: "协议筛选", value: protocolSelectionSummary, compactValue: protocolSelectionCount, symbol: "line.3.horizontal.decrease", showsChevron: false)
+                                    ExportOptionRow(title: "协议筛选", value: protocolSelectionSummary, compactValue: protocolSelectionCount, symbol: "line.3.horizontal.decrease")
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("open-protocol-filter")
@@ -264,7 +266,12 @@ struct ExportView: View {
         // draft is the same either way.
         .onChange(of: isSettingsPresented) { _, isPresented in
             guard !isPresented else { return }
-            model.setConfigurationName(configurationNameDraft.committedName)
+            // After the sheet's slide, for the same reason as its Done button.
+            let name = configurationNameDraft.committedName
+            Task { @MainActor in
+                try? await Task.sleep(for: Self.settingsDismissDelay)
+                model.setConfigurationName(name)
+            }
         }
         // A restore or an iCloud pull can replace the name while Settings is
         // open. Without this, closing it writes the stale draft back.
@@ -461,7 +468,7 @@ private struct ExportOptionRow: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title).foregroundStyle(.primary).fixedSize(horizontal: true, vertical: false)
             Spacer(minLength: 16)
-            Text(text).font(.subheadline).foregroundStyle(.primary)
+            Text(text).font(.subheadline).foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
         }
@@ -568,8 +575,17 @@ private struct ExportSettingsSheet: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("完成") {
-                            model.setConfigurationName(configurationNameDraft.committedName)
+                            // Read the name while the field still holds it,
+                            // but save it once the sheet is down: saving
+                            // redraws and regenerates the export page under
+                            // the sheet, and in the same frame as dismiss it
+                            // took the sheet's slide away.
+                            let name = configurationNameDraft.committedName
                             dismiss()
+                            Task { @MainActor in
+                                try? await Task.sleep(for: ExportView.settingsDismissDelay)
+                                model.setConfigurationName(name)
+                            }
                         }
                     }
                 }
@@ -1143,28 +1159,15 @@ private struct LANExportTargetCard: View {
             }
 
             Text("局域网共享")
-                .font(.caption.weight(isSelected ? .bold : .semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .font(.caption.weight(isSelected ? .semibold : .medium))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }
         .frame(width: cardWidth, height: cardHeight)
         .padding(.horizontal, 7)
         .padding(.vertical, 9)
-        .background(
-            isSelected
-                ? Color.accentColor.opacity(0.105)
-                : Color(uiColor: .secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
-                    isSelected ? Color.accentColor.opacity(0.75) : Color.secondary.opacity(0.13),
-                    lineWidth: isSelected ? 1.5 : 0.7
-                )
-        }
-        .scaleEffect(reduceMotion || isSelected ? 1 : 0.97)
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .animation(.easeOut(duration: 0.16), value: isSelected)
     }
 }
@@ -1190,20 +1193,17 @@ private struct ClientTargetCard: View {
                     }
                 }
             Text(target.name)
-                .font(.caption.weight(isSelected ? .bold : .semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .font(.caption.weight(isSelected ? .semibold : .medium))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
         }
+        // The app icon is the tile. A card around it, a tinted fill, an
+        // outline and coloured text all repeated the check mark's message.
         .frame(width: cardWidth, height: cardHeight)
         .padding(.horizontal, 7)
         .padding(.vertical, 9)
-        .background(isSelected ? Color.accentColor.opacity(0.105) : Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(isSelected ? Color.accentColor.opacity(0.75) : Color.secondary.opacity(0.13), lineWidth: isSelected ? 1.5 : 0.7)
-        }
-        .scaleEffect(reduceMotion || isSelected ? 1 : 0.97)
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .animation(.easeOut(duration: 0.16), value: isSelected)
     }
 }
@@ -1218,6 +1218,7 @@ struct ClientAppIcon: View {
                 Image(asset)
                     .resizable()
                     .scaledToFill()
+                    .scaleEffect(target.appIconFillScale)
             } else {
                 Image(systemName: target.symbol)
                     .font(.system(size: size * 0.52))
@@ -1453,11 +1454,11 @@ private struct ConfigurationPreview: View {
 
 
     var body: some View {
+        // Same row grammar as the settings above: icon, title, value, chevron.
         Button(action: onOpen) {
-            ExportOptionRow(title: "配置预览", value: configuration.fileName)
+            ExportOptionRow(title: "配置预览", value: configuration.fileName, symbol: "doc.text.magnifyingglass")
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.accentColor)
         .accessibilityIdentifier("preview-config")
     }
 }
@@ -1655,12 +1656,9 @@ private struct ImportActionBar: View {
             .accessibilityLabel("其他导入方式")
         }
         .padding(.horizontal, TowerTheme.pagePadding)
-        .padding(.top, 11)
+        .padding(.top, 22)
         .padding(.bottom, 16)
-        .background(.bar)
-        .overlay(alignment: .top) {
-            Divider().opacity(0.45)
-        }
+        .modifier(BottomBarEdgeBackground())
     }
 
     private var importTitle: String {

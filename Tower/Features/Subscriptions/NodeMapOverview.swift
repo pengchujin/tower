@@ -37,18 +37,31 @@ struct NodeMapPresentation {
     }
 }
 
-struct NodeMapOverview: View, Equatable {
+struct NodeMapOverview<Header: View>: View, Equatable {
     // Parent layout/scroll updates don't change the map's inputs. Observation
     // inside this view still delivers country/latency changes independently.
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.nodes == rhs.nodes }
 
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var colorScheme
     let nodes: [ProxyNode]
+    /// Shares the map's card, above the map: the home page's counts. The map
+    /// comes last so its latency key sits right above the region list that
+    /// opens under the card. `==` compares nodes only, so a header observes
+    /// what it shows by itself.
+    let header: Header
     /// Scrolls the hosting page so a newly selected region's list is on
     /// screen. The list opens below the map and can start under the fold.
     var revealRegionNodes: (() -> Void)? = nil
+
+    init(nodes: [ProxyNode], header: Header, revealRegionNodes: (() -> Void)? = nil) {
+        self.nodes = nodes
+        self.header = header
+        self.revealRegionNodes = revealRegionNodes
+    }
 
     @State private var selectedRegionCode: String?
     @State private var preparedRevision: NodeMapPresentation.Inputs?
@@ -67,8 +80,6 @@ struct NodeMapOverview: View, Equatable {
         return VStack(alignment: .leading, spacing: 14) {
             map(clusters: clusters)
                 .id(SubscriptionScrollTarget.regions)
-                .accessibilityIdentifier("regions-section")
-            latencyLegend
             regionDetail(
                 clusters: clusters,
                 selectedCluster: selectedCluster,
@@ -124,7 +135,22 @@ struct NodeMapOverview: View, Equatable {
     }
 
     private func map(clusters: [NodeRegionCluster]) -> some View {
-        WorldDotMapView(markers: markers(from: clusters)) { id in
+        VStack(spacing: 0) {
+            header
+            // On the map only: an identifier on the whole card is copied onto
+            // every element inside it, the header's own buttons included.
+            mapCanvas(clusters: clusters)
+                .accessibilityIdentifier("regions-section")
+        }
+        // No inset: the map is meant to reach the card's edges.
+        .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
+        .towerCard()
+    }
+
+    private func mapCanvas(clusters: [NodeRegionCluster]) -> some View {
+        let markers = markers(from: clusters)
+        let hasLatencyResult = markers.contains { $0.latencyBand != .untested }
+        return WorldDotMapView(markers: markers) { id in
             let isSelecting = selectedRegionCode != id
             withAnimation(TowerMotion.disclosure(reduceMotion: reduceMotion)) {
                 // Tapping the selected marker again collapses its node list.
@@ -145,11 +171,23 @@ struct NodeMapOverview: View, Equatable {
         }
         .overlay(alignment: .topTrailing) {
             latencyButton
-                .padding(10)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
         }
-        // No inset: the map is meant to reach the card's edges.
-        .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
-        .towerCard()
+        // The key sits in the map's empty southern band, so the colours are
+        // explained where they are seen rather than in a strip under the card.
+        .overlay(alignment: .bottomLeading) {
+            ZStack {
+                if hasLatencyResult {
+                    latencyLegend.transition(.opacity)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
+            .allowsHitTesting(false)
+            // Scoped to the key so the first result never animates the map.
+            .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: hasLatencyResult)
+        }
     }
 
     private var latencyButton: some View {
@@ -168,19 +206,19 @@ struct NodeMapOverview: View, Equatable {
                 Task { await model.testLatencies(nodes, force: true) }
             }
         } label: {
-            HStack(spacing: 7) {
+            HStack(spacing: 5) {
                 ZStack {
                     if isTestingAnyNode {
                         ProgressView()
-                            .controlSize(.small)
-                            .tint(.white)
+                            .controlSize(.mini)
+                            .tint(Color.accentColor)
                             .transition(.opacity)
                     } else {
                         Image(systemName: model.selectedLatencyTestMode.symbol)
                             .transition(.opacity)
                     }
                 }
-                .frame(width: 18, height: 18)
+                .frame(width: 16, height: 16)
                 .accessibilityHidden(true)
 
                 ZStack(alignment: .trailing) {
@@ -200,22 +238,26 @@ struct NodeMapOverview: View, Equatable {
                     }
                 }
             }
-            .font(.subheadline.weight(.bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .frame(height: 42)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            // The same material as the map's own reset control: the button
+            // floats over the map without outweighing what it measures.
             .background {
-                // Shadow from the capsule itself, not the label's rendering.
                 Capsule()
-                    .fill(LinearGradient(
-                        colors: [Color.accentColor, Color.blue.opacity(0.82)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .shadow(color: Color.accentColor.opacity(0.28), radius: 10, y: 4)
+                    .fill(reduceTransparency || contrast == .increased
+                        ? AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground))
+                        : AnyShapeStyle(.regularMaterial))
+                    .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
             }
-            .overlay(Capsule().stroke(.white.opacity(0.45), lineWidth: 0.75))
-            .contentShape(Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(Color.primary.opacity(contrast == .increased ? 0.35 : 0.06), lineWidth: 1)
+            }
+            // Smaller to look at, not to hit: keep a 44pt tall target.
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
         .buttonStyle(ResponsivePressButtonStyle())
         .disabled(nodes.isEmpty)
@@ -261,30 +303,32 @@ struct NodeMapOverview: View, Equatable {
         }
     }
 
+    /// A ramp, like a weather map's key: the four measured bands read as one
+    /// fast-to-slow scale between its two thresholds. It appears only once a
+    /// region has a result; before that every country shares one colour and
+    /// a key would explain nothing.
     private var latencyLegend: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) { legendItems }.fixedSize(horizontal: true, vertical: false)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 85))], alignment: .leading, spacing: 6) { legendItems }
+        let dark = colorScheme == .dark
+        return HStack(spacing: 5) {
+            Text(verbatim: "100")
+            Capsule()
+                .fill(LinearGradient(
+                    colors: [MapLatencyBand.fast, .normal, .slow, .verySlow].map { $0.color(dark: dark) },
+                    startPoint: .leading, endPoint: .trailing
+                ))
+                .frame(width: 36, height: 4)
+                .accessibilityHidden(true)
+            Text(verbatim: "350 ms")
         }
-        .font(.system(size: 10, weight: .medium))
+        .font(.system(size: 10, weight: .medium).monospacedDigit())
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 4)
-    }
-
-    @ViewBuilder private var legendItems: some View {
-        legendItem(.untested, title: String(localized: "待测试"))
-        legendItem(.fast, title: "≤100 ms")
-        legendItem(.normal, title: "101–200 ms")
-        legendItem(.slow, title: "201–350 ms")
-        legendItem(.verySlow, title: ">350 ms")
-        legendItem(.unreachable, title: String(localized: "不可达"))
-    }
-
-    private func legendItem(_ band: MapLatencyBand, title: String) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(band.color(dark: colorScheme == .dark)).frame(width: 6, height: 6)
-            Text(verbatim: title)
-        }
+        .lineLimit(1)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(reduceTransparency || contrast == .increased
+                    ? AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground))
+                    : AnyShapeStyle(.regularMaterial), in: Capsule())
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -360,8 +404,10 @@ private struct SelectedRegionNodes: View {
             ForEach(cluster.nodes) { node in
                 CompactNodeRow(node: node, resolvesRegionOnAppear: false)
                     .overlay(alignment: .bottom) {
-                        Divider()
-                            .padding(.leading, 42)
+                        if node.id != cluster.nodes.last?.id {
+                            Divider()
+                                .padding(.leading, 42)
+                        }
                     }
                     // Swapping countries replaces rows outright; only the
                     // list's height animates, never two sets of rows at once.
@@ -414,9 +460,8 @@ struct CompactNodeRow: View {
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                         Text(node.protocolSummary)
-                            .font(.caption2.weight(.medium))
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                            .tracking(0.18)
                             .lineLimit(1)
                             .minimumScaleFactor(0.82)
                     }
@@ -434,13 +479,9 @@ struct CompactNodeRow: View {
                 guard let latest = model.nodes.first(where: { $0.id == node.id }) else { return }
                 sharePayload = SharePayloadFactory.node(model.nodeForPresentation(latest))
             } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.body.weight(.medium))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                RowIconButtonLabel(symbol: "square.and.arrow.up")
             }
             .buttonStyle(ResponsivePressButtonStyle())
-            .foregroundStyle(Color.accentColor)
             .accessibilityLabel("分享 \(NodeRegionResolver.displayName(for: presentedNode))")
         }
         .frame(minHeight: 54)
@@ -452,12 +493,16 @@ struct CompactNodeRow: View {
         .sheet(isPresented: $showsDetails) {
             NavigationStack {
                 ScrollView {
-                    ExpandableNodeRow(node: model.nodes.first(where: { $0.id == node.id }) ?? node, initiallyExpanded: true)
+                    ExpandableNodeRow(node: model.nodes.first(where: { $0.id == node.id }) ?? node, presentsAsDetail: true)
                         .padding()
                 }
                 .navigationTitle("节点详情")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { showsDetails = false } } }
             }
+            // Full height on purpose: from a medium-detent sheet, the country
+            // picker's search field trips a UISearchController assertion
+            // (`_setInlineSearchAccessoryEnabled:`) and the app aborts.
         }
         .sheet(item: $sharePayload) { payload in
             SharePayloadSheet(payload: payload)
@@ -472,6 +517,8 @@ struct ExpandableNodeRow: View {
     let resolvesRegionOnAppear: Bool
     let usesInsetBackground: Bool
     let showsInclusionToggle: Bool
+    /// Shown on its own in the details sheet: always open, nothing to fold.
+    let presentsAsDetail: Bool
     let onDelete: (() -> Void)?
     @State private var isExpanded = false
     @State private var showsCountryPicker = false
@@ -482,15 +529,16 @@ struct ExpandableNodeRow: View {
         resolvesRegionOnAppear: Bool = true,
         usesInsetBackground: Bool = true,
         showsInclusionToggle: Bool = false,
-        initiallyExpanded: Bool = false,
+        presentsAsDetail: Bool = false,
         onDelete: (() -> Void)? = nil
     ) {
         self.node = node
         self.resolvesRegionOnAppear = resolvesRegionOnAppear
-        self.usesInsetBackground = usesInsetBackground
+        self.usesInsetBackground = presentsAsDetail ? false : usesInsetBackground
         self.showsInclusionToggle = showsInclusionToggle
+        self.presentsAsDetail = presentsAsDetail
         self.onDelete = onDelete
-        self._isExpanded = State(initialValue: initiallyExpanded)
+        self._isExpanded = State(initialValue: presentsAsDetail)
     }
 
     var body: some View {
@@ -502,34 +550,34 @@ struct ExpandableNodeRow: View {
                         isExpanded.toggle()
                     }
                 } label: {
-                    HStack(spacing: 12) {
+                    // The same geometry as `CompactNodeRow`, so a local node
+                    // and a subscription node read as the same kind of row.
+                    HStack(spacing: 8) {
                         NodeRegionLogo(
                             node: node,
-                            resolvesRegionOnAppear: resolvesRegionOnAppear
+                            resolvesRegionOnAppear: resolvesRegionOnAppear,
+                            diameter: 34
                         )
 
                         VStack(alignment: .leading, spacing: 3) {
                             NodeDisplayNameLabel(node: presentedNode)
                                 .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
+                                .lineLimit(presentsAsDetail ? 2 : 1)
                             Text(node.protocolSummary)
-                                .font(.caption2.weight(.medium))
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .tracking(0.18)
-                                .lineLimit(1)
+                                .lineLimit(presentsAsDetail ? 2 : 1)
                                 .minimumScaleFactor(0.82)
                         }
                         Spacer(minLength: 6)
                         NodeLatencyBadge(node: node)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // Not `.disabled`: that would dim the header text.
+                .allowsHitTesting(!presentsAsDetail)
                 .accessibilityLabel(
                     isExpanded
                         ? String(localized: "收起 \(NodeRegionResolver.displayName(for: presentedNode))")
@@ -539,13 +587,9 @@ struct ExpandableNodeRow: View {
                 Button {
                     sharePayload = SharePayloadFactory.node(presentedNode)
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                    RowIconButtonLabel(symbol: "square.and.arrow.up")
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
-                .foregroundStyle(Color.accentColor)
                 .accessibilityLabel("分享 \(NodeRegionResolver.displayName(for: presentedNode))")
 
                 if showsInclusionToggle {
@@ -567,7 +611,7 @@ struct ExpandableNodeRow: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 9) {
-                    NodeDetailLine(label: "协议", value: node.protocolSummary)
+                    // The protocol is the row's own subtitle; no second copy.
                     NodeDetailLine(label: "服务器", value: node.endpoint)
                     if let countryCode = node.countryOverride {
                         NodeCountryDetailLine(label: "手动地区", countryCode: countryCode)
@@ -586,23 +630,26 @@ struct ExpandableNodeRow: View {
                     Text("IP 地区和网络组织来自服务器地址，不代表实际出口。")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Button("设置地区") { showsCountryPicker = true }
-                        .font(.caption.weight(.semibold))
-                        .frame(minHeight: 44)
 
-                    Button {
-                        Task { await model.testLatency(node) }
-                    } label: {
-                        Label("重新测试延迟", systemImage: "gauge.with.dots.needle.50percent")
-                            .font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    // Two equal actions on one line, both in the accent color,
+                    // instead of a lone link above a tinted bar with dark text.
+                    HStack(spacing: 8) {
+                        Button { showsCountryPicker = true } label: {
+                            NodeDetailActionLabel(title: "设置地区", symbol: "mappin.and.ellipse")
+                        }
+                        .buttonStyle(ResponsivePressButtonStyle())
+
+                        Button {
+                            Task { await model.testLatency(node) }
+                        } label: {
+                            NodeDetailActionLabel(title: "重新测试延迟", symbol: "gauge.with.dots.needle.50percent")
+                        }
+                        .buttonStyle(ResponsivePressButtonStyle())
+                        .disabled(model.latencyTestingNodeIDs.contains(node.id))
                     }
-                    .buttonStyle(ResponsivePressButtonStyle())
-                    .disabled(model.latencyTestingNodeIDs.contains(node.id))
+                    .padding(.top, 4)
                 }
-                .padding(.leading, 54)
+                .padding(.leading, presentsAsDetail ? 0 : 42)
                 .transition(.opacity)
             }
         }
@@ -626,6 +673,23 @@ struct ExpandableNodeRow: View {
         }
     }
 
+}
+
+private struct NodeDetailActionLabel: View {
+    @Environment(\.isEnabled) private var isEnabled
+    let title: LocalizedStringKey
+    let symbol: String
+
+    var body: some View {
+        Label(title, systemImage: symbol)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(Color.accentColor)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .opacity(isEnabled ? 1 : 0.45)
+    }
 }
 
 private struct NodeDisplayNameLabel: View {
@@ -831,4 +895,10 @@ private struct NodeDetailLine: View {
 private func latencyColor(milliseconds: Int?) -> Color {
     guard let milliseconds else { return .secondary }
     return MapLatencyBand.measured(milliseconds).color()
+}
+
+extension NodeMapOverview where Header == EmptyView {
+    init(nodes: [ProxyNode], revealRegionNodes: (() -> Void)? = nil) {
+        self.init(nodes: nodes, header: EmptyView(), revealRegionNodes: revealRegionNodes)
+    }
 }

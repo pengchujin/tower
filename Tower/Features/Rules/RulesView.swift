@@ -13,22 +13,15 @@ struct RulesView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                VStack(spacing: 8) {
-                    RulesOverviewCard()
-                    Label("点击规则方案即可修改规则", systemImage: "hand.tap")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
-                        .accessibilityIdentifier("rules-editing-hint")
-                }
+                // No summary card above the list: it repeated the selected
+                // scheme, which the list itself already marks.
                 builtInSection
                 importedSchemesSection
 
                 Button {
                     model.selectedTab = .export
                 } label: {
-                    PrimaryActionLabel(title: "继续选择客户端", symbol: "arrow.right")
+                    PrimaryActionLabel(title: "继续选择客户端", symbol: "arrow.right", isProminent: false)
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .disabled(!model.hasExportableSources)
@@ -86,6 +79,13 @@ struct RulesView: View {
         let schemes = model.ruleSchemes.filter(\.isBundled)
         return Group {
             SectionHeading(title: "本机规则", detail: String(localized: "安装后离线可用"))
+            Label("点击规则方案即可修改规则", systemImage: "hand.tap")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .padding(.top, -4)
+                .accessibilityIdentifier("rules-editing-hint")
             ForEach(schemes) { scheme in
                 RuleSchemeCard(
                     scheme: scheme,
@@ -173,81 +173,6 @@ struct RulesView: View {
     }
 }
 
-private struct RulesOverviewCard: View {
-    @Environment(AppModel.self) private var model
-    @ScaledMetric(relativeTo: .caption) private var ruleCountWidth = 100
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.title2.weight(.bold))
-                        .lineLimit(1, reservesSpace: true)
-                        .minimumScaleFactor(0.8)
-                    Text(summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2, reservesSpace: true)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: symbol)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        TowerTheme.color(named: tintName).gradient,
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    )
-            }
-
-            HStack(spacing: 14) {
-                overviewLabel(String(localized: "\(ruleCount.map { $0.formatted() } ?? "—") 条"), symbol: "list.bullet.rectangle")
-                    .frame(minWidth: ruleCountWidth, alignment: .leading)
-                overviewLabel(String(localized: "\(groupCount) 组"), symbol: "square.stack.3d.up")
-                Spacer(minLength: 0)
-                overviewLabel(sourceName, symbol: "shippingbox")
-            }
-        }
-        .padding(20)
-        .towerCard()
-        .accessibilityIdentifier("rules-overview-card")
-    }
-
-    private func overviewLabel(_ text: String, symbol: String) -> some View {
-        Label(text, systemImage: symbol)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-    }
-
-    private var title: String { model.selectedScheme?.name ?? model.selectedPreset.name }
-    private var summary: String {
-        model.selectedScheme?.localizedSummary() ?? model.selectedPreset.summary
-    }
-    private var symbol: String {
-        model.selectedScheme == nil ? model.selectedPreset.symbol : "square.stack.3d.down.right.fill"
-    }
-    private var tintName: String {
-        model.selectedScheme == nil ? model.selectedPreset.tintName : "indigo"
-    }
-    private var ruleCount: Int? {
-        if let scheme = model.selectedScheme { return model.rulesPageSummaries[scheme.id]?.count }
-        return model.rulesPagePresetCounts[model.selectedPreset.id]
-    }
-    private var groupCount: Int {
-        guard let scheme = model.selectedScheme else { return model.selectedPreset.assignments.count }
-        return (model.rulesPageSummaries[scheme.id]?.preview ?? scheme).groups.count
-    }
-    private var sourceName: String {
-        guard let scheme = model.selectedScheme else { return String(localized: "本机规则") }
-        if scheme.isBundled { return String(localized: "本机") }
-        return URL(string: scheme.sourceURLString ?? "")?.host ?? String(localized: "已导入")
-    }
-}
-
-/// The row that expands a card in place. Matches the home page: opacity and
-/// layout only, never a slide-in from the top.
 private struct RuleDisclosureRow: View {
     let title: String
     let isExpanded: Bool
@@ -512,12 +437,9 @@ private struct RuleSchemeCard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous))
+        // Selection is the check mark alone; a coloured outline on top of it
+        // said the same thing twice.
         .towerCard()
-        .overlay {
-            RoundedRectangle(cornerRadius: TowerTheme.cornerRadius, style: .continuous)
-                .stroke(isSelected ? Color.accentColor.opacity(0.65) : Color.clear, lineWidth: 1.5)
-                .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isSelected)
-        }
         // As in SubscriptionCard, background and text share one moving frame.
         .geometryGroup()
         .contentShape(RoundedRectangle(cornerRadius: TowerTheme.cornerRadius))

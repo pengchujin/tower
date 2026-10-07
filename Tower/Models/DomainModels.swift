@@ -990,22 +990,22 @@ struct ProxyNode: Identifiable, Codable, Hashable {
 
     private var protocolDisplayName: String {
         switch kind {
-        case .shadowsocks: "SHADOWSOCKS"
-        case .shadowsocksR: "SHADOWSOCKS R"
-        case .vmess: "VMESS"
+        case .shadowsocks: "Shadowsocks"
+        case .shadowsocksR: "ShadowsocksR"
+        case .vmess: "VMess"
         case .vless: "VLESS"
-        case .trojan: "TROJAN"
-        case .hysteria: "HYSTERIA"
-        case .hysteria2: "HYSTERIA 2"
+        case .trojan: "Trojan"
+        case .hysteria: "Hysteria"
+        case .hysteria2: "Hysteria 2"
         case .tuic: "TUIC"
         case .masque: "MASQUE"
-        case .wireguard: "WIREGUARD"
-        case .anytls: "ANYTLS"
-        case .snell: version.map { "SNELL V\($0)" } ?? "SNELL"
+        case .wireguard: "WireGuard"
+        case .anytls: "AnyTLS"
+        case .snell: version.map { "Snell v\($0)" } ?? "Snell"
         case .socks5: "SOCKS5"
         case .http: tls ? "HTTPS" : "HTTP"
         case .ssh: "SSH"
-        case .trustTunnel: trustTunnel?.quic == true ? "TRUSTTUNNEL H3" : "TRUSTTUNNEL"
+        case .trustTunnel: trustTunnel?.quic == true ? "TrustTunnel H3" : "TrustTunnel"
         case .unknown: "未知协议"
         }
     }
@@ -1030,10 +1030,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
 
         return switch normalized {
         case "ws", "websocket": "WS"
-        case "grpc": "GRPC"
+        case "grpc": "gRPC"
         case "http", "http_simple": "HTTP"
         case "h2", "http2": "H2"
-        case "httpupgrade": "HTTP UPGRADE"
+        case "httpupgrade": "HTTPUpgrade"
         case "xhttp", "splithttp": "XHTTP"
         case "kcp", "mkcp": "KCP"
         case "quic": "QUIC"
@@ -1362,6 +1362,16 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
         case .singBox: "ClientSingBox"
         case .clashMi: "ClientClashMi"
         case .karing: "ClientKaring"
+        }
+    }
+
+    /// How far to enlarge the artwork so it fills a rounded tile. The macOS
+    /// icons follow the Mac grid: the shape is 144 of 180 points, inside a
+    /// transparent margin that read as a white ring on Tower's tile.
+    var appIconFillScale: CGFloat {
+        switch self {
+        case .surgeMac, .clashVerge, .clashMac, .mihomoParty: 180.0 / 144.0
+        default: 1
         }
     }
 

@@ -847,7 +847,7 @@ final class SubscriptionInteractionTests: XCTestCase {
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         let rootStart = try XCTUnwrap(source.range(of: "struct SubscriptionsView: View"))
         let sheetStart = try XCTUnwrap(source.range(of: "private struct EditSubscriptionSheet: View"))
-        let nextType = try XCTUnwrap(source.range(of: "private struct SubscriptionOverviewCard: View"))
+        let nextType = try XCTUnwrap(source.range(of: "private struct MacSubscriptionSummary: View"))
         let root = String(source[rootStart.lowerBound..<sheetStart.lowerBound])
         let sheet = String(source[sheetStart.lowerBound..<nextType.lowerBound])
 
@@ -990,7 +990,7 @@ final class SubscriptionInteractionTests: XCTestCase {
             .appendingPathComponent("Tower/Features/Subscriptions/NodeFilterView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        XCTAssertTrue(source.contains("LazyVGrid(columns: filterColumns"))
+        XCTAssertEqual(source.components(separatedBy: "FilterRow(\n").count - 1, 3, "地区、协议和名称是三行同样结构的筛选项")
         XCTAssertFalse(
             source.contains("ScrollView(.horizontal)"),
             "地区和协议必须同时可见"

@@ -97,7 +97,6 @@ final class NodeExportGroupCache {
 struct NodeFilterSections: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @Binding var searchText: String
     @Binding var showsNameFilter: Bool
@@ -121,48 +120,25 @@ struct NodeFilterSections: View {
             && eligibleFilteredNodes.allSatisfy { includedIDs.contains($0.id) }
 
         return Group {
+            // Three rows of one shape — icon, title, current value, accessory —
+            // so the region and protocol menus line up with the name filter
+            // instead of sitting as centred tiles above a left-aligned row.
             Section {
-                VStack(spacing: 9) {
-                    LazyVGrid(columns: filterColumns, spacing: 9) {
-                        countryFilter
-                        protocolFilter
-                    }
-                    Button {
-                        showsNameFilter = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "text.magnifyingglass")
-                                .foregroundStyle(Color.primary)
-                                .frame(width: 22)
-                            Text("节点名称")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .layoutPriority(1)
-                            Spacer(minLength: 8)
-                            if let filter = model.nodeExportNameFilter {
-                                let draft = NodeNameFilterDraft(pattern: filter.pattern)
-                                Text(verbatim: draft.usesRegex ? filter.pattern : draft.keywords.replacingOccurrences(of: "\n", with: " · "))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            if model.nodeExportNameFilter == nil {
-                                Text("未设置").font(.subheadline).foregroundStyle(.secondary)
-                            }
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 48)
-                        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("node-name-export-filter")
+                countryFilter
+                protocolFilter
+                Button {
+                    showsNameFilter = true
+                } label: {
+                    FilterRow(
+                        title: String(localized: "节点名称"),
+                        symbol: "text.magnifyingglass",
+                        value: nameFilterSummary,
+                        accessory: "chevron.right"
+                    )
                 }
-                .padding(.vertical, 2)
-                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("node-name-export-filter")
+                .listRowInsets(FilterRow.insets)
             } header: {
                 Text("筛选")
             } footer: {
@@ -220,9 +196,35 @@ struct NodeFilterSections: View {
         }
     }
 
-    private var filterColumns: [GridItem] {
-        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        return Array(repeating: GridItem(.flexible(), spacing: 9), count: count)
+    /// "全部" while every group still exports all of its nodes; otherwise how
+    /// many groups still contribute at least one, out of all of them.
+    private func selectionSummary(_ groups: [[ProxyNode]]) -> String {
+        let includedIDs = model.includedNodeIDs
+        let allowedIDs = model.nodeNameAllowedIDs
+        var selected = 0
+        var complete = true
+        for nodes in groups {
+            var eligible = 0
+            var included = 0
+            for node in nodes where allowedIDs?.contains(node.id) ?? true {
+                eligible += 1
+                if includedIDs.contains(node.id) { included += 1 }
+            }
+            let state = NodeExportGroupSelectionState(includedCount: included, totalCount: eligible)
+            if state.isMenuSelected { selected += 1 }
+            if state != .all, eligible > 0 { complete = false }
+        }
+        return complete
+            ? String(localized: "全部")
+            : "\(selected)/\(groups.count)"
+    }
+
+    private var nameFilterSummary: String {
+        guard let filter = model.nodeExportNameFilter else {
+            return String(localized: "未设置")
+        }
+        let draft = NodeNameFilterDraft(pattern: filter.pattern)
+        return draft.usesRegex ? filter.pattern : draft.keywords.replacingOccurrences(of: "\n", with: " · ")
     }
 
     private func bulkSelectionButton(
@@ -273,16 +275,19 @@ struct NodeFilterSections: View {
             Button("完成") {}
                 .menuActionDismissBehavior(.enabled)
         } label: {
-            FilterChip(
+            FilterRow(
                 title: String(localized: "国家地区"),
                 symbol: "globe.asia.australia",
-                isActive: false
+                value: selectionSummary(countryOptions.map(\.nodes)),
+                accessory: "chevron.up.chevron.down"
             )
         }
         // Region selection is a multi-select task: keep the native menu open
         // for toggles, and dismiss only via Done or a tap outside the menu.
         .menuActionDismissBehavior(.disabled)
-        .frame(maxWidth: .infinity)
+        // A List tints a menu's label like a link; this row reads as a setting.
+        .buttonStyle(.plain)
+        .listRowInsets(FilterRow.insets)
     }
 
     private var protocolFilter: some View {
@@ -304,15 +309,18 @@ struct NodeFilterSections: View {
             Button("完成") {}
                 .menuActionDismissBehavior(.enabled)
         } label: {
-            FilterChip(
+            FilterRow(
                 title: String(localized: "协议"),
-                kind: nil,
-                isActive: false
+                symbol: "network",
+                value: selectionSummary(protocolOptions.map(\.nodes)),
+                accessory: "chevron.up.chevron.down"
             )
         }
         // Keep the protocol menu open while selecting multiple kinds.
         .menuActionDismissBehavior(.disabled)
-        .frame(maxWidth: .infinity)
+        // A List tints a menu's label like a link; this row reads as a setting.
+        .buttonStyle(.plain)
+        .listRowInsets(FilterRow.insets)
     }
 
     private func exportGroupSelectionToggle(
@@ -475,44 +483,48 @@ struct NodeExportNameFilterSheet: View {
     }
 }
 
-private struct FilterChip: View {
+/// One filter row. The title takes its space first; the current value
+/// truncates instead, and moves under the title at accessibility sizes.
+private struct FilterRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let symbol: String
-    let kind: ProxyKind?
-    let isActive: Bool
+    let value: String
+    let accessory: String
 
-    init(title: String, symbol: String, isActive: Bool) {
-        self.title = title
-        self.symbol = symbol
-        self.kind = nil
-        self.isActive = isActive
-    }
-
-    init(title: String, kind: ProxyKind?, isActive: Bool) {
-        self.title = title
-        self.symbol = "network"
-        self.kind = kind
-        self.isActive = isActive
-    }
+    /// Tighter than a List's default so three settings read as one group.
+    static let insets = EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
 
     var body: some View {
-        HStack(spacing: 7) {
-            if let kind {
-                ProtocolGlyph(kind: kind)
-            } else {
-                Image(systemName: symbol)
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(spacing: 8))
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.body)
+                .foregroundStyle(Color.accentColor)
+                // The node rows' icon column, so every title on the page
+                // starts on one line.
+                .frame(width: 38)
+                .accessibilityHidden(true)
+            layout {
+                Text(title)
+                    .foregroundStyle(.primary)
+                    .layoutPriority(1)
+                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+                Text(verbatim: value)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
             }
-            Text(title)
+            Image(systemName: accessory)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-            .font(.subheadline.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .foregroundStyle(isActive ? Color.accentColor : Color.primary)
-            .background(
-                isActive ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
+        .font(.body)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }

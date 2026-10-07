@@ -62,6 +62,9 @@ struct SourceManagementView: View {
                 SubscriptionRefreshToolbarButton(sources: subscriptionsToRefresh)
             }
         }
+        // A selection task owns the bottom edge; the tab bar under the action
+        // bar stacked two strips of chrome on top of each other.
+        .toolbar(tab.supportsBatchSelection ? .hidden : .automatic, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             batchActionBar
         }
@@ -129,9 +132,7 @@ struct SourceManagementView: View {
 
                             Spacer(minLength: 8)
 
-                            Text(source.isEnabled ? "已启用" : "已停用")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(source.isEnabled ? Color.accentColor : Color.secondary)
+                            ManagementStatusLabel(isEnabled: source.isEnabled)
 
                             SelectionIndicator(isSelected: selectedSubscriptionIDs.contains(source.id))
                         }
@@ -185,9 +186,7 @@ struct SourceManagementView: View {
 
                             Spacer(minLength: 8)
 
-                            Text(model.isNodeIncluded(node) ? "已启用" : "已停用")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(model.isNodeIncluded(node) ? Color.accentColor : Color.secondary)
+                            ManagementStatusLabel(isEnabled: model.isNodeIncluded(node))
 
                             SelectionIndicator(isSelected: selectedLocalNodeIDs.contains(node.id))
                         }
@@ -243,10 +242,9 @@ struct SourceManagementView: View {
                 }
             }
             .padding(.horizontal, TowerTheme.pagePadding)
-            .padding(.top, 11)
+            .padding(.top, 22)
             .padding(.bottom, 9)
-            .background(.bar)
-            .overlay(alignment: .top) { Divider().opacity(0.45) }
+            .modifier(BottomBarEdgeBackground())
         }
     }
 
@@ -534,6 +532,26 @@ private enum SourceManagementDeletion: Hashable {
     }
 }
 
+/// A status, not a control: accent text beside a selection circle read as a
+/// second button.
+private struct ManagementStatusLabel: View {
+    let isEnabled: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if isEnabled {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
+            }
+            Text(isEnabled ? "已启用" : "已停用")
+        }
+        .font(.caption)
+        .foregroundStyle(isEnabled ? Color.secondary : Color.secondary.opacity(0.7))
+    }
+}
+
 private struct ManagementActionButton: View {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -557,31 +575,25 @@ private struct ManagementActionButton: View {
     var body: some View {
         Button(role: role, action: action) {
             Label(title, systemImage: symbol)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity, minHeight: TowerTheme.actionBarButtonHeight)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .padding(.horizontal, 14)
-                .foregroundStyle(foregroundStyle)
+                .foregroundStyle(isEnabled ? tint : Color.secondary)
                 .background(
-                    backgroundStyle,
-                    in: RoundedRectangle(
-                        cornerRadius: TowerTheme.actionBarButtonCornerRadius,
-                        style: .continuous
-                    )
+                    isEnabled ? tint.opacity(0.12) : Color.primary.opacity(0.05),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
                 .contentShape(Rectangle())
         }
         .buttonStyle(ResponsivePressButtonStyle())
-        .opacity(isEnabled ? 1 : 0.34)
     }
 
-    private var foregroundStyle: Color {
-        role == .destructive ? .red : .white
-    }
-
-    private var backgroundStyle: Color {
-        role == .destructive ? Color.primary.opacity(0.07) : .accentColor
+    /// Tinted, not filled: with nothing selected the bar reads as quiet
+    /// gray, and a selection only brings the colour in.
+    private var tint: Color {
+        role == .destructive ? .red : .accentColor
     }
 }
 

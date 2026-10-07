@@ -29,6 +29,34 @@ enum TowerTheme {
     }
 }
 
+/// Material behind a bottom action bar that fades in from the content above
+/// it, the way the system's scroll edge effect does, instead of an opaque
+/// strip with a hairline across the page.
+struct BottomBarEdgeBackground: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        content.background {
+            Rectangle()
+                .fill(reduceTransparency
+                    ? AnyShapeStyle(Color(uiColor: .systemGroupedBackground))
+                    : AnyShapeStyle(.bar))
+                // Fade only across the bar's top padding; behind the buttons
+                // the material stays solid so scrolled text never shows
+                // through a translucent control.
+                .mask {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 20)
+                        Rectangle()
+                    }
+                }
+                .ignoresSafeArea(edges: .bottom)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
 /// A small shared motion vocabulary for Tower's high-frequency controls.
 /// Keeping these transitions short and non-bouncy makes selection feel direct
 /// on both iPhone and iPad, while still preserving state continuity.
@@ -150,6 +178,9 @@ struct SelectionIndicatorButtonStyle: ButtonStyle {
 struct PrimaryActionLabel: View {
     let title: LocalizedStringKey
     let symbol: String
+    /// Solid accent is reserved for a page's one main action. A secondary
+    /// step that the tab bar also reaches uses the tinted variant.
+    var isProminent = true
 
     var body: some View {
         HStack(spacing: 9) {
@@ -160,14 +191,29 @@ struct PrimaryActionLabel: View {
         }
         .frame(maxWidth: .infinity, minHeight: TowerTheme.actionBarButtonHeight)
         .padding(.horizontal, 14)
-        .foregroundStyle(.white)
+        .foregroundStyle(isProminent ? AnyShapeStyle(.white) : AnyShapeStyle(Color.accentColor))
         .background(
-            Color.accentColor,
+            isProminent ? Color.accentColor : Color.accentColor.opacity(0.12),
             in: RoundedRectangle(
                 cornerRadius: TowerTheme.actionBarButtonCornerRadius,
                 style: .continuous
             )
         )
+    }
+}
+
+/// The one look for a row's trailing icon action (share, refresh): a plain
+/// accent glyph in a 44pt target, so the same action never appears in three
+/// different styles on one screen.
+struct RowIconButtonLabel: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.body.weight(.medium))
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
     }
 }
 
@@ -211,27 +257,47 @@ struct PrivacyBadge: View {
 struct MetricPill: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let value: Int
+    /// Shown after the value, smaller, as "of all": 6/20.
+    var total: Int? = nil
     let label: LocalizedStringKey
+    let symbol: String
+    let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value, format: .number)
-                .font(.title2.weight(.bold))
-                .monospacedDigit()
-                .contentTransition(
-                    reduceMotion ? .opacity : .numericText(value: Double(value))
-                )
-                .animation(
-                    reduceMotion
-                        ? .easeOut(duration: 0.14)
-                        : .spring(response: 0.34, dampingFraction: 1),
-                    value: value
-                )
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.78)
+        VStack(alignment: .leading, spacing: 6) {
+            // The label leads, with its icon, so the four counts can be told
+            // apart at a glance instead of by reading the captions under them.
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
+                Text(label)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption.weight(.medium))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value, format: .number)
+                    .font(.title2.weight(.bold))
+                    .contentTransition(
+                        reduceMotion ? .opacity : .numericText(value: Double(value))
+                    )
+                    .animation(
+                        reduceMotion
+                            ? .easeOut(duration: 0.14)
+                            : .spring(response: 0.34, dampingFraction: 1),
+                        value: value
+                    )
+                if let total {
+                    Text(verbatim: "/\(total.formatted())")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

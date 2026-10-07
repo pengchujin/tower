@@ -160,32 +160,39 @@ struct AddSourceSheet: View {
         }
     }
 
+    /// A segmented control with icons: one quiet track and a raised segment,
+    /// instead of three tiles where the selected one is a solid accent block.
     private var sourceModePicker: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             ForEach(EntryMode.allCases) { mode in
                 Button {
                     focusedField = nil
                     entryMode = mode
                 } label: {
-                    VStack(spacing: 6) {
+                    HStack(spacing: 6) {
                         Image(systemName: mode.symbol)
-                            .font(.headline.weight(.semibold))
                         Text(mode.title)
-                            .font(.caption.weight(.semibold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
-                    .foregroundStyle(entryMode == mode ? Color.white : Color.primary)
-                    .frame(maxWidth: .infinity, minHeight: 62)
-                    .background(
-                        entryMode == mode ? Color.accentColor : Color.primary.opacity(0.055),
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    )
-                    .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(entryMode == mode ? Color.accentColor : Color.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .background {
+                        if entryMode == mode {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                                .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .buttonStyle(ResponsivePressButtonStyle())
                 .accessibilityAddTraits(entryMode == mode ? .isSelected : [])
             }
         }
+        .padding(4)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
         .listRowBackground(Color.clear)
     }
@@ -693,7 +700,10 @@ struct AddSourceSheet: View {
             Label("已识别 \(count) 个节点", systemImage: "square.stack.3d.up.fill")
                 .foregroundStyle(.green)
         case .unknown:
-            Label("等待有效的订阅链接或节点协议", systemImage: "questionmark.circle")
+            // A quiet hint, not a row that looks as tappable as the paste
+            // action above it.
+            Text("等待有效的订阅链接或节点协议")
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }

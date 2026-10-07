@@ -145,7 +145,7 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testRulesViewExposesSearchableGroupSelectionAndPersistentCustomFlows() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
 
-        XCTAssertTrue(source.contains("RulesOverviewCard()"))
+        XCTAssertFalse(source.contains("RulesOverviewCard"), "列表已标出所选方案，顶部不再重复一张总览卡片")
         XCTAssertTrue(source.contains(".searchable("))
         XCTAssertTrue(source.contains("rule-customization"))
         XCTAssertTrue(source.contains("rule-customization-list"))
@@ -251,8 +251,8 @@ final class RepositoryConsistencyTests: XCTestCase {
     func testRulesPageSupportsSwipeDeletionAndContextMenu() throws {
         let source = try sourceText("Tower/Features/Rules/RulesView.swift")
         let importedSection = try XCTUnwrap(source.range(of: "private var importedSchemesSection"))
-        let overviewStart = try XCTUnwrap(source.range(of: "private struct RulesOverviewCard"))
-        let importedSource = String(source[importedSection.lowerBound..<overviewStart.lowerBound])
+        let sectionEnd = try XCTUnwrap(source.range(of: "private struct RuleDisclosureRow"))
+        let importedSource = String(source[importedSection.lowerBound..<sectionEnd.lowerBound])
         let cardStart = try XCTUnwrap(source.range(of: "private struct RuleSchemeCard"))
         let editorStart = try XCTUnwrap(source.range(of: "private struct ImportedRuleSchemeEditor"))
         let cardSource = String(source[cardStart.lowerBound..<editorStart.lowerBound])
@@ -559,39 +559,7 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(indicatorSource.contains(".opacity(isSelected ? 1 : 0)"))
         XCTAssertTrue(indicatorSource.contains(".frame(width: 25, height: 25)"))
         XCTAssertFalse(cardSource.contains(".overlay {\n            if isSelected"))
-        XCTAssertTrue(cardSource.contains(".stroke(isSelected ?"))
-    }
-
-    func testRulesOverviewReservesTheSameTextHeightForEverySelection() throws {
-        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
-        let overviewStart = try XCTUnwrap(source.range(of: "private struct RulesOverviewCard: View"))
-        let nextViewStart = try XCTUnwrap(source.range(of: "private struct RuleDisclosureRow: View"))
-        let overviewSource = String(source[overviewStart.lowerBound..<nextViewStart.lowerBound])
-
-        XCTAssertTrue(
-            overviewSource.contains(".lineLimit(1, reservesSpace: true)"),
-            "顶部规则标题必须始终预留一行，不能在切换方案时改变卡片高度"
-        )
-        XCTAssertTrue(
-            overviewSource.contains(".lineLimit(2, reservesSpace: true)"),
-            "顶部规则说明必须始终预留两行，不能推动下方规则列表"
-        )
-    }
-
-    func testRulesOverviewCountsEveryGroupInTheSelectedScheme() throws {
-        let source = try sourceText("Tower/Features/Rules/RulesView.swift")
-        let overviewStart = try XCTUnwrap(source.range(of: "private struct RulesOverviewCard: View"))
-        let nextViewStart = try XCTUnwrap(source.range(of: "private struct RuleDisclosureRow: View"))
-        let overviewSource = String(source[overviewStart.lowerBound..<nextViewStart.lowerBound])
-
-        XCTAssertTrue(
-            overviewSource.contains("(model.rulesPageSummaries[scheme.id]?.preview ?? scheme).groups.count"),
-            "顶部总览必须与下载卡片和展开详情一样，统计方案的全部策略组"
-        )
-        XCTAssertFalse(
-            overviewSource.contains("model.selectedScheme?.selectableRuleGroupNames.count"),
-            "可自定义规则组是全部策略组的子集，不能用作顶部总数"
-        )
+        XCTAssertFalse(cardSource.contains(".stroke(isSelected ?"), "选中只用勾选标记表示，不再叠加描边")
     }
 
     func testRuleSchemeContextMenuKeepsTheNativeHeaderPreview() throws {
@@ -928,9 +896,12 @@ final class RepositoryConsistencyTests: XCTestCase {
         XCTAssertTrue(sheet.contains("@Binding var configurationNameDraft"))
         XCTAssertTrue(sheet.contains("SettingsView("))
         XCTAssertTrue(sheet.contains("configurationNameDraft: $configurationNameDraft"))
-        let commit = try XCTUnwrap(sheet.range(of: "model.setConfigurationName(configurationNameDraft.committedName)"))
+        // The name is read before the sheet goes, and saved after its slide.
+        let read = try XCTUnwrap(sheet.range(of: "let name = configurationNameDraft.committedName"))
         let dismiss = try XCTUnwrap(sheet.range(of: "dismiss()"))
-        XCTAssertLessThan(commit.lowerBound, dismiss.lowerBound)
+        let commit = try XCTUnwrap(sheet.range(of: "model.setConfigurationName(name)"))
+        XCTAssertLessThan(read.lowerBound, dismiss.lowerBound)
+        XCTAssertLessThan(dismiss.lowerBound, commit.lowerBound)
         XCTAssertFalse(
             sheet.contains(".onDisappear"),
             "设置页消失时不能再用可能已重置的草稿二次覆盖已保存名称"
@@ -1011,8 +982,12 @@ final class RepositoryConsistencyTests: XCTestCase {
             root.range(of: ".onChange(of: isSettingsPresented)"),
             "拖动关闭设置页时没有任何地方提交名称草稿"
         )
+        let read = try XCTUnwrap(
+            root.range(of: "let name = configurationNameDraft.committedName", range: observer.upperBound..<root.endIndex),
+            "监听到关闭却没有读取草稿"
+        )
         let commit = try XCTUnwrap(
-            root.range(of: "model.setConfigurationName(configurationNameDraft.committedName)"),
+            root.range(of: "model.setConfigurationName(name)", range: read.upperBound..<root.endIndex),
             "监听到关闭却没有提交草稿"
         )
         XCTAssertLessThan(observer.lowerBound, commit.lowerBound)

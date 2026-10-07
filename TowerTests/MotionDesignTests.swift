@@ -99,8 +99,13 @@ final class MotionDesignTests: XCTestCase {
         )
         let reminderHeader = String(settings[reminderStart.lowerBound..<reminderList.lowerBound])
 
-        for header in [subscriptionHeader, nodeHeader, reminderHeader] {
+        // Node rows share `CompactNodeRow`'s geometry and carry no chevron;
+        // the other disclosure headers still rotate theirs.
+        XCTAssertFalse(nodeHeader.contains("Image(systemName: \"chevron.down\")"))
+        for header in [subscriptionHeader, reminderHeader] {
             XCTAssertTrue(header.contains(".rotationEffect(.degrees(isExpanded ? 180 : 0))"))
+        }
+        for header in [subscriptionHeader, nodeHeader, reminderHeader] {
             XCTAssertTrue(header.contains(".buttonStyle(.plain)")
                 || header.contains(".buttonStyle(SelectionIndicatorButtonStyle())"))
             XCTAssertFalse(

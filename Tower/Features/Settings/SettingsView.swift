@@ -11,23 +11,6 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                Button {
-                    if TowerPlatform.isMac {
-                        model.isReplayingMacOnboarding = true
-                        dismiss()
-                    } else {
-                        showsOnboarding = true
-                    }
-                } label: {
-                    HStack {
-                        Label("使用引导", systemImage: "book.closed")
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption.weight(.semibold))
-                    }
-                    .padding(18).towerCard()
-                }
-                .buttonStyle(ResponsivePressButtonStyle())
-                .accessibilityIdentifier("replay-onboarding")
                 VStack(alignment: .leading, spacing: 16) {
                     SectionHeading(title: "订阅与提醒")
                     RenewalReminderSection()
@@ -42,6 +25,31 @@ struct SettingsView: View {
                 }
                 .padding(17).towerCard()
                 ConfigurationManagementCard(configurationNameDraft: $configurationNameDraft)
+                // Help sits with the other reference material at the end,
+                // not above every setting as if it were the first one.
+                Button {
+                    if TowerPlatform.isMac {
+                        model.isReplayingMacOnboarding = true
+                        dismiss()
+                    } else {
+                        showsOnboarding = true
+                    }
+                } label: {
+                    HStack(spacing: 13) {
+                        SettingsIconTile(symbol: "book.closed", color: .orange)
+                        Text("使用引导")
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                    .padding(17).towerCard()
+                }
+                .buttonStyle(ResponsivePressButtonStyle())
+                .accessibilityIdentifier("replay-onboarding")
                 SettingsFooter()
             }
             .padding(.horizontal, TowerTheme.pagePadding)
@@ -91,7 +99,7 @@ private struct ResetAllConfigurationRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("重置所有配置")
-                        .font(.headline)
+                        .font(.body)
                         .foregroundStyle(.red)
                     Text("删除订阅、节点和这台设备上的设置")
                         .font(.caption)
@@ -163,7 +171,6 @@ private struct CloudSyncControls: View {
     @Environment(AppModel.self) private var model
     @State private var isConfirming = false
     @State private var isConfirmingDisable = false
-    @State private var isConfirmingRemoval = false
     @State private var showsRecovery = false
 
     private var binding: Binding<Bool> {
@@ -185,47 +192,56 @@ private struct CloudSyncControls: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 13) {
-                Toggle(isOn: binding) {
-                    HStack(spacing: 13) {
-                        SettingsIconTile(symbol: "icloud.fill", color: .blue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("同步到我的 iCloud")
-                                .font(.headline)
+                SectionHeading(title: "iCloud 同步")
+                // Two rows: the switch, and the backups. Syncing now lives in
+                // the status line it updates, and deleting the iCloud copy is
+                // offered where sync is switched off and on the backups page,
+                // not as a third row that only repeats that choice.
+                HStack(spacing: 13) {
+                    SettingsIconTile(symbol: "icloud.fill", color: .blue)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("同步到我的 iCloud")
+                            .font(.body)
+                        HStack(spacing: 6) {
                             Text(statusText)
-                                .font(.caption)
                                 .foregroundStyle(.secondary)
+                            if model.iCloudSyncEnabled {
+                                Text(verbatim: "·")
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                                Button(model.isCloudSyncing ? "正在同步…" : "立即同步") {
+                                    Task { await model.synchronizeWithCloud(showResult: true) }
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(Color.accentColor)
+                                // The status truncates first; the action stays whole.
+                                .fixedSize()
+                                .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
+                                .accessibilityIdentifier("cloud-sync-now")
+                            }
                         }
+                        .font(.caption)
+                        .lineLimit(1)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Toggle("同步到我的 iCloud", isOn: binding)
+                        .labelsHidden()
+                        .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
                 }
+
+                CloudCardDivider()
+
+                Button {
+                    // Save a typed name first: the restore then backs it up, and
+                    // the chosen version's name is not overridden by the draft.
+                    model.setConfigurationName(configurationNameDraft.committedName)
+                    showsRecovery = true
+                } label: {
+                    CloudActionRow(symbol: "clock.arrow.circlepath", color: .indigo,
+                                   title: "恢复同步备份")
+                }
+                .buttonStyle(ResponsivePressButtonStyle())
                 .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
-
-                Divider()
-
-                if model.iCloudSyncEnabled {
-                    Button {
-                        Task { await model.synchronizeWithCloud(showResult: true) }
-                    } label: {
-                        Label(
-                            model.isCloudSyncing ? "正在同步…" : "立即同步",
-                            systemImage: "arrow.triangle.2.circlepath"
-                        )
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 32)
-                        .contentShape(Rectangle())
-                    }
-                    .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
-                } else {
-                    Button(role: .destructive) {
-                        isConfirmingRemoval = true
-                    } label: {
-                        Label(model.isRemovingCloudSnapshot ? "正在删除…" : "删除 iCloud 上的副本", systemImage: "trash")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .disabled(model.isRemovingCloudSnapshot || model.isCloudSyncing)
-                    .accessibilityIdentifier("remove-cloud-snapshot")
-                }
             }
             .padding(17)
             .towerCard()
@@ -233,27 +249,9 @@ private struct CloudSyncControls: View {
             if let issue = model.cloudSyncIssue {
                 Text(issue).font(.caption).foregroundStyle(.orange)
             }
-            Button("恢复同步备份") {
-                // Save a typed name first: the restore then backs it up, and
-                // the chosen version's name is not overridden by the draft.
-                model.setConfigurationName(configurationNameDraft.committedName)
-                showsRecovery = true
-            }
-                .disabled(model.isCloudSyncing || model.isRemovingCloudSnapshot)
 
-            Text("同步会合并各设备的改动。发生冲突时暂停同步并保留备份；所有设备请更新到支持此机制的版本。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 4)
         }
         .navigationDestination(isPresented: $showsRecovery) { CloudRecoveryView() }
-        .alert("删除 iCloud 上的副本？", isPresented: $isConfirmingRemoval) {
-            Button("删除", role: .destructive) { Task { await model.removeCloudSnapshot() } }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("删除副本不影响这台设备上的配置，但无法从 iCloud 恢复这份副本。此操作无法撤销。")
-        }
         .alert("开启 iCloud 同步？", isPresented: $isConfirming) {
             Button("开启") { Task { await model.setICloudSyncEnabled(true) } }
             Button("取消", role: .cancel) {}
@@ -446,50 +444,132 @@ private struct NodeAndExportSettingsCard: View {
     }
 }
 
+/// The name edits in place, like a value in Settings: the whole row is the
+/// target, the text turns from a grey value to the text being typed, and the
+/// name is saved when editing ends rather than only when the sheet closes.
 private struct ConfigurationNameSettingsRow: View {
     @Binding var configurationNameDraft: ConfigurationNameDraft
+    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isFocused: Bool
+    @State private var commitTask: Task<Void, Never>?
 
     var body: some View {
         HStack(spacing: 13) {
             SettingsIconTile(symbol: "doc.badge.gearshape", color: .teal)
             Text("配置名称")
-                .font(.headline)
+                .font(.body)
                 .lineLimit(1)
-            Spacer(minLength: 12)
-            HStack(spacing: 8) {
+                .layoutPriority(1)
+            HStack(spacing: 6) {
                 TextField("配置名称", text: $configurationNameDraft.text)
                     .focused($isFocused)
                     .multilineTextAlignment(.trailing)
+                    // A value at rest, the text being typed while editing.
+                    .foregroundStyle(isFocused ? Color.primary : Color.secondary)
                     .submitLabel(.done)
                     .onSubmit { isFocused = false }
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .lineLimit(1)
-                    .frame(minWidth: 96, maxWidth: 190)
+                    .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("configuration-name-field")
-
-                // Emptying the field cannot mean "back to 塔台": a blank value
-                // is deliberately ignored, because SwiftUI publishes one while
-                // tearing a focused field down. So getting back to the default
-                // needs a control of its own, small enough not to crowd a row
-                // whose neighbours carry only a switch.
-                if configurationNameDraft.committedName != TowerBrand.localizedName {
-                    Button {
-                        configurationNameDraft.text = TowerBrand.localizedName
-                        isFocused = false
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.footnote.weight(.semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityLabel(Text("恢复默认配置名称"))
-                    .accessibilityIdentifier("configuration-name-reset")
-                }
+                accessory
             }
+            .frame(minHeight: 36)
         }
         .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        // The title and tile are part of the target, not only the short value.
+        .onTapGesture { isFocused = true }
+        .animation(TowerMotion.selection(reduceMotion: reduceMotion), value: isFocused)
+        // Closing the sheet saves the name itself, after its slide; a save
+        // left pending here would land in the middle of it.
+        .onDisappear { commitTask?.cancel() }
+        .onChange(of: isFocused) { _, focused in
+            commitTask?.cancel()
+            guard !focused else { return }
+            // A field left blank goes back to the last name, never to an
+            // empty value.
+            if configurationNameDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                configurationNameDraft.text = configurationNameDraft.committedName
+            }
+            // Save once the keyboard is down. Saving writes the whole state
+            // file and redraws the export page behind the sheet; done on the
+            // same frame as Done, it took the keyboard's slide with it. The
+            // sheet's own Done still saves at once if it comes first.
+            commitTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(450))
+                guard !Task.isCancelled, !isFocused else { return }
+                model.setConfigurationName(configurationNameDraft.committedName)
+            }
+        }
+    }
+
+    /// Clear while typing, so replacing the name is one tap; back to the
+    /// default once done. A blank value is deliberately ignored — SwiftUI
+    /// publishes one while tearing a focused field down — so the default
+    /// needs a control of its own.
+    @ViewBuilder private var accessory: some View {
+        if isFocused {
+            if !configurationNameDraft.text.isEmpty {
+                Button {
+                    configurationNameDraft.text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 28, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("清除文本"))
+                .transition(.opacity)
+            }
+        } else if configurationNameDraft.committedName != TowerBrand.localizedName {
+            Button {
+                configurationNameDraft.text = TowerBrand.localizedName
+                model.setConfigurationName(TowerBrand.localizedName)
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("恢复默认配置名称"))
+            .accessibilityIdentifier("configuration-name-reset")
+            .transition(.opacity)
+        }
+    }
+}
+
+/// A link under the iCloud switch, in the same tile and title column.
+private struct CloudActionRow: View {
+    let symbol: String
+    let color: Color
+    let title: LocalizedStringKey
+
+    var body: some View {
+        HStack(spacing: 13) {
+            SettingsIconTile(symbol: symbol, color: color)
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// Starts under the titles, as list separators do, so the tiles stay one column.
+private struct CloudCardDivider: View {
+    var body: some View {
+        Divider().padding(.leading, 57)
     }
 }
 
@@ -544,7 +624,8 @@ struct SettingsRowLabel: View {
         HStack(spacing: 13) {
             SettingsIconTile(symbol: symbol, color: color)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.headline)
+                // Regular weight: the card's section heading is the bold line.
+                Text(title).font(.body)
                 detail
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1130,6 +1211,7 @@ private struct CloudRecoveryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedCopy: CloudRecoveryCopy?
     @State private var confirmsRestore = false
+    @State private var confirmsRemoval = false
     @State private var didLoad = false
 
     var body: some View {
@@ -1162,8 +1244,33 @@ private struct CloudRecoveryView: View {
                 }
                 if model.cloudRecoveryCopies.isEmpty { Text("暂无同步备份") }
             }
+            // With sync off, the copy in iCloud is one of these backups; it
+            // is removed here, at the end of the list of what is stored.
+            if !model.iCloudSyncEnabled && model.isCloudAccountAvailable {
+                Section {
+                    Button(role: .destructive) {
+                        confirmsRemoval = true
+                    } label: {
+                        HStack {
+                            Text(model.isRemovingCloudSnapshot ? "正在删除…" : "删除 iCloud 上的副本")
+                            Spacer()
+                            if model.isRemovingCloudSnapshot { ProgressView() }
+                        }
+                    }
+                    .disabled(model.isRemovingCloudSnapshot || model.isCloudSyncing)
+                    .accessibilityIdentifier("remove-cloud-snapshot")
+                }
+            }
         }
         .navigationTitle("恢复同步备份")
+        .alert("删除 iCloud 上的副本？", isPresented: $confirmsRemoval) {
+            Button("删除", role: .destructive) {
+                Task { await model.removeCloudSnapshot(); await model.loadCloudRecoveryCopies() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除副本不影响这台设备上的配置，但无法从 iCloud 恢复这份副本。此操作无法撤销。")
+        }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
         .alert("恢复这份配置？", isPresented: $confirmsRestore, presenting: selectedCopy) { copy in
             Button("恢复", role: .destructive) {
