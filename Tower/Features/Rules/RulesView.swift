@@ -12,7 +12,12 @@ struct RulesView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            // A plain stack, not lazy: an expanded built-in scheme grows by
+            // dozens of policy rows, and a LazyVStack kept re-estimating the
+            // off-screen cards against it while scrolling. A Mac user hung
+            // for ten seconds scrolling past an expanded 全分组. There are
+            // only a dozen or so cards, so measuring all of them is cheap.
+            VStack(spacing: 12) {
                 // No summary card above the list: it repeated the selected
                 // scheme, which the list itself already marks.
                 builtInSection
