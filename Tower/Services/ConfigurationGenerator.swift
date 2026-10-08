@@ -2938,6 +2938,12 @@ struct ConfigurationGenerator {
         "proxies:\n" + clashNode(node, target: .clashVerge) + "\n"
     }
 
+    /// Snell has no URI form; its Surge proxy line is the portable share
+    /// format, written through the same name and value escaping as exports.
+    func snellShareLine(_ node: ProxyNode) -> String {
+        surgeNode(node, shadowrocket: false)
+    }
+
     func masqueShareLine(_ node: ProxyNode) -> String {
         switch node.masque?.mode {
         case .keyConnectIP: return "proxies:\n" + clashNode(node, target: .clashVerge) + "\n"
@@ -4006,6 +4012,13 @@ struct ConfigurationGenerator {
     // Node names come from subscription remarks, which are untrusted text. A
     // newline would end the proxy line early and "#" or ";" would turn the rest
     // of it into a comment in the Surge, Loon and Quantumult X formats.
+    /// sing-box `plugin_opts` is a SIP003 option string: a `;` inside a
+    /// value (a WebSocket path like `/foo;bar`) must be backslash-escaped.
+    private func sip003Value(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: ";", with: "\\;")
+    }
+
     private func confName(_ value: String) -> String {
         collapsingLineBreaks(value)
             .replacingOccurrences(of: "=", with: "-")
@@ -4519,13 +4532,13 @@ extension ConfigurationGenerator {
                 var options = ["mode=websocket"]
                 if let mux = node.pluginMux { options.append("mux=\(mux ? "1" : "0")") }
                 if node.tls { options.append("tls") }
-                if let host = node.hostHeader, !host.isEmpty { options.append("host=\(host)") }
-                if let path = node.exportablePath { options.append("path=\(path)") }
+                if let host = node.hostHeader, !host.isEmpty { options.append("host=\(sip003Value(host))") }
+                if let path = node.exportablePath { options.append("path=\(sip003Value(path))") }
                 outbound["plugin_opts"] = options.joined(separator: ";")
             } else if let mode = simpleObfsMode(node) {
                 outbound["plugin"] = "obfs-local"
                 var options = ["obfs=\(mode)"]
-                if let host = node.obfsParam, !host.isEmpty { options.append("obfs-host=\(host)") }
+                if let host = node.obfsParam, !host.isEmpty { options.append("obfs-host=\(sip003Value(host))") }
                 outbound["plugin_opts"] = options.joined(separator: ";")
             }
         case .shadowsocksR:

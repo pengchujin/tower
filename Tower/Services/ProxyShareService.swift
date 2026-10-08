@@ -72,7 +72,10 @@ struct ProxyNodeShareLinkGenerator {
             standardLink(for: node) ?? original
         case .wireguard: wireGuardLink(for: node) ?? original
         // Snell has no URI form, so share its portable Surge proxy line.
-        case .snell: original.isEmpty ? snellLine(for: node) : original
+        // A Clash-imported node only carries an internal placeholder.
+        case .snell: original.isEmpty || original.lowercased().hasPrefix("clash://local/")
+            ? ConfigurationGenerator().snellShareLine(node)
+            : original
         case .masque: ConfigurationGenerator().masqueShareLine(node)
         case .ssh, .trustTunnel: ConfigurationGenerator().clashShareSnippet(node)
         case .unknown: original
@@ -105,10 +108,6 @@ struct ProxyNodeShareLinkGenerator {
         // Dropping the plugin would hand out a link that looks fine and cannot
         // connect, which is exactly what the importer refuses to accept.
         if let shadowTLS = node.shadowTLS {
-            func escape(_ value: String) -> String {
-                value.replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: ";", with: "\\;")
-            }
             var plugin = "shadow-tls;host=\(escape(shadowTLS.host));password=\(escape(shadowTLS.password));version=\(shadowTLS.version)"
             if shadowTLS.skipCertificateVerification { plugin += ";skip-cert-verify=true" }
             let encoded = plugin.addingPercentEncoding(
@@ -123,15 +122,15 @@ struct ProxyNodeShareLinkGenerator {
             var plugin = "v2ray-plugin;mode=websocket"
             if let mux = node.pluginMux { plugin += ";mux=\(mux ? "1" : "0")" }
             if node.tls { plugin += ";tls" }
-            if let host = node.hostHeader, !host.isEmpty { plugin += ";host=\(host)" }
-            if let path = node.exportablePath { plugin += ";path=\(path)" }
+            if let host = node.hostHeader, !host.isEmpty { plugin += ";host=\(escape(host))" }
+            if let path = node.exportablePath { plugin += ";path=\(escape(path))" }
             let encoded = plugin.addingPercentEncoding(
                 withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
             ) ?? plugin
             link += "?plugin=\(encoded)"
         } else if let mode = node.obfs?.lowercased(), ["http", "tls"].contains(mode) {
             var plugin = "obfs-local;obfs=\(mode)"
-            if let host = node.obfsParam, !host.isEmpty { plugin += ";obfs-host=\(host)" }
+            if let host = node.obfsParam, !host.isEmpty { plugin += ";obfs-host=\(escape(host))" }
             let encoded = plugin.addingPercentEncoding(
                 withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
             ) ?? plugin
@@ -141,6 +140,13 @@ struct ProxyNodeShareLinkGenerator {
             link += (link.contains("?") ? "&" : "?") + "udp-relay=\(enabled)"
         }
         return link + "#\(fragment(node.name))"
+    }
+
+    /// SIP003 plugin options are `;`-separated, so separators inside a value
+    /// (a WebSocket path like `/foo;bar`) must be backslash-escaped.
+    private func escape(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: ";", with: "\\;")
     }
 
     private func shadowsocksRLink(for node: ProxyNode) -> String? {
@@ -376,23 +382,6 @@ struct ProxyNodeShareLinkGenerator {
         }
         components.queryItems = items
         return components.string
-    }
-
-    private func snellLine(for node: ProxyNode) -> String {
-        var parts = [
-            "\(node.name) = snell",
-            node.server,
-            String(node.port),
-            "psk=\(node.password ?? "")",
-            "version=\(node.version ?? 4)"
-        ]
-        if let mode = node.obfs, !mode.isEmpty, mode.lowercased() != "none" {
-            parts.append("obfs=\(mode)")
-            if let host = node.obfsParam, !host.isEmpty {
-                parts.append("obfs-host=\(host)")
-            }
-        }
-        return parts.joined(separator: ", ")
     }
 
     private func formattedHost(_ host: String) -> String {

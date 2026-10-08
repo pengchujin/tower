@@ -846,7 +846,7 @@ struct SubscriptionParser {
             name: normalizedName(components.fragment?.removingPercentEncoding, fallback: "WireGuard · \(server)"),
             server: server,
             port: components.port ?? 51_820,
-            wireGuardPrivateKey: components.user?.removingPercentEncoding,
+            wireGuardPrivateKey: components.user,
             wireGuardPublicKey: query["publickey"] ?? query["public-key"],
             wireGuardPreSharedKey: query["presharedkey"] ?? query["pre-shared-key"] ?? query["preshared-key"],
             wireGuardIPv4: ipv4,
@@ -959,8 +959,9 @@ struct SubscriptionParser {
         return result.isValid ? result : nil
     }
 
-    private func shadowTLSPluginOptions(_ plugin: String) -> ShadowTLSOptions? {
-        // SIP003 escapes semicolons and backslashes inside option values.
+    /// SIP003 escapes semicolons and backslashes inside option values, so a
+    /// WebSocket path written as `path=/foo\;bar` is one field, not two.
+    private func sip003Fields(_ plugin: String) -> [String]? {
         var parts = [String]()
         var part = ""
         var escaped = false
@@ -972,6 +973,11 @@ struct SubscriptionParser {
         }
         guard !escaped else { return nil }
         parts.append(part)
+        return parts
+    }
+
+    private func shadowTLSPluginOptions(_ plugin: String) -> ShadowTLSOptions? {
+        guard let parts = sip003Fields(plugin) else { return nil }
         var options = [String: String]()
         for field in parts.dropFirst() {
             guard let equals = field.firstIndex(of: "=") else { return nil }
@@ -986,9 +992,8 @@ struct SubscriptionParser {
     /// `obfs-local;obfs=http;obfs-host=www.example.com`.
     /// Returns nil for plugins Tower cannot reproduce faithfully.
     private func simpleObfsOptions(from plugin: String) -> (mode: String, host: String?)? {
-        let parts = plugin.split(separator: ";").map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }
+        guard let fields = sip003Fields(plugin) else { return nil }
+        let parts = fields.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard let name = parts.first?.lowercased(),
               ["obfs", "obfs-local", "simple-obfs"].contains(name) else { return nil }
 
@@ -1011,10 +1016,8 @@ struct SubscriptionParser {
     private func v2rayPluginOptions(
         from plugin: String
     ) -> (transport: String, host: String?, path: String?, tls: Bool, mux: Bool?)? {
-        let parts = plugin.split(separator: ";", omittingEmptySubsequences: false).map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }
-        guard parts.first?.lowercased() == "v2ray-plugin" else { return nil }
+        guard let parts = sip003Fields(plugin)?.map({ $0.trimmingCharacters(in: .whitespaces) }),
+              parts.first?.lowercased() == "v2ray-plugin" else { return nil }
         var mode = "websocket"
         var host: String?
         var path: String?
@@ -1406,8 +1409,8 @@ struct SubscriptionParser {
             name: normalizedName(name, fallback: "HTTP · \(server)"),
             server: server,
             port: port,
-            password: components.password?.removingPercentEncoding,
-            username: components.user?.removingPercentEncoding,
+            password: components.password,
+            username: components.user,
             tls: scheme == "https",
             rawURI: raw
         )
@@ -1470,15 +1473,18 @@ struct SubscriptionParser {
             || (kind == .vless && !((realityPublicKey ?? "").isEmpty))
         let flow = query["flow"]
             ?? (kind == .vless && query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
-        let credential = components.user?.removingPercentEncoding
+        // URLComponents and its queryItems have already percent-decoded the
+        // userinfo and query values. Decoding again turns a literal `%41` in a
+        // secret into `A` and drops a secret ending in a bare `%` (issue #41).
+        let credential = components.user
         // Most TUIC v5 links use `uuid:password@host`, but Shadowrocket-style
         // subscriptions also exist with a bare authority and both credentials
         // in the query. Keep the standard form authoritative and fall back to
         // the query dialect so these nodes do not import with empty secrets.
-        let tuicUUID = [credential, query["uuid"]?.removingPercentEncoding]
+        let tuicUUID = [credential, query["uuid"]]
             .compactMap { $0 }
             .first { !$0.isEmpty }
-        let tuicPassword = [components.password?.removingPercentEncoding, query["password"]?.removingPercentEncoding]
+        let tuicPassword = [components.password, query["password"]]
             .compactMap { $0 }
             .first { !$0.isEmpty }
         // Some producers serialize an ALPN array as `alpn[0]=h3` rather than
@@ -1516,7 +1522,7 @@ struct SubscriptionParser {
                     ? (credential ?? query["auth"] ?? query["auth_str"] ?? query["authstr"])
                     : ([.trojan, .hysteria2, .anytls].contains(kind)
                         ? credential
-                        : components.password?.removingPercentEncoding)),
+                        : components.password)),
             uuid: kind == .tuic
                 ? tuicUUID
                 : ([.vmess, .vless].contains(kind) ? credential : nil),
@@ -1912,6 +1918,18 @@ struct SubscriptionParser {
             var obfsHost = dictionary["obfs-param"]
                 ?? dictionary["obfs-password"]
                 ?? dictionary["obfs_password"]
+            // mihomo nests Snell obfuscation under `obfs-opts`; dropping it
+            // imported a node that looked fine and could not connect.
+            if kind == .snell {
+                var options = parseInlineYAMLMap(dictionary["obfs-opts"] ?? "")
+                for (key, value) in dictionary where key.hasPrefix("obfs-opts.") {
+                    options[String(key.dropFirst("obfs-opts.".count))] = value
+                }
+                if let mode = options["mode"], !mode.isEmpty {
+                    obfsMode = mode
+                    obfsHost = options["host"]
+                }
+            }
             if kind == .shadowsocks, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
                 var options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
                 for (key, value) in dictionary where key.hasPrefix("plugin-opts.") {

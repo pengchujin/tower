@@ -59,12 +59,7 @@ struct SourceInputDetector {
         }
 
         if scheme == "http" || scheme == "https" {
-            let looksLikeProxy = components.user != nil
-                || (components.port != nil
-                    && components.path.isEmpty
-                    && (scheme == "http" || components.fragment != nil))
-            if let node = parser.parseURI(value),
-               looksLikeProxy || isEncodedHTTPProxy(node, originalHost: components.host) {
+            if let node = httpProxyNode(value, components: components, scheme: scheme) {
                 return .node(node.kind)
             }
 
@@ -85,15 +80,23 @@ struct SourceInputDetector {
                   components.host != nil else {
                 return nil
             }
-            let looksLikeProxy = components.user != nil
-                || (components.port != nil && components.path.isEmpty && components.fragment != nil)
-            if looksLikeProxy { return nil }
-            if let node = parser.parseURI(value),
-               isEncodedHTTPProxy(node, originalHost: components.host) {
-                return nil
-            }
-            return value
+            return httpProxyNode(value, components: components, scheme: scheme) == nil ? value : nil
         }
+    }
+
+    /// HTTP(S) proxy links and subscription URLs share a scheme. The single
+    /// and multi-line paths must classify them identically, otherwise two
+    /// `http://host:8080` proxies pasted together import as subscriptions.
+    private func httpProxyNode(_ value: String, components: URLComponents, scheme: String) -> ProxyNode? {
+        let looksLikeProxy = components.user != nil
+            || (components.port != nil
+                && components.path.isEmpty
+                && (scheme == "http" || components.fragment != nil))
+        guard let node = parser.parseURI(value),
+              looksLikeProxy || isEncodedHTTPProxy(node, originalHost: components.host) else {
+            return nil
+        }
+        return node
     }
 
     private func isEncodedHTTPProxy(_ node: ProxyNode, originalHost: String?) -> Bool {

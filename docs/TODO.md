@@ -120,24 +120,16 @@
   - 首页卡片去掉滑动删除，删除保留在长按菜单和管理页。
   - 自有节点区改用一个共享的 `List`。
 
-## GitHub Issues 状态（2026-09-29 核对）
+## GitHub Issues 状态（2026-10-08 核对）
 
-对照代码、HANDOFF 和实际导入逐条核对了 17 个未关闭 issue。已关闭的 issue 没有重新核对。
+2026-10-08 已回复并关闭随 1.0.20 / 1.0.22 发布的 #7、#15、#17、#19、#30、#33、#36、#37、#38、#40。
 
-**已完成、已随版本发布，可以回复后关闭**
-- [#17](https://github.com/pengchujin/tower/issues/17) 导出 sing-box JSON：已支持（官方 sing-box、Hiddify 两个目标）。
-- [#19](https://github.com/pengchujin/tower/issues/19) sing-box 模式切换和防 DNS 泄露：「规则判定 / 全局代理 / 直接连接」三模式和 DNS 分流从 1.0.15 起就有（同 #18）。
-- [#33](https://github.com/pengchujin/tower/issues/33) Mac 版「手动切换 / 自动选择」只有 DIRECT：1.0.19 修了一次；1.0.20 补修了缺原文的旧方案迁移，不用再删除后重新下载方案。报告者已用变通方法解决。
-- [#36](https://github.com/pengchujin/tower/issues/36) 删除规则后无法重新添加，以及 brew 警告：1.0.20 已修复，Homebrew tap 的两条弃用写法也已改正。
-- [#15](https://github.com/pengchujin/tower/issues/15) 订阅批量操作、单个订阅测速：管理页可以批量删除；订阅卡片长按菜单里有「测速」。
-
-**已完成、未发布（1.0.21 之后的提交或当前工作区）**
-- [#40](https://github.com/pengchujin/tower/issues/40) 拖动策略组导致规则优先级被改：当前工作区已修，还没提交。
-- [#37](https://github.com/pengchujin/tower/issues/37) MASQUE 节点：已支持导入和导出（`bac4ff9` 之后）。
-- [#38](https://github.com/pengchujin/tower/issues/38) 手动添加节点支持证书 SHA-256 指纹：已加「证书 SHA-256 指纹（可选）」输入框，编辑已导入节点时保留指纹。
-- [#30](https://github.com/pengchujin/tower/issues/30) 优先规则集时 AI.list 被展开：Surge 在 1.0.19 修复，Mihomo 系在 1.0.19 之后修复。「关闭优先规则集时内联规则的参数兼容」由本轮规则导出审计一并处理：参数按客户端白名单过滤。未发布。
-
-- [#7](https://github.com/pengchujin/tower/issues/7) 无法导入 echs-top/proxy：已支持 mihomo 子规则（`SUB-RULE` + `sub-rules`），未发布，见 HANDOFF。这份模板导出到 mihomo 系正常；其他客户端被「代理QUIC」组的 `PASS-RULE` 挡住，这是 mihomo 独有的策略，其他客户端没有等价写法。
+**已修复、未提交（当前工作区）**
+- [#41](https://github.com/pengchujin/tower/issues/41) 代理链接凭据里的 `%` 被解码两次：只用 `URLComponents` 解码一次。
+- [#42](https://github.com/pengchujin/tower/issues/42) 分享 Clash 导入的 Snell 节点得到 `clash://local/` 占位符：改为生成 Surge 代理行；同时补读 Clash Snell 的 `obfs-opts`。
+- [#43](https://github.com/pengchujin/tower/issues/43) 多条 `http://host:port` 代理被当成订阅：单条与多条共用同一个判断。
+- [#44](https://github.com/pengchujin/tower/issues/44) SS 插件参数值里的 `;` 截断路径：导出（分享链接、sing-box `plugin_opts`）转义，解析支持转义。
+- #42–#44 已回复「下个版本发布」，#41 未回复；发布后再关闭。
 
 **部分完成**
 - [#22](https://github.com/pengchujin/tower/issues/22) Mac 闪退：已在 1.0.10 修复，地区组变 REJECT 的问题也在 1.0.11 修复。剩下 Mac 手动编辑配置时中文输入法重复出拼音，HANDOFF 里一直记为未修，需要在 Mac 上复现后再改。
