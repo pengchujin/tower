@@ -740,7 +740,10 @@ private struct AddSourceDiagram: View {
             }
             Divider()
             ForEach(Array(nodes.enumerated()), id: \.offset) { index, node in
-                let excluded = index == nodes.count - 1 && phase == .chosen
+                // Still excluded while the loop resets: the rows fade out in
+                // `.empty`, and switching back to a tick there showed it
+                // reappearing on a greyed row as it faded.
+                let excluded = index == nodes.count - 1 && (phase == .chosen || phase == .empty)
                 HStack(spacing: 10) {
                     Text(verbatim: node.flag).font(.title3)
                     Text(node.region).font(.subheadline.weight(.medium))
@@ -754,10 +757,19 @@ private struct AddSourceDiagram: View {
                             .opacity(phase.reached(.measured) ? 1 : 0)
                     }
                     .frame(width: 52, alignment: .trailing)
-                    Image(systemName: excluded ? "circle" : "checkmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(excluded ? Color.secondary : Color.accentColor)
-                        .contentTransition(.symbolEffect(.replace))
+                    // Two fixed glyphs crossfading, not a symbol replace: the
+                    // replace lifted the old check while it greyed out and
+                    // could leave it there, a grey tick above the row.
+                    ZStack {
+                        Image(systemName: "circle")
+                            .foregroundStyle(.secondary)
+                            .opacity(excluded ? 1 : 0)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                            .opacity(excluded ? 0 : 1)
+                            .scaleEffect(excluded ? 0.6 : 1)
+                    }
+                    .font(.title3)
                 }
                 .opacity(phase.reached(.nodes) ? (excluded ? 0.45 : 1) : 0)
                 .offset(y: phase.reached(.nodes) ? 0 : -10)
