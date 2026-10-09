@@ -124,12 +124,12 @@
 
 2026-10-08 已回复并关闭随 1.0.20 / 1.0.22 发布的 #7、#15、#17、#19、#30、#33、#36、#37、#38、#40。
 
-**已修复、未提交（当前工作区）**
+**已随 1.0.26（65）发布至 TestFlight / GitHub**
 - [#41](https://github.com/pengchujin/tower/issues/41) 代理链接凭据里的 `%` 被解码两次：只用 `URLComponents` 解码一次。
 - [#42](https://github.com/pengchujin/tower/issues/42) 分享 Clash 导入的 Snell 节点得到 `clash://local/` 占位符：改为生成 Surge 代理行；同时补读 Clash Snell 的 `obfs-opts`。
 - [#43](https://github.com/pengchujin/tower/issues/43) 多条 `http://host:port` 代理被当成订阅：单条与多条共用同一个判断。
 - [#44](https://github.com/pengchujin/tower/issues/44) SS 插件参数值里的 `;` 截断路径：导出（分享链接、sing-box `plugin_opts`）转义，解析支持转义。
-- #42–#44 已回复「下个版本发布」，#41 未回复；发布后再关闭。
+- #42–#44 此前已回复「下个版本发布」，#41 未回复；本次仅发布，未发送 Issue 回复或关闭操作。
 
 **部分完成**
 - [#22](https://github.com/pengchujin/tower/issues/22) Mac 闪退：已在 1.0.10 修复，地区组变 REJECT 的问题也在 1.0.11 修复。剩下 Mac 手动编辑配置时中文输入法重复出拼音，HANDOFF 里一直记为未修，需要在 Mac 上复现后再改。

@@ -1,11 +1,15 @@
 # 当前交接
 
-## 1.0.26（65）发布准备（2026-10-09）
+## 1.0.26（65）双平台 TestFlight 与 Mac 分发发布（2026-10-09）
 
 - 用户授权使用 asc 上传 iOS / Mac TestFlight，并发布 GitHub 新版本。纳入代理导入与分享问题 #41–#44、引导页勾选交叉淡化，以及 Mac 规则页展开后滚动卡住修复；更新日志见 [1.0.26](releases/1.0.26.md)。
 - 正式 Xcode 27.0（27A266a）；两端 TowerTests 各 1,332 项 XCTest（iOS / Mac 分别跳过 6 / 36 项，零失败），各 106 项 Swift Testing 通过。iOS 收尾诊断采集停顿，仅终止本轮 simctl diagnose 后 xcodebuild 返回 0；两端均有 TEST SUCCEEDED。
-- 本地化提取 1,120/1,120 通过，发布脚本测试、规则更新器 20 项测试通过。实体 iPhone 已覆盖安装并启动 1.0.26（65）；本轮未完成新增交互的实体设备专项验收。
-- 发布包及私有日志位于本机 `~/Builds/Tower-1.0.26-65/`；测试证据位于忽略目录 `.artifacts/release-1.0.26-65/`。上传、Apple 处理、公证和 GitHub 发布结果待后续补充。
+- 本地化提取 1,120/1,120 通过，发布脚本测试、规则更新器 20 项测试通过。实体 iPhone 已覆盖安装并启动 1.0.26（65）；用户随后在实体 iPhone 检查导入、分享及引导页并确认正常。
+- 发布包及私有日志位于本机 `~/Builds/Tower-1.0.26-65/`；测试证据位于忽略目录 `.artifacts/release-1.0.26-65/`。发布源码 `607e63d` 已推送。
+- 正式 Xcode 27.0 完成双平台 Release 归档；iOS 首轮因同时归档共用 DerivedData 导致中间文件冲突，改用独立构建目录后成功。版本、构建号、Bundle ID、签名团队与严格签名校验通过；Mac 包含 arm64 / x86_64。
+- 使用 asc 上传两端，Apple 处理均为 VALID，内部测试群组均已关联，状态为 IN_BETA_TESTING。未提交外部 Beta 审核或 App Store 正式审核。
+- Mac 已完成 Developer ID 导出、公证及公证包取回，Hardened Runtime、严格签名、stapler、Gatekeeper、双架构及 DMG 挂载检查通过。GitHub [v1.0.26](https://github.com/pengchujin/tower/releases/tag/v1.0.26) 已公开并设为 Latest，含 DMG 与 SHA256SUMS.txt；公开回下载 SHA-256 为 `23c73c4088b4217197ec206c5d49363062ce38f8cf1f2551517c278932387bbf`，与本机一致。
+- README 下载入口及 Homebrew tap 已同步，tap 提交 `639e043`；brew style、audit、实际升级与安装后签名、公证、Gatekeeper 检查通过，本机 Mac 应用已启动并持续运行。
 
 ## 1.0.25（64）双平台与 Mac 分发发布（2026-10-07）
 
