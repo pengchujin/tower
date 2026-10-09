@@ -1316,6 +1316,38 @@ private struct ProtocolSymbolBadge: View {
     }
 }
 
+/// Export refuses a scheme whose rule lists are not on this device, which
+/// happens when rules added elsewhere arrive through iCloud. The notice alone
+/// left people stuck, notably on built-in schemes, whose cards had no refresh.
+private struct MissingRulesRefresh: View {
+    @Environment(AppModel.self) private var model
+    let scheme: RuleScheme
+
+    var body: some View {
+        let isRefreshing = model.importingSchemeIDs.contains(scheme.id)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("“\(scheme.name)”里有规则还没下载到这台设备，下载后才能导出。")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                Task { await model.refreshScheme(scheme) }
+            } label: {
+                HStack(spacing: 6) {
+                    if isRefreshing {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                    Text("下载缺少的规则")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(isRefreshing)
+            .accessibilityIdentifier("export-refresh-missing-rules")
+        }
+    }
+}
+
 private struct ConversionSummary: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
@@ -1333,6 +1365,9 @@ private struct ConversionSummary: View {
                 if !model.hasExportableSources {
                     Text("请先添加或启用订阅和节点，再生成配置。")
                         .font(.subheadline)
+                }
+                if let scheme = model.selectedScheme, !model.isSchemeReady(scheme) {
+                    MissingRulesRefresh(scheme: scheme)
                 }
             }
             if configuration.skippedNodeCount > 0 || !configuration.diagnostics.isEmpty {

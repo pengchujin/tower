@@ -151,6 +151,43 @@ final class RuleCatalogTests: XCTestCase {
         XCTAssertTrue(model.isSchemeReady(scheme))
     }
 
+    /// A rule added to a built-in scheme on another device arrives through
+    /// iCloud without its download. The rules page must report it and the
+    /// refresh must fetch only that addition, never the bundled lists.
+    @MainActor
+    func testBundledSchemeWithSyncedCatalogRuleRefreshesOnlyTheAddition() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tower-rule-catalog-synced-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = RuleDownloadStore(folderURL: directory.appendingPathComponent("rules"))
+        let entry = makeAIEntry()
+        let url = try XCTUnwrap(URL(string: entry.sourceURLString))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RuleCatalogURLProtocol.self]
+        RuleCatalogURLProtocol.payloads = [url: Data("DOMAIN-SUFFIX,openai.com".utf8)]
+        RuleCatalogURLProtocol.requestedURLs = []
+        let model = AppModel(
+            persistence: PersistenceStore(fileURL: directory.appendingPathComponent("state.json")),
+            schemeImportService: RuleSchemeImportService(store: store, session: URLSession(configuration: configuration)),
+            downloadStore: store,
+            arguments: []
+        )
+        let scheme = try XCTUnwrap(model.ruleSchemes.first { $0.id == "acl4ssr-default" })
+        XCTAssertTrue(scheme.isBundled)
+        model.upsertCustomRuleFlow(try entry.makeCustomization(for: scheme))
+
+        XCTAssertFalse(model.isSchemeReady(scheme))
+        await model.prepareRulesPage()
+        XCTAssertEqual(model.rulesPageSummaries[scheme.id]?.isReady, false)
+
+        await model.refreshScheme(scheme)
+
+        XCTAssertEqual(RuleCatalogURLProtocol.requestedURLs, [url])
+        XCTAssertTrue(model.isSchemeReady(scheme))
+        await model.prepareRulesPage()
+        XCTAssertEqual(model.rulesPageSummaries[scheme.id]?.isReady, true)
+    }
+
     func testCatalogRuleDownloaderCachesTheRemoteList() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("tower-rule-catalog-download-\(UUID().uuidString)", isDirectory: true)
@@ -678,11 +715,13 @@ final class RuleCatalogTests: XCTestCase {
 
 private final class RuleCatalogURLProtocol: URLProtocol {
     nonisolated(unsafe) static var payloads: [URL: Data] = [:]
+    nonisolated(unsafe) static var requestedURLs: [URL] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        if let url = request.url { Self.requestedURLs.append(url) }
         guard let url = request.url, let payload = Self.payloads[url] else {
             client?.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
             return

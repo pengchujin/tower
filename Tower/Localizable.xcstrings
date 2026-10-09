@@ -105413,6 +105413,194 @@
           }
         }
       }
+    },
+    "“%@”里有规则还没下载到这台设备，下载后才能导出。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يتم تنزيل بعض القواعد في «%@» على هذا الجهاز بعد. نزّلها لتتمكن من التصدير."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Regeln in „%@“ sind noch nicht auf dieses Gerät geladen. Lade sie herunter, um zu exportieren."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some rules in “%@” haven’t been downloaded to this device yet. Download them to export."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algunas reglas de «%@» aún no se han descargado en este dispositivo. Descárgalas para exportar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certaines règles de « %@ » ne sont pas encore téléchargées sur cet appareil. Téléchargez-les pour exporter."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beberapa aturan di “%@” belum diunduh ke perangkat ini. Unduh untuk mengekspor."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」の一部のルールがまだこのデバイスにダウンロードされていません。ダウンロードすると書き出せます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”의 일부 규칙이 아직 이 기기에 다운로드되지 않았습니다. 다운로드한 후 내보낼 수 있습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algumas regras de “%@” ainda não foram baixadas neste dispositivo. Baixe-as para exportar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некоторые правила из «%@» ещё не загружены на это устройство. Загрузите их, чтобы экспортировать."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กฎบางส่วนใน “%@” ยังไม่ได้ดาวน์โหลดลงในอุปกรณ์นี้ ดาวน์โหลดก่อนจึงจะส่งออกได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” içindeki bazı kurallar henüz bu cihaza indirilmedi. Dışa aktarmak için indirin."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Một số quy tắc trong “%@” chưa được tải về thiết bị này. Hãy tải về để xuất."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”里有规则还没下载到这台设备，下载后才能导出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」中有規則尚未下載到這部裝置，下載後才能匯出。"
+          }
+        }
+      }
+    },
+    "下载缺少的规则": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تنزيل القواعد الناقصة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlende Regeln laden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Missing Rules"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descargar reglas que faltan"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Télécharger les règles manquantes"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unduh aturan yang kurang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不足しているルールをダウンロード"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "누락된 규칙 다운로드"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixar regras ausentes"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить недостающие правила"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ดาวน์โหลดกฎที่ขาดหายไป"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksik kuralları indir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tải các quy tắc còn thiếu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载缺少的规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下載缺少的規則"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

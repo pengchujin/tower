@@ -92,16 +92,21 @@ struct RulesView: View {
                 .padding(.top, -4)
                 .accessibilityIdentifier("rules-editing-hint")
             ForEach(schemes) { scheme in
+                // The bundled lists are always here, but rules the user added
+                // can arrive through iCloud without their downloads. Export
+                // refuses such a scheme, so the card has to say so and offer
+                // the refresh; `refreshScheme` fetches only those additions.
+                let isReady = model.rulesPageSummaries[scheme.id]?.isReady ?? true
                 RuleSchemeCard(
                     scheme: scheme,
                     previewScheme: model.rulesPageSummaries[scheme.id]?.preview ?? scheme,
                     isSelected: model.selectedPresetID == scheme.id,
                     ruleCount: model.rulesPageSummaries[scheme.id]?.count,
-                    isRefreshing: false,
-                    isReady: true,
+                    isRefreshing: model.importingSchemeIDs.contains(scheme.id),
+                    isReady: isReady,
                     onCustomize: { customizationScheme = scheme },
                     onSelect: { model.selectScheme(scheme) },
-                    onRefresh: nil,
+                    onRefresh: isReady ? nil : { Task { await model.refreshScheme(scheme) } },
                     onEdit: nil,
                     onDelete: nil
                 )
