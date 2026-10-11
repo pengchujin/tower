@@ -1,5 +1,12 @@
 # 当前交接
 
+## 1.0.27（66）发布准备（2026-10-11）
+
+- 用户授权双平台 TestFlight 与 GitHub Mac 分发发布；包含新图标、iCloud 自定义规则缺少下载内容时的就绪状态与手动刷新入口修复。更新日志见 [1.0.27](releases/1.0.27.md)。
+- 正式 Xcode 27.0（27A266a）；iOS 全量 1,333 项 XCTest（6 跳过、零失败）及 106 项 Swift Testing 通过。Mac 全量 1,333 项 XCTest（36 跳过）中 3 项本地服务测试因与 iOS 同时占用端口失败；iOS 结束后单独重跑 DirectImportServiceTests 全部 29 项通过，Mac 其余测试及 106 项 Swift Testing 通过。
+- 本地化 1,122/1,122、发布脚本测试、规则更新器 20 项测试及 77 个远程规则产物验证通过；ACL4SSR 固定提交仍为上游最新。实体 iPhone 已覆盖安装并成功启动 1.0.27（66）。
+- 构建及私有日志保存在本机 `~/Builds/Tower-1.0.27-66/`；测试证据在忽略目录 `.artifacts/release-1.0.27-66/`。
+
 ## 1.0.26（65）双平台 TestFlight 与 Mac 分发发布（2026-10-09）
 
 - 用户授权使用 asc 上传 iOS / Mac TestFlight，并发布 GitHub 新版本。纳入代理导入与分享问题 #41–#44、引导页勾选交叉淡化，以及 Mac 规则页展开后滚动卡住修复；更新日志见 [1.0.26](releases/1.0.26.md)。
