@@ -579,6 +579,8 @@ final class AppModel {
            ProcessInfo.processInfo.environment["TOWER_UI_TEST_RULES_SYNC"] == "1" {
             self.cloudSync = CloudSyncStore(fileURL: FileManager.default.temporaryDirectory
                 .appendingPathComponent("tower-rules-sync-\(id.uuidString)/cloud.json"))
+        } else if arguments.contains("--demo"), arguments.contains("--showcase") {
+            self.cloudSync = ShowcaseCloudSync()
         } else {
             self.cloudSync = cloudSync
         }
@@ -611,8 +613,15 @@ final class AppModel {
         self.tailnetAuthKeys = tailnetAuthKeys
             ?? (usesDisposableStore ? InMemoryTailnetAuthKeyStore() : TailnetAuthKeyStore())
 
+        #if DEBUG
+        let isShowcase = isDemoMode && arguments.contains("--showcase")
+        #endif
+
         if isDemoMode {
-            let demo = Self.demoSnapshot
+            var demo = Self.demoSnapshot
+            #if DEBUG
+            if isShowcase { demo = Self.showcaseSnapshot }
+            #endif
             subscriptions = demo.subscriptions
             nodes = demo.nodes
             selectedPresetID = demo.selectedPresetID
@@ -635,7 +644,10 @@ final class AppModel {
         }
 
         if isDemoMode {
-            let demoMilliseconds = [36, 72, 94]
+            var demoMilliseconds = [36, 72, 94]
+            #if DEBUG
+            if isShowcase { demoMilliseconds = Self.showcaseLatencies }
+            #endif
             for (node, milliseconds) in zip(nodes, demoMilliseconds) {
                 nodeLatencies[node.id] = .success(milliseconds: milliseconds, method: .icmp)
             }
@@ -655,7 +667,25 @@ final class AppModel {
                 await self?.synchronizeRenewalReminders(showFailure: false)
             }
         }
+
+        #if DEBUG
+        // After the reminder sync above, so showcase switches schedule nothing.
+        if isShowcase { applyShowcaseSettings() }
+        #endif
     }
+
+    #if DEBUG
+    /// Settings as a configured user would have them, for App Store screenshots.
+    /// Demo mode already keeps cloud sync, reminders and refresh from running.
+    private func applyShowcaseSettings() {
+        tailnets = Self.showcaseTailnets
+        renewalRemindersEnabled = true
+        autoRefreshOnOpen = true
+        iCloudSyncEnabled = true
+        // Just before the 9:41 the screenshot status bars show.
+        lastCloudSyncAt = Calendar.current.date(bySettingHour: 9, minute: 38, second: 0, of: .now)
+    }
+    #endif
 
     var selectedPreset: RulePreset {
         RulePreset.builtIns.first(where: { $0.id == selectedPresetID }) ?? RulePreset.builtIns[0]

@@ -86,6 +86,22 @@ zsh Scripts/install_device.zsh
 
 发布另见 [RELEASING.md](RELEASING.md)。只有用户要求发布时才递增版本、推送、归档或上传。
 
+## App Store 截图
+
+截图用 Debug 专用的展示数据：`--demo --showcase` 载入 3 个订阅、28 个节点和测速结果，并把设置页显示成已配置（Tailscale、iCloud 同步、提醒）。服务器都是 `example.com`，iCloud 换成不联网的假实现；`--demo` 原有的小数据集不变，UI 测试依赖它。
+
+iPhone 和 iPad 截图由 UI 测试按固定顺序拍摄（首页地图、规则定制、导出、配置预览、设置），平时自动跳过：
+
+```sh
+TEST_RUNNER_TOWER_SCREENSHOTS=1 xcodebuild -project Tower.xcodeproj -scheme TowerInteraction \
+  -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -derivedDataPath .derived-data-sim -resultBundlePath .artifacts/screenshots.xcresult \
+  -only-testing:TowerUITests/AppStoreScreenshotTests test
+xcrun xcresulttool export attachments --path .artifacts/screenshots.xcresult --output-path .artifacts/screenshots
+```
+
+Mac 截图手动拍：Debug 构建加 `--window-size=960x1140` 把窗口固定成竖向（Catalyst 缩放后为 740×878），再用 `screencapture -l<窗口号>` 截取带阴影的窗口。不要点“局域网共享”来滚动客户端列表，它会直接开启局域网服务。
+
 ## Mac Catalyst
 
 按本机规定设置 `DEVELOPER_DIR` 后，构建和运行测试：

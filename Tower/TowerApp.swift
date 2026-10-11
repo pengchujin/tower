@@ -18,6 +18,13 @@ struct TowerApp: App {
                     for scene in UIApplication.shared.connectedScenes {
                         guard let windowScene = scene as? UIWindowScene else { continue }
                         windowScene.sizeRestrictions?.minimumSize = CGSize(width: 650, height: 650)
+                        #if DEBUG
+                        // Pins the window for App Store screenshots: --window-size=960x1140
+                        if let size = Self.screenshotWindowSize {
+                            windowScene.sizeRestrictions?.minimumSize = size
+                            windowScene.sizeRestrictions?.maximumSize = size
+                        }
+                        #endif
                     }
                     #endif
                 }
@@ -49,6 +56,17 @@ struct TowerApp: App {
                 }
         }
     }
+
+    #if DEBUG
+    private static var screenshotWindowSize: CGSize? {
+        guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--window-size=") }) else {
+            return nil
+        }
+        let parts = argument.dropFirst("--window-size=".count).split(separator: "x").compactMap { Double($0) }
+        guard parts.count == 2 else { return nil }
+        return CGSize(width: parts[0], height: parts[1])
+    }
+    #endif
 }
 
 struct AppRootView: View {
