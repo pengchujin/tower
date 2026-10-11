@@ -15,10 +15,6 @@
 
 [使用指南](https://tower.shenqi.uk) · [更新日志](https://github.com/pengchujin/tower/releases) · [反馈问题](https://github.com/pengchujin/tower/issues)
 
-<br>
-
-<img src="docs/images/mac-1.jpg" width="880" alt="Mac 版：订阅概览与节点世界地图">
-
 </div>
 
 <br>
