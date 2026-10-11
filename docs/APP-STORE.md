@@ -47,7 +47,8 @@ Info.plist 的 NSAllowsArbitraryLoads 用于用户自行提供的 HTTP 订阅地
 | 支持 URL | https://pengchujin.github.io/tower/support.html |
 | 隐私政策 URL | https://pengchujin.github.io/tower/privacy.html |
 | 营销 URL | 可留空 |
-| 设备 | 当前仅 iPhone |
+| 设备 | iPhone、iPad；Mac 版通过 GitHub Releases 和 Homebrew 分发 |
+| 截图 | iPhone 6.9″ 与 iPad 13″ 各 5 张，Mac 4 张；拍摄方法见 [DEVELOPMENT](DEVELOPMENT.md#app-store-截图) |
 | 隐私问卷 | 按实际无开发者数据收集行为填写，并与隐私政策、PrivacyInfo.xcprivacy 核对 |
 | 出口合规 | 当前工程 ITSAppUsesNonExemptEncryption = NO；引入新的加密实现时重新评估 |
 
