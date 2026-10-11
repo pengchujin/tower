@@ -66,25 +66,39 @@ Mac 专属布局、局域网共享，以及可选的 iCloud 同步。
 
 ## 支持你常用的客户端
 
-<p>
-<img src="Tower/Assets.xcassets/ClientSurge.imageset/ClientSurge.jpg" width="44" alt="Surge">&nbsp;
-<img src="Tower/Assets.xcassets/ClientStash.imageset/ClientStash.jpg" width="44" alt="Stash">&nbsp;
-<img src="Tower/Assets.xcassets/ClientShadowrocket.imageset/ClientShadowrocket.jpg" width="44" alt="Shadowrocket">&nbsp;
-<img src="Tower/Assets.xcassets/ClientLoon.imageset/ClientLoon.jpg" width="44" alt="Loon">&nbsp;
-<img src="Tower/Assets.xcassets/ClientQuantumultX.imageset/ClientQuantumultX.jpg" width="44" alt="Quantumult X">&nbsp;
-<img src="Tower/Assets.xcassets/ClientEgern.imageset/ClientEgern.jpg" width="44" alt="Egern">&nbsp;
-<img src="Tower/Assets.xcassets/ClientSingBox.imageset/ClientSingBox.png" width="44" alt="sing-box">&nbsp;
-<img src="Tower/Assets.xcassets/ClientSurgeMac.imageset/ClientSurgeMac.png" width="44" alt="Surge Mac">&nbsp;
-<img src="Tower/Assets.xcassets/ClientClashVerge.imageset/ClientClashVerge.png" width="44" alt="Clash Verge">&nbsp;
-<img src="Tower/Assets.xcassets/ClientClashMac.imageset/ClientClashMac.png" width="44" alt="ClashMac">&nbsp;
-<img src="Tower/Assets.xcassets/ClientFlClash.imageset/flclash.png" width="44" alt="FlClash">&nbsp;
-<img src="Tower/Assets.xcassets/ClientMihomoParty.imageset/mihomo-party.png" width="44" alt="Mihomo Party">
-</p>
+**Mac**
 
-| 平台 | 客户端 |
-| :-- | :-- |
-| **Mac** | Surge Mac、Clash Verge、ClashMac、FlClash、Mihomo Party 等 |
-| **移动端及其他** | Shadowrocket、Surge、Stash、Loon、Quantumult X、Egern、sing-box、Hiddify、V2Box、Clash、Anywhere、Clash Mi、Karing 等 |
+<table>
+<tr>
+<td align="center" width="20%"><img src="Tower/Assets.xcassets/ClientSurgeMac.imageset/ClientSurgeMac.png" width="56" alt="Surge Mac"><br><sub>Surge&nbsp;Mac</sub></td>
+<td align="center" width="20%"><img src="Tower/Assets.xcassets/ClientClashVerge.imageset/ClientClashVerge.png" width="56" alt="Clash Verge"><br><sub>Clash&nbsp;Verge</sub></td>
+<td align="center" width="20%"><img src="Tower/Assets.xcassets/ClientClashMac.imageset/ClientClashMac.png" width="56" alt="ClashMac"><br><sub>ClashMac</sub></td>
+<td align="center" width="20%"><img src="Tower/Assets.xcassets/ClientFlClash.imageset/flclash.png" width="56" alt="FlClash"><br><sub>FlClash</sub></td>
+<td align="center" width="20%"><img src="Tower/Assets.xcassets/ClientMihomoParty.imageset/mihomo-party.png" width="56" alt="Mihomo Party"><br><sub>Mihomo&nbsp;Party</sub></td>
+</tr>
+</table>
+
+**移动端及其他**
+
+<table>
+<tr>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientShadowrocket.imageset/ClientShadowrocket.jpg" width="56" alt="Shadowrocket"><br><sub>Shadowrocket</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientSurge.imageset/ClientSurge.jpg" width="56" alt="Surge"><br><sub>Surge</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientStash.imageset/ClientStash.jpg" width="56" alt="Stash"><br><sub>Stash</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientLoon.imageset/ClientLoon.jpg" width="56" alt="Loon"><br><sub>Loon</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientQuantumultX.imageset/ClientQuantumultX.jpg" width="56" alt="Quantumult X"><br><sub>Quantumult&nbsp;X</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientEgern.imageset/ClientEgern.jpg" width="56" alt="Egern"><br><sub>Egern</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientSingBox.imageset/ClientSingBox.png" width="56" alt="sing-box"><br><sub>sing-box</sub></td>
+</tr>
+<tr>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientHiddify.imageset/ClientHiddify.jpg" width="56" alt="Hiddify"><br><sub>Hiddify</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientV2Box.imageset/ClientV2Box.jpg" width="56" alt="V2Box"><br><sub>V2Box</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientClashOfficial.imageset/ClientClashOfficial.png" width="56" alt="Clash"><br><sub>Clash</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientAnywhere.imageset/ClientAnywhere.png" width="56" alt="Anywhere"><br><sub>Anywhere</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientClashMi.imageset/ClientClashMi.jpg" width="56" alt="Clash Mi"><br><sub>Clash&nbsp;Mi</sub></td>
+<td align="center" width="14%"><img src="Tower/Assets.xcassets/ClientKaring.imageset/ClientKaring.jpg" width="56" alt="Karing"><br><sub>Karing</sub></td>
+</tr>
+</table>
 
 Anywhere 支持仅节点订阅与本机一键导入，规则在 Anywhere 内设置。各客户端的导入方式和限制见 [兼容说明](docs/CLIENT-COMPATIBILITY.md)。
 
