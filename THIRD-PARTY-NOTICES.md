@@ -81,6 +81,8 @@ App 和本仓库不再包含 Self-Configuration 的配置、规则列表或图�
 
 2026-09-27 起，所有客户端图标统一等比缩放到最长边 180 像素（界面最大显示 58pt，按 3 倍屏约 174 像素），以免首次显示时在主线程解码 512–1024 像素的原图；只改尺寸，未修改图案或颜色。
 
+README 使用的 `docs/images/clients/*.png` 是上述图标的展示副本（含 sing-box、V2Box 和 Clash 的同源图标）：缩放到 120 像素，方形原图按 iOS 图标的圆角裁切四角，自带形状的原图只缩放；未修改图案或颜色，权利归属与上表相同。
+
 ## 客户端配置格式
 
 塔台生成 Surge、Clash/Stash/Clash Mi/Karing、Shadowrocket、Loon、Quantumult X、Hiddify/sing-box MT 和 Egern 七类配置。这些格式的规范归各自客户端的开发者所有，本项目仅按其公开文档生成配置文件，不包含、不修改、不分发任何客户端软件。
