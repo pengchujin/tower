@@ -1,11 +1,15 @@
 # 当前交接
 
-## 1.0.27（66）发布准备（2026-10-11）
+## 1.0.27（66）双平台 TestFlight 与 Mac 分发发布（2026-10-11）
 
 - 用户授权双平台 TestFlight 与 GitHub Mac 分发发布；包含新图标、iCloud 自定义规则缺少下载内容时的就绪状态与手动刷新入口修复。更新日志见 [1.0.27](releases/1.0.27.md)。
 - 正式 Xcode 27.0（27A266a）；iOS 全量 1,333 项 XCTest（6 跳过、零失败）及 106 项 Swift Testing 通过。Mac 全量 1,333 项 XCTest（36 跳过）中 3 项本地服务测试因与 iOS 同时占用端口失败；iOS 结束后单独重跑 DirectImportServiceTests 全部 29 项通过，Mac 其余测试及 106 项 Swift Testing 通过。
-- 本地化 1,122/1,122、发布脚本测试、规则更新器 20 项测试及 77 个远程规则产物验证通过；ACL4SSR 固定提交仍为上游最新。实体 iPhone 已覆盖安装并成功启动 1.0.27（66）。
+- 本地化 1,122/1,122、发布脚本测试、规则更新器 20 项测试及 77 个远程规则产物验证通过；ACL4SSR 固定提交仍为上游最新。实体 iPhone 已覆盖安装并成功启动 1.0.27（66）；用户检查新图标、规则列表和导出后确认正常。
 - 构建及私有日志保存在本机 `~/Builds/Tower-1.0.27-66/`；测试证据在忽略目录 `.artifacts/release-1.0.27-66/`。
+- 发布源码 `84290cc` 已推送；正式 Xcode 双平台 Release 归档成功，版本、构建号、Bundle ID、签名与 Mac arm64 / x86_64 校验通过。asc 上传两端并写入中文测试说明，Apple 处理均为 VALID，内部测试群组已关联，均为 IN_BETA_TESTING；本版本未提交外部 Beta 或 App Store 正式审核。
+- Mac Developer ID 公证、票据取回、严格签名、Hardened Runtime、Gatekeeper 与 DMG 挂载检查通过。GitHub [v1.0.27](https://github.com/pengchujin/tower/releases/tag/v1.0.27) 已公开并设为 Latest，含通用 DMG 和 SHA256SUMS.txt；公开回下载 SHA-256 与本机一致：`07e28fc32598c6f902795e59a6cdb5b02305939bb7dc1b529f33f9d4afa3dacf`。
+
+- README 下载入口及 Homebrew cask 已同步；tap 提交 `b529ac0` 已推送。brew style、audit、实际升级与安装后版本、签名、公证、Gatekeeper 检查通过，本机 Mac 新版已启动并持续运行。
 
 ## 1.0.26（65）双平台 TestFlight 与 Mac 分发发布（2026-10-09）
 

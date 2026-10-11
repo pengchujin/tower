@@ -9,7 +9,7 @@
 在 iPhone、iPad 和 Mac 上管理机场订阅与自有节点，<br>
 选好分流规则，一键导入你常用的客户端。
 
-<a href="https://github.com/pengchujin/tower/releases/download/v1.0.26/Tower-1.0.26-65-macOS-universal.dmg"><img src="docs/images/download-mac.svg" width="210" height="48" alt="免费下载 Mac 版"></a>
+<a href="https://github.com/pengchujin/tower/releases/download/v1.0.27/Tower-1.0.27-66-macOS-universal.dmg"><img src="docs/images/download-mac.svg" width="210" height="48" alt="免费下载 Mac 版"></a>
 &nbsp;
 <a href="https://apps.apple.com/app/id6797458927"><img src="docs/images/download-ios.svg" width="210" height="48" alt="App Store 支持"></a>
 
@@ -127,7 +127,7 @@ Anywhere 支持仅节点订阅与本机一键导入，规则在 Anywhere 内设�
 | 平台 | 获取方式 |
 | :-- | :-- |
 | **iPhone / iPad** | [App Store](https://apps.apple.com/app/id6797458927) |
-| **Mac** | [下载 DMG](https://github.com/pengchujin/tower/releases/download/v1.0.26/Tower-1.0.26-65-macOS-universal.dmg)，或使用 Homebrew |
+| **Mac** | [下载 DMG](https://github.com/pengchujin/tower/releases/download/v1.0.27/Tower-1.0.27-66-macOS-universal.dmg)，或使用 Homebrew |
 
 ```sh
 brew install --cask pengchujin/tap/tower
