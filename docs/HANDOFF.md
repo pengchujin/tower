@@ -3,6 +3,9 @@
 ## 1.0.31（72）TestFlight 与 Mac 分发（2026-11-09）
 
 - 1.0.30 已在 App Store 上架（READY_FOR_DISTRIBUTION），按发布文档递增 MARKETING_VERSION。用户真机验证 iCloud 同步、#49、#50 和 Mac 调试版 #22 后要求推送 TestFlight 并更新 GitHub 版本。更新日志见 [1.0.31](releases/1.0.31.md)。
+- 发布源码 `e4e1ead` 已推送（含 ACL4SSR `bdc102f`），完整 TowerTests 通过。本机 M4 用 asc 归档两端，核对 `com.jzb.tower` 1.0.31（72），Mac 为 arm64 / x86_64。首次导出报 `PLA Update available`，用户接受新版开发者计划许可协议后，`asc xcode export --xcodebuild-flag=-allowProvisioningUpdates` 两端导出成功。asc 上传两端，Apple 处理均为 VALID，外部组「测试」已提交 Beta 审核（Mac 为 WAITING_FOR_REVIEW）。私有归档与日志在 `~/Builds/Tower-1.0.31-72/`。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.31-72](https://github.com/pengchujin/tower/releases/tag/v1.0.31-72)（tag 指向 `e4e1ead`）已公开并设为 Latest，`gh release download` 回下载 SHA-256 一致：`5d49f948abd71d4057dc9986d813423a86a9d2d4449941727e19b0131118c004`。
+- README 下载入口改为 v1.0.31-72；Homebrew cask 更新为 1.0.31,72（tag 格式沿用「版本-构建号」），brew style 通过；发布后几分钟内 github.com 下载地址对 HEAD 返回 504（GET 正常），brew 首次下载失败，稍后重试成功。本机 `brew upgrade --cask` 后为 1.0.31（72），严格签名、Gatekeeper、公证票据通过，启动正常。
 
 ## 1.0.31（72）中的改动（2026-11-09）
 

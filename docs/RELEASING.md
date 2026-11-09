@@ -176,9 +176,11 @@ asc xcode archive --project Tower.xcodeproj --scheme Tower --configuration Relea
   --xcodebuild-flag=-destination --xcodebuild-flag="generic/platform=macOS,variant=Mac Catalyst" \
   --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=DEVELOPMENT_TEAM=$TEAM
 
-# 2. 导出（API Key 云签名）
-asc xcode export --archive-path "$OUT/Tower-ios.xcarchive" --ipa-path "$OUT/Tower.ipa" --team-id $TEAM
-asc xcode export --archive-path "$OUT/Tower-mac.xcarchive" --pkg-path "$OUT/Tower.pkg" --team-id $TEAM
+# 2. 导出（云签名；本机没有 Distribution 证书，必须带 -allowProvisioningUpdates）
+asc xcode export --archive-path "$OUT/Tower-ios.xcarchive" --ipa-path "$OUT/Tower.ipa" --team-id $TEAM \
+  --xcodebuild-flag=-allowProvisioningUpdates
+asc xcode export --archive-path "$OUT/Tower-mac.xcarchive" --pkg-path "$OUT/Tower.pkg" --team-id $TEAM \
+  --xcodebuild-flag=-allowProvisioningUpdates
 
 # 3. 上传、等处理、写测试说明、加入外部群组「测试」并提交 Beta 审核
 asc publish testflight --app $APP_ID --ipa "$OUT/Tower.ipa" \
@@ -191,6 +193,7 @@ asc publish testflight --app $APP_ID --pkg "$OUT/Tower.pkg" --platform MAC_OS \
 asc status --app $APP_ID
 ```
 
+- 导出报 `PLA Update available` 时，是 Apple 开发者计划许可协议有更新：由账户持有人在 developer.apple.com/account 接受后重试即可，不需要重新归档（1.0.31 遇到）。随后的 `No signing certificate "iOS Distribution" found` 是同一原因。
 - 测试说明不能含 Emoji，App Store Connect 会拒收（1.0.30 遇到 🌐 🤖）；用文字描述图标。
 - 内部群组自动接收新构建，手动添加会被拒绝，只需处理外部群组。
 - 上传前核对归档里的 Bundle ID、版本、构建号；Mac 包须含 arm64 与 x86_64。
