@@ -27,12 +27,17 @@ xcodebuild -project Tower.xcodeproj -scheme TowerInteraction -configuration Debu
 bash Scripts/check_localization.sh
 bash Scripts/tests/release_testflight_test.sh
 python3 Scripts/tests/update_acl4ssr_rules_test.py
+python3 Scripts/tests/check_upstream_updates_test.py
 ```
 
 - TowerTests 验证解析、生成、持久化、异步竞态及排序几何；TowerInteraction 用实际轻点、横滑、长按拖动验证界面。源码结构守卫不能代替交互测试。
 - UI 测试的 Debug 专用 UUID 沙盒隔离真实数据，并可跨启动验证持久化；不将测试入口带入 Release。
 - 新文案必须覆盖 15 种语言。按检查脚本给出的 Xcode 提取目录运行本地化生成器，人工核对短标签和无障碍文本。不要删除 catalog 中的 stale 方案名。
 - 凭据文件保护与网络权限有平台差异；模拟器跳过项不能视为真机通过。
+
+## 上游客户端与协议更新
+
+`python3 Scripts/check_upstream_updates.py` 检查各客户端、内核和协议的 App Store、GitHub、Telegram 频道、TestFlight、Sparkle 与文档页，只列出上次运行后的变化。来源清单与渠道说明见 [UPSTREAM_SOURCES](UPSTREAM_SOURCES.md)；新增 `ClientTarget` 时要同步补清单，否则脚本测试会失败。
 
 ## Tailscale 导出给本机内核联调
 

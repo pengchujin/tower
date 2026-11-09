@@ -1,0 +1,554 @@
+{
+ "version": 1,
+ "verified": "2026-11-09",
+ "notes": "上游客户端、内核与协议的发布渠道。watch 由 Scripts/check_upstream_updates.py 自动检查；links 只供人工查阅。telegram 的 official=false 表示频道内容准确但官网未链接，不能当作官方声明引用。说明见 docs/UPSTREAM_SOURCES.md。",
+ "sources": [
+  {
+   "id": "surge", "name": "Surge (iOS)", "kind": "client", "targets": ["surge"],
+   "watch": [
+    {"type": "appstore", "id": "1442620678"},
+    {"type": "telegram", "channel": "SurgeTestFlightFeed", "official": false},
+    {"type": "telegram", "channel": "SurgeChangelog", "official": false}
+   ],
+   "links": {
+    "website": "https://nssurge.com",
+    "docs": "https://manual.nssurge.com",
+    "urlScheme": "https://manual.nssurge.com/tools/url-scheme.html",
+    "kb": "https://kb.nssurge.com",
+    "kbIndex": "https://kb.nssurge.com/surge-knowledge-base/llms.txt",
+    "testflight": "https://kb.nssurge.com/surge-knowledge-base/faq/ios-testflight",
+    "x": "https://x.com/nssurge",
+    "xBeta": "https://x.com/surgebeta"
+   },
+   "notes": "TestFlight 只对购买者开放，在 nssurge.com/account 申请，没有公开链接。KB 的 iOS 发布说明停在 5.14.6，以 App Store 为准。"
+  },
+  {
+   "id": "surge-mac", "name": "Surge Mac", "kind": "client", "targets": ["surge-mac"],
+   "watch": [
+    {"type": "appcast", "url": "https://nssurge.com/mac/latest/appcast-signed.xml", "label": "正式版"},
+    {"type": "appcast", "url": "https://nssurge.com/mac/latest/appcast-signed-beta.xml", "label": "Beta"}
+   ],
+   "links": {
+    "website": "https://nssurge.com",
+    "changelog": "https://nssurge.com/support/mac/release-notes",
+    "changelogMarkdown": "https://kb.nssurge.com/surge-knowledge-base/release-notes/surge-mac-6.md",
+    "download": "https://dl.nssurge.com/mac/v6/Surge-latest.zip",
+    "homebrew": "https://formulae.brew.sh/cask/surge"
+   },
+   "notes": "Sparkle 源在 /mac/latest/，/mac/v5/ 停在 5.10.5，/mac/v6/ 是 404。pubDate 是 Unix 时间戳。不上架 Mac App Store。"
+  },
+  {
+   "id": "shadowrocket", "name": "Shadowrocket", "kind": "client", "targets": ["shadowrocket"],
+   "watch": [
+    {"type": "appstore", "id": "932747118"},
+    {"type": "telegram", "channel": "ShadowrocketNews", "official": true}
+   ],
+   "links": {
+    "website": "https://shadowlaunch.com",
+    "telegramGroup": "https://t.me/ShadowrocketApp",
+    "x": "https://twitter.com/ShadowrocketApp",
+    "communityManual": "https://github.com/LOWERTOP/Shadowrocket"
+   },
+   "notes": "官网链接讨论群 @ShadowrocketApp，群简介指向公告频道 @ShadowrocketNews。LOWERTOP/Shadowrocket 是社区手册，不是官方文档。没有公开 TestFlight。"
+  },
+  {
+   "id": "loon", "name": "Loon", "kind": "client", "targets": ["loon"],
+   "watch": [
+    {"type": "appstore", "id": "1373567447"},
+    {"type": "telegram", "channel": "LoonNews", "official": true}
+   ],
+   "links": {
+    "website": "https://nsloon.app",
+    "docs": "https://nsloon.app/docs/intro",
+    "nodeDocs": "https://nsloon.app/docs/Node/",
+    "urlScheme": "https://nsloon.app/docs/category/scheme",
+    "telegramGroup": "https://t.me/Loon0x00",
+    "x": "https://twitter.com/loon0x00"
+   },
+   "notes": "官网没有更新日志页，更新内容发在 @LoonNews。"
+  },
+  {
+   "id": "quanx", "name": "Quantumult X", "kind": "client", "targets": ["quanx"],
+   "watch": [
+    {"type": "appstore", "id": "1443988620"},
+    {"type": "telegram", "channel": "QuanXNews", "official": false},
+    {"type": "page", "url": "https://raw.githubusercontent.com/crossutility/Quantumult-X/master/sample.conf", "label": "sample.conf"},
+    {"type": "page", "url": "https://raw.githubusercontent.com/crossutility/Quantumult-X/master/url-scheme.md", "label": "url-scheme.md"}
+   ],
+   "links": {
+    "website": "https://quantumult.app/x",
+    "docs": "https://github.com/crossutility/Quantumult-X",
+    "urlScheme": "https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md",
+    "x": "https://twitter.com/quantumult/"
+   },
+   "notes": "@QuanXNews 的 TestFlight 推送最及时，简介链接官方 App Store 页，但官网只链接 X。@QuanX_API 是第三方教程频道，不要引用。sample.conf 和 url-scheme.md 是塔台导出的依据（CLAUDE.md 第 4、13 条），变化时要复核。"
+  },
+  {
+   "id": "stash", "name": "Stash", "kind": "client", "targets": ["clash"],
+   "watch": [
+    {"type": "appstore", "id": "1596063349"},
+    {"type": "telegram", "channel": "StashFeed", "official": true},
+    {"type": "page", "url": "https://stash.wiki/en/release-notes/ios", "label": "iOS 发布说明"},
+    {"type": "page", "url": "https://stash.wiki/en/release-notes/macos", "label": "macOS 发布说明"}
+   ],
+   "links": {
+    "website": "https://stash.ws",
+    "docs": "https://stash.wiki",
+    "proxyTypes": "https://stash.wiki/en/proxy-protocols/proxy-types",
+    "urlScheme": "https://stash.wiki/en/faq/url-schema",
+    "testflight": "https://stash.wiki/en/faq/testflight",
+    "telegramGroup": "https://t.me/StashFans",
+    "x": "https://x.com/StashAppDev"
+   },
+   "notes": "塔台里 ClientTarget.clash 显示为 Stash。TestFlight 只邀请购买者（App 内 设置 → 更多设置 填邮箱）。中国区不上架，lookup 用 us。"
+  },
+  {
+   "id": "egern", "name": "Egern", "kind": "client", "targets": ["egern"],
+   "watch": [
+    {"type": "appstore", "id": "1616105820"},
+    {"type": "telegram", "channel": "egern_news", "official": false}
+   ],
+   "links": {
+    "website": "https://egernapp.com",
+    "docs": "https://egernapp.com/docs/intro",
+    "proxies": "https://egernapp.com/docs/configuration/proxies/",
+    "urlScheme": "https://egernapp.com/docs/url-scheme",
+    "telegramGroup": "https://t.me/Egern_App",
+    "x": "https://x.com/byteallen"
+   },
+   "notes": "官网没有链接任何频道；@egern_news 原样转发 App Store 更新说明，未确认官方。"
+  },
+  {
+   "id": "v2box", "name": "V2Box", "kind": "client", "targets": ["v2box"],
+   "watch": [
+    {"type": "appstore", "id": "6446814690"}
+   ],
+   "links": {
+    "website": "https://hexasoftware.dev"
+   },
+   "notes": "没有找到官方频道；@v2box 等是第三方节点/教程频道。只能看 App Store。"
+  },
+  {
+   "id": "anywhere", "name": "Anywhere", "kind": "client", "targets": ["anywhere"],
+   "watch": [
+    {"type": "appstore", "id": "6758235178"},
+    {"type": "github", "repo": "NodePassProject/Anywhere", "tags": true}
+   ],
+   "links": {
+    "website": "https://www.argsment.com",
+    "docs": "https://github.com/NodePassProject/Anywhere#readme",
+    "x": "https://x.com/argsment"
+   },
+   "notes": "GPLv3 开源但没有 GitHub Releases；URL Scheme 写在 README 的「anywhere:// Scheme」一节。最低 iOS 18。"
+  },
+  {
+   "id": "clash-apple", "name": "Clash (App Store)", "kind": "client", "targets": ["clash-apple"],
+   "watch": [
+    {"type": "appstore", "id": "6794257189"},
+    {"type": "telegram", "channel": "clashbyclash", "official": true},
+    {"type": "github", "repo": "ProjectClash/Clash"}
+   ],
+   "links": {
+    "website": "https://clash.md",
+    "docs": "https://clash.md/guide/",
+    "applePlatforms": "https://clash.md/guide/config/apple-platforms",
+    "stashCompatibility": "https://clash.md/guide/compatibility/stash",
+    "clientRepo": "https://github.com/ProjectClash/Clash-Client",
+    "x": "https://x.com/ClashbyClash"
+   },
+   "notes": "开发者 OmniWide Media，bundle com.hako.network，基于 mihomo。ProjectClash/Clash 的 Release 是内核版本（v1.19.33-clash.N），不等于 App Store 版本。旧文档里的 TokenPLS/Hako 已不是当前源。"
+  },
+  {
+   "id": "karing", "name": "Karing", "kind": "client", "targets": ["karing"],
+   "watch": [
+    {"type": "appstore", "id": "6472431552"},
+    {"type": "github", "repo": "KaringX/karing"},
+    {"type": "testflight", "url": "https://testflight.apple.com/join/RLU59OsJ"}
+   ],
+   "links": {
+    "website": "https://karing.app",
+    "docs": "https://karing.app/en/",
+    "clashCompat": "https://karing.app/clash",
+    "download": "https://karing.app/download/",
+    "core": "https://github.com/KaringX/sing-box",
+    "telegramGroup": "https://t.me/KaringApp"
+   },
+   "notes": "GitHub Release 通常领先 App Store。内核是 KaringX/sing-box 的 karing_v<上游版本> 分支，没有 Release。"
+  },
+  {
+   "id": "clash-mi", "name": "Clash Mi", "kind": "client", "targets": ["clash-mi"],
+   "watch": [
+    {"type": "appstore", "id": "6744321968"},
+    {"type": "github", "repo": "KaringX/clashmi"},
+    {"type": "testflight", "url": "https://testflight.apple.com/join/bjHXktB3"}
+   ],
+   "links": {
+    "website": "https://clashmi.app",
+    "docs": "https://clashmi.app/guide/",
+    "download": "https://clashmi.app/download",
+    "telegramGroup": "https://t.me/ClashMiApp"
+   },
+   "notes": "和 Karing 同一开发者。GitHub Release 通常领先 App Store。"
+  },
+  {
+   "id": "hiddify", "name": "Hiddify", "kind": "client", "targets": ["hiddify"],
+   "watch": [
+    {"type": "appstore", "id": "6596777532"},
+    {"type": "github", "repo": "hiddify/hiddify-app"},
+    {"type": "telegram", "channel": "hiddify", "official": true},
+    {"type": "testflight", "url": "https://testflight.apple.com/join/dsNjHxjb"}
+   ],
+   "links": {
+    "website": "https://hiddify.com",
+    "docs": "https://hiddify.com/app/",
+    "urlScheme": "https://hiddify.com/app/URL-Scheme/",
+    "telegramGroup": "https://t.me/hiddify_board",
+    "x": "https://x.com/hiddify_com"
+   },
+   "notes": "TestFlight 链接来自第三方汇总，官网未链接。"
+  },
+  {
+   "id": "sing-box-mt", "name": "sing-box MT", "kind": "client", "targets": ["sing-box"],
+   "watch": [
+    {"type": "appstore", "id": "6785326793"}
+   ],
+   "links": {
+    "docs": "https://sing-box.sagernet.org/clients/apple/",
+    "features": "https://sing-box.sagernet.org/clients/apple/features/",
+    "urlScheme": "https://sing-box.sagernet.org/clients/general/",
+    "source": "https://github.com/SagerNet/sing-box-for-apple",
+    "testflight": "https://t.me/yet_another_sponsor_bot"
+   },
+   "notes": "官方 Apple 客户端，bundle io.nekohasekai.sfamt。旧的 SFI（6451272673）和 sing-box VT（6673731168）已下架。App Store 版本号与内核 tag 不同步，内核版本见 sing-box 条目。TestFlight 只给赞助者。"
+  },
+  {
+   "id": "clash-verge", "name": "Clash Verge Rev", "kind": "client", "targets": ["clash-verge"],
+   "watch": [
+    {"type": "github", "repo": "clash-verge-rev/clash-verge-rev"},
+    {"type": "telegram", "channel": "clash_verge_re", "official": true}
+   ],
+   "links": {
+    "website": "https://www.clashverge.dev",
+    "urlScheme": "https://www.clashverge.dev/guide/url_schemes.html",
+    "changelog": "https://github.com/clash-verge-rev/clash-verge-rev/blob/dev/Changelog.md",
+    "updater": "https://github.com/clash-verge-rev/clash-verge-rev/releases/download/updater/update.json",
+    "telegramGroup": "https://t.me/clash_verge_rev",
+    "homebrew": "https://formulae.brew.sh/cask/clash-verge-rev"
+   },
+   "notes": "预发布用 vX.Y.Z-rc.N；alpha / autobuild 是滚动 tag。"
+  },
+  {
+   "id": "clashmac", "name": "ClashMac", "kind": "client", "targets": ["clashmac"],
+   "watch": [
+    {"type": "github", "repo": "666OS/ClashMac", "exclude": ["Prerelease-Alpha"]},
+    {"type": "github", "repo": "666OS/ClashMac", "tag": "Prerelease-Alpha"},
+    {"type": "telegram", "channel": "Pinched666", "official": true}
+   ],
+   "links": {
+    "website": "https://clashmac.app",
+    "docs": "https://clashmac.app/guide/",
+    "profiles": "https://clashmac.app/guide/dashboard/profiles"
+   },
+   "notes": "仓库只发二进制，tag 不带 v。Sparkle 源地址还没找到（需要从安装包 Info.plist 读 SUFeedURL）。"
+  },
+  {
+   "id": "flclash", "name": "FlClash", "kind": "client", "targets": ["flclash"],
+   "watch": [
+    {"type": "github", "repo": "chen08209/FlClash"},
+    {"type": "telegram", "channel": "FlClash", "official": true}
+   ],
+   "links": {
+    "website": "https://chen08209.github.io/FlClash",
+    "changelog": "https://github.com/chen08209/FlClash/blob/main/CHANGELOG.md"
+   }
+  },
+  {
+   "id": "clash-party", "name": "Clash Party（原 Mihomo Party）", "kind": "client", "targets": ["mihomo-party"],
+   "watch": [
+    {"type": "github", "repo": "mihomo-party-org/clash-party"}
+   ],
+   "links": {
+    "website": "https://clashparty.org",
+    "docs": "https://clashparty.org/docs/handson",
+    "changelog": "https://github.com/mihomo-party-org/clash-party/blob/smart_core/changelog.md",
+    "telegramGroup": "https://t.me/mihomo_party_group",
+    "homebrew": "https://formulae.brew.sh/cask/clash-party"
+   },
+   "notes": "已改名 Clash Party，旧仓库名重定向，Homebrew cask 也改成 clash-party。塔台界面仍显示 Mihomo Party。"
+  },
+  {
+   "id": "mihomo", "name": "mihomo", "kind": "core",
+   "watch": [
+    {"type": "github", "repo": "MetaCubeX/mihomo", "exclude": ["Prerelease-Alpha"]},
+    {"type": "github", "repo": "MetaCubeX/mihomo", "tag": "Prerelease-Alpha"}
+   ],
+   "links": {
+    "docs": "https://wiki.metacubex.one/config/",
+    "docsSource": "https://github.com/MetaCubeX/Meta-Docs",
+    "homebrew": "https://formulae.brew.sh/formula/mihomo"
+   },
+   "notes": "Clash Verge / ClashMac / FlClash / Clash Party / Clash Mi / Clash(App Store) 的内核；本地用 mihomo -t 校验导出。官方 TG 只有私密邀请群，不收录。"
+  },
+  {
+   "id": "sing-box", "name": "sing-box", "kind": "core",
+   "watch": [
+    {"type": "github", "repo": "SagerNet/sing-box"},
+    {"type": "telegram", "channel": "yapnc", "official": true},
+    {"type": "page", "url": "https://sing-box.sagernet.org/changelog/", "label": "changelog"}
+   ],
+   "links": {
+    "docs": "https://sing-box.sagernet.org/configuration/",
+    "support": "https://sing-box.sagernet.org/support/",
+    "homebrew": "https://formulae.brew.sh/formula/sing-box"
+   },
+   "notes": "sing-box MT 与 Hiddify 的内核；本地用 sing-box check 校验。预发布 vX.Y.Z-alpha/beta/rc.N。"
+  },
+  {
+   "id": "hiddify-core", "name": "hiddify-core", "kind": "core",
+   "watch": [
+    {"type": "github", "repo": "hiddify/hiddify-core"}
+   ],
+   "links": {
+    "docs": "https://i.hiddify.com/core"
+   }
+  },
+  {
+   "id": "subconverter", "name": "subconverter", "kind": "converter",
+   "watch": [
+    {"type": "github", "repo": "tindy2013/subconverter"}
+   ],
+   "links": {
+    "docs": "https://github.com/tindy2013/subconverter/blob/master/README-cn.md",
+    "telegram": "https://t.me/subconverter"
+   },
+   "notes": "参考转换器，最后一个 Release 是 2024-04 的 v0.9.0。"
+  },
+  {
+   "id": "sub-store", "name": "Sub-Store", "kind": "converter",
+   "watch": [
+    {"type": "github", "repo": "sub-store-org/Sub-Store"}
+   ],
+   "links": {
+    "docs": "https://github.com/sub-store-org/Sub-Store/wiki"
+   },
+   "notes": "参考转换器，tag 不带 v，更新频繁。"
+  },
+
+  {
+   "id": "shadowsocks", "name": "Shadowsocks", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "shadowsocks/shadowsocks-rust"}
+   ],
+   "links": {
+    "website": "https://shadowsocks.org/",
+    "aead": "https://shadowsocks.org/doc/aead.html",
+    "sip002": "https://shadowsocks.org/doc/sip002.html",
+    "sip003": "https://shadowsocks.org/doc/sip003.html",
+    "sip022": "https://shadowsocks.org/doc/sip022.html",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/ss/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/shadowsocks/",
+    "surge": "https://manual.nssurge.com/policies/shadowsocks.html",
+    "stash": "https://stash.wiki/proxy-protocols/proxy-types#shadowsocks--shadowsocks2022",
+    "egern": "https://egernapp.com/docs/configuration/proxies#shadowsocks"
+   },
+   "notes": "规范仓库 shadowsocks/shadowsocks-org 没有 Release，看提交。"
+  },
+  {
+   "id": "v2ray-plugin", "name": "v2ray-plugin（SIP003）", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "shadowsocks/v2ray-plugin"}
+   ],
+   "links": {
+    "website": "https://github.com/shadowsocks/v2ray-plugin",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/ss/#plugin"
+   },
+   "notes": "simple-obfs（shadowsocks/simple-obfs）已弃用，最后版本 v0.0.5（2017），不再跟踪。"
+  },
+  {
+   "id": "shadowtls", "name": "ShadowTLS", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "ihciah/shadow-tls"}
+   ],
+   "links": {
+    "spec": "https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-v3-en.md",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/shadowtls/",
+    "surge": "https://manual.nssurge.com/policies/tls.html#shadow-tls",
+    "egern": "https://egernapp.com/docs/configuration/proxies#shadowtls"
+   },
+   "notes": "没有官方分享链接格式，各客户端写法不同。"
+  },
+  {
+   "id": "shadowsocksr", "name": "ShadowsocksR", "kind": "protocol",
+   "links": {
+    "website": "https://github.com/shadowsocksrr/shadowsocksr",
+    "shareLink": "https://github.com/shadowsocksrr/shadowsocks-rss/wiki/SSR-QRcode-scheme",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/ssr/"
+   },
+   "notes": "已停止维护。sing-box、Surge、Egern 不支持。"
+  },
+  {
+   "id": "vmess", "name": "VMess", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "v2fly/v2ray-core"}
+   ],
+   "links": {
+    "spec": "https://www.v2fly.org/developer/protocols/vmess.html",
+    "shareLinkLegacy": "https://github.com/2dust/v2rayN/wiki/Description-of-VMess-share-link",
+    "shareLink": "https://github.com/XTLS/Xray-core/discussions/716",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/vmess/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/vmess/",
+    "surge": "https://manual.nssurge.com/policies/vmess.html",
+    "transport": "https://sing-box.sagernet.org/configuration/shared/v2ray-transport/"
+   }
+  },
+  {
+   "id": "vless", "name": "VLESS / REALITY / Vision", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "XTLS/Xray-core"},
+    {"type": "telegram", "channel": "projectXtls", "official": true}
+   ],
+   "links": {
+    "spec": "https://xtls.github.io/development/protocols/vless.html",
+    "shareLink": "https://github.com/XTLS/Xray-core/discussions/716",
+    "vision": "https://github.com/XTLS/Xray-core/discussions/1295",
+    "reality": "https://github.com/XTLS/REALITY",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/vless/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/vless/",
+    "stash": "https://stash.wiki/proxy-protocols/proxy-types#vless"
+   },
+   "notes": "Surge 没有 VLESS。XTLS/REALITY 没有 Release，看提交。"
+  },
+  {
+   "id": "trojan", "name": "Trojan", "kind": "protocol",
+   "links": {
+    "spec": "https://trojan-gfw.github.io/trojan/protocol",
+    "shareLink": "https://p4gefau1t.github.io/trojan-go/developer/url/",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/trojan/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/trojan/",
+    "surge": "https://manual.nssurge.com/policies/trojan.html"
+   },
+   "notes": "trojan-gfw 与 trojan-go 都已停更，不跟踪版本。"
+  },
+  {
+   "id": "hysteria", "name": "Hysteria / Hysteria 2", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "HyNetworks/hysteria"}
+   ],
+   "links": {
+    "spec": "https://v2.hysteria.network/docs/developers/Protocol/",
+    "shareLink": "https://v2.hysteria.network/docs/developers/URI-Scheme/",
+    "telegram": "https://t.me/hysteria_github",
+    "v1Spec": "https://v1.hysteria.network/docs/protocol/",
+    "v1ShareLink": "https://v1.hysteria.network/docs/uri-scheme/",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/hysteria2/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/hysteria2/",
+    "surge": "https://manual.nssurge.com/policies/hysteria2.html"
+   },
+   "notes": "仓库从 apernet/hysteria 改名为 HyNetworks/hysteria，tag 形如 app/v2.x.y。v1 最后版本 v1.3.5。"
+  },
+  {
+   "id": "tuic", "name": "TUIC v5", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "Itsusinn/tuic"}
+   ],
+   "links": {
+    "spec": "https://github.com/tuic-protocol/tuic/blob/master/SPEC.md",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/tuic/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/tuic/",
+    "surge": "https://manual.nssurge.com/policies/tuic.html"
+   },
+   "notes": "官方 tuic-protocol/tuic 已停更（2023），活跃分支是 Itsusinn/tuic。tuic:// 没有官方规范。"
+  },
+  {
+   "id": "masque", "name": "MASQUE", "kind": "protocol",
+   "links": {
+    "connectUdp": "https://www.rfc-editor.org/rfc/rfc9298.html",
+    "connectIp": "https://www.rfc-editor.org/rfc/rfc9484.html",
+    "httpDatagrams": "https://www.rfc-editor.org/rfc/rfc9297.html",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/masque/",
+    "surge": "https://manual.nssurge.com/policies/masque.html",
+    "stash": "https://stash.wiki/proxy-protocols/proxy-types#masque",
+    "sing-box": "https://sing-box.sagernet.org/configuration/endpoint/masque-client/"
+   },
+   "notes": "Surge 用 CONNECT + CONNECT-UDP（Basic 认证）；mihomo / Stash 用 CONNECT-IP；sing-box 1.15 起是 endpoint。"
+  },
+  {
+   "id": "wireguard", "name": "WireGuard", "kind": "protocol",
+   "links": {
+    "spec": "https://www.wireguard.com/protocol/",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/wg/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/endpoint/wireguard/",
+    "surge": "https://manual.nssurge.com/policies/wireguard.html"
+   },
+   "notes": "sing-box 的 outbound/wireguard 已在 1.11 弃用，用 endpoint/wireguard。"
+  },
+  {
+   "id": "anytls", "name": "AnyTLS", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "anytls/anytls-go"}
+   ],
+   "links": {
+    "spec": "https://github.com/anytls/anytls-go/blob/main/docs/protocol.md",
+    "shareLink": "https://github.com/anytls/anytls-go/blob/main/docs/uri_scheme.md",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/anytls/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/anytls/",
+    "surge": "https://manual.nssurge.com/policies/anytls.html"
+   },
+   "notes": "t.me/anytls 名为 AnyTLS Official，但仓库未链接，目前只有建频道一条消息，不跟踪。"
+  },
+  {
+   "id": "snell", "name": "Snell", "kind": "protocol",
+   "watch": [
+    {"type": "page", "url": "https://kb.nssurge.com/surge-knowledge-base/release-notes/snell", "label": "Snell 发布说明"}
+   ],
+   "links": {
+    "surge": "https://manual.nssurge.com/policies/snell.html",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/snell/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/outbound/snell/",
+    "stash": "https://stash.wiki/proxy-protocols/proxy-types#snell"
+   },
+   "notes": "闭源，没有 GitHub 仓库；版本看 KB 页的 snell-server 下载链接（当前 v6）。sing-box 1.14 起支持 snell outbound。"
+  },
+  {
+   "id": "trusttunnel", "name": "TrustTunnel", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "TrustTunnel/TrustTunnel"}
+   ],
+   "links": {
+    "website": "https://trusttunnel.org/",
+    "spec": "https://github.com/TrustTunnel/TrustTunnel/blob/master/PROTOCOL.md",
+    "shareLink": "https://github.com/TrustTunnel/TrustTunnel/blob/master/DEEP_LINK.md",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/trusttunnel/",
+    "surge": "https://manual.nssurge.com/policies/trust-tunnel.html"
+   },
+   "notes": "仓库在 TrustTunnel 组织下，不在 AdguardTeam。t.me/TrustTunnel 自称非官方。"
+  },
+  {
+   "id": "tailscale", "name": "Tailscale", "kind": "protocol",
+   "watch": [
+    {"type": "github", "repo": "tailscale/tailscale"}
+   ],
+   "links": {
+    "authKeys": "https://tailscale.com/kb/1085/auth-keys",
+    "mihomo": "https://wiki.metacubex.one/config/proxies/tailscale/",
+    "sing-box": "https://sing-box.sagernet.org/configuration/endpoint/tailscale/",
+    "surge": "https://manual.nssurge.com/policies/tailscale.html",
+    "stash": "https://stash.wiki/proxy-protocols/proxy-types#tailscale"
+   },
+   "notes": "不是节点协议，塔台按 TailnetConnection 写入，见 docs/TAILSCALE.md。"
+  },
+  {
+   "id": "basic-proxies", "name": "SOCKS5 / HTTP / SSH", "kind": "protocol",
+   "links": {
+    "socks5": "https://www.rfc-editor.org/rfc/rfc1928.html",
+    "socks5Auth": "https://www.rfc-editor.org/rfc/rfc1929.html",
+    "httpConnect": "https://www.rfc-editor.org/rfc/rfc9110.html#name-connect",
+    "ssh": "https://www.rfc-editor.org/rfc/rfc4254.html",
+    "mihomoSocks": "https://wiki.metacubex.one/config/proxies/socks/",
+    "mihomoHttp": "https://wiki.metacubex.one/config/proxies/http/",
+    "mihomoSsh": "https://wiki.metacubex.one/config/proxies/ssh/"
+   },
+   "notes": "标准协议，没有可跟踪的发布。"
+  }
+ ]
+}
