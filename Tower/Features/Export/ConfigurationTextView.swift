@@ -915,6 +915,15 @@ struct ConfigurationEditorTextView: UIViewRepresentable {
                 text: snapshot,
                 selectedLocation: textView.selectedRange.location
             )
+            // Re-rendering replaces the whole text. Doing that while an input
+            // method is still composing (pinyin on the Mac) committed the
+            // half-typed letters, and composing went on after them:
+            // "mmemeimei guo…" (issue #22). The commit itself calls back here
+            // with no marked text, and highlights then.
+            guard textView.markedTextRange == nil else {
+                highlightTask?.cancel()
+                return
+            }
             scheduleHighlight(for: snapshot)
         }
 
@@ -937,7 +946,8 @@ struct ConfigurationEditorTextView: UIViewRepresentable {
                 let spans = await Task.detached(priority: .userInitiated) {
                     ConfigurationSyntaxHighlighter.spans(in: snapshot)
                 }.value
-                guard !Task.isCancelled, editor.textView.text == snapshot else { return }
+                guard !Task.isCancelled, editor.textView.text == snapshot,
+                      editor.textView.markedTextRange == nil else { return }
                 isRendering = true
                 ConfigurationEditorTextViewFactory.render(snapshot, spans: spans, in: editor)
                 isRendering = false
@@ -961,7 +971,8 @@ struct ConfigurationEditorTextView: UIViewRepresentable {
 
     func updateUIView(_ editor: ConfigurationCodeEditorView, context: Context) {
         let contentSizeCategory = editor.traitCollection.preferredContentSizeCategory
-        if context.coordinator.renderedText != text
+        if editor.textView.markedTextRange == nil,
+           context.coordinator.renderedText != text
             || context.coordinator.contentSizeCategory != contentSizeCategory {
             context.coordinator.isRendering = true
             ConfigurationEditorTextViewFactory.render(text, in: editor)
