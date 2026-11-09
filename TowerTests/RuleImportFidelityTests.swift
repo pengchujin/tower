@@ -36,6 +36,46 @@ final class RuleImportFidelityTests: XCTestCase {
         XCTAssertEqual(scheme.rulesets.prefix(6).map { $0.provider?.behavior }, ["classical", "domain", "ipcidr", nil, nil, nil])
     }
 
+    /// Issue #50: DustinWin's INI declares `clash-domain:` / `clash-ipcidr:`
+    /// for lists of typed rules. Referenced as `behavior: domain`, mihomo
+    /// matched none of them and ChatGPT fell through to MATCH.
+    func testDeclaredDomainProviderOverTypedRulesIsReferencedAsClassical() throws {
+        let ai = URL(string: "https://rules.example.com/ai.list")!
+        let cnip = URL(string: "https://rules.example.com/cnip.list")!
+        let bare = URL(string: "https://rules.example.com/bare.list")!
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = RuleDownloadStore(folderURL: folder)
+        try store.store("DOMAIN,ai.google.dev\nDOMAIN-SUFFIX,chatgpt.com\n", for: ai)
+        try store.store("IP-CIDR,1.0.1.0/24\nIP-CIDR6,2400:da00::/32\n", for: cnip)
+        try store.store("+.example.org\nexample.net\n", for: bare)
+        let repository = RuleSchemeRepository(downloadStore: store)
+        let scheme = try parse("""
+        [custom]
+        ruleset=AI,clash-domain:\(ai.absoluteString),86400
+        ruleset=DIRECT,clash-ipcidr:\(cnip.absoluteString),86400
+        ruleset=Proxy,clash-domain:\(bare.absoluteString),86400
+        ruleset=Proxy,[]FINAL
+        custom_proxy_group=AI`select`[]Proxy
+        custom_proxy_group=Proxy`select`.*
+        """)
+        func block(_ content: String, _ host: String) -> String {
+            let blocks = content.components(separatedBy: "\n  tower-")
+            return blocks.first { $0.contains("rules.example.com/\(host)") } ?? ""
+        }
+        for target in [ClientTarget.clashVerge, .clashMi, .clash] {
+            let content = ConfigurationGenerator().generate(nodes: [node], scheme: scheme, target: target,
+                                                            schemes: repository, preferRuleSets: true).content
+            XCTAssertTrue(block(content, "ai.list").contains("behavior: classical"), "\(target)\n\(content)")
+            XCTAssertTrue(block(content, "cnip.list").contains("behavior: classical"), "\(target)\n\(content)")
+            // A list that really is bare keeps its declared behavior.
+            XCTAssertTrue(block(content, "bare.list").contains("behavior: domain"), "\(target)\n\(content)")
+            let inline = ConfigurationGenerator().generate(nodes: [node], scheme: scheme, target: target,
+                                                           schemes: repository, preferRuleSets: false).content
+            XCTAssertTrue(inline.contains("DOMAIN-SUFFIX,chatgpt.com,"), "\(target)\n\(inline)")
+        }
+    }
+
     // MARK: - mihomo
 
     func testMihomoDirectOutboundBecomesTheBuiltInPolicy() throws {

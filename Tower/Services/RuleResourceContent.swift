@@ -29,6 +29,29 @@ enum RuleResourceContent {
         }.filter { !$0.isEmpty }
     }
 
+    /// Whether a list is written the way a `domain` / `ipcidr` provider
+    /// reads it: bare values (`+.example.com`, `203.0.113.0/24`), not typed
+    /// rules (`DOMAIN-SUFFIX,example.com`). Declarations can be wrong —
+    /// DustinWin's INI says `clash-domain:` for lists of typed rules — and
+    /// mihomo then matches nothing from them (issue #50).
+    static func isBare(_ lines: [String]) -> Bool {
+        !lines.isEmpty && lines.allSatisfy { raw in
+            let line = RoutingRuleSyntax.removingComment(raw).trimmingCharacters(in: .whitespaces)
+            guard let fields = RoutingRuleSyntax.fields(line) else { return false }
+            return fields.count < 2
+        }
+    }
+
+    /// The provider declaration a list can honestly be referenced with:
+    /// a `domain` / `ipcidr` declaration over typed rules becomes classical.
+    /// Nil behavior lets the writer pick classical from the list's format.
+    static func provider(_ declared: RuleProviderMetadata?, for lines: [String]) -> RuleProviderMetadata? {
+        guard let declared, let behavior = declared.behavior?.lowercased(),
+              ["domain", "ipcidr", "domain-text", "ipcidr-text"].contains(behavior),
+              !lines.isEmpty, !isBare(lines) else { return declared }
+        return RuleProviderMetadata(behavior: nil, format: declared.format, interval: declared.interval)
+    }
+
     /// Surge rejects the whole profile when a rule carries an option its type
     /// does not take ("marked for pre-matching, but the rule type doesn't
     /// support this"), so a list's options reach only the lines that accept

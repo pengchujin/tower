@@ -219,6 +219,9 @@ struct RuleSetEmissionPlanner {
 
             case .remote(let url):
                 let lines = repository.lines(for: ruleset.resource)
+                // What the downloaded list holds decides how a client reads
+                // it; the declaration only says what the source expected.
+                let provider = RuleResourceContent.provider(ruleset.provider, for: lines)
                 if preferRuleSets, ruleset.options == nil, ruleset.provider == nil,
                    [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target),
                    let optimized = optimizedClashEntries(
@@ -265,7 +268,7 @@ struct RuleSetEmissionPlanner {
                     })
                 } else if preferRuleSets,
                    RoutingRuleCapabilities.optionsSupported((ruleset.options ?? []).filter { !$0.hasPrefix("update-interval=") }, target: target),
-                   let format = providerFormat(ruleset, target: target, lines: lines) ?? nativeFormat(
+                   let format = providerFormat(provider, target: target, resource: ruleset.resource, lines: lines) ?? nativeFormat(
                     for: target,
                     url: url,
                     lines: lines,
@@ -280,7 +283,7 @@ struct RuleSetEmissionPlanner {
                         url: url,
                         policyName: ruleset.groupName,
                         format: format,
-                        options: ruleset.options ?? [], provider: ruleset.provider,
+                        options: ruleset.options ?? [], provider: provider,
                         localLines: RuleResourceContent.normalized(lines, behavior: ruleset.provider?.behavior)
                     )))
                 } else {
@@ -468,11 +471,12 @@ struct RuleSetEmissionPlanner {
         return (entries, remoteIndex)
     }
 
-    private func providerFormat(_ ruleset: RuleSchemeRuleset, target: ClientTarget, lines: [String]) -> NativeFormat? {
-        guard target.usesClashFormat, let metadata = ruleset.provider,
+    private func providerFormat(_ provider: RuleProviderMetadata?, target: ClientTarget,
+                                resource: RuleSchemeRuleset.Resource, lines: [String]) -> NativeFormat? {
+        guard target.usesClashFormat, let metadata = provider,
               ["domain", "ipcidr", "domain-text", "ipcidr-text"].contains(metadata.behavior ?? ""),
               !lines.isEmpty else { return nil }
-        return repository.isClashProviderYAML(ruleset.resource) ? .clashProviderYAML : .classicalText
+        return repository.isClashProviderYAML(resource) ? .clashProviderYAML : .classicalText
     }
 
     private func nativeFormat(
