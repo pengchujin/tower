@@ -1,5 +1,16 @@
 # 当前交接
 
+## 1.0.31（72）TestFlight 与 Mac 分发（2026-11-09）
+
+- 1.0.30 已在 App Store 上架（READY_FOR_DISTRIBUTION），按发布文档递增 MARKETING_VERSION。用户真机验证 iCloud 同步、#49、#50 和 Mac 调试版 #22 后要求推送 TestFlight 并更新 GitHub 版本。更新日志见 [1.0.31](releases/1.0.31.md)。
+
+## 1.0.31（72）中的改动（2026-11-09）
+
+- **iCloud 同步一直「尚未下载完成」**：`state-versions-v2` 每同步一次多一个 `.pruned` 标记且从不删除，用户账号攒到 518 个文件；读历史要求全部在本机，旧代码遇到第一个未下载的文件只请求这一个就报错，iOS 又会把文件清出本机，于是永远下不完。现在 `commits()` 一次请求全部缺失文件；`prune()` 结束后 `compact()`：超过 60 条记录时，保留最旧完整版本再往前 20 代，更早的删除——先把 id 记入 `compacted.txt`，再改写边界标记去掉指向被删记录的父链接（旧版 App 读到的仍是完整的图），最后删文件。离线设备回来时若父版本已被清理，`commits()` 凭 `compacted.txt` 认出并补一个无父无内容的占位，`snapshot()` 对「无共同祖先且触及被清理根」的分支报冲突让用户选，不做 bootstrap 合并（避免复活已删节点）。用户手机装上后一次同步即从 518 个文件降到 26 个。
+- **#49 删除多个策略组后一直同步冲突**：`removedGroupNames` 是 `Set`，`JSONEncoder` 按哈希顺序输出，每次解码顺序不同，签名、三方合并和 `equal` 都判不同。`RuleSchemeCustomization` 手写 `encode(to:)` 排序输出（新增字段要同步加进去）；`CloudSnapshotMerge` 对该字段按集合三方合并，与 `excludedNodeIDs` 相同。
+- **#50 外部 INI 的 `clash-domain:` 声明与内容不符**：DustinWin 的列表声明 domain/ipcidr，实际是 `DOMAIN-SUFFIX,…` 这类带类型的行，Mihomo 按 domain 读一条也匹配不上。导出时用已下载的内容判断（`RuleResourceContent.isBare` / `provider(_:for:)`）：全是裸值保留声明；全带类型改为 classical；混合则内联展开。
+- **#22 Mac 手动编辑配置中文输入残留拼音**：高亮 120ms 后整段替换 `attributedText`，输入法组字（marked text）时会把拼音提交进正文。现在组字期间不高亮、不覆盖文本，`updateUIView` 也跳过；选字后再高亮。`ConfigurationEditorCompositionTests` 用 `setMarkedText` 复现。
+
 ## 1.0.30（71）TestFlight 与 Mac 分发（2026-10-20）
 
 - 用户要求推送 TestFlight、只递增 Build 号，并更新 GitHub 版本；纳入下方 issue #47 的策略组 Emoji 识别重做。GitHub 上同一版本号此前没有发过两次，经用户选择新建 Release `v1.0.30-71`，v1.0.30（70）原样保留；Homebrew cask 的下载 tag 改为「版本-构建号」。
