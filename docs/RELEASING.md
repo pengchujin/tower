@@ -155,6 +155,49 @@ bash Scripts/release_testflight_remote.sh --aqua \
 
 `--aqua` 直接执行当前机器上的归档和上传，不发起远程连接。上传成功后在 App Store Connect 核对构建处理状态、测试说明和群组可用性，不把上传成功当作外部测试审核通过。
 
+## 用 asc 发布 TestFlight（M4 / Air 本机，当前主流程）
+
+自 1.0.26 起 TestFlight 用 [asc](https://asccli.sh)（`brew install asc`，App Store Connect 命令行工具）上传和分发：本机没有 Distribution 证书，导出走 asc 配置的 App Store Connect API Key 云签名，上传、测试说明、外部群组和 Beta 审核也都由 asc 完成。`Scripts/release_testflight*.sh` 保留给 Mac mini M2 的远程备用流程。
+
+前置检查：`asc auth doctor` 显示默认 profile 完整、私钥在钥匙串中；App ID 用 `asc apps list --bundle-id com.jzb.tower` 查，团队 ID 按「本地配置」一节取，两者都只放在当前 Shell 变量里，不写进仓库。
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+APP_ID=<App Store Connect App ID>; TEAM=<团队 ID>
+OUT="$HOME/Builds/Tower-<版本>-<构建号>"; mkdir -p "$OUT"
+
+# 1. 两端归档（发布提交已推送，工作区干净，HEAD 与 origin/main 一致）
+asc xcode archive --project Tower.xcodeproj --scheme Tower --configuration Release \
+  --archive-path "$OUT/Tower-ios.xcarchive" \
+  --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS \
+  --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=DEVELOPMENT_TEAM=$TEAM
+asc xcode archive --project Tower.xcodeproj --scheme Tower --configuration Release \
+  --archive-path "$OUT/Tower-mac.xcarchive" \
+  --xcodebuild-flag=-destination --xcodebuild-flag="generic/platform=macOS,variant=Mac Catalyst" \
+  --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=DEVELOPMENT_TEAM=$TEAM
+
+# 2. 导出（API Key 云签名）
+asc xcode export --archive-path "$OUT/Tower-ios.xcarchive" --ipa-path "$OUT/Tower.ipa" --team-id $TEAM
+asc xcode export --archive-path "$OUT/Tower-mac.xcarchive" --pkg-path "$OUT/Tower.pkg" --team-id $TEAM
+
+# 3. 上传、等处理、写测试说明、加入外部群组「测试」并提交 Beta 审核
+asc publish testflight --app $APP_ID --ipa "$OUT/Tower.ipa" \
+  --group "测试" --test-notes "$(cat "$OUT/test-notes.txt")" --locale zh-Hans --wait --submit --confirm
+asc publish testflight --app $APP_ID --pkg "$OUT/Tower.pkg" --platform MAC_OS \
+  --version <版本> --build-number <构建号> \
+  --group "测试" --test-notes "$(cat "$OUT/test-notes.txt")" --locale zh-Hans --wait --submit --confirm
+
+# 4. 回读
+asc status --app $APP_ID
+```
+
+- 测试说明不能含 Emoji，App Store Connect 会拒收（1.0.30 遇到 🌐 🤖）；用文字描述图标。
+- 内部群组自动接收新构建，手动添加会被拒绝，只需处理外部群组。
+- 上传前核对归档里的 Bundle ID、版本、构建号；Mac 包须含 arm64 与 x86_64。
+- 归档、导出包、日志和回执留在 `~/Builds/`，不进仓库。
+- 版本已在 App Store 上架（`asc status` 的 appstore.state 为 READY_FOR_DISTRIBUTION）后必须先递增 MARKETING_VERSION。
+- Mac 直接分发（GitHub / Homebrew）不能用 API Key：用同一 Mac 归档以 `developer-id` 方式导出并公证，需要 Xcode ▸ Settings ▸ Accounts 已登录，见文首与「Mac Homebrew 分发」。
+
 ## Mac mini M2 备用发布：一条命令
 
 在塔台仓库根目录执行：
