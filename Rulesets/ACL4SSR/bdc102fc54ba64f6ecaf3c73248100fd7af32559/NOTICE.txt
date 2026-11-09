@@ -1,0 +1,46 @@
+Tower-generated ACL4SSR binary rule sets
+============================================
+
+Source:      ACL4SSR/ACL4SSR
+Source URL:  https://github.com/ACL4SSR/ACL4SSR
+Revision:    bdc102fc54ba64f6ecaf3c73248100fd7af32559
+Compilers:   Mihomo 1.19.31
+             sing-box 1.14.2 (source format v2)
+License:     CC BY-SA 4.0
+             https://creativecommons.org/licenses/by-sa/4.0/
+
+These MRS files are derived from the pinned ACL4SSR .list snapshots bundled
+with Tower. DOMAIN values are emitted as exact domains, DOMAIN-SUFFIX values as
+Mihomo +. suffix expressions, and IP-CIDR, IP-CIDR6 and IP6-CIDR values as
+canonical CIDRs only when every source CIDR declares no-resolve. All other rule
+types, including DOMAIN-WILDCARD, remain outside the binary artifacts and are
+emitted inline by Tower. IP artifacts are marked ``noResolve: true`` in the
+manifest, and are omitted if a CIDR lacks no-resolve or has another modifier.
+
+Each SRS combines the source list's losslessly convertible DOMAIN,
+DOMAIN-SUFFIX, DOMAIN-KEYWORD, IP-CIDR, IP-CIDR6 and IP6-CIDR lines in one
+sing-box source-format v2 rule set. CIDRs may have no modifier or exactly one
+no-resolve modifier; any other modifier leaves the complete IP family inline.
+Malformed source types also remain inline instead of being partially removed.
+The temporary source JSON and decompiled JSON are used only for semantic
+round-trip verification and are not published. Each *_singbox_domain.srs holds
+only the DOMAIN, DOMAIN-SUFFIX and DOMAIN-KEYWORD part of the same SRS, for
+sing-box DNS rules, which must decide on the queried name alone.
+
+The *_loon.list, *_quanx.list and *_egern.yaml files are the same rules in the
+remote rule-list format of Loon, Quantumult X and Egern, written the way Tower
+writes each rule into those profiles. A rule type is converted only if every
+one of its lines is TYPE,value or an IP rule with exactly no-resolve; any other
+line keeps the whole type inline. Quantumult X lines name the placeholder
+policy "proxy", which the profile's force-policy replaces. Tower_GEOIP_CN_*.list
+hold the configs' own final GEOIP,CN rule and Tower_catch_all_quanx.list
+Tower's Quantumult X DNS protection rule, so that Loon and Quantumult X, which
+match local rules before any remote list, keep the original order.
+
+The artifacts are hosted for compatible Clash/Stash, sing-box, Loon,
+Quantumult X and Egern clients but are not bundled inside the Tower app. Source and artifact SHA-256 digests and
+converted/residual rule counts are recorded in
+Tower/Resources/ACL4SSR/ACL4SSR_manifest.json.
+
+These derived rule sets remain under CC BY-SA 4.0 and are not
+covered by the MIT license that applies to Tower's source code.

@@ -1,0 +1,15 @@
+host-keyword, 1drv, proxy
+host-keyword, onedrive, proxy
+host-keyword, skydrive, proxy
+host-suffix, livefilestore.com, proxy
+host-suffix, oneclient.sfx.ms, proxy
+host-suffix, onedrive.com, proxy
+host-suffix, onedrive.live.com, proxy
+host-suffix, photos.live.com, proxy
+host-suffix, sharepoint.com, proxy
+host-suffix, sharepointonline.com, proxy
+host-suffix, skydrive.wns.windows.com, proxy
+host-suffix, spoprod-a.akamaihd.net, proxy
+host-suffix, storage.live.com, proxy
+host-suffix, storage.msn.com, proxy
+host-suffix, microsoftpersonalcontent.com, proxy
