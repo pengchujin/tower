@@ -882,11 +882,15 @@ struct ConfigurationGenerator {
             case .keyConnectIP:
                 guard [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .shadowrocket].contains(target) else { return false }
             case .basicConnectIP:
-                guard target == .singBox else { return false }
+                // An explicit override (tests, a future version preference)
+                // can enable the 1.15 endpoint before sing-box MT ships it.
+                guard target == .singBox,
+                      supportedKindsOverride?.contains(.masque) ?? ClientTarget.singBoxSupportsMASQUE else { return false }
             case nil:
                 guard [.surge, .surgeMac].contains(target) else { return false }
             }
         }
+        if target == .egern, node.kind == .shadowsocksR, !Self.egernAcceptsShadowsocksR(node) { return false }
         let supportsKind = supportedKindsOverride?.contains(node.kind) ?? target.supports(node.kind)
         guard supportsKind, !excludedKinds.contains(node.kind) else { return false }
         if target == .anywhere, !AnywhereExport.supports(node) { return false }
@@ -1582,11 +1586,12 @@ struct ConfigurationGenerator {
     }
 
     /// Clients that take mihomo's `#<proxy>&ecs=` nameserver suffix. Karing
-    /// embeds mihomo but documents neither it nor the TUN block; the "Clash"
-    /// app shares Stash's document (ConfigurationGeneratorTests), so it only
-    /// gets the TUN block.
-    static let clashStrictDNSTargets: Set<ClientTarget> = [.clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi]
-    private static let clashTUNTargets = clashStrictDNSTargets.union([.clashApple])
+    /// embeds mihomo but documents neither it nor the TUN block. The "Clash"
+    /// app has its own documentation (clash.md) on a mihomo 1.19.33-derived
+    /// core with `ecs-override`; its DNS page says Apple platforms run the
+    /// profile as written and only replace system/dhcp sources.
+    static let clashStrictDNSTargets: Set<ClientTarget> = [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi]
+    private static let clashTUNTargets = clashStrictDNSTargets
 
     /// With fake-ip a proxied domain is never resolved on the device: the
     /// name goes to the node as is. What still needs an answer is direct
@@ -3516,12 +3521,16 @@ struct ConfigurationGenerator {
         return [simple ? username : loonQuoted(username), loonQuoted(password)]
     }
 
-    /// Loon's Reality fingerprint (`tls-profile`, nsloon.app/docs/Node). Only
-    /// the browser names common to Loon and Clash are passed through.
+    /// Loon's Reality fingerprint (`tls-profile`, nsloon.app/docs/Node). The
+    /// documented values are `global`, `default`, `safari-ios18`,
+    /// `safari-ios-26`, `chrome` and `chrome147`; other browser names have no
+    /// Loon profile and are left to Loon's default (as Sub-Store 2.42.2 does).
     private func loonTLSProfile(_ node: ProxyNode) -> String? {
-        guard let fingerprint = node.fingerprint?.lowercased(),
-              ["chrome", "firefox", "safari", "edge", "ios"].contains(fingerprint) else { return nil }
-        return fingerprint
+        switch node.fingerprint?.lowercased() {
+        case "chrome": "chrome"
+        case "safari", "ios": "safari-ios18"
+        default: nil
+        }
     }
 
     private func appendLoonTransportAndTLS(_ node: ProxyNode, to values: inout [String]) {
@@ -5365,6 +5374,29 @@ extension ConfigurationGenerator {
     }
 
     /// One `- <type>:` entry with the snake_case keys Egern uses.
+    /// Sub-Store's Egern producer (EGERN_SSR_*): Egern's SSR implements
+    /// only stream ciphers and these protocol / obfs plugins. An empty
+    /// protocol or obfs means `origin` / `plain`.
+    static func egernSSRMethod(_ cipher: String?) -> String? {
+        guard let cipher = cipher?.trimmingCharacters(in: .whitespaces).lowercased(), !cipher.isEmpty else { return nil }
+        let method = cipher == "plain" ? "none" : cipher
+        let methods: Set<String> = ["none", "dummy", "rc4-md5", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb",
+                                    "aes-128-ctr", "aes-192-ctr", "aes-256-ctr", "chacha20", "chacha20-ietf", "xchacha20"]
+        return methods.contains(method) ? method : nil
+    }
+
+    static func egernAcceptsShadowsocksR(_ node: ProxyNode) -> Bool {
+        let protocols: Set<String> = ["origin", "auth_sha1_v4", "auth_aes128_md5", "auth_aes128_sha1", "auth_chain_a", "auth_chain_b"]
+        let obfs: Set<String> = ["plain", "http_simple", "http_post", "random_head", "tls1.2_ticket_auth", "tls1.2_ticket_fastauth"]
+        func allowed(_ value: String?, _ set: Set<String>) -> Bool {
+            guard let value = value?.trimmingCharacters(in: .whitespaces).lowercased(), !value.isEmpty else { return true }
+            return set.contains(value)
+        }
+        return egernSSRMethod(node.cipher) != nil
+            && allowed(node.protocolName, protocols)
+            && allowed(node.obfs, obfs)
+    }
+
     func egernProxy(_ source: ProxyNode) -> String? {
         let node = source.withTransportHostAsSNI
         var body: [String] = ["      name: \(yaml(NodeRegionResolver.displayName(for: node)))"]
@@ -5393,6 +5425,18 @@ extension ConfigurationGenerator {
                     body.append("      obfs_host: \(yaml(host))")
                 }
             }
+        case .shadowsocksR:
+            // Egern 2.21.0 added SSR; its docs list no fields yet, so this
+            // follows Sub-Store's Egern producer (keys and value whitelists,
+            // see `egernAcceptsShadowsocksR`).
+            type = "shadowsocksr"
+            endpoint()
+            body.append("      method: \(yaml(Self.egernSSRMethod(node.cipher) ?? "none"))")
+            body.append("      password: \(yaml(node.password ?? ""))")
+            body.append("      protocol: \(yaml(node.protocolName?.lowercased() ?? "origin"))")
+            if let value = node.protocolParam, !value.isEmpty { body.append("      protocol_param: \(yaml(value))") }
+            body.append("      obfs: \(yaml(node.obfs?.lowercased() ?? "plain"))")
+            if let value = node.obfsParam, !value.isEmpty { body.append("      obfs_param: \(yaml(value))") }
         case .trojan, .anytls:
             type = node.kind == .trojan ? "trojan" : "anytls"
             endpoint()
@@ -5464,14 +5508,14 @@ extension ConfigurationGenerator {
             if let key = node.ssh?.privateKey, !key.isEmpty { body.append("      private_key: \(yamlMultiline(key))") }
             let hostKeys = node.ssh?.hostKeys ?? []
             if !hostKeys.isEmpty { body.append("      host_keys: \(yamlList(hostKeys))") }
-        case .hysteria, .shadowsocksR, .masque, .trustTunnel, .unknown:
+        case .hysteria, .masque, .trustTunnel, .unknown:
             // supports(_:) filters these out; this keeps the switch total.
             return nil
         }
 
         // Egern's SSH has neither UDP relay (no datagram channel) nor TLS.
         if node.kind != .ssh {
-            body.append("      udp_relay: \(node.kind == .shadowsocks ? node.udpRelayEnabled ?? true : true)")
+            body.append("      udp_relay: \([.shadowsocks, .shadowsocksR].contains(node.kind) ? node.udpRelayEnabled ?? true : true)")
         }
         if node.usesReality, ![.vmess, .vless].contains(node.kind) {
             body.append("      reality:")
@@ -5480,7 +5524,7 @@ extension ConfigurationGenerator {
                 body.append("        short_id: \(yaml(shortID))")
             }
         }
-        if ![.shadowsocks, .vmess, .vless, .ssh].contains(node.kind) {
+        if ![.shadowsocks, .shadowsocksR, .vmess, .vless, .ssh].contains(node.kind) {
             body.append("      skip_tls_verify: \(node.skipCertificateVerification ? "true" : "false")")
             if let fingerprint = node.certificateFingerprint, !fingerprint.isEmpty {
                 body.append("      fingerprint_sha256: \(yaml(fingerprint))")

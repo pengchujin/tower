@@ -100,10 +100,17 @@ final class DNSSplitTests: XCTestCase {
 
     func testMihomoStrictModeResolvesThroughTheProxyWithChineseSubnet() throws {
         let strict = try scheme(settings(remote: ["https://1.1.1.1/dns-query", "https://dns.google/dns-query"], mode: .strict))
-        let clash = content(strict, .clashMi)
-        XCTAssertTrue(clash.contains("  nameserver:\n    - \"https://dns.google/dns-query#OpenAI&ecs=114.114.114.0/24&ecs-override=true\"\n"), clash)
-        XCTAssertFalse(clash.contains("https://1.1.1.1/dns-query#"), "Cloudflare ignores ECS: \(clash)")
-        XCTAssertTrue(clash.contains("proxy-server-nameserver:\n    - https://223.5.5.5/dns-query"), clash)
+        // The "Clash" app runs a mihomo 1.19.33-derived core (clash.md), not
+        // Stash's dialect, so it takes the suffix like the other mihomo apps.
+        for target in [ClientTarget.clashMi, .clashApple] {
+            let clash = content(strict, target)
+            XCTAssertTrue(clash.contains("  nameserver:\n    - \"https://dns.google/dns-query#OpenAI&ecs=114.114.114.0/24&ecs-override=true\"\n"), clash)
+            XCTAssertFalse(clash.contains("https://1.1.1.1/dns-query#"), "Cloudflare ignores ECS: \(clash)")
+            XCTAssertTrue(clash.contains("proxy-server-nameserver:\n    - https://223.5.5.5/dns-query"), clash)
+        }
+        // Stash keeps the domestic resolver: its document has no such suffix.
+        let stash = content(strict, .clash)
+        XCTAssertFalse(stash.contains("#OpenAI"), stash)
         // Karing documents neither the suffix nor the TUN block.
         let karing = content(strict, .karing)
         XCTAssertFalse(karing.contains("#OpenAI"), karing)

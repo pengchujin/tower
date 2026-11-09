@@ -18,11 +18,11 @@ QuanX 使用系统文件分享；其他目标通过客户端 URL Scheme 导入�
 
 **[免费下载 Mac 版](https://github.com/pengchujin/tower/releases/latest)**：打开 DMG，将 Tower 拖入 Applications（应用程序）。支持 macOS 14 及以上，兼容 Apple 芯片与 Intel Mac；应用使用 Developer ID 签名并通过 Apple 公证，无需 TestFlight。暂不提供应用内自动更新，下载新版覆盖安装即可。
 
-工程支持 Mac Catalyst，沿用原来的图标卡片、横向滚动、筛选和排序。`Surge` 保留手机版身份，`Surge Mac` 使用桌面版专用导入入口；新增 `Clash Verge`、`ClashMac`、`FlClash` 和 `Mihomo Party`，生成完整 Clash / Mihomo YAML。
+工程支持 Mac Catalyst，沿用原来的图标卡片、横向滚动、筛选和排序。`Surge` 保留手机版身份，`Surge Mac` 使用桌面版专用导入入口；新增 `Clash Verge`、`ClashMac`、`FlClash` 和 `Clash Party`（原 Mihomo Party），生成完整 Clash / Mihomo YAML。
 
-Mac 默认顺序为 Shadowrocket、局域网共享、Surge Mac、Clash Verge、ClashMac、FlClash、Mihomo Party、sing-box MT、Clash，再接其余客户端。手机默认隐藏五个 Mac 专用客户端，可从筛选中手动添加；两端的排序、显示范围和当前客户端分别保存。
+Mac 默认顺序为 Shadowrocket、局域网共享、Surge Mac、Clash Verge、ClashMac、FlClash、Clash Party、sing-box MT、Clash，再接其余客户端。手机默认隐藏五个 Mac 专用客户端，可从筛选中手动添加；两端的排序、显示范围和当前客户端分别保存。
 
-Surge Mac 6.7+ 和 Clash Verge 支持一键导入；旧版 Surge Mac 找不到导入入口时复制订阅，ClashMac 同样复制订阅并显示具体导入步骤。FlClash、Mihomo Party 使用各自的专用导入入口。Mac 局域网共享支持 Wi-Fi 与有线网络，切到其他 App 后继续提供服务，退出塔台或停止共享后失效。本机一键导入仍为 3 分钟的独立临时服务。
+Surge Mac 6.7+ 和 Clash Verge 支持一键导入；旧版 Surge Mac 找不到导入入口时复制订阅，ClashMac 同样复制订阅并显示具体导入步骤。FlClash、Clash Party 使用各自的专用导入入口。Mac 局域网共享支持 Wi-Fi 与有线网络，切到其他 App 后继续提供服务，退出塔台或停止共享后失效。本机一键导入仍为 3 分钟的独立临时服务。
 
 构建与验证见 [开发文档](DEVELOPMENT.md)。1.0.9（47）已通过直接分发签名、公证、Gatekeeper 和启动检查；iCloud 签名授权已核对，跨设备同步尚未进行直接分发包专项实测。Mac App Store 尚未正式发布。
 
@@ -49,7 +49,7 @@ QuanX 的 `static` 策略组按名字记住用户上次选中的项，重新导�
 - 标准保护：fake-ip；`proxy-server-nameserver` 用国内 DoH，不写 `fallback` / `fallback-filter`。走代理的域名不在本机解析。
   - 支持 `#代理组` 的 mihomo 客户端：`nameserver` 经纯节点组、带中国子网查询远程 DNS，`direct-nameserver` 用国内 DoH。MATCH 前最后一条 `GEOIP` 不带 `no-resolve`，列表外的国内网站因此能直连。
   - 其他 Clash 格式客户端：`nameserver` 用国内 DoH，GEOIP 保留 `no-resolve`。
-- 严格保护（Clash Mi / Verge / Mac / FlClash / Mihomo Party）：`nameserver` 改为远程列表中支持 ECS 的服务器，写成 `…#<纯节点组>&ecs=114.114.114.0/24&ecs-override=true`。`proxy-server-nameserver` 仍用国内 DoH，另加 TUN、`dns-hijack` 和 `strict-route`。Karing、Stash 和 Shadowrocket 的 Clash 格式没有文档说明支持该后缀，所以按标准保护写。「Clash」App 与 Stash 共用同一份文档，只加 TUN。
+- 严格保护（Clash / Clash Mi / Verge / Mac / FlClash / Clash Party）：`nameserver` 改为远程列表中支持 ECS 的服务器，写成 `…#<纯节点组>&ecs=114.114.114.0/24&ecs-override=true`。`proxy-server-nameserver` 仍用国内 DoH，另加 TUN、`dns-hijack` 和 `strict-route`。Karing、Stash 和 Shadowrocket 的 Clash 格式没有文档说明支持该后缀，所以按标准保护写。「Clash」App 有自己的文档 [clash.md](https://clash.md/guide/config/dns)，内核是 mihomo 1.19.33 衍生版，配置按原样运行（只替换 system/dhcp 来源），2026-11-09 起与其他 mihomo 客户端相同；它的 `tun.stack` 从 iOS 1.0.14 起不生效。
 - 跟随方案：不开 fake-ip，客户端会先在本机解析每个域名。
 - 依据：[mihomo DNS](https://wiki.metacubex.one/config/dns/)（`#代理组`、`&ecs=`、`ecs-override`、`proxy-server-nameserver`）。
 
@@ -77,7 +77,7 @@ SS 插件支持 simple-obfs、WebSocket 模式 v2ray-plugin，以及下述 Shado
 | 导出目标 | 当前实现 |
 | --- | --- |
 | Stash | ShadowTLS v2/v3，保留 `plugin: shadow-tls` 与独立参数 |
-| Clash、Clash Verge、ClashMac、FlClash、Mihomo Party、Clash Mi | Mihomo 格式，ShadowTLS v1/v2/v3 |
+| Clash、Clash Verge、ClashMac、FlClash、Clash Party、Clash Mi | Mihomo 格式，ShadowTLS v1/v2/v3 |
 | Karing | 暂不支持：用户真机反馈无法连接，已撤回实验性导出；完整配置及仅节点均跳过 ShadowTLS |
 | Surge / Surge Mac | ShadowTLS v2/v3；SS2022 限 AES-128/256，独立 `shadow-tls-*` 参数 |
 | sing-box MT / Hiddify 完整配置 | SS outbound 经内部 ShadowTLS outbound 的 detour；辅助通道不进入策略组 |
@@ -102,6 +102,18 @@ Shadowrocket 补充（2026-09-17）：[官方 2.2.38 更新记录](https://t.me/
 ShadowTLS 仅节点补充（2026-09-18）：不直接开放未经证实的 SIP003 插件 URI。Shadowrocket 采用 [Sub-Store 的节点列表输出](https://github.com/sub-store-org/Sub-Store/blob/07d94ef9e1970e98787dd0ab40dc3d454b06a5ba/backend/src/core/proxy-utils/producers/shadowrocket.js) 对应的 proxies-only YAML。Hiddify 根据 [JSON 订阅解析入口](https://github.com/hiddify/hiddify-core/blob/db74dfc/v2/config/parser.go) 接收 outbounds-only JSON，使用 [selector 构建逻辑](https://github.com/hiddify/hiddify-core/blob/db74dfc/v2/config/builder.go) 的 §hide§ 标记隐藏 ShadowTLS 辅助通道。两者都不附带塔台的规则或策略组；混合订阅中的普通节点保留，无 ShadowTLS 的列表保持原格式。沿用版本、TLS 参数和 TCP/UDP 能力限制。手机上的实际订阅导入及连接仍待用户验收。
 
 Karing 验收结论（2026-09-18）：官方示例虽有 ShadowTLS 字段，但用户真机测试无法连接，因此撤回实验性导出。文档示例及生成测试不等于客户端连通验证。根因未定位，暂不重新开放；其他客户端能力不受影响。
+
+### 上游更新对照修正（2026-11-09，未发布）
+
+依据 `Scripts/check_upstream_updates.py` 抓到的各客户端 2026-09 以来的更新说明，逐条对照代码：
+
+- 「Clash」App 严格 / 标准保护、Egern SSR、Loon 通配与 `tls-profile` 已于 2026-11-09 真机验收通过。
+- **sing-box MT 暂停 MASQUE**：`masque-client` endpoint 要 sing-box 1.15，App Store 的 sing-box MT 仍是 1.14，遇到未知 endpoint 会整份配置加载失败。现在跳过并计数，等 MT 用上 1.15 稳定版再打开（`ClientTarget.singBoxSupportsMASQUE`）。
+- **Loon `tls-profile`**：只写官方列出的值，`chrome` 原样，`safari` / `ios` 写成 `safari-ios18`，Firefox、Edge 等不写（用 Loon 默认）。
+- **Loon `DOMAIN-WILDCARD`**（3.5.3，build 1008+）：`*.x` 仍改写成「后缀 x 且不是 x」的逻辑规则，旧版 Loon 也能读；其他 `*` / `?` 通配原样写 `DOMAIN-WILDCARD`，不再丢弃。
+- **Snell v6 `mode`**：Surge 手册要求和服务端一致。塔台不保存 mode，`default`（或不写）照常导入；`unshaped`、`unsafe-raw` 拒绝导入并计入跳过数。
+- **VLESS XHTTP 的额外设置**：分享链接里非空的 `extra`、Clash YAML `xhttp-opts` 里 path / host / mode / Host 头以外的字段（`download-settings`、`xmux`、填充等）表达不了，拒绝导入并计数。
+- **Egern SSR**（2.21.0）：按 Sub-Store Egern producer 写 `type: shadowsocksr`、`method` / `protocol` / `protocol_param` / `obfs` / `obfs_param`。只放行流加密和它列出的协议 / 混淆插件，其余跳过。Egern 官方文档还没写 SSR。
 
 ### SSH 与 TrustTunnel（未发布）
 

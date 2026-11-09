@@ -38,6 +38,28 @@ final class SnellTests: XCTestCase {
         XCTAssertNil(parser.parseURI("Bad = snell, 198.51.100.4, 443, version=4"))
     }
 
+    /// Snell v6 `mode` must match the server and Tower stores none, so only
+    /// the default mode is imported; the others are rejected and counted.
+    func testSnellV6ImportsOnlyTheDefaultMode() throws {
+        let base = "JP = snell, 198.51.100.4, 443, psk=abc, version=6"
+        XCTAssertEqual(try XCTUnwrap(parser.parseURI(base)).version, 6)
+        XCTAssertNotNil(parser.parseURI(base + ", mode=default"))
+        XCTAssertNil(parser.parseURI(base + ", mode=unshaped"))
+        XCTAssertNil(parser.parseURI(base + ", mode=unsafe-raw"))
+
+        let text = "\(base), mode=unshaped\nHK = snell, 198.51.100.5, 443, psk=abc, version=6, mode=default\n"
+        let result = parser.parse(data: Data(text.utf8))
+        XCTAssertEqual(result.nodes.map(\.name), ["HK"])
+        XCTAssertEqual(result.rejectedLineCount, 1)
+
+        let yaml = """
+        proxies:
+          - {name: A, type: snell, server: 198.51.100.4, port: 443, psk: abc, version: 6, mode: unsafe-raw}
+          - {name: B, type: snell, server: 198.51.100.5, port: 443, psk: abc, version: 6, mode: default}
+        """
+        XCTAssertEqual(parser.parse(data: Data(yaml.utf8)).nodes.map(\.name), ["B"])
+    }
+
     func testOtherSurgeProtocolsAreNotMistakenForSnell() {
         // A Surge line for something else must not be swallowed by this path.
         XCTAssertNil(parser.parseURI("HK = ss, 198.51.100.4, 443, encrypt-method=aes-128-gcm, password=x"))

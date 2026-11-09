@@ -1117,6 +1117,53 @@ struct SubscriptionParser {
         )
     }
 
+    /// Xray's XHTTP `extra` JSON (headers, padding, XMUX, split download…)
+    /// changes what goes on the wire. Tower keeps only mode, path and host, so
+    /// a link carrying a non-empty `extra` is rejected instead of exported as
+    /// a node that looks fine and cannot connect.
+    static func xhttpExtraIsEmpty(_ extra: String?) -> Bool {
+        guard let extra = extra?.trimmingCharacters(in: .whitespacesAndNewlines), !extra.isEmpty else { return true }
+        guard let object = try? JSONSerialization.jsonObject(with: Data(extra.utf8)) as? [String: Any] else { return false }
+        return object.isEmpty
+    }
+
+    /// mihomo's `xhttp-opts` beyond path / host / mode (and a Host-only
+    /// `headers`) cannot be carried through Tower's node model.
+    func clashXHTTPOptionsAreExpressible(_ raw: [String: String]) -> Bool {
+        let allowed: Set<String> = ["path", "host", "mode"]
+        func headersAreHostOnly(_ value: String) -> Bool {
+            parseInlineYAMLMap(value).keys.allSatisfy { $0.lowercased() == "host" }
+        }
+        var keys: [(String, String)] = raw.compactMap { key, value in
+            key.hasPrefix("xhttp-opts.") ? (String(key.dropFirst("xhttp-opts.".count)), value) : nil
+        }
+        if let inline = raw["xhttp-opts"] {
+            keys += parseInlineYAMLMap(inline).map { ($0.key, $0.value) }
+        }
+        // The block-style reader flattens nested maps onto the proxy, so
+        // xhttp-only keys (wiki.metacubex.one, xhttp-opts) show up there.
+        let xhttpOnly: Set<String> = ["download-settings", "reuse-settings", "xmux", "no-grpc-header",
+                                       "x-padding-bytes", "sc-max-each-post-bytes", "sc-min-posts-interval-ms",
+                                       "sc-max-buffered-posts", "sc-stream-up-server-secs"]
+        if raw.keys.contains(where: { xhttpOnly.contains($0.lowercased()) }) { return false }
+        return keys.allSatisfy { key, value in
+            let lower = key.lowercased()
+            if allowed.contains(lower) { return true }
+            if lower == "headers" { return headersAreHostOnly(value) }
+            if lower.hasPrefix("headers.") { return lower == "headers.host" }
+            return false
+        }
+    }
+
+    /// Snell v6 `mode` (manual.nssurge.com/policies/snell.html) must match
+    /// the server. Tower stores no mode, so only the default — written or
+    /// omitted — can be exported faithfully; `unshaped` / `unsafe-raw` nodes
+    /// are rejected rather than exported as a v6 node that cannot connect.
+    static func snellModeIsDefault(_ mode: String?) -> Bool {
+        guard let mode = mode?.trimmingCharacters(in: .whitespaces), !mode.isEmpty else { return true }
+        return mode.lowercased() == "default"
+    }
+
     /// A Surge proxy line: `名称 = snell, 主机, 端口, psk=…, version=4, obfs=http`.
     ///
     /// Positional fields come first, then `key=value` options in any order.
@@ -1144,7 +1191,8 @@ struct SubscriptionParser {
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
             options[key] = value
         }
-        guard let psk = options["psk"], !psk.isEmpty else { return nil }
+        guard let psk = options["psk"], !psk.isEmpty,
+              Self.snellModeIsDefault(options["mode"]) else { return nil }
 
         return ProxyNode(
             sourceID: sourceID,
@@ -1316,6 +1364,7 @@ struct SubscriptionParser {
         let rawTransport = (query["type"] ?? query["network"] ?? query["obfs"])?
             .removingPercentEncoding?.lowercased()
         let transport = normalizedTransport(rawTransport)
+        if transport == "xhttp", !Self.xhttpExtraIsEmpty(query["extra"]?.removingPercentEncoding) { return nil }
         let flow = query["flow"]?.removingPercentEncoding
             ?? (query["xtls"] == "2" ? "xtls-rprx-vision" : nil)
         let name = proxyNameQueryValue(query) ?? fragmentName
@@ -1506,6 +1555,7 @@ struct SubscriptionParser {
         if kind == .tuic, tuicUUID == nil || tuicPassword == nil {
             return nil
         }
+        if transport == "xhttp", !Self.xhttpExtraIsEmpty(query["extra"]) { return nil }
 
         return ProxyNode(
             sourceID: sourceID,
@@ -1881,6 +1931,14 @@ struct SubscriptionParser {
             // AmneziaWG changes the handshake; as plain WireGuard the node
             // would import cleanly and never connect.
             if kind == .wireguard, dictionary.keys.contains(where: Self.isAmneziaWireGuardKey) {
+                rejected += 1
+                continue
+            }
+            if normalizedTransport(dictionary["network"]) == "xhttp", !clashXHTTPOptionsAreExpressible(rawDictionary) {
+                rejected += 1
+                continue
+            }
+            if kind == .snell, !Self.snellModeIsDefault(dictionary["mode"]) {
                 rejected += 1
                 continue
             }

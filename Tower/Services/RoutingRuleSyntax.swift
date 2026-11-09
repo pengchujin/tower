@@ -102,9 +102,10 @@ enum RoutingRuleCapabilities {
     // stash.wiki/en/rules/rule-types. SRC-PORT and IN-PORT are not listed.
     static let stash: Set<String> = ["DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX", "GEOSITE", "IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP", "DST-PORT", "NETWORK", "PROTOCOL", "PROCESS-NAME", "PROCESS-PATH", "USER-AGENT", "URL-REGEX", "SRC-IP"]
     // nsloon.app/docs/Rule: domain, IP, HTTP, port (3.1.7+), protocol (3.1.7+)
-    // and logical (3.1.7+) rules. PROCESS-NAME, DOMAIN-WILDCARD, SRC-IP and
-    // SUBNET are not documented, so they are not written.
-    static let loon: Set<String> = ["DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "IP-CIDR6", "GEOIP", "IP-ASN", "URL-REGEX", "USER-AGENT", "SRC-PORT", "DEST-PORT", "PROTOCOL"]
+    // and logical (3.1.7+) rules; DOMAIN-WILDCARD since build 1008 (3.5.3).
+    // PROCESS-NAME, SRC-IP and SUBNET are not documented, so they are not
+    // written.
+    static let loon: Set<String> = ["DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "IP-CIDR", "IP-CIDR6", "GEOIP", "IP-ASN", "URL-REGEX", "USER-AGENT", "SRC-PORT", "DEST-PORT", "PROTOCOL"]
     static let loonProtocols: Set<String> = ["HTTP", "HTTPS", "TCP", "QUIC", "STUN", "UDP"]
     // Shadowrocket has no official reference; this follows the maintained
     // manual (github.com/LOWERTOP/Shadowrocket, 规则类型). PROTOCOL is valid
@@ -217,11 +218,14 @@ enum RoutingRuleCapabilities {
             // Neither client has a source-address form of an IP rule.
             guard !result.options.contains("src") else { return nil }
             switch result.type {
-            // Loon has no wildcard rule. `*.example.com` matches every
-            // subdomain but not example.com itself, so it becomes a suffix
-            // rule minus the apex (logical rules, Loon 3.1.7+): a bare suffix
-            // rule would also block or route the apex (CLAUDE.md #25). Any
-            // other pattern cannot be written without regular expressions.
+            // `*.example.com` matches every subdomain but not example.com
+            // itself, so it stays a suffix rule minus the apex (logical
+            // rules, Loon 3.1.7+), which older Loon builds also read; a bare
+            // suffix rule would also block or route the apex (CLAUDE.md #25).
+            // Other patterns use DOMAIN-WILDCARD (build 1008+, Loon 3.5.3),
+            // whose `*` and `?` match the whole host like Surge's glob.
+            // Loon's `[...]` classes have no counterpart in the source
+            // dialects, so a literal bracket is not passed through.
             case "DOMAIN-WILDCARD" where isLoon:
                 if !value.contains("*") && !value.contains("?") {
                     result.type = "DOMAIN"
@@ -231,7 +235,7 @@ enum RoutingRuleCapabilities {
                         children: [.init(type: "DOMAIN", value: apex, options: [])])
                     return .init(type: "AND", value: "", options: result.options,
                         children: [.init(type: "DOMAIN-SUFFIX", value: apex, options: []), notApex])
-                } else {
+                } else if value.contains("[") || value.contains("]") {
                     return nil
                 }
             case "DST-PORT", "DEST-PORT": result.type = isLoon ? "DEST-PORT" : "DST-PORT"

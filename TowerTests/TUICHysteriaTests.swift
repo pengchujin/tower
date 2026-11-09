@@ -976,10 +976,21 @@ final class MASQUEConnectIPTests: XCTestCase {
     func testSingBoxEndpointAndRoundTrip() throws {
         let parser = SubscriptionParser()
         let node = try XCTUnwrap(parser.parse(data: Data(json.utf8)).nodes.first)
+        // sing-box MT still runs 1.14, which rejects the whole profile on a
+        // `masque-client` endpoint, so no target takes this node by default.
         for target in ClientTarget.allCases {
             let result = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
-            XCTAssertEqual(result.supportedNodeCount, target == .singBox ? 1 : 0, target.name)
+            XCTAssertEqual(result.supportedNodeCount, 0, target.name)
             if target == .singBox {
+                XCTAssertEqual(result.skippedNodes.first?.reason, String(localized: "当前客户端不支持此协议。"))
+                XCTAssertFalse(result.content.contains("masque-client"))
+            }
+        }
+        // The 1.15 endpoint writer stays covered behind an explicit override.
+        for target in [ClientTarget.singBox] {
+            let result = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: target, supportedKindsOverride: Set(ProxyKind.allCases))
+            XCTAssertEqual(result.supportedNodeCount, 1, target.name)
+            do {
                 let root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(result.content.utf8)) as? [String: Any])
                 let endpoints = try XCTUnwrap(root["endpoints"] as? [[String: Any]])
                 XCTAssertEqual(endpoints.count, 1)
@@ -1009,7 +1020,8 @@ final class MASQUEConnectIPTests: XCTestCase {
         let parser = SubscriptionParser()
         let basic = try XCTUnwrap(parser.parse(data: Data(json.utf8)).nodes.first)
         let key = try XCTUnwrap(parser.parse(data: Data(yaml.utf8)).nodes.first)
-        let output = ConfigurationGenerator().generate(nodes: [basic, key], scheme: scheme, target: .singBox)
+        XCTAssertEqual(ConfigurationGenerator().generate(nodes: [basic, key], scheme: scheme, target: .singBox).supportedNodeCount, 0)
+        let output = ConfigurationGenerator().generate(nodes: [basic, key], scheme: scheme, target: .singBox, supportedKindsOverride: Set(ProxyKind.allCases))
         XCTAssertEqual(output.supportedNodeCount, 1)
         XCTAssertEqual(output.skippedNodeCount, 1)
         let root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.content.utf8)) as? [String: Any])

@@ -221,8 +221,9 @@ final class RuleImportFidelityTests: XCTestCase {
         // Every subdomain but not the apex, as the wildcard meant.
         XCTAssertTrue(loon.content.contains("AND,((DOMAIN-SUFFIX,ads.example),(NOT,((DOMAIN,ads.example)))),REJECT\n"), loon.content)
         XCTAssertTrue(loon.content.contains("DOMAIN,exact.example,Proxy\n"), loon.content)
-        XCTAssertFalse(loon.content.contains("ads-*"), loon.content)
-        XCTAssertTrue(loon.diagnostics.first?.contains("1 条拦截规则") == true, "\(loon.diagnostics)")
+        // Other globs use DOMAIN-WILDCARD (Loon 3.5.3, build 1008+).
+        XCTAssertTrue(loon.content.contains("DOMAIN-WILDCARD,ads-*.example.com,REJECT\n"), loon.content)
+        XCTAssertFalse(loon.diagnostics.contains { $0.contains("拦截规则") }, "\(loon.diagnostics)")
     }
 
     func testSingBoxSpellsOutIPASNFromTheBundledDatabase() throws {

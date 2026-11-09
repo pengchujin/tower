@@ -384,7 +384,7 @@
    - 严格保护下，直连列表的域名改为经代理向 `remote-cn` 查询，并带中国子网。这样不会发到国内 DNS，但仍然能拿到国内 CDN。
 3. **mihomo 系（含 Stash、Karing、Shadowrocket 的 Clash 格式）**：
    - 标准保护去掉 `fallback` / `fallback-filter`，`nameserver` 和 `proxy-server-nameserver` 只用国内 DoH。内置预设同步。
-   - 严格保护（Clash Mi / Verge / Mac / FlClash / Mihomo Party）：`nameserver` 改成远程列表里支持 ECS 的服务器，写法是 `…#<纯节点组>&ecs=114.114.114.0/24&ecs-override=true`，没有就用 Google。
+   - 严格保护（Clash / Clash Mi / Verge / Mac / FlClash / Clash Party）：`nameserver` 改成远程列表里支持 ECS 的服务器，写法是 `…#<纯节点组>&ecs=114.114.114.0/24&ecs-override=true`，没有就用 Google。
    - 严格保护下 `proxy-server-nameserver` 仍用国内 DoH，负责解析节点域名，避免先有鸡还是先有蛋。
    - Karing 没有文档说明支持 `#` 后缀，严格保护下仍按标准写。
 4. **「跟随方案」说明**补充了「Clash 系客户端会先在本机解析每个域名」。标准、严格模式的说明也按新行为重写。
@@ -405,7 +405,7 @@
   - 塔台当初全客户端统一加它，是因为 1.0.12 时 Surge 提示「IP 规则排在域名规则前面」，而且不加的话，列表外的域名会被拿去问本地 DNS。
   - 代价是列表外的国内网站会走代理。
 - **现在的做法**：只对「MATCH 前最后一条、由塔台自动加上 `no-resolve` 的 `GEOIP`」去掉 `no-resolve`，范围如下：
-  - 只限 mihomo 核心且支持 `#代理组` 的客户端：Clash Mi / Verge / Mac / FlClash / Mihomo Party。「Clash」App 与 Stash 共用同一份文档，不在其列。
+  - 只限 mihomo 核心且支持 `#代理组` 的客户端：Clash / Clash Mi / Verge / Mac / FlClash / Clash Party。「Clash」App 原先被当作与 Stash 同文档而排除；2026-11-09 核对 clash.md 后确认它是 mihomo 1.19.33 衍生内核、配置按原样运行，已并入。
   - 列表中间的 GEOIP、来源文件自己写了 `no-resolve` 的规则、Karing / Stash / Shadowrocket / Surge / Loon 都不变。
 - **配套 DNS 改动**：否则每个列表外的域名（包括国外的）都会被拿去问国内 DNS，等于泄露。
   - 标准保护的 `nameserver` 也改为经纯节点组、带中国子网的远程 DNS（和严格保护相同）。

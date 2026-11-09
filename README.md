@@ -44,7 +44,7 @@
 <img src="docs/images/clients/clash-verge.png" width="72" alt="Clash Verge">
 <img src="docs/images/clients/clashmac.png" width="72" alt="ClashMac">
 <img src="docs/images/clients/flclash.png" width="72" alt="FlClash">
-<img src="docs/images/clients/mihomo-party.png" width="72" alt="Mihomo Party">
+<img src="docs/images/clients/mihomo-party.png" width="72" alt="Clash Party">
 </p>
 
 **iPhone、iPad 及其他**

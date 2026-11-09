@@ -1,5 +1,25 @@
 # 当前交接
 
+## 未发布：按上游更新修正导出（2026-11-09）
+
+- 起因：用户要求按上游更新对照结果修改（本机报告在 `docs/reports/`，该目录不提交）。改动说明见 [CLIENT-COMPATIBILITY](CLIENT-COMPATIBILITY.md#上游更新对照修正2026-11-09未发布)。
+- sing-box MT 暂停 Basic CONNECT-IP（MASQUE），endpoint 写法保留，测试用 `supportedKindsOverride` 继续覆盖。
+- Loon `tls-profile` 只写合法值；Loon 放开 `DOMAIN-WILDCARD`。
+- Snell v6 非默认 `mode`、XHTTP 非空 `extra` / 多余 `xhttp-opts` 在解析时拒绝并计数（第 12 条）。
+- 「Clash」App（`.clashApple`）并入 `clashStrictDNSTargets`：严格保护写 `#组&ecs=…&ecs-override=true` 和 `direct-nameserver`，MATCH 前的 `GEOIP` 按 mihomo 规则处理。CLAUDE.md 第 25 条同步修改。依据 clash.md 的 DNS 页（配置按原样运行，只替换 system/dhcp）；2026-11-09 真机验收通过（见下）。
+- Egern 支持 SSR（2.21.0），字段与白名单照 Sub-Store；Egern 官方文档未写，需真机验收。
+- Mihomo Party 显示名改为 Clash Party，rawValue `mihomo-party` 与资源名不变。
+- 未做（需要内核或真机先验证）：Hiddify 5.5（sing-box 1.15 fork）放开 XHTTP / Snell / TrustTunnel 与 `http_clients`、Stash 3.6 的 Snell v4/v5 / REALITY / XHTTP / MASQUE、Clash App 的 `drawsIcons`、`dns.ipv6`、Stash Tailscale Key 可选。
+- 没有新增界面文案。
+- 验证：全量 TowerTests 1,378 项（8 跳过）零失败；两份 Clash 配置通过 mihomo 1.19.31 `-t`。已覆盖安装到 iPhone。
+- 真机验收（2026-11-09，用户确认全部通过）：用测试 VPS 的节点生成四份配置，在客户端里直接导入——「Clash」App 严格保护（`#组&ecs`）与标准保护均能正常上网、`DOMAIN-WILDCARD` 分流正确；Egern 导入 `shadowsocksr` 节点并连通；Loon 3.5.3 读取 `DOMAIN-WILDCARD`，`tls-profile=safari-ios18` / `chrome` 的 Reality 节点可连。测试文件已从服务器删除。
+
+## 未发布：上游客户端与协议发布渠道清单（2026-11-09）
+
+- 新增 `Scripts/upstream_sources.json`（18 个客户端、3 个内核、2 个参考转换器、16 个协议条目，共 64 项自动检查）和 `Scripts/check_upstream_updates.py`：自动查 App Store、GitHub Release（含滚动预发布）、Telegram 频道、TestFlight、Sparkle、文档页哈希，只报告变化。阅读版与渠道可信度说明见 [UPSTREAM_SOURCES](UPSTREAM_SOURCES.md)。
+- 调研发现「Clash」App 有独立文档 clash.md（基于 mihomo），与 CLAUDE.md 第 25 条「与 Stash 同文档」的说法不符，待复核；Mihomo Party 已改名 Clash Party。
+- 验证：`check_upstream_updates_test.py` 11 项通过；64 项全部实跑成功，页面哈希连续两次一致。
+
 ## 1.0.31（72）TestFlight 与 Mac 分发（2026-11-09）
 
 - 1.0.30 已在 App Store 上架（READY_FOR_DISTRIBUTION），按发布文档递增 MARKETING_VERSION。用户真机验证 iCloud 同步、#49、#50 和 Mac 调试版 #22 后要求推送 TestFlight 并更新 GitHub 版本。更新日志见 [1.0.31](releases/1.0.31.md)。

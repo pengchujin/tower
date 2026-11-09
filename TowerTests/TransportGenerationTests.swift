@@ -8,6 +8,46 @@ final class TransportGenerationTests: XCTestCase {
     private let generator = ConfigurationGenerator()
     private let uuid = "b831381d-6324-4d53-ad4f-8cda48b30811"
 
+    /// XHTTP `extra` (headers, padding, XMUX, split download) cannot be kept,
+    /// so such nodes are rejected; an empty `extra` is harmless.
+    func testXHTTPWithExtraSettingsIsRejected() throws {
+        let base = "vless://\(uuid)@x.example.com:443?security=tls&sni=x.example.com&type=xhttp&mode=auto&path=%2Fsplit"
+        XCTAssertNotNil(parser.parseURI(base + "#plain"))
+        XCTAssertNotNil(parser.parseURI(base + "&extra=%7B%7D#empty"))
+        let extra = "{\"xmux\":{\"maxConcurrency\":\"16-32\"}}".addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        XCTAssertNil(parser.parseURI(base + "&extra=\(extra)#xmux"))
+
+        let yaml = """
+        proxies:
+          - name: plain
+            type: vless
+            server: x.example.com
+            port: 443
+            uuid: \(uuid)
+            tls: true
+            network: xhttp
+            xhttp-opts:
+              path: /split
+              mode: auto
+              headers:
+                Host: x.example.com
+          - name: download
+            type: vless
+            server: x.example.com
+            port: 443
+            uuid: \(uuid)
+            tls: true
+            network: xhttp
+            xhttp-opts:
+              path: /split
+              download-settings:
+                path: /down
+        """
+        let result = parser.parse(data: Data(yaml.utf8))
+        XCTAssertEqual(result.nodes.map(\.name), ["plain"])
+        XCTAssertEqual(result.nodes.first?.transportMode, "auto")
+    }
+
     func testVLESSGRPCURIKeepsServiceNameAndAuthority() throws {
         let uri = "vless://\(uuid)@grpc.example.com:443?security=tls&type=grpc"
             + "&serviceName=tower.Telemetry&authority=edge.example.com#GRPC"

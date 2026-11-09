@@ -93,14 +93,38 @@ final class EgernGenerationTests: XCTestCase {
     }
 
     func testUnsupportedProtocolIsSkippedAndCounted() {
-        let ssr = ProxyNode(
-            kind: .shadowsocksR, name: "SSR", server: "s.example.com", port: 8388,
-            cipher: "aes-256-cfb", password: "pw", rawURI: "ssr://x"
+        let hysteria = ProxyNode(
+            kind: .hysteria, name: "HY1", server: "h.example.com", port: 443,
+            password: "pw", rawURI: "hysteria://x"
         )
-        let result = generator.generate(nodes: [ssr], preset: preset, target: .egern)
+        let result = generator.generate(nodes: [hysteria], preset: preset, target: .egern)
 
         XCTAssertEqual(result.supportedNodeCount, 0)
         XCTAssertEqual(result.skippedNodeCount, 1)
+    }
+
+    /// Egern 2.21 SSR, keys and whitelists as in Sub-Store's Egern producer.
+    func testShadowsocksRUsesEgernKeysAndOnlyStreamCiphers() {
+        let ssr = ProxyNode(
+            kind: .shadowsocksR, name: "SSR", server: "s.example.com", port: 8388,
+            cipher: "aes-256-cfb", password: "pw", protocolName: "auth_aes128_md5", protocolParam: "1:abc",
+            obfs: "tls1.2_ticket_auth", obfsParam: "cover.example.com", rawURI: "ssr://x"
+        )
+        let result = generator.generate(nodes: [ssr], preset: preset, target: .egern)
+        XCTAssertEqual(result.supportedNodeCount, 1)
+        for line in ["  - shadowsocksr:\n", "      method: \"aes-256-cfb\"\n", "      protocol: \"auth_aes128_md5\"\n",
+                     "      protocol_param: \"1:abc\"\n", "      obfs: \"tls1.2_ticket_auth\"\n",
+                     "      obfs_param: \"cover.example.com\"\n", "      udp_relay: true\n"] {
+            XCTAssertTrue(result.content.contains(line), line + result.content)
+        }
+        XCTAssertFalse(result.content.contains("skip_tls_verify"), result.content)
+
+        var aead = ssr; aead.cipher = "aes-256-gcm"
+        var oddProtocol = ssr; oddProtocol.protocolName = "auth_chain_d"
+        var oddObfs = ssr; oddObfs.obfs = "simple_obfs_http"
+        let skipped = generator.generate(nodes: [aead, oddProtocol, oddObfs], preset: preset, target: .egern)
+        XCTAssertEqual(skipped.supportedNodeCount, 0)
+        XCTAssertEqual(skipped.skippedNodeCount, 3)
     }
 
     func testHostileNodeNameCannotAddAProxyEntry() {

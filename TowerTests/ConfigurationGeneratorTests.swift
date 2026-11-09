@@ -50,19 +50,34 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
-    func testClashAppUsesTheSameClashYAMLDocumentAsStash() throws {
+    /// The "Clash" app reads the same proxies, groups and rules as Stash, but
+    /// its core is mihomo (clash.md), so DNS and the terminal GEOIP follow
+    /// the other mihomo apps: DNS through the node group with a Chinese
+    /// subnet, and GEOIP resolved before MATCH.
+    func testClashAppSharesStashYAMLExceptMihomoDNS() throws {
         let clashApp = try XCTUnwrap(ClientTarget(rawValue: "clash-apple"))
         let preset = RulePreset.builtIns[0]
         let generator = ConfigurationGenerator()
 
         let stash = generator.generate(nodes: nodes, preset: preset, target: .clash)
         let clash = generator.generate(nodes: nodes, preset: preset, target: clashApp)
+        let clashMi = generator.generate(nodes: nodes, preset: preset, target: .clashMi)
 
         XCTAssertTrue(clash.content.hasPrefix("# Generated locally by 塔台 for Clash"))
-        XCTAssertEqual(
-            clash.content.replacingOccurrences(of: "for Clash", with: "for Stash"),
-            stash.content
-        )
+        func section(_ text: String, from start: String) -> String {
+            guard let range = text.range(of: "\n" + start) else { return "" }
+            return String(text[range.lowerBound...])
+        }
+        func normalized(_ text: String) -> String {
+            section(text, from: "proxies:").replacingOccurrences(of: ",no-resolve", with: "")
+        }
+        XCTAssertFalse(normalized(clash.content).isEmpty)
+        XCTAssertEqual(normalized(clash.content), normalized(stash.content))
+        func dns(_ text: String) -> String? { section(text, from: "dns:").components(separatedBy: "\nproxies:").first }
+        XCTAssertEqual(dns(clash.content), dns(clashMi.content))
+        XCTAssertTrue(dns(clash.content)?.contains("&ecs=") == true, clash.content)
+        XCTAssertTrue(clash.content.contains("&ecs="), clash.content)
+        XCTAssertFalse(stash.content.contains("&ecs="), stash.content)
         XCTAssertEqual(clash.supportedNodeCount, stash.supportedNodeCount)
         XCTAssertEqual(clash.skippedNodeCount, stash.skippedNodeCount)
         XCTAssertEqual(clash.ruleCount, stash.ruleCount)

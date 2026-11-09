@@ -51,6 +51,13 @@ final class NodeExportParityTests: XCTestCase {
         let trojan = try node("trojan://pw@t.example.com:443?security=reality&sni=www.apple.com&pbk=k4Uxez0sjl8bKaZH2Vgi8-WDFshML51QkxKFLWFIONk&sid=0123abcd&fp=chrome#trojan-reality")
         XCTAssertTrue(nodes(trojan, .loon).content.contains("tls-profile=chrome"))
         let vless = try node("vless://23ad6b10-8d1a-40f7-8ad0-e3e35cd32291@r.example.com:443?security=reality&sni=www.apple.com&pbk=k4Uxez0sjl8bKaZH2Vgi8-WDFshML51QkxKFLWFIONk&sid=0123abcd&fp=safari&type=tcp#vless-reality")
-        XCTAssertTrue(nodes(vless, .loon).content.contains("tls-profile=safari"))
+        XCTAssertTrue(nodes(vless, .loon).content.contains("tls-profile=safari-ios18"))
+        // Loon documents no Firefox / Edge profile, so the field is omitted.
+        for fp in ["firefox", "edge", "random"] {
+            let other = try node("vless://23ad6b10-8d1a-40f7-8ad0-e3e35cd32291@r.example.com:443?security=reality&sni=www.apple.com&pbk=k4Uxez0sjl8bKaZH2Vgi8-WDFshML51QkxKFLWFIONk&sid=0123abcd&fp=\(fp)&type=tcp#vless-\(fp)")
+            let content = nodes(other, .loon).content
+            XCTAssertEqual(nodes(other, .loon).supportedNodeCount, 1, fp)
+            XCTAssertFalse(content.contains("tls-profile="), fp)
+        }
     }
 }
