@@ -1131,6 +1131,24 @@ struct RuleSchemeCustomization: Codable, Hashable {
         self.overridesNetworkSettings = overridesNetworkSettings
     }
 
+    /// Written by hand only to sort `removedGroupNames`: `JSONEncoder` writes a
+    /// `Set` in hash order, which changes from one decode to the next, and
+    /// iCloud sync compares the encoded snapshots, so two identical states
+    /// looked like a conflict forever (issue #49). Keep every key here.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemeID, forKey: .schemeID)
+        try container.encodeIfPresent(addedNodeGroups, forKey: .addedNodeGroups)
+        try container.encode(groupOrder, forKey: .groupOrder)
+        try container.encodeIfPresent(rulePriorityOrder, forKey: .rulePriorityOrder)
+        try container.encodeIfPresent(matchingOrder, forKey: .matchingOrder)
+        try container.encode(groupOverrides, forKey: .groupOverrides)
+        try container.encodeIfPresent(groupRenames, forKey: .groupRenames)
+        try container.encodeIfPresent(removedGroupNames?.sorted(), forKey: .removedGroupNames)
+        try container.encodeIfPresent(networkSettingsOverride, forKey: .networkSettingsOverride)
+        try container.encodeIfPresent(overridesNetworkSettings, forKey: .overridesNetworkSettings)
+    }
+
     func renamedGroupName(_ name: String) -> String {
         groupRenames?[name] ?? name
     }

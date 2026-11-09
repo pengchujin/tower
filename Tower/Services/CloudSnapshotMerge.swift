@@ -208,6 +208,13 @@ enum CloudSnapshotMerge {
             if bootstrap { return ls.union(rs).sorted() }
             return ls.intersection(rs).union(ls.subtracting(bs)).union(rs.subtracting(bs)).sorted()
         }
+        // A set of deleted policy groups: two devices deleting different groups
+        // both win, and a group restored on one side stays restored.
+        if key == "removedGroupNames", l is [String] || r is [String] {
+            let ls = Set(l as? [String] ?? []), rs = Set(r as? [String] ?? []), bs = Set(b as? [String] ?? [])
+            if bootstrap { return ls.union(rs).sorted() }
+            return ls.intersection(rs).union(ls.subtracting(bs)).union(rs.subtracting(bs)).sorted()
+        }
         if same(l, r) { return l }
         if !bootstrap {
             if same(l, b) { return r }

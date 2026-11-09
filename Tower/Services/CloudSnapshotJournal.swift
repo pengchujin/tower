@@ -39,12 +39,19 @@ struct CloudSnapshotJournal {
         var result: [String: Commit] = [:]
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         var listed = Set<String>()
+        // Ask for every missing file before giving up. Stopping at the first
+        // one fetched a single file per sync: with hundreds of records the
+        // history never finished downloading and every sync said so.
+        var missing = false
         for file in files {
             if file.pathExtension == "icloud" {
                 let name = file.deletingPathExtension().lastPathComponent
+                // Not part of the history; `compactedIDs` fetches it when needed.
+                guard name != ".compacted.txt" else { continue }
                 let target = directory.appendingPathComponent(name.hasPrefix(".") ? String(name.dropFirst()) : name)
                 try FileManager.default.startDownloadingUbiquitousItem(at: target)
-                throw CloudSyncError.downloading
+                missing = true
+                continue
             }
             guard ["json", "pruned"].contains(file.pathExtension) else { continue }
             let stamp = CloudCommitCache.Stamp(file)
@@ -53,7 +60,7 @@ struct CloudSnapshotJournal {
             if let cached = CloudCommitCache.shared.commit(at: file.path, stamp: stamp) {
                 commit = cached
             } else {
-                try Self.requireDownloaded(file)
+                guard try Self.startDownloadIfNeeded(file) else { missing = true; continue }
                 commit = try decoder.decode(Commit.self, from: Data(contentsOf: file))
                 guard UUID(uuidString: commit.id) != nil, file.deletingPathExtension().lastPathComponent == commit.id else { throw CloudSyncError.conflict }
                 CloudCommitCache.shared.store(commit, at: file.path, stamp: stamp)
@@ -63,18 +70,32 @@ struct CloudSnapshotJournal {
                 result[commit.id] = commit
             }
         }
+        if missing { throw CloudSyncError.downloading }
         CloudCommitCache.shared.retain(only: listed, in: directory.path)
+        let dangling = Set(result.values.flatMap(\.parents).filter { result[$0] == nil })
+        guard !dangling.isEmpty else { return result }
+        // A parent that `compact` deleted is history, not a file in transit:
+        // a device that stayed offline across a compaction still names it.
+        let deleted = try compactedIDs()
         // Missing parents may simply still be travelling through iCloud.
-        guard result.values.allSatisfy({ $0.parents.allSatisfy { result[$0] != nil } }) else { throw CloudSyncError.downloading }
+        guard dangling.isSubset(of: deleted) else { throw CloudSyncError.downloading }
+        // Stand-ins with no payload and no parents, like a compacted root:
+        // `snapshot` then treats the branch as one that needs a choice.
+        for id in dangling { result[id] = Commit(id: id, parents: [], snapshot: nil) }
         return result
     }
 
     static func requireDownloaded(_ file: URL) throws {
+        guard try startDownloadIfNeeded(file) else { throw CloudSyncError.downloading }
+    }
+
+    /// True when the file's content is on this device; otherwise asks iCloud
+    /// for it and returns false.
+    static func startDownloadIfNeeded(_ file: URL) throws -> Bool {
         let values = try file.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey])
-        if values.isUbiquitousItem == true, values.ubiquitousItemDownloadingStatus != .current {
-            try FileManager.default.startDownloadingUbiquitousItem(at: file)
-            throw CloudSyncError.downloading
-        }
+        guard values.isUbiquitousItem == true, values.ubiquitousItemDownloadingStatus != .current else { return true }
+        try FileManager.default.startDownloadingUbiquitousItem(at: file)
+        return false
     }
 
     func heads(_ commits: [String: Commit]) -> [String] {
@@ -89,9 +110,19 @@ struct CloudSnapshotJournal {
             return nil
         }
         guard var merged = commits[first]?.snapshot else { throw CloudSyncError.conflict }
-        var common = try ancestors(first, commits: commits)
+        let firstAncestors = try ancestors(first, commits: commits)
+        var common = firstAncestors
         for id in ids.dropFirst() {
-            common.formIntersection(try ancestors(id, commits: commits))
+            let other = try ancestors(id, commits: commits)
+            // Branches with nothing in common that reach a record whose
+            // payload and links were cut away (`prune`, then `compact`) are
+            // not two devices' first syncs but a device offline across a
+            // compaction. Bootstrapping could resurrect deletions.
+            if common.isDisjoint(with: other),
+               firstAncestors.union(other).contains(where: { commits[$0]?.snapshot == nil && commits[$0]?.parents.isEmpty == true }) {
+                throw CloudSyncError.conflict
+            }
+            common.formIntersection(other)
             // A common ancestor closest to the heads is a shared baseline.
             let closest = closestAncestors(in: common, commits: commits)
             guard closest.count <= 1 else { throw CloudSyncError.conflict }
@@ -206,12 +237,98 @@ struct CloudSnapshotJournal {
             if let error { throw error }
             if let deletionError { throw deletionError }
         }
+        // Housekeeping: the version is already written, and a compaction
+        // that cannot finish now (list still downloading) runs next time.
+        try? compact()
+    }
+
+    /// History size at which `compact` runs, and the generations it keeps
+    /// beyond the oldest retained version.
+    static let compactionThreshold = 60
+    static let compactionSlack = 20
+    /// Ids `compact` deleted, newest last; older ones are forgotten.
+    static let compactedIDLimit = 5000
+    private var compactedURL: URL { directory.appendingPathComponent("compacted.txt") }
+
+    /// Deletes pruning markers far behind every retained version.
+    ///
+    /// `prune` keeps each record's id and parent links so heads stay heads,
+    /// which used to mean one more file per sync forever: 518 files by
+    /// 2026-11, each to be downloaded before a sync could read the history,
+    /// and iCloud evicts them again. Records closer to a head than the
+    /// oldest retained version plus `compactionSlack` stay; older ones go.
+    /// Order matters for devices reading mid-way: deleted ids are recorded
+    /// first (see `commits`), then the records left on the edge drop their
+    /// links to them, so a reader — this build or an older one — never
+    /// sees a parent that is neither present nor known to be deleted.
+    func compact() throws {
+        let records = try commits()
+        guard records.count > Self.compactionThreshold else { return }
+        var depth: [String: Int] = [:]
+        var queue = heads(records)
+        for id in queue { depth[id] = 0 }
+        var index = 0
+        while index < queue.count {
+            let id = queue[index]; index += 1
+            for parent in records[id]?.parents ?? [] where depth[parent] == nil && records[parent] != nil {
+                depth[parent] = depth[id]! + 1
+                queue.append(parent)
+            }
+        }
+        let retained = records.values.filter { $0.snapshot != nil }.compactMap { depth[$0.id] }.max() ?? 0
+        let limit = retained + Self.compactionSlack
+        let removed = Set(records.keys.filter { (depth[$0] ?? .max) > limit })
+        guard !removed.isEmpty else { return }
+
+        // Throws while the list is still downloading: rewriting it from
+        // nothing would forget ids an offline device may still name.
+        var known = try compactedIDs()
+        var lines = (try? String(contentsOf: compactedURL, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? []
+        for id in removed.sorted() where known.insert(id).inserted { lines.append(id) }
+        try writeData(Data(lines.suffix(Self.compactedIDLimit).joined(separator: "\n").utf8), to: compactedURL)
+
+        for record in records.values where !removed.contains(record.id) && record.parents.contains(where: removed.contains) {
+            // Only markers sit at the edge: every full version is shallower.
+            let trimmed = Commit(id: record.id, parents: record.parents.filter { !removed.contains($0) }, snapshot: record.snapshot)
+            try write(trimmed, extension: record.snapshot == nil ? "pruned" : "json")
+        }
+        for id in removed {
+            for suffix in ["pruned", "json"] {
+                let url = directory.appendingPathComponent(id + "." + suffix)
+                var error: NSError?
+                var deletionError: Error?
+                NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &error) { target in
+                    do {
+                        if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+                    } catch { deletionError = error }
+                }
+                if let error { throw error }
+                if let deletionError { throw deletionError }
+            }
+        }
+    }
+
+    /// Ids deleted by `compact`, read only when a parent is missing.
+    private func compactedIDs() throws -> Set<String> {
+        guard FileManager.default.fileExists(atPath: compactedURL.path) else {
+            let placeholder = directory.appendingPathComponent(".compacted.txt.icloud")
+            if FileManager.default.fileExists(atPath: placeholder.path) {
+                try FileManager.default.startDownloadingUbiquitousItem(at: compactedURL)
+                throw CloudSyncError.downloading
+            }
+            return []
+        }
+        try Self.requireDownloaded(compactedURL)
+        let text = try String(contentsOf: compactedURL, encoding: .utf8)
+        return Set(text.split(whereSeparator: \.isNewline).map(String.init))
     }
 
     private func write(_ record: Commit, extension suffix: String) throws {
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(record)
-        let target = directory.appendingPathComponent(record.id + "." + suffix)
+        try writeData(try encoder.encode(record), to: directory.appendingPathComponent(record.id + "." + suffix))
+    }
+
+    private func writeData(_ data: Data, to target: URL) throws {
         var coordinationError: NSError?
         var writeError: Error?
         NSFileCoordinator().coordinate(writingItemAt: target, options: [], error: &coordinationError) { url in
@@ -227,8 +344,9 @@ struct CloudSnapshotJournal {
 ///
 /// Every record file is written once under a unique id — pruning writes a
 /// separate `.pruned` marker rather than rewriting — so a file with the same
-/// path, date and size has the same content. A sync used to list and fully
-/// decode the whole journal four or five times (download, commit, prune),
+/// path, date and size has the same content. The one rewrite, `compact`
+/// dropping parent links, makes the file shorter and so changes its stamp.
+/// A sync used to list and fully decode the whole journal four or five times (download, commit, prune),
 /// including ten complete snapshots and every pruning marker, and asked iCloud
 /// for each file's download status: about 1.5 s of CPU per sync on device
 /// (2026-09-27). Only new files are read now.

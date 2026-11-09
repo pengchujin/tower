@@ -226,4 +226,109 @@ final class CloudSnapshotMergeTests: XCTestCase {
         ]
         XCTAssertEqual(try journal.ancestors(head, commits: records), [root, left, right, head])
     }
+
+    // Issue #49: a Set encodes in hash order, which differs per decode, so an
+    // unchanged snapshot with several deleted groups looked like a conflict.
+    private func withRemovedGroups(_ names: Set<String>) -> AppSnapshot {
+        var snapshot = fixture()
+        snapshot.ruleSchemeCustomizations = ["scheme": RuleSchemeCustomization(schemeID: "scheme", removedGroupNames: names)]
+        return snapshot
+    }
+
+    private func roundTrip(_ snapshot: AppSnapshot) throws -> AppSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AppSnapshot.self, from: CloudSnapshotMerge.data(snapshot))
+    }
+
+    func testRemovedGroupNamesEncodeInStableOrder() throws {
+        let names = Set((1...10).map { "Group \($0)" })
+        let original = withRemovedGroups(names)
+        let data = try CloudSnapshotMerge.data(original)
+        for _ in 0..<30 {
+            let copy = try roundTrip(original)
+            XCTAssertEqual(try CloudSnapshotMerge.data(copy), data)
+            XCTAssertTrue(CloudSnapshotMerge.equal(copy, original))
+            XCTAssertTrue(CloudSnapshotMerge.sameContent(copy, original))
+        }
+        let object = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let customization = (object["ruleSchemeCustomizations"] as! [String: Any])["scheme"] as! [String: Any]
+        XCTAssertEqual(customization["removedGroupNames"] as? [String], names.sorted())
+    }
+
+    func testUnchangedRemovedGroupNamesMergeWithoutConflict() throws {
+        let snapshot = withRemovedGroups(Set((1...10).map { "Group \($0)" }))
+        for _ in 0..<20 {
+            let merged = try CloudSnapshotMerge.merge(local: try roundTrip(snapshot), remote: try roundTrip(snapshot), base: try roundTrip(snapshot))
+            XCTAssertEqual(merged.ruleSchemeCustomizations?["scheme"]?.removedGroupNames, snapshot.ruleSchemeCustomizations?["scheme"]?.removedGroupNames)
+        }
+    }
+
+    func testRemovedGroupNamesMergeAsSet() throws {
+        let base = withRemovedGroups(["A", "B"])
+        let local = withRemovedGroups(["A", "B", "C"])   // deleted C here
+        let remote = withRemovedGroups(["B", "D"])       // restored A, deleted D there
+        let merged = try CloudSnapshotMerge.merge(local: local, remote: remote, base: base)
+        XCTAssertEqual(merged.ruleSchemeCustomizations?["scheme"]?.removedGroupNames, ["B", "C", "D"])
+        let first = try CloudSnapshotMerge.merge(local: local, remote: remote, base: nil)
+        XCTAssertEqual(first.ruleSchemeCustomizations?["scheme"]?.removedGroupNames, ["A", "B", "C", "D"])
+    }
+
+    // 2026-11: pruning markers were never deleted, so a history of 518 files
+    // had to be downloaded in full before every sync ("尚未下载完成").
+    private func syncedHistory(_ count: Int, in dir: URL) throws -> (CloudSnapshotJournal, [String]) {
+        let journal = CloudSnapshotJournal(directory: dir)
+        var heads: [String] = []
+        for index in 0..<count {
+            var snapshot = fixture(); snapshot.configurationName = "Version \(index)"
+            snapshot.updatedAt = Date(timeIntervalSince1970: 1000 + Double(index))
+            try journal.append(snapshot, parents: journal.heads(try journal.commits()))
+            try journal.prune()
+            heads.append(contentsOf: journal.heads(try journal.commits()))
+        }
+        return (journal, heads)
+    }
+
+    func testCompactionKeepsTheHistoryBounded() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let (journal, _) = try syncedHistory(90, in: dir)
+        let records = try journal.commits()
+        XCTAssertLessThanOrEqual(records.count, CloudSnapshotJournal.compactionThreshold)
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".json") || $0.hasSuffix(".pruned") }
+        XCTAssertLessThanOrEqual(files.count, CloudSnapshotJournal.compactionThreshold)
+        // Every remaining link resolves without help from the deleted list,
+        // so a build without compaction reads this history too.
+        XCTAssertTrue(records.values.allSatisfy { $0.parents.allSatisfy { records[$0] != nil } })
+        XCTAssertEqual(journal.heads(records).count, 1)
+        XCTAssertEqual(try journal.snapshot(records)?.configurationName, "Version 89")
+        XCTAssertEqual(records.values.filter { $0.snapshot != nil }.count, CloudSnapshotJournal.retentionLimit)
+    }
+
+    func testDeviceOfflineAcrossCompactionStillSyncs() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let (journal, heads) = try syncedHistory(90, in: dir)
+        let stale = heads[0]
+        XCTAssertNil(try journal.commits()[stale])
+        // The offline device names the head it last saw, long since deleted.
+        var offline = fixture(); offline.configurationName = "Offline"
+        try journal.append(offline, parents: [stale])
+        // Readable, not "still downloading" forever…
+        let records = try journal.commits()
+        XCTAssertEqual(journal.heads(records).count, 2)
+        // …and, like a branch from a pruned version, a choice for the user.
+        XCTAssertThrowsError(try journal.snapshot(records)) { XCTAssertEqual($0 as? CloudSyncError, .conflict) }
+        // Choosing one, as recovery does, joins the branches again.
+        try journal.append(offline, parents: journal.heads(records))
+        XCTAssertEqual(try journal.snapshot(try journal.commits())?.configurationName, "Offline")
+    }
+
+    func testUnknownMissingParentIsStillInTransit() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let (journal, _) = try syncedHistory(3, in: dir)
+        try journal.append(fixture(), parents: [UUID().uuidString])
+        XCTAssertThrowsError(try journal.commits()) { XCTAssertEqual($0 as? CloudSyncError, .downloading) }
+    }
 }
