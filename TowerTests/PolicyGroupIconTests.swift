@@ -228,6 +228,12 @@ final class PolicyGroupIconTests: XCTestCase {
         XCTAssertTrue(mihomo.contains("  - name: \"🚀 节点选择\""))
         XCTAssertTrue(mihomo.contains("    icon: \"https://"))
         XCTAssertTrue(generate(scheme, .clashVerge).contains("  - name: \"节点选择\""))
+        // The Clash app draws `icon` since iOS 1.0.7 / macOS 1.0.10.
+        let clashApp = generate(scheme, .clashApple)
+        XCTAssertTrue(clashApp.contains("  - name: \"节点选择\""), clashApp)
+        XCTAssertFalse(clashApp.contains("🚀 节点选择"), clashApp)
+        XCTAssertTrue(clashApp.contains("    icon: \"https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@"), clashApp)
+        XCTAssertTrue(clashApp.contains("  - name: \"🇭🇰 香港节点\""), clashApp)
 
         // No icon field anywhere else: names keep their emoji.
         for target in [ClientTarget.shadowrocket, .singBox, .hiddify, .karing] {

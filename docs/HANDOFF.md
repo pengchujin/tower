@@ -1,5 +1,11 @@
 # 当前交接
 
+## 未发布：「Clash」App 显示策略组图标（2026-11-09）
+
+- 依据：Clash iOS 1.0.7 / macOS 1.0.10 更新说明「策略组可以填图标地址，编辑器和代理页都会显示分组图标」，1.0.14 修复开图标后节点名被截断。
+- `.clashApple` 加入 `PolicyGroupIconSupport.drawsIcons`：写 `icon`，组名去掉重复 Emoji，地区组保留国旗并写圆形国旗图标（CLAUDE.md 第 6 条）。
+- 验证：PolicyGroupIconTests 等 4 个测试类 76 项通过。**待真机确认**图标显示；不显示就从 `drawsIcons` 移除。
+
 ## 未发布：按上游更新修正导出（2026-11-09）
 
 - 起因：用户要求按上游更新对照结果修改（本机报告在 `docs/reports/`，该目录不提交）。改动说明见 [CLIENT-COMPATIBILITY](CLIENT-COMPATIBILITY.md#上游更新对照修正2026-11-09未发布)。

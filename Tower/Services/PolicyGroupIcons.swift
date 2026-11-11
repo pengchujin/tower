@@ -89,9 +89,11 @@ struct PolicyGroupIconCatalog: Sendable {
 
 /// Clients that take an icon for a policy group, and those of them that are
 /// known to draw it, so the group's name can drop its emoji (CLAUDE.md #6).
-/// Surge: `icon-url` (Mac 6.5+, also parsed by iOS 5.17); Stash and the Clash
-/// app: `icon`; mihomo: `icon`, drawn by Clash Verge Rev, unconfirmed in the
-/// others, which keep the emoji; Quantumult X and Loon: `img-url`; Egern: `icon`.
+/// Surge: `icon-url` (Mac 6.5+, also parsed by iOS 5.17); Stash: `icon`; the
+/// Clash app: `icon`, drawn in its editor and proxy page since iOS 1.0.7 /
+/// macOS 1.0.10 (release notes; name truncation with icons fixed in 1.0.14);
+/// mihomo: `icon`, drawn by Clash Verge Rev, unconfirmed in the others, which
+/// keep the emoji; Quantumult X and Loon: `img-url`; Egern: `icon`.
 /// Quantumult X drew none of the 256px Fluent images on a device, from jsDelivr
 /// or raw.githubusercontent.com, so it gets its own 144px set on pale circles
 /// (`PolicyGroupIconCatalog.circleURL`), and SF Symbols (`img-url=<name>.system`)
@@ -101,7 +103,7 @@ enum PolicyGroupIconSupport {
         .surge, .surgeMac, .clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi,
         .quanx, .loon, .egern
     ]
-    static let drawsIcons: Set<ClientTarget> = [.surge, .surgeMac, .clash, .clashVerge, .quanx, .loon, .egern]
+    static let drawsIcons: Set<ClientTarget> = [.surge, .surgeMac, .clash, .clashApple, .clashVerge, .quanx, .loon, .egern]
     static let parameterKey = "tower-icon"
     static let circleIcons: Set<ClientTarget> = [.quanx]
     /// Surge already draws the flag a region group's name starts with in the
