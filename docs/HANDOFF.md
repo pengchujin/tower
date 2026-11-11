@@ -4,6 +4,10 @@
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。纳入下方「按上游更新修正导出」与「Clash App 显示策略组图标」。更新日志见 [1.0.31](releases/1.0.31.md)。
 - 发布前全量 TowerTests 1,378 项（8 跳过）零失败；ACL4SSR 已是上游最新（`bdc102f`）。
+- 本机 M4 用 asc 归档两端，核对 `com.jzb.tower` 1.0.31（73），Mac 为 arm64 / x86_64；`Config/release.local.sh` 没填团队，本次从上一版发布目录的 `NotarizeOptions.plist` 读取，只放在进程变量里。asc 上传两端，Apple 处理均为 VALID，已加入外部组「测试」并提交 Beta 审核（WAITING_FOR_REVIEW）。私有归档与日志在 `~/Builds/Tower-1.0.31-73/`。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.31-73](https://github.com/pengchujin/tower/releases/tag/v1.0.31-73)（tag 指向 `267b1c2`）已公开并设为 Latest，回下载 SHA-256 一致：`3acfa6016d67820f1472d2fcaa027ea78f65edc790c39436293d425ad94dde8e`。
+- README 下载入口改为 v1.0.31-73；Homebrew cask 更新为 1.0.31,73，`brew style` / `brew audit` 通过。本机 `brew upgrade --cask` 后为 1.0.31（73），严格签名、Gatekeeper、公证票据通过，保留隔离标记，可启动。
+- 待用户确认：「Clash」App 策略组图标真机显示（见 TODO）。
 
 ## 未发布：「Clash」App 显示策略组图标（2026-11-09）
 
