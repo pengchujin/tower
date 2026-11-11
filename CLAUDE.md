@@ -49,7 +49,7 @@
 
 ## 开发入口
 
-构建、测试、本地化、真机安装命令统一维护在 [DEVELOPMENT](docs/DEVELOPMENT.md)。更新资源须核对 manifest / NOTICE、哈希与测试，规则发布见 [RELEASING](docs/RELEASING.md)。
+构建、测试、本地化、真机安装命令统一维护在 [DEVELOPMENT](docs/DEVELOPMENT.md)。更新资源须核对 manifest / NOTICE、哈希与测试，规则发布见 [RELEASING](docs/RELEASING.md)。客户端、内核与协议的上游更新用 `Scripts/check_upstream_updates.py` 检查，维护流程见 [UPSTREAM_SOURCES](docs/UPSTREAM_SOURCES.md#维护流程)，待处理项在 [TODO](docs/TODO.md)。
 
 ## 改动验收
 

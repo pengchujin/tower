@@ -192,11 +192,13 @@ def parse_telegram(page: bytes) -> dict[str, Any]:
 
 def parse_testflight(page: bytes) -> dict[str, Any]:
     text = page.decode("utf-8", "replace")
-    if "This beta is full" in text:
+    # Apple localizes the page by region, so match English and Chinese.
+    if "This beta is full" in text or "测试员已满" in text:
         status = "full"
-    elif "isn't accepting any new testers" in text or "is not accepting any new testers" in text:
+    elif ("isn't accepting any new testers" in text or "is not accepting any new testers" in text
+          or "不接受任何新测试员" in text or "不接受新的测试员" in text):
         status = "closed"
-    elif "Join the" in text or "To join the" in text:
+    elif "Join the" in text or "To join the" in text or "加入 Beta 版" in text:
         status = "open"
     else:
         status = "unknown"
@@ -287,6 +289,9 @@ def describe_change(watch: dict[str, Any], old: dict[str, Any] | None, new: dict
 def changed(watch: dict[str, Any], old: dict[str, Any] | None, new: dict[str, Any]) -> bool:
     if old is None:
         return True
+    # An unrecognized TestFlight page is not a status change.
+    if watch["type"] == "testflight" and new.get("version") == "unknown":
+        return False
     if watch["type"] == "github" and not watch.get("tag"):
         return old.get("version") != new.get("version") or old.get("prerelease") != new.get("prerelease")
     return old.get("version") != new.get("version")
@@ -332,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
             source, watch = futures[future]
             try:
                 outcome: dict[str, Any] | Exception = future.result()
-            except (urllib.error.URLError, ValueError, KeyError, json.JSONDecodeError, TimeoutError) as error:
+            except (OSError, ValueError, KeyError) as error:  # OSError covers URLError and socket timeouts
                 outcome = error
             results[watch_key(source, watch)] = (source, watch, outcome)
 
@@ -349,6 +354,8 @@ def main(argv: list[str] | None = None) -> int:
         if changed(watch, old, outcome) or args.all:
             if not (first_run and not args.all):
                 sections.setdefault(label, []).extend(describe_change(watch, old, outcome))
+        if watch["type"] == "testflight" and outcome.get("version") == "unknown" and old:
+            continue  # keep the last recognized status
         state[key] = {**compact(watch, outcome), "checked": today}
 
     out = [f"# 上游更新检查 {today}", ""]

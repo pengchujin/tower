@@ -85,6 +85,10 @@ class CheckUpstreamUpdatesTests(unittest.TestCase):
         self.assertEqual(upstream.parse_testflight(b"<p>This beta is full.</p>")["version"], "full")
         self.assertEqual(upstream.parse_testflight(b"<p>This beta isn't accepting any new testers right now.</p>")["version"], "closed")
         self.assertEqual(upstream.parse_testflight(b"<h1>Join the Loon beta</h1>")["version"], "open")
+        self.assertEqual(upstream.parse_testflight("<title>加入 Beta 版“Karing”</title><p>此 Beta 版本的测试员已满。</p>".encode())["version"], "full")
+        self.assertEqual(upstream.parse_testflight("<h1>加入 Beta 版“Hiddify”</h1>".encode())["version"], "open")
+        watch = {"type": "testflight", "url": "u"}
+        self.assertFalse(upstream.changed(watch, {"version": "full"}, {"version": "unknown"}))
 
     def test_page_hash_ignores_scripts_and_whitespace(self) -> None:
         a = upstream.parse_page(b"<p>Hello   world</p><script>var t=1</script>")

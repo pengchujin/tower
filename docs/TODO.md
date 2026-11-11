@@ -1,11 +1,41 @@
 # 待办与待验证
 
+## 上游更新待处理（2026-11-09）
+
+来自 `Scripts/check_upstream_updates.py` 的对照，流程见 [UPSTREAM_SOURCES](UPSTREAM_SOURCES.md#维护流程)。已修的见 HANDOFF「按上游更新修正导出」。
+
+### 需要先用新内核或真机验证
+
+- [ ] **Hiddify 5.5**（正式）：内核换成 hiddify 的 sing-box 1.15 fork，塔台注释和文档仍按 1.13。用 hiddify-sing-box `check` 复验整份导出，再逐项决定：放开 VLESS XHTTP、Snell、TrustTunnel；规则集下载从已弃用的 `download_detour` 改为 `http_clients`；评估接上 `SingBoxDNSPolicy`。
+- [ ] **Stash iOS 3.6.5**（正式）：Snell v4/v5、Trojan/VMess REALITY、VLESS REALITY + ws/h2、XHTTP、VLESS Encryption、SSH host-key、MASQUE 复测。**Stash Mac 正式版仍是 4.2**，`.clash` 同时覆盖两端，放开前要么等 Mac 4.3，要么加版本偏好。
+- [ ] **「Clash」App 策略组图标**（1.0.7+ 正式）：2026-11-09 已按更新说明加入 `PolicyGroupIconSupport.drawsIcons`，组名不再带 Emoji（地区组保留国旗）。**待真机确认**图标确实显示；不显示就撤回。
+- [ ] **mihomo 系 `dns.ipv6`**：clash.md 写明默认 false；开 IPv6 时应同时写 `dns: ipv6: true`。
+- [ ] **Stash Tailscale Auth Key 可选**（3.4+ 支持 Web 登录）：改动涉及 CLAUDE.md 第 24 条，先确认。
+- [ ] **mihomo `load-balance` 的 `hash-key`**：导入方案还原时透传。
+
+### 等正式版或文档
+
+- [ ] sing-box 1.15 稳定且 sing-box MT 跟进后：把 `ClientTarget.singBoxSupportsMASQUE` 改为 true；TUN 不再写 `stack`；`certificate_sha256` 放开带证书指纹的节点；实测 HTTP 出站默认 HTTP/2 的回退。
+- [ ] Snell v6 `mode`：现在拒绝非默认值。需要时给 `ProxyNode` 建模并写给 Surge（`mode=`），Clash App / Stash 也有 v6 字段。
+- [ ] Egern 2.21 的 SRC-IP 规则和 Tailscale 代理：等官方文档公开 YAML 字段；Tailscale 按 CLAUDE.md 第 24 条评估。
+- [ ] Karing 1.2.26（目前只在 GitHub 预发布）：上 App Store 后测 mihomo 写法的 Tailscale 和 MASQUE 方言。
+- [ ] Stash TestFlight：`SRC-PORT`、`REJECT-NO-DROP`、StashLink 中继、Tailscale 对等中继。
+- [ ] Surge 策略组 `category`（5.23 / Mac 6.10 正式）：会改变面板分组展示，和第 26 条的 `groupOrder` 一起评估，先问用户。
+- [ ] 新协议（mieru、sudoku、EasyTier、AmneziaWG 等）：目前解析时跳过，属于新功能。
+
+### 只需写进兼容文档
+
+- [ ] Clash Verge / FlClash 的 TUN 以客户端设置为准；Verge / Clash Party 的「DNS 覆写保护」会先弹确认，可能挡掉塔台写的 DNS 段。
+- [ ] Clash App 在 Mac 上也注册了 `flclash://`，同时装两个 App 时给 FlClash 的一键导入可能打开 Clash。
+- [ ] Surge：Snell v6 最低版本（iOS 5.20.0 / Mac 6.7.0，协议仍为 beta）、HTTP/2 CONNECT `udp-relay`、`server-cert-verify-name`。
+- [ ] ClashMac 的 Sparkle 源地址：从安装包 `Info.plist` 读 `SUFeedURL` 后补进清单。
+
 ## 策略组图标（2026-10-19，未发布）
 
 - [x] 2026-10-19 国旗提交 `425b0a7` 已推送，清单已绑定，jsDelivr 回读 187 面一致。
 - [ ] App 代码与清单（本地未提交）。
 - [ ] 真机看图标：Surge iOS 策略组卡片、Surge Mac、Stash、Clash Verge、QuanX、Loon、Egern；确认 Loon 策略组的 `img-url`、Surge iOS 的 `icon-url` 实际生效。
-- [ ] FlClash、Mihomo Party、ClashMac、Clash Mi、名为 Clash 的 App 是否显示 `icon`；确认显示的加进 `PolicyGroupIconSupport.drawsIcons`。
+- [ ] FlClash、Clash Party、ClashMac、Clash Mi 是否显示 `icon`；确认显示的加进 `PolicyGroupIconSupport.drawsIcons`。（名为 Clash 的 App 已按更新说明加入，见「上游更新待处理」。）
 - [ ] 导入一份无 Emoji 的方案，确认自动补全的结果和菜单开关。
 
 ## 规则集扩展（2026-10-18，未发布）

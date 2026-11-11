@@ -14,7 +14,26 @@ python3 Scripts/check_upstream_updates.py
 - 只读公开页面，不发送任何订阅、节点或配置。
 - 测试：`python3 Scripts/tests/check_upstream_updates_test.py`（含「每个 `ClientTarget` 都有来源」的校验，新增客户端时会提醒补清单）。
 
-建议每周跑一次，发版前必跑。看到变化后：客户端更新先读更新说明里和导入、协议、规则、DNS 相关的条目；内核更新用本地 `mihomo -t` / `sing-box check` 复验导出；文档页变化对照 [CLIENT-COMPATIBILITY](CLIENT-COMPATIBILITY.md)、[RULE_EXPORT_AUDIT](RULE_EXPORT_AUDIT.md) 里引用的条目。
+## 维护流程
+
+每周跑一次，发版前必跑。
+
+1. **先只看不记**：`python3 Scripts/check_upstream_updates.py --dry-run`。处理完再不带 `--dry-run` 跑一次，把基线推进到当前版本；没处理完的变化不要推进，下次还会列出来。
+2. **分拣**：每条变化归到下面一类。
+   - 只修 bug、界面、性能、和导出无关的新功能 → 忽略。
+   - 新协议、新参数、新规则类型、新策略组选项、DNS 写法、导入 Scheme 变化 → 对照代码确认塔台是否已处理（`grep` 协议名 / 字段名，看 `ClientTarget.supports`、`RoutingRuleCapabilities`、各 `ConfigurationGenerator` 分支）。
+   - 只在 TestFlight / beta / alpha → 记到 [TODO](TODO.md)「上游更新：等正式版」，正式版发布后再做。
+   - 文档页哈希变化 → 打开页面对照 [CLIENT-COMPATIBILITY](CLIENT-COMPATIBILITY.md)、[RULE_EXPORT_AUDIT](RULE_EXPORT_AUDIT.md) 里引用的条目。
+3. **改代码**：依据写进注释（客户端版本号 + 官方文档地址）。官方文档没写、只有 Sub-Store 等第三方实现时，要在兼容文档里注明并真机验收。无法忠实表达的仍按 CLAUDE.md 第 12 条拒绝并计数。内核更新用本地 `mihomo -t` / `sing-box check` 复验导出（只校验文件，不启动内核、不动网络）。
+4. **记录**：改动写进 HANDOFF；还没做的写进 TODO「上游更新」一节；做完的从 TODO 勾掉。
+
+### 更新来源清单
+
+- 新增 `ClientTarget` 时同步在 `Scripts/upstream_sources.json` 加一条（`targets` 写 rawValue），否则脚本测试失败。
+- 加渠道前先确认是官方的：官网或官方仓库链接到它才写 `official: true`；只能间接确认的写 `false` 并在 `notes` 说明。只收公告频道，不收讨论群。
+- 渠道失效（仓库改名、App 下架、频道停更）时，`检查失败` 一节会报出来：改清单、更新本文表格，在 `notes` 写明原来的地址和变更日期。
+- 改完清单跑 `python3 Scripts/tests/check_upstream_updates_test.py`，再 `--all --dry-run --only <id>` 实跑一次新条目。
+- 页面哈希类（`type: page`）只放导出所依据的文档页，内容常变的页面（首页、带时间戳的页面）会一直误报，不要加。
 
 ### 渠道可信度
 
@@ -79,11 +98,14 @@ python3 Scripts/check_upstream_updates.py
 
 各客户端的协议文档页（mihomo、sing-box、Surge、Stash、Egern 等）记录在清单每个协议条目的 `links` 里。
 
-## 本次调研发现的变化（2026-11-09）
+## 首次调研发现的变化（2026-11-09）
 
-- **「Clash」App（`clash-apple`）有独立文档** [clash.md](https://clash.md/guide/)，基于 mihomo；clash.md 只有一页 [Stash 兼容说明](https://clash.md/guide/compatibility/stash)。CLAUDE.md 第 25 条和 CLIENT-COMPATIBILITY 的 DNS 一节仍写「与 Stash 同文档」，需要按 clash.md 复核。旧资料里的 TokenPLS/Hako 已不是当前源，当前是 ProjectClash 组织。
-- **Mihomo Party 改名 Clash Party**，仓库 `mihomo-party-org/clash-party`，Homebrew cask 改为 `clash-party`。塔台界面仍显示 Mihomo Party。
-- **sing-box 官方 Apple 客户端**旧上架 SFI（6451272673）和 sing-box VT（6673731168）已下架，当前是 sing-box MT（6785326793）。商店版本号（1.14.8）与内核 tag（v1.14.4）不同步。
-- Surge Mac 的 Sparkle 源在 `/mac/latest/`；Surge iOS 6 正在 TestFlight（6.100.0）。
+以下已在 `a29201b` 处理（「Clash」App 改用 mihomo DNS、Clash Party 改名），或只是渠道变化，已写进清单：
+
+- 「Clash」App 有独立文档 [clash.md](https://clash.md/guide/)，基于 mihomo，当前仓库在 ProjectClash 组织（不再是 TokenPLS/Hako）。
+- Mihomo Party 改名 Clash Party，仓库 `mihomo-party-org/clash-party`，Homebrew cask `clash-party`。
+- sing-box 官方 Apple 客户端旧上架 SFI（6451272673）和 sing-box VT（6673731168）已下架，当前是 sing-box MT（6785326793）；商店版本号与内核 tag 不同步。
+- Surge Mac 的 Sparkle 源在 `/mac/latest/`。
 - Hysteria 仓库改名 HyNetworks/hysteria；TUIC 官方仓库停更，活跃分支 Itsusinn/tuic。
-- 待补：ClashMac 的 Sparkle 源地址需要从安装包 `Info.plist` 读取 `SUFeedURL`。
+
+还没处理的上游变化见 [TODO](TODO.md#上游更新待处理2026-11-09)。
