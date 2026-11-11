@@ -291,7 +291,7 @@
 | Shadowrocket | ✅ | LOWERTOP 手册 | 导出 |
 | Egern | ✅ | 官方文档，含 Reality 和证书固定 | 导出 |
 | mihomo 系、sing-box、Karing、Hiddify | ✅ | 内核支持 | 导出（mihomo 没有 AnyTLS Reality，跳过） |
-| Anywhere | ✅ | README 和源码（`anytls://`） | 导出。它的解析器没有「跳过证书校验」和证书固定，这两类节点仍然跳过（按约束 12），现在会显示具体原因；指纹映射已和 Anywhere 自己的 Clash 导入一致（`chrome`→chrome_133、`ios`→chrome_120、`random`→默认） |
+| Anywhere | ✅ | README 和源码（`anytls://`） | 导出。它的链接没有「跳过证书校验」和证书固定，这两类节点在链接里仍然跳过（按约束 12）；一键导入时对支持 AJSON 的版本改发 AJSON，VLESS（TLS，raw / HTTPUpgrade）/ Trojan / AnyTLS 的跳过证书校验可以保留（issue #51）；Hysteria 与 Reality 没有对应字段，VLESS WS / gRPC / XHTTP 在 Anywhere 里重建 TLS 时丢掉 `insecure`（真机实测失败），都仍跳过，现在会显示具体原因；指纹映射已和 Anywhere 自己的 Clash 导入一致（`chrome`→chrome_133、`ios`→chrome_120、`random`→默认） |
 | V2Box | ❌ 没有证据 | 协议列表里没有 AnyTLS | 跳过 |
 
 ### 空策略组的回退

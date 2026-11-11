@@ -65,7 +65,7 @@ ConfigurationGenerator 按 ClientTarget 与能力矩阵输出 INI / YAML / JSON 
 - Hiddify、sing-box MT 各有协议矩阵和导入身份；Egern 使用独立 YAML 结构。
 - SingBoxDNSPolicy 仅处理官方 sing-box MT 的「规则判定 / 全局代理 / 直接连接」与 DNS 联动。全局 selector 默认自动选择全部节点，也可手选，DNS 通过独立 detour 跟随。递归检查代理组是否可能到达 DIRECT，必要时创建无直连候选的自动组；DNS 域名规则从同一份本机缓存投影，保持优先级，不依赖远端 SRS 是否启用。普通目标先经 DNS 规则解析，节点启动解析继续独立；严格保护不回退直连。Hiddify 不套用该适配层。
 - Surge / Surge Mac 的仅节点模式输出 `policy-path` 纯策略列表，主操作复制聚合订阅链接；WireGuard 需要独立配置节，继续使用完整配置。节点模式能力与 URL Scheme 导入能力分开建模。
-- Anywhere / V2Box 仅节点订阅；AnywhereExport 负责独立 URI 参数映射和无法保真节点过滤，规则由目标客户端管理。QuanX 分享完整文件，不假装远程资源 API 能导入策略组。
+- Anywhere / V2Box 仅节点订阅；AnywhereExport 负责独立 URI 参数映射和无法保真节点过滤，规则由目标客户端管理。有跳过证书校验的 VLESS（TLS，raw / HTTPUpgrade）/ Trojan / AnyTLS 节点时，另生成 AJSON（`GeneratedConfiguration.anywhereAJSON`），本机临时服务只对带 `X-Anywhere-Format: ajson/1` 的请求返回它，其余节点在文档里仍是原链接。此时兼容数按一键导入计算，另加一条兼容性提示说明复制文本或存文件不含这些节点。QuanX 分享完整文件，不假装远程资源 API 能导入策略组。
 - 分流规则按条件树转换方言（`RoutingRuleCapabilities`）：Surge、mihomo 系、Stash、Loon、Shadowrocket 共用这一套，每个目标只输出自己文档列出的规则类型和选项，选项写在策略名后面；sing-box 和 Egern 有各自基于同一条件树的写法；QuanX 仍走 `mappedRule` 的逐字段路径。不能表达的规则跳过并提示；拦截规则被跳过时，在提示最前面汇总条数，不阻止导出。MRS 规则集不下载、不解码，只给 mihomo 系远程引用。
 - Loon 和 QuanX 先匹配本地规则、再匹配远程列表，规划器会把排在本地规则前面的远程列表改为内联。
 - 名称必须转义，不能让不可信 remark 注入规则。

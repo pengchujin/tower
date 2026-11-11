@@ -2203,6 +2203,9 @@ struct GeneratedConfiguration {
     let profileName: String
     let contentMode: ExportContentMode
     let fileExtensionOverride: String?
+    /// Anywhere's AJSON form of `content`, served only to a client that asks
+    /// for it. Present only when it keeps nodes the share links cannot.
+    let anywhereAJSON: String?
 
     init(
         target: ClientTarget,
@@ -2216,8 +2219,10 @@ struct GeneratedConfiguration {
         remoteSourceCount: Int = 0,
         diagnostics: [String] = [],
         hasInvalidPolicyReferences: Bool = false,
-        skippedNodes: [SkippedExportNode] = []
+        skippedNodes: [SkippedExportNode] = [],
+        anywhereAJSON: String? = nil
     ) {
+        self.anywhereAJSON = anywhereAJSON
         self.diagnostics = diagnostics
         self.hasInvalidPolicyReferences = hasInvalidPolicyReferences
         self.target = target
@@ -2251,7 +2256,8 @@ struct GeneratedConfiguration {
             remoteSourceCount: remoteSourceCount,
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: hasInvalidPolicyReferences,
-            skippedNodes: skippedNodes
+            skippedNodes: skippedNodes,
+            anywhereAJSON: anywhereAJSON
         )
     }
 }

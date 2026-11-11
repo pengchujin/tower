@@ -263,6 +263,8 @@ final class LocalConfigurationServer: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "com.jzb.tower.direct-import")
     private let body: Data
+    /// Anywhere's AJSON form, for requests that carry `X-Anywhere-Format`.
+    private let ajsonBody: Data?
     private let fileName: String
     private let contentType: String
     private let profileName: String
@@ -295,6 +297,7 @@ final class LocalConfigurationServer: @unchecked Sendable {
         token: String = DirectImportAccessTokenStore.loadOrCreate()
     ) {
         body = Data(configuration.content.utf8)
+        ajsonBody = configuration.anywhereAJSON.map { Data($0.utf8) }
         nodeSubscriptionTarget = configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode)
             ? configuration.target : nil
         self.token = token
@@ -396,10 +399,11 @@ final class LocalConfigurationServer: @unchecked Sendable {
                 return
             }
 
+            let (body, contentType) = self.response(forRequestHeaders: request)
             let header = """
             HTTP/1.1 200 OK\r
-            Content-Type: \(self.contentType)\r
-            Content-Length: \(self.body.count)\r
+            Content-Type: \(contentType)\r
+            Content-Length: \(body.count)\r
             Content-Disposition: \(ExportFilePresentation.contentDisposition(fileName: self.fileName))\r
             Profile-Title: \(self.profileTitle)\r
             Cache-Control: no-store\r
@@ -408,9 +412,21 @@ final class LocalConfigurationServer: @unchecked Sendable {
 
             """
             var response = Data(header.utf8)
-            if isGet { response.append(self.body) }
+            if isGet { response.append(body) }
             self.send(response, on: connection)
         }
+    }
+
+    /// The AJSON document goes only to an Anywhere release that says it reads
+    /// it; every other request gets the share-link list.
+    func response(forRequestHeaders request: String) -> (body: Data, contentType: String) {
+        guard let ajsonBody else { return (body, contentType) }
+        let formatHeader = request.components(separatedBy: "\r\n").dropFirst()
+            .prefix { !$0.isEmpty }
+            .first { $0.lowercased().hasPrefix(AnywhereExport.ajsonFormatHeader + ":") }
+            .map { String($0.dropFirst(AnywhereExport.ajsonFormatHeader.count + 1)) }
+        guard AnywhereExport.acceptsAJSON(formatHeader: formatHeader) else { return (body, contentType) }
+        return (ajsonBody, "application/json; charset=utf-8")
     }
 
     /// Clients may normalize percent escapes or send UTF-8 paths. Decode once,

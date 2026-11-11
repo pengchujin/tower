@@ -767,6 +767,8 @@ struct ConfigurationGenerator {
         var fileExtension = target.usesClashFormat ? "yaml" : "txt"
 
         let content: String
+        var anywhereAJSON: String?
+        var anywhereNotes: [String] = []
         switch target {
         case .shadowrocket:
             if structuredNodes {
@@ -812,6 +814,22 @@ struct ConfigurationGenerator {
         case .anywhere:
             content = supported.map { AnywhereExport.link(for: $0) }.joined(separator: "\n")
                 + (supported.isEmpty ? "" : "\n")
+            // Nodes that skip certificate checks need AJSON's per-proxy
+            // `insecure`; the loopback import serves it to Anywhere releases
+            // that ask for it. Without such nodes the links say everything.
+            let ajsonNodes = uniquedNames(
+                nodes.filter { writes($0, to: target, excluding: excludedKinds, anywhereAllowsInsecure: true) },
+                reservedNames: target.copiesAggregatedSubscription(mode: .nodesOnly)
+                    ? ["DIRECT", "REJECT", "direct", "reject"] : []
+            )
+            let insecureCount = ajsonNodes.count(where: \.skipCertificateVerification)
+            if insecureCount > 0,
+               let document = AnywhereExport.ajsonDocument(nodes: ajsonNodes, name: profileName) {
+                // Counts follow the one-tap import, the primary action.
+                anywhereAJSON = document
+                supported = ajsonNodes
+                anywhereNotes = [String(localized: "\(insecureCount) 个节点跳过证书校验，只有一键导入会保留到 Anywhere；复制配置文本或存储文件时不包含这些节点。")]
+            }
         case .v2box:
             let generator = ProxyNodeShareLinkGenerator()
             let links = supported.map { generator.canonicalLink(for: $0) }
@@ -831,7 +849,9 @@ struct ConfigurationGenerator {
             profileName: profileName,
             contentMode: .nodesOnly,
             fileExtensionOverride: fileExtension,
-            skippedNodes: skippedDetails(nodes: nodes, exported: supported, target: target, excludedKinds: excludedKinds, nodesOnly: true)
+            diagnostics: anywhereNotes,
+            skippedNodes: skippedDetails(nodes: nodes, exported: supported, target: target, excludedKinds: excludedKinds, nodesOnly: true),
+            anywhereAJSON: anywhereAJSON
         )
     }
 
@@ -874,7 +894,8 @@ struct ConfigurationGenerator {
         _ node: ProxyNode,
         to target: ClientTarget,
         excluding excludedKinds: Set<ProxyKind>,
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        anywhereAllowsInsecure: Bool = false
     ) -> Bool {
         if node.kind == .masque {
             guard node.hasSupportedMASQUEFields else { return false }
@@ -893,7 +914,7 @@ struct ConfigurationGenerator {
         if target == .egern, node.kind == .shadowsocksR, !Self.egernAcceptsShadowsocksR(node) { return false }
         let supportsKind = supportedKindsOverride?.contains(node.kind) ?? target.supports(node.kind)
         guard supportsKind, !excludedKinds.contains(node.kind) else { return false }
-        if target == .anywhere, !AnywhereExport.supports(node) { return false }
+        if target == .anywhere, !AnywhereExport.supports(node, allowingInsecure: anywhereAllowsInsecure) { return false }
         // sing-box supports SPKI/public-key hashes, not leaf-certificate hashes.
         // Never silently discard a pin or relabel it as a public-key digest.
         if [.singBox, .hiddify].contains(target), certificatePin(node) != nil { return false }

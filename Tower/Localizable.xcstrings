@@ -111617,6 +111617,100 @@
           }
         }
       }
+    },
+    "%lld 个节点跳过证书校验，只有一键导入会保留到 Anywhere；复制配置文本或存储文件时不包含这些节点。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتخطى %lld عقدة التحقق من الشهادة، ولا يحتفظ بها في Anywhere إلا الاستيراد بنقرة واحدة؛ لا تتضمنها نسخ نص الإعدادات أو الحفظ في ملف."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Knoten überspringen die Zertifikatsprüfung. Nur der Import mit einem Tippen übernimmt sie in Anywhere; beim Kopieren des Konfigurationstexts oder Speichern als Datei fehlen sie."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodes skip certificate verification. Only one-tap import keeps them in Anywhere; copying the configuration text or saving a file leaves them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos omiten la verificación del certificado. Solo la importación con un toque los conserva en Anywhere; al copiar el texto de la configuración o guardar un archivo no se incluyen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds ignorent la vérification du certificat. Seule l’importation en un geste les conserve dans Anywhere ; copier le texte de la configuration ou enregistrer un fichier les omet."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node melewati verifikasi sertifikat. Hanya impor sekali ketuk yang mempertahankannya di Anywhere; menyalin teks konfigurasi atau menyimpan file tidak menyertakannya."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個のノードは証明書検証をスキップします。Anywhere に保持されるのはワンタップ読み込みのときだけで、設定テキストのコピーやファイル保存には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 노드가 인증서 검증을 건너뜁니다. 원탭 가져오기에서만 Anywhere에 유지되며, 구성 텍스트 복사나 파일 저장에는 포함되지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós ignoram a verificação do certificado. Só a importação com um toque os mantém no Anywhere; copiar o texto da configuração ou salvar um arquivo não os inclui."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld узл. пропускают проверку сертификата. Сохранить их в Anywhere можно только импортом в одно касание; при копировании текста конфигурации или сохранении в файл они не включаются."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld โหนดข้ามการตรวจสอบใบรับรอง มีเพียงการนำเข้าแบบแตะครั้งเดียวที่คงโหนดเหล่านี้ไว้ใน Anywhere การคัดลอกข้อความการกำหนดค่าหรือบันทึกเป็นไฟล์จะไม่รวมโหนดเหล่านี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld düğüm sertifika doğrulamasını atlıyor. Bunları Anywhere'de yalnızca tek dokunuşla içe aktarma korur; yapılandırma metnini kopyalamak veya dosyaya kaydetmek bunları içermez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút bỏ qua xác minh chứng chỉ. Chỉ nhập bằng một chạm mới giữ chúng trong Anywhere; sao chép văn bản cấu hình hoặc lưu tệp sẽ không bao gồm các nút này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个节点跳过证书校验，只有一键导入会保留到 Anywhere；复制配置文本或存储文件时不包含这些节点。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個節點略過憑證驗證，只有一鍵匯入會保留到 Anywhere；複製設定文字或儲存檔案時不包含這些節點。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
