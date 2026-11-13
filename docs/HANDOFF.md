@@ -3,6 +3,9 @@
 ## 1.0.31（74）TestFlight 与 Mac 分发（2026-11-13）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。发布前全量 TowerTests 1,399 项（8 跳过）零失败；ACL4SSR 已是上游最新（`bdc102f`）。纳入 Surge 测试版 VLESS（按 UA 构建号分发：iOS ≥ 4024、Mac ≥ 12820，见 `SurgeClientCapabilities`）与 TrustTunnel `client-random-auth-key`。更新日志见 [1.0.31](releases/1.0.31.md)，剩余事项见 TODO 的 Surge 条目。
+- 本机 M4 用 asc 归档两端，核对 `com.jzb.tower` 1.0.31（74），Mac 为 arm64 / x86_64；团队 ID 照上一版从 `NotarizeOptions.plist` 读取，只放在进程变量里。asc 上传两端，处理为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.31-74/`。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.31-74](https://github.com/pengchujin/tower/releases/tag/v1.0.31-74)（tag 指向 `5fd5944`）已公开并设为 Latest，回下载 SHA-256 一致：`c91b6b151ee43f39090cf857ae4985418d8ad68b9c3151a135762bc5dba7def3`。
+- README 下载入口改为 v1.0.31-74；Homebrew cask 更新为 1.0.31,74，`brew style` / `brew audit` 通过。本机 `brew upgrade --cask` 后为 1.0.31（74），严格签名、Gatekeeper、公证票据通过，保留隔离标记，可启动。
 
 ## 1.0.31（73）TestFlight 与 Mac 分发（2026-11-11）
 
