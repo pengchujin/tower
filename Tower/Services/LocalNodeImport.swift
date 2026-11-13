@@ -16,6 +16,8 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
     case unsupportedProtocol
     case incompleteSSH
     case incompleteTrustTunnel
+    case invalidTrustTunnelAuthKey
+    case trustTunnelAuthKeyNeedsSNI
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +36,8 @@ enum ManualNodeValidationError: LocalizedError, Equatable {
         case .unsupportedProtocol: String(localized: "该协议请改用协议链接导入")
         case .incompleteSSH: String(localized: "SSH 需要用户名，以及密码或私钥")
         case .incompleteTrustTunnel: String(localized: "TrustTunnel 需要用户名和密码")
+        case .invalidTrustTunnelAuthKey: String(localized: "客户端随机数认证密钥必须是偶数位的十六进制")
+        case .trustTunnelAuthKeyNeedsSNI: String(localized: "使用客户端随机数认证密钥时，服务器是 IP 地址就必须填写 SNI")
         }
     }
 }
@@ -88,6 +92,8 @@ struct ManualNodeDraft: Equatable {
     var sshHostKey = ""
     /// TrustTunnel over HTTP/3 instead of HTTP/2.
     var trustTunnelQUIC = false
+    /// TrustTunnel `client_random_auth_key`, hex. Empty means none.
+    var trustTunnelAuthKey = ""
     var wireGuardPrivateKey = ""
     var wireGuardPublicKey = ""
     var wireGuardPreSharedKey = ""
@@ -225,6 +231,7 @@ struct ManualNodeDraft: Equatable {
         sshPrivateKey = node.ssh?.privateKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         sshHostKey = node.ssh?.hostKeys.first ?? ""
         trustTunnelQUIC = node.trustTunnel?.quic ?? false
+        trustTunnelAuthKey = node.trustTunnel?.clientRandomAuthKey ?? ""
         kind = node.kind
         name = node.name
         server = node.server
@@ -391,6 +398,12 @@ struct ManualNodeDraft: Equatable {
         if kind == .trustTunnel, normalizedUsername.isEmpty || normalizedSecret.isEmpty {
             throw ManualNodeValidationError.incompleteTrustTunnel
         }
+        let normalizedTrustTunnelAuthKey = trustTunnelAuthKey
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if kind == .trustTunnel, !normalizedTrustTunnelAuthKey.isEmpty,
+           !TrustTunnelOptions.isValidClientRandomAuthKey(normalizedTrustTunnelAuthKey) {
+            throw ManualNodeValidationError.invalidTrustTunnelAuthKey
+        }
         let trimmedWGPrivateKey = wireGuardPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedWGPublicKey = wireGuardPublicKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedWGIPv4 = wireGuardIPv4.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -541,8 +554,14 @@ struct ManualNodeDraft: Equatable {
                 privateKey: normalizedSSHKey.isEmpty ? nil : normalizedSSHKey + "\n",
                 hostKeys: normalizedSSHHostKey.isEmpty ? [] : [normalizedSSHHostKey]
             ) : nil,
-            trustTunnel: kind == .trustTunnel ? TrustTunnelOptions(quic: trustTunnelQUIC) : nil
+            trustTunnel: kind == .trustTunnel ? TrustTunnelOptions(
+                quic: trustTunnelQUIC,
+                clientRandomAuthKey: normalizedTrustTunnelAuthKey.isEmpty ? nil : normalizedTrustTunnelAuthKey
+            ) : nil
         )
+        if kind == .trustTunnel, node.trustTunnel?.clientRandomAuthKey != nil, !node.sendsTrustTunnelSNI {
+            throw ManualNodeValidationError.trustTunnelAuthKeyNeedsSNI
+        }
         node.rawURI = ProxyNodeShareLinkGenerator().link(for: node)
         if kind == .masque, !node.hasSupportedMASQUEFields {
             throw ManualNodeValidationError.unsupportedProtocol

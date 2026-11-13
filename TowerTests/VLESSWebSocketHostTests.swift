@@ -148,9 +148,15 @@ struct VLESSWebSocketHostTests {
             #expect(singBoxWebSocketHost(result.content) == "cdn.example.com", "Target: \(target.name)")
         }
 
+        // App Store Surge has no VLESS: the file leaves it out and notes the
+        // betas instead of counting it skipped. The beta line gets the Host.
         let surge = generator.generate(nodes: [node], preset: preset, target: .surge)
         #expect(surge.supportedNodeCount == 0)
-        #expect(surge.skippedNodeCount == 1)
+        #expect(surge.skippedNodeCount == 0)
+        #expect(surge.diagnostics.contains { $0.contains("TestFlight 4024") })
+        let surgeBeta = generator.generate(nodes: [node], preset: preset, target: .surge,
+                                           supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+        #expect(surgeBeta.content.contains("ws-headers=Host:cdn.example.com"))
     }
 
     @Test("Every affected nodes-only target receives the inferred Host")

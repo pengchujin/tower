@@ -111711,6 +111711,758 @@
           }
         }
       }
+    },
+    "%lld 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد VLESS إلى Surge iOS TestFlight 4024 أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS-Knoten benötigen Surge iOS TestFlight 4024 oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS nodes need Surge iOS TestFlight 4024 or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos VLESS requieren Surge iOS TestFlight 4024 o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds VLESS nécessitent Surge iOS TestFlight 4024 ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node VLESS memerlukan Surge iOS TestFlight 4024 atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個の VLESS ノードには Surge iOS TestFlight 4024 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VLESS 노드 %lld개는 Surge iOS TestFlight 4024 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós VLESS exigem o Surge iOS TestFlight 4024 ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов VLESS нужен Surge iOS TestFlight 4024 или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด VLESS %lld รายการต้องใช้ Surge iOS TestFlight 4024 ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS düğümü Surge iOS TestFlight 4024 veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút VLESS cần Surge iOS TestFlight 4024 trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個 VLESS 節點需要 Surge iOS TestFlight 4024 及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
+    },
+    "%lld 个 VLESS 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد VLESS إلى Surge Mac 6.12.0 Beta (12820) أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS-Knoten benötigen Surge Mac 6.12.0 Beta (12820) oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS nodes need Surge Mac 6.12.0 Beta (12820) or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos VLESS requieren Surge Mac 6.12.0 Beta (12820) o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds VLESS nécessitent Surge Mac 6.12.0 Beta (12820) ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node VLESS memerlukan Surge Mac 6.12.0 Beta (12820) atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個の VLESS ノードには Surge Mac 6.12.0 Beta (12820) 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VLESS 노드 %lld개는 Surge Mac 6.12.0 Beta (12820) 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós VLESS exigem o Surge Mac 6.12.0 Beta (12820) ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов VLESS нужен Surge Mac 6.12.0 Beta (12820) или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด VLESS %lld รายการต้องใช้ Surge Mac 6.12.0 Beta (12820) ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS düğümü Surge Mac 6.12.0 Beta (12820) veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút VLESS cần Surge Mac 6.12.0 Beta (12820) trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个 VLESS 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個 VLESS 節點需要 Surge Mac 6.12.0 Beta（12820）及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
+    },
+    "客户端随机数认证密钥必须是偶数位的十六进制": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يجب أن يكون مفتاح مصادقة client random بالنظام الست عشري وبعدد زوجي من الخانات"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Client-Random-Authentifizierungsschlüssel muss hexadezimal mit einer geraden Anzahl Stellen sein"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The client random auth key must be hexadecimal with an even number of digits"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave de autenticación de client random debe ser hexadecimal con un número par de dígitos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé d’authentification client random doit être en hexadécimal avec un nombre pair de chiffres"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci autentikasi client random harus heksadesimal dengan jumlah digit genap"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアントランダム認証キーは偶数桁の 16 進数である必要があります"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 랜덤 인증 키는 짝수 자리의 16진수여야 합니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A chave de autenticação client random deve ser hexadecimal com um número par de dígitos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ аутентификации client random должен быть шестнадцатеричным с чётным числом цифр"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คีย์ยืนยันตัวตน client random ต้องเป็นเลขฐานสิบหกที่มีจำนวนหลักเป็นเลขคู่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemci rastgele kimlik doğrulama anahtarı çift sayıda basamaklı onaltılık olmalıdır"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa xác thực client random phải là số thập lục phân có số chữ số chẵn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端随机数认证密钥必须是偶数位的十六进制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用戶端隨機數認證金鑰必須是偶數位的十六進位"
+          }
+        }
+      }
+    },
+    "使用客户端随机数认证密钥时，服务器是 IP 地址就必须填写 SNI": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عند استخدام مفتاح مصادقة client random، يجب تعيين SNI إذا كان الخادم عنوان IP"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit einem Client-Random-Authentifizierungsschlüssel braucht ein Server mit IP-Adresse eine SNI"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With a client random auth key, an IP address server needs an SNI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Con una clave de autenticación de client random, un servidor con dirección IP necesita un SNI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avec une clé d’authentification client random, un serveur désigné par une adresse IP nécessite un SNI"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dengan kunci autentikasi client random, server berupa alamat IP memerlukan SNI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアントランダム認証キーを使う場合、サーバーが IP アドレスなら SNI を入力する必要があります"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 랜덤 인증 키를 사용할 때 서버가 IP 주소이면 SNI를 입력해야 합니다"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Com uma chave de autenticação client random, um servidor com endereço IP precisa de um SNI"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "При использовании ключа аутентификации client random для сервера с IP-адресом нужно указать SNI"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เมื่อใช้คีย์ยืนยันตัวตน client random หากเซิร์ฟเวอร์เป็นที่อยู่ IP ต้องกรอก SNI"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemci rastgele kimlik doğrulama anahtarı kullanılırken sunucu bir IP adresiyse SNI girilmelidir"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khi dùng khóa xác thực client random, máy chủ là địa chỉ IP thì phải điền SNI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用客户端随机数认证密钥时，服务器是 IP 地址就必须填写 SNI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用用戶端隨機數認證金鑰時，伺服器是 IP 位址就必須填寫 SNI"
+          }
+        }
+      }
+    },
+    "客户端随机数认证密钥（可选）": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح مصادقة client random (اختياري)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client-Random-Authentifizierungsschlüssel (optional)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client Random Auth Key (Optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave de autenticación client random (opcional)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé d’authentification client random (facultatif)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci autentikasi client random (opsional)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クライアントランダム認証キー（任意）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 랜덤 인증 키(선택)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave de autenticação client random (opcional)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ аутентификации client random (необязательно)"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คีย์ยืนยันตัวตน client random (ไม่บังคับ)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemci rastgele kimlik doğrulama anahtarı (isteğe bağlı)"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa xác thực client random (tùy chọn)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端随机数认证密钥（可选）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用戶端隨機數認證金鑰（選填）"
+          }
+        }
+      }
+    },
+    "只在服务器的 rules.toml 设置了 client_random_auth_key 时填写。目前只有 Surge 测试版支持，其他客户端会跳过此节点。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "املأ هذا الحقل فقط إذا كان ملف rules.toml على الخادم يحدد client_random_auth_key. حاليًا لا تدعمه إلا الإصدارات التجريبية من Surge، وتتخطى العملاء الأخرى هذه العقدة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur ausfüllen, wenn die rules.toml des Servers client_random_auth_key festlegt. Derzeit unterstützen das nur Surge-Betas; andere Clients überspringen diesen Knoten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill this in only if the server's rules.toml sets client_random_auth_key. Only Surge betas support it for now; other clients skip this node."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rellénalo solo si el rules.toml del servidor define client_random_auth_key. Por ahora solo lo admiten las betas de Surge; otros clientes omiten este nodo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À renseigner uniquement si le rules.toml du serveur définit client_random_auth_key. Pour l’instant, seules les bêtas de Surge le prennent en charge ; les autres clients ignorent ce nœud."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isi hanya jika rules.toml server mengatur client_random_auth_key. Saat ini hanya versi beta Surge yang mendukungnya; klien lain melewati node ini."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーの rules.toml に client_random_auth_key が設定されている場合のみ入力してください。現在対応しているのは Surge のベータ版だけで、他のクライアントではこのノードはスキップされます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버의 rules.toml에 client_random_auth_key가 설정된 경우에만 입력하세요. 현재는 Surge 베타만 지원하며, 다른 클라이언트에서는 이 노드를 건너뜁니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preencha apenas se o rules.toml do servidor definir client_random_auth_key. Por enquanto só as versões beta do Surge oferecem suporte; outros clientes ignoram este nó."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заполняйте, только если в rules.toml сервера задан client_random_auth_key. Пока это поддерживают только бета-версии Surge; другие клиенты пропускают этот узел."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กรอกเฉพาะเมื่อ rules.toml ของเซิร์ฟเวอร์ตั้งค่า client_random_auth_key ไว้ ขณะนี้รองรับเฉพาะ Surge รุ่นทดสอบ ไคลเอนต์อื่นจะข้ามโหนดนี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca sunucunun rules.toml dosyasında client_random_auth_key ayarlıysa doldurun. Şimdilik yalnızca Surge beta sürümleri destekliyor; diğer istemciler bu düğümü atlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ điền khi rules.toml của máy chủ có đặt client_random_auth_key. Hiện chỉ các bản beta của Surge hỗ trợ; các ứng dụng khách khác sẽ bỏ qua nút này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只在服务器的 rules.toml 设置了 client_random_auth_key 时填写。目前只有 Surge 测试版支持，其他客户端会跳过此节点。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只在伺服器的 rules.toml 設定了 client_random_auth_key 時填寫。目前只有 Surge 測試版支援，其他用戶端會略過此節點。"
+          }
+        }
+      }
+    },
+    "%lld 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد TrustTunnel ذات مفتاح مصادقة client random إلى Surge iOS TestFlight 4024 أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld TrustTunnel-Knoten mit Client-Random-Authentifizierungsschlüssel benötigen Surge iOS TestFlight 4024 oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld TrustTunnel nodes with a client random auth key need Surge iOS TestFlight 4024 or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos TrustTunnel con clave de autenticación client random requieren Surge iOS TestFlight 4024 o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds TrustTunnel avec clé d’authentification client random nécessitent Surge iOS TestFlight 4024 ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node TrustTunnel dengan kunci autentikasi client random memerlukan Surge iOS TestFlight 4024 atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個のクライアントランダム認証キー付き TrustTunnel ノードには Surge iOS TestFlight 4024 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 랜덤 인증 키가 있는 TrustTunnel 노드 %lld개는 Surge iOS TestFlight 4024 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós TrustTunnel com chave de autenticação client random exigem o Surge iOS TestFlight 4024 ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов TrustTunnel с ключом аутентификации client random нужен Surge iOS TestFlight 4024 или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด TrustTunnel ที่มีคีย์ยืนยันตัวตน client random %lld รายการต้องใช้ Surge iOS TestFlight 4024 ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld istemci rastgele kimlik doğrulama anahtarlı TrustTunnel düğümü Surge iOS TestFlight 4024 veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút TrustTunnel có khóa xác thực client random cần Surge iOS TestFlight 4024 trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個帶用戶端隨機數認證金鑰的 TrustTunnel 節點需要 Surge iOS TestFlight 4024 及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
+    },
+    "%lld 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد TrustTunnel ذات مفتاح مصادقة client random إلى Surge Mac 6.12.0 Beta (12820) أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld TrustTunnel-Knoten mit Client-Random-Authentifizierungsschlüssel benötigen Surge Mac 6.12.0 Beta (12820) oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld TrustTunnel nodes with a client random auth key need Surge Mac 6.12.0 Beta (12820) or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos TrustTunnel con clave de autenticación client random requieren Surge Mac 6.12.0 Beta (12820) o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds TrustTunnel avec clé d’authentification client random nécessitent Surge Mac 6.12.0 Beta (12820) ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node TrustTunnel dengan kunci autentikasi client random memerlukan Surge Mac 6.12.0 Beta (12820) atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個のクライアントランダム認証キー付き TrustTunnel ノードには Surge Mac 6.12.0 Beta (12820) 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클라이언트 랜덤 인증 키가 있는 TrustTunnel 노드 %lld개는 Surge Mac 6.12.0 Beta (12820) 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós TrustTunnel com chave de autenticação client random exigem o Surge Mac 6.12.0 Beta (12820) ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов TrustTunnel с ключом аутентификации client random нужен Surge Mac 6.12.0 Beta (12820) или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด TrustTunnel ที่มีคีย์ยืนยันตัวตน client random %lld รายการต้องใช้ Surge Mac 6.12.0 Beta (12820) ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld istemci rastgele kimlik doğrulama anahtarlı TrustTunnel düğümü Surge Mac 6.12.0 Beta (12820) veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút TrustTunnel có khóa xác thực client random cần Surge Mac 6.12.0 Beta (12820) trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個帶用戶端隨機數認證金鑰的 TrustTunnel 節點需要 Surge Mac 6.12.0 Beta（12820）及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

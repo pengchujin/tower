@@ -249,6 +249,7 @@ enum LANSubscriptionHTTPRouter {
         token: String,
         exactClientConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
         nodeConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
+        surgeVLESSConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
         formatConfiguration: (LANSubscriptionFormat) -> GeneratedConfiguration
     ) -> LANSubscriptionHTTPResponse {
         let lines = request.components(separatedBy: "\r\n")
@@ -311,6 +312,12 @@ enum LANSubscriptionHTTPRouter {
                 return error(status: 400, message: "Unsupported node subscription")
             }
             generated = nodeConfiguration(exactClient)
+        } else if format == .surge, let surgeVLESSConfiguration,
+                  SurgeClientCapabilities.supportsVLESS(userAgent: headers["user-agent"]) {
+            // Each refresh re-reads the header, so a device that moves back
+            // to an App Store build gets the baseline again. A copied Surge
+            // Mac link keeps its exact dialect.
+            generated = surgeVLESSConfiguration(exactClient == .surgeMac ? .surgeMac : .surge)
         } else if let exactClient, [.surgeMac, .clashMac].contains(exactClient), let exactClientConfiguration {
             generated = exactClientConfiguration(exactClient)
         } else {
@@ -461,6 +468,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
     private let configurationProvider: ConfigurationProvider
     private let exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
     private let nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
+    private let surgeVLESSConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
     private let listenerEnvironment: LANSubscriptionListenerEnvironment
     private var listener: NWListener?
     private var didCompleteStart = false
@@ -470,6 +478,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
         listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi,
         exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
         nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
+        surgeVLESSConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
         configurationProvider: @escaping ConfigurationProvider
     ) {
         self.token = token
@@ -477,6 +486,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
         self.configurationProvider = configurationProvider
         self.exactClientConfiguration = exactClientConfiguration
         self.nodeConfiguration = nodeConfiguration
+        self.surgeVLESSConfiguration = surgeVLESSConfiguration
     }
 
     func start() async throws -> URL {
@@ -546,6 +556,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
                     token: self.token,
                     exactClientConfiguration: self.exactClientConfiguration,
                     nodeConfiguration: self.nodeConfiguration,
+                    surgeVLESSConfiguration: self.surgeVLESSConfiguration,
                     formatConfiguration: self.configurationProvider
                 )
                 self.send(response.serialized(), on: connection)

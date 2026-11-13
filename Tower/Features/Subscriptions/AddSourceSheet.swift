@@ -567,8 +567,15 @@ struct AddSourceSheet: View {
         if manualDraft.kind == .trustTunnel {
             Section {
                 Toggle("使用 HTTP/3（QUIC）", isOn: $manualDraft.trustTunnelQUIC)
+                TextField("客户端随机数认证密钥（可选）", text: $manualDraft.trustTunnelAuthKey)
+                    .focused($focusedField, equals: .manual("trustTunnelAuthKey"))
+                    .font(.footnote.monospaced())
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
             } header: {
                 Text(verbatim: "TrustTunnel")
+            } footer: {
+                Text("只在服务器的 rules.toml 设置了 client_random_auth_key 时填写。目前只有 Surge 测试版支持，其他客户端会跳过此节点。")
             }
         }
 

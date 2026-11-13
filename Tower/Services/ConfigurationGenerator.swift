@@ -128,7 +128,7 @@ struct ConfigurationGenerator {
             content = ""
         }
 
-        return GeneratedConfiguration(
+        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
             target: target,
             content: content,
             supportedNodeCount: inlineNodes.count,
@@ -137,7 +137,8 @@ struct ConfigurationGenerator {
             fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
             remoteSourceCount: remoteEntries.count,
             skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
-        )
+        ), nodes: nodes, remoteSourceIDs: remoteSourceIDs, excludedKinds: excludedKinds,
+           supportedKindsOverride: supportedKindsOverride)
     }
 
     // MARK: - Imported schemes
@@ -452,7 +453,7 @@ struct ConfigurationGenerator {
             content = ""
         }
 
-        return GeneratedConfiguration(
+        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
             target: target,
             content: unknownPolicies.isEmpty && !capabilityBlocked ? content : "",
             supportedNodeCount: inlineNodes.count,
@@ -463,6 +464,71 @@ struct ConfigurationGenerator {
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: !unknownPolicies.isEmpty || capabilityBlocked,
             skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
+        ), nodes: nodes, remoteSourceIDs: remoteSourceIDs, excludedKinds: excludedKinds,
+           supportedKindsOverride: supportedKindsOverride)
+    }
+
+    /// The App Store Surge profile leaves out VLESS and TrustTunnel nodes with
+    /// a client-random auth key, but a one-tap import or LAN subscription
+    /// from Surge iOS TestFlight 4024+ or Surge Mac 6.12.0 Beta (12820+) gets
+    /// them (`SurgeClientCapabilities`). Calling those nodes "skipped" or
+    /// "unsupported" would be wrong for exactly the people who have that
+    /// build, so they move from the skipped list to one compatibility note.
+    private func movingSurgeTestFlightNodesToNotes(
+        _ configuration: GeneratedConfiguration,
+        nodes: [ProxyNode],
+        remoteSourceIDs: Set<UUID>,
+        excludedKinds: Set<ProxyKind>,
+        supportedKindsOverride: Set<ProxyKind>?
+    ) -> GeneratedConfiguration {
+        guard [.surge, .surgeMac].contains(configuration.target),
+              !SurgeClientCapabilities.isBetaRequest(target: configuration.target, supportedKindsOverride: supportedKindsOverride)
+        else { return configuration }
+        let local = nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }
+        let vless = excludedKinds.contains(.vless) ? [] : local.filter {
+            $0.kind == .vless && $0.exportableUUID != nil && Self.surgeAcceptsVLESS($0)
+        }
+        let trustTunnel = excludedKinds.contains(.trustTunnel) ? [] : local.filter {
+            $0.trustTunnel?.clientRandomAuthKey != nil && Self.surgeAcceptsTrustTunnelAuthKey($0)
+                && writes($0, to: configuration.target, excluding: excludedKinds,
+                          supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+        }
+        guard !vless.isEmpty || !trustTunnel.isEmpty else { return configuration }
+        // Names are not unique, so remove one skipped entry per node.
+        var remaining = configuration.skippedNodes
+        for node in vless + trustTunnel {
+            if let index = remaining.firstIndex(where: { $0.kind == node.kind && $0.name == node.name }) {
+                remaining.remove(at: index)
+            }
+        }
+        let isMac = configuration.target == .surgeMac
+        var notes: [String] = []
+        if !vless.isEmpty {
+            let count = vless.count
+            notes.append(isMac
+                ? String(localized: "\(count) 个 VLESS 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
+                : String(localized: "\(count) 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
+        }
+        if !trustTunnel.isEmpty {
+            let count = trustTunnel.count
+            notes.append(isMac
+                ? String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
+                : String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
+        }
+        return GeneratedConfiguration(
+            target: configuration.target,
+            content: configuration.content,
+            supportedNodeCount: configuration.supportedNodeCount,
+            skippedNodeCount: max(0, configuration.skippedNodeCount - vless.count - trustTunnel.count),
+            ruleCount: configuration.ruleCount,
+            profileName: configuration.profileName,
+            contentMode: configuration.contentMode,
+            fileExtensionOverride: configuration.fileExtensionOverride,
+            remoteSourceCount: configuration.remoteSourceCount,
+            diagnostics: configuration.diagnostics + notes,
+            hasInvalidPolicyReferences: configuration.hasInvalidPolicyReferences,
+            skippedNodes: remaining,
+            anywhereAJSON: configuration.anywhereAJSON
         )
     }
 
@@ -922,6 +988,10 @@ struct ConfigurationGenerator {
         // has no faithful form; writing it blank would look fine and never
         // connect.
         if [.vmess, .vless].contains(node.kind), node.exportableUUID == nil { return false }
+        // Reached only when a Surge build that has VLESS asked for this
+        // profile (`SurgeClientCapabilities`); the baseline stops at
+        // `supportsKind` above.
+        if node.kind == .vless, [.surge, .surgeMac].contains(target) { return Self.surgeAcceptsVLESS(node) }
         // Tower implements TUIC v5. Both parts of its credential are required;
         // a v4 token or half-filled v5 entry may import, but can never
         // authenticate. Skip and count it instead of poisoning the profile.
@@ -989,6 +1059,12 @@ struct ConfigurationGenerator {
         // h2 ALPN, while HTTP/3 to the same server and HTTP/2 from Surge,
         // Shadowrocket and Clash Mi all connected.
         if node.kind == .trustTunnel, target == .clash, node.trustTunnel?.quic != true { return false }
+        // Without its client-random auth key the server refuses the client,
+        // so the node goes only where the key can be written: Surge betas.
+        if node.kind == .trustTunnel, node.trustTunnel?.clientRandomAuthKey != nil {
+            guard SurgeClientCapabilities.isBetaRequest(target: target, supportedKindsOverride: supportedKindsOverride),
+                  Self.surgeAcceptsTrustTunnelAuthKey(node) else { return false }
+        }
         if !supportsShadowsocksCipher(node, on: target) { return false }
         // Xray's VLESS encryption was run against mihomo 1.19.31 only; other
         // clients either lack the field or ignore it and send plain VLESS.
@@ -1127,6 +1203,37 @@ struct ConfigurationGenerator {
         node.kind == .shadowsocks && node.tls && (node.plugin ?? "").isEmpty && simpleObfsMode(node) == nil
     }
 
+    /// Whether Surge's `vless` policy can carry this node unchanged, per
+    /// manual.nssurge.com/policies/vless.html: RAW with none, TLS or REALITY;
+    /// WebSocket with none or TLS; gRPC with TLS or REALITY; Vision only on
+    /// RAW with TLS or REALITY. XHTTP, HTTPUpgrade, mKCP and VLESS Encryption
+    /// are unsupported, and a profile line Surge cannot parse breaks the whole
+    /// profile, so anything else is skipped and counted.
+    static func surgeAcceptsVLESS(_ node: ProxyNode) -> Bool {
+        guard node.kind == .vless, node.vlessEncryption == nil else { return false }
+        let transport = node.transport?.lowercased() ?? "tcp"
+        let isRaw = ["", "tcp", "raw"].contains(transport)
+        let secured = node.tls || node.usesReality
+        if node.usesReality {
+            guard isRaw || transport == "grpc" else { return false }
+            let shortID = node.realityShortID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard shortID.count <= 16, shortID.allSatisfy(\.isHexDigit) else { return false }
+        }
+        if let flow = node.flow?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !flow.isEmpty {
+            guard ["xtls-rprx-vision", "xtls-rprx-vision-udp443"].contains(flow), isRaw, secured else { return false }
+        }
+        if isRaw || transport == "ws" { return true }
+        return transport == "grpc" && secured
+    }
+
+    /// Surge's `client-random-auth-key` (iOS 6.0.0+ / Mac 6.12.0+): hex,
+    /// derived together with the SNI, so the node must send one —
+    /// `sni=off` or a bare IP without `sni` is rejected by Surge.
+    static func surgeAcceptsTrustTunnelAuthKey(_ node: ProxyNode) -> Bool {
+        guard node.kind == .trustTunnel, let key = node.trustTunnel?.clientRandomAuthKey else { return false }
+        return TrustTunnelOptions.isValidClientRandomAuthKey(key) && node.sendsTrustTunnelSNI
+    }
+
     private func canExpressTransport(of node: ProxyNode, on target: ClientTarget) -> Bool {
         guard [.vmess, .vless, .trojan].contains(node.kind) else { return true }
         let transport = node.transport?.lowercased() ?? "tcp"
@@ -1145,6 +1252,9 @@ struct ConfigurationGenerator {
             if transport == "xhttp" { return node.kind == .vless }
             return ["ws", "http", "grpc"].contains(transport)
         case .surge, .surgeMac:
+            // VLESS only gets here for a Surge build that has it; which
+            // security each transport allows is `surgeAcceptsVLESS`.
+            if node.kind == .vless { return ["ws", "grpc"].contains(transport) }
             return transport == "ws" && [.vmess, .trojan].contains(node.kind)
         case .shadowrocket:
             return ["ws", "http", "h2", "grpc", "httpupgrade", "xhttp"].contains(transport)
@@ -2927,12 +3037,15 @@ struct ConfigurationGenerator {
             appendSurgeTransport(node, includeTLSFlag: true, shadowrocket: shadowrocket, to: &components)
         case .vless:
             components = ["vless", node.server, "\(node.port)", "username=\(node.exportableUUID ?? "")"]
+            guard shadowrocket else {
+                appendSurgeVLESS(node, to: &components)
+                break
+            }
             appendSurgeTransport(node, includeTLSFlag: true, shadowrocket: shadowrocket, to: &components)
-            // Shadowrocket only — Surge takes no VLESS and rejects REALITY.
-            // Its vocabulary is its own: `pbk`/`sid`/`fingerprint` rather than
-            // Loon's public-key/short-id/fp, and the flow is an enum (`xtls=2`
-            // for vision) rather than the flow string.
-            if shadowrocket, node.usesReality {
+            // Shadowrocket's vocabulary is its own: `pbk`/`sid`/`fingerprint`
+            // rather than Surge's reality-public-key/reality-short-id, and the
+            // flow is an enum (`xtls=2` for vision) rather than the flow string.
+            if node.usesReality {
                 appendValue(node.realityPublicKey, key: "pbk", to: &components)
                 appendValue(node.realityShortID, key: "sid", to: &components)
                 appendValue(node.fingerprint, key: "fingerprint", to: &components)
@@ -3038,6 +3151,7 @@ struct ConfigurationGenerator {
             components = ["trust-tunnel", node.server, "\(node.port)",
                           "username=\(confValue(node.username ?? ""))", "password=\(confValue(node.password ?? ""))"]
             if node.trustTunnel?.quic == true { components.append("h3=true") }
+            appendValue(node.trustTunnel?.clientRandomAuthKey, key: "client-random-auth-key", to: &components)
             appendSurgeTLS(node, includeTLSFlag: false, to: &components)
         case .unknown:
             components = ["direct"]
@@ -3183,6 +3297,42 @@ struct ConfigurationGenerator {
             }
             appendValue(node.hostHeader, key: "host", to: &values)
             if transport == "xhttp" { appendValue(node.transportMode, key: "mode", to: &values) }
+        }
+    }
+
+    /// Surge 6's `vless` policy (manual.nssurge.com/policies/vless.html).
+    /// Only nodes `surgeAcceptsVLESS` passed reach here. REALITY implies TLS,
+    /// and Surge ignores skip-cert-verify under it, so neither is written;
+    /// `fp` has no field because Surge sends its own ClientHello. UDP is
+    /// always XUDP and needs no switch.
+    private func appendSurgeVLESS(_ node: ProxyNode, to values: inout [String]) {
+        if let flow = node.flow?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !flow.isEmpty {
+            values.append("flow=\(flow)")
+        }
+        if node.usesReality {
+            appendValue(node.sni, key: "sni", to: &values)
+            appendValue(node.realityPublicKey, key: "reality-public-key", to: &values)
+            appendValue(node.realityShortID?.trimmingCharacters(in: .whitespacesAndNewlines),
+                        key: "reality-short-id", to: &values)
+            appendValue(node.alpn, key: "alpn", to: &values)
+        } else {
+            appendSurgeTLS(node, includeTLSFlag: true, to: &values)
+        }
+        switch node.transport?.lowercased() {
+        case "ws":
+            values.append("ws=true")
+            appendValue(node.exportablePathWithoutEarlyData ?? "/", key: "ws-path", to: &values)
+            if let host = node.exportableTransportHost {
+                values.append("ws-headers=Host:\(confValue(host))")
+            }
+        case "grpc":
+            values.append("grpc=true")
+            // Kept verbatim: like Xray, Surge reads a leading `/` as a custom
+            // path and a bare name as `/<name>/Tun`.
+            appendValue(node.path, key: "grpc-service-name", to: &values)
+            appendValue(node.hostHeader, key: "grpc-authority", to: &values)
+        default:
+            break
         }
     }
 

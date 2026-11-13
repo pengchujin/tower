@@ -3565,6 +3565,19 @@ final class AppModel {
         }
     }
 
+    /// The Surge profile with VLESS nodes added, served by a one-tap import
+    /// only when the requesting Surge build has VLESS. Nil when it would not
+    /// differ from the App Store baseline.
+    func surgeVLESSVariant(for configuration: GeneratedConfiguration) async -> GeneratedConfiguration? {
+        guard [.surge, .surgeMac].contains(configuration.target), configuration.contentMode == .fullConfiguration,
+              enabledNodes.contains(where: { $0.kind == .vless || $0.trustTunnel?.clientRandomAuthKey != nil })
+        else { return nil }
+        let request = configurationRequest(target: configuration.target, contentMode: .fullConfiguration,
+                                           supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+        let variant = await self.configuration(for: request)
+        return variant.supportedNodeCount > configuration.supportedNodeCount ? variant : nil
+    }
+
     var isLANSharingActive: Bool { lanSharingURL != nil }
 
     var hasExportableSources: Bool {
@@ -3598,6 +3611,11 @@ final class AppModel {
                 self?.configuration(target: target, contentMode: .nodesOnly)
                     ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0,
                         skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
+            },
+            surgeVLESSConfiguration: { [weak self] target in
+                self?.configuration(target: target, contentMode: .fullConfiguration,
+                                    supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+                    ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0, skippedNodeCount: 0, ruleCount: 0)
             }
         ) { [weak self] format in
             guard let self else {

@@ -185,11 +185,16 @@ final class DirectImportService {
     private var expirationTask: Task<Void, Never>?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    func prepare(_ configuration: GeneratedConfiguration) async throws -> URL {
+    /// `surgeVLESSVariant` is served instead of `configuration` only to a
+    /// Surge build that has VLESS (see `SurgeClientCapabilities`).
+    func prepare(
+        _ configuration: GeneratedConfiguration,
+        surgeVLESSVariant: GeneratedConfiguration? = nil
+    ) async throws -> URL {
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
-        let localURL = try await prepareLocalResource(configuration)
+        let localURL = try await prepareLocalResource(configuration, surgeVLESSVariant: surgeVLESSVariant)
         do {
             return try ClientImportURLBuilder.make(
                 target: configuration.target,
@@ -212,13 +217,16 @@ final class DirectImportService {
         return try await prepareLocalResource(configuration)
     }
 
-    private func prepareLocalResource(_ configuration: GeneratedConfiguration) async throws -> URL {
+    private func prepareLocalResource(
+        _ configuration: GeneratedConfiguration,
+        surgeVLESSVariant: GeneratedConfiguration? = nil
+    ) async throws -> URL {
         let previousServer = server
         server = nil
         stop()
         await previousServer?.stopAndWait()
 
-        let server = LocalConfigurationServer(configuration: configuration)
+        let server = LocalConfigurationServer(configuration: configuration, surgeVLESSVariant: surgeVLESSVariant)
         let localURL = try await server.start()
         self.server = server
         beginBackgroundExecution()
@@ -265,6 +273,8 @@ final class LocalConfigurationServer: @unchecked Sendable {
     private let body: Data
     /// Anywhere's AJSON form, for requests that carry `X-Anywhere-Format`.
     private let ajsonBody: Data?
+    /// Surge's profile with VLESS, for a Surge build that has it.
+    private let surgeVLESSBody: Data?
     private let fileName: String
     private let contentType: String
     private let profileName: String
@@ -294,10 +304,16 @@ final class LocalConfigurationServer: @unchecked Sendable {
 
     init(
         configuration: GeneratedConfiguration,
+        surgeVLESSVariant: GeneratedConfiguration? = nil,
         token: String = DirectImportAccessTokenStore.loadOrCreate()
     ) {
         body = Data(configuration.content.utf8)
         ajsonBody = configuration.anywhereAJSON.map { Data($0.utf8) }
+        // Only a variant that actually adds nodes is worth a second body.
+        surgeVLESSBody = surgeVLESSVariant.flatMap { variant in
+            [.surge, .surgeMac].contains(configuration.target) && variant.content != configuration.content
+                ? Data(variant.content.utf8) : nil
+        }
         nodeSubscriptionTarget = configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode)
             ? configuration.target : nil
         self.token = token
@@ -420,13 +436,23 @@ final class LocalConfigurationServer: @unchecked Sendable {
     /// The AJSON document goes only to an Anywhere release that says it reads
     /// it; every other request gets the share-link list.
     func response(forRequestHeaders request: String) -> (body: Data, contentType: String) {
+        if let surgeVLESSBody,
+           SurgeClientCapabilities.supportsVLESS(userAgent: Self.header("user-agent", in: request)) {
+            return (surgeVLESSBody, contentType)
+        }
         guard let ajsonBody else { return (body, contentType) }
-        let formatHeader = request.components(separatedBy: "\r\n").dropFirst()
-            .prefix { !$0.isEmpty }
-            .first { $0.lowercased().hasPrefix(AnywhereExport.ajsonFormatHeader + ":") }
-            .map { String($0.dropFirst(AnywhereExport.ajsonFormatHeader.count + 1)) }
+        let formatHeader = Self.header(AnywhereExport.ajsonFormatHeader, in: request)
         guard AnywhereExport.acceptsAJSON(formatHeader: formatHeader) else { return (body, contentType) }
         return (ajsonBody, "application/json; charset=utf-8")
+    }
+
+    /// The raw value after `name:` (case-insensitive) in the header block.
+    private static func header(_ name: String, in request: String) -> String? {
+        let prefix = name.lowercased() + ":"
+        return request.components(separatedBy: "\r\n").dropFirst()
+            .prefix { !$0.isEmpty }
+            .first { $0.lowercased().hasPrefix(prefix) }
+            .map { String($0.dropFirst(prefix.count)) }
     }
 
     /// Clients may normalize percent escapes or send UTF-8 paths. Decode once,

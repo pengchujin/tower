@@ -566,6 +566,18 @@ struct SSHOptions: Codable, Hashable {
 /// TrustTunnel runs over HTTP/2 + TLS unless `quic` selects HTTP/3.
 struct TrustTunnelOptions: Codable, Hashable {
     var quic: Bool = false
+    /// Hex key matching a `client_random_auth_key` rule in the server's
+    /// rules.toml (TrustTunnel 1.3.0-beta.2+). The client derives its TLS
+    /// client random from it and the SNI, so a server that requires it
+    /// refuses any client without it. Only Surge iOS 6 / Mac 6.12 betas
+    /// have the field (`client-random-auth-key`); every other client must
+    /// skip the node rather than drop the key.
+    var clientRandomAuthKey: String?
+
+    /// Hex with an even number of digits, as the server's rule expects.
+    static func isValidClientRandomAuthKey(_ value: String) -> Bool {
+        !value.isEmpty && value.count.isMultiple(of: 2) && value.allSatisfy { $0.isASCII && $0.isHexDigit }
+    }
 }
 
 /// MASQUE has incompatible wire dialects. Never infer CONNECT-IP from a
@@ -863,7 +875,9 @@ struct ProxyNode: Identifiable, Codable, Hashable {
             fields.append(contentsOf: ["ssh", ssh.privateKey ?? "", ssh.privateKeyPassphrase ?? "",
                                       ssh.hostKeys.joined(separator: "\n"), ssh.hostKeyAlgorithms.joined(separator: ",")])
         }
-        if let trustTunnel { fields.append(contentsOf: ["trusttunnel", trustTunnel.quic ? "quic" : "h2"]) }
+        if let trustTunnel {
+            fields.append(contentsOf: ["trusttunnel", trustTunnel.quic ? "quic" : "h2", trustTunnel.clientRandomAuthKey ?? ""])
+        }
         return fields.joined(separator: "\u{1F}")
     }
 
@@ -966,6 +980,15 @@ struct ProxyNode: Identifiable, Codable, Hashable {
             return nil
         }
         return serverName
+    }
+
+    /// TrustTunnel's client-random auth key is derived with the SNI, so the
+    /// node must send one: an explicit `sni`, or a hostname as the server.
+    var sendsTrustTunnelSNI: Bool {
+        if let sni = sni?.trimmingCharacters(in: .whitespacesAndNewlines), !sni.isEmpty {
+            return sni.lowercased() != "off"
+        }
+        return !Self.isIPAddress(server)
     }
 
     private static func isIPAddress(_ value: String) -> Bool {
@@ -1462,10 +1485,11 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     /// Whether the client has fields for REALITY's public key and short id.
     ///
-    /// Only Surge does not: its producer raises `reality is unsupported`
-    /// outright, and it takes no VLESS at all, which is the only protocol
-    /// Tower sees REALITY on. Everything else carries it, Shadowrocket
-    /// included.
+    /// Only Surge's App Store releases do not. Surge iOS 6 TestFlight adds
+    /// REALITY on its `vless` policy alone; that path is enabled per request
+    /// by `SurgeClientCapabilities` and checked by
+    /// `ConfigurationGenerator.surgeAcceptsVLESS`, never through this flag.
+    /// Everything else carries it, Shadowrocket included.
     var expressesReality: Bool {
         self != .surge && self != .surgeMac
     }

@@ -1,5 +1,9 @@
 # 当前交接
 
+## 1.0.31（74）TestFlight 与 Mac 分发（2026-11-13）
+
+- 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。发布前全量 TowerTests 1,399 项（8 跳过）零失败；ACL4SSR 已是上游最新（`bdc102f`）。纳入 Surge 测试版 VLESS（按 UA 构建号分发：iOS ≥ 4024、Mac ≥ 12820，见 `SurgeClientCapabilities`）与 TrustTunnel `client-random-auth-key`。更新日志见 [1.0.31](releases/1.0.31.md)，剩余事项见 TODO 的 Surge 条目。
+
 ## 1.0.31（73）TestFlight 与 Mac 分发（2026-11-11）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。纳入下方「按上游更新修正导出」与「Clash App 显示策略组图标」。更新日志见 [1.0.31](releases/1.0.31.md)。

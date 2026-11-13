@@ -77,6 +77,10 @@ struct ProxyNodeShareLinkGenerator {
             ? ConfigurationGenerator().snellShareLine(node)
             : original
         case .masque: ConfigurationGenerator().masqueShareLine(node)
+        // The mihomo snippet has no field for TrustTunnel's client-random
+        // auth key; the Surge line is the only form that keeps it.
+        case .trustTunnel where node.trustTunnel?.clientRandomAuthKey != nil:
+            ConfigurationGenerator().snellShareLine(node)
         case .ssh, .trustTunnel: ConfigurationGenerator().clashShareSnippet(node)
         case .unknown: original
         }

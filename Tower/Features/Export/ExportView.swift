@@ -395,7 +395,10 @@ struct ExportView: View {
         defer { isImporting = false }
 
         do {
-            let schemeURL = try await directImportService.prepare(configuration)
+            let schemeURL = try await directImportService.prepare(
+                configuration,
+                surgeVLESSVariant: await model.surgeVLESSVariant(for: configuration)
+            )
             let didOpen = await withCheckedContinuation { continuation in
                 UIApplication.shared.open(schemeURL, options: [:]) { opened in
                     continuation.resume(returning: opened)

@@ -78,11 +78,16 @@ final class TransportGenerationTests: XCTestCase {
     }
 
     func testUnsupportedGRPCIsSkippedInsteadOfDegradedToTCP() {
-        for target in [ClientTarget.surge, .loon, .quanx] {
+        for target in [ClientTarget.loon, .quanx] {
             let result = generate(target, transport: "grpc", path: "tower.Telemetry")
             XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不应降级 gRPC")
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
+        // App Store Surge leaves the VLESS node out (noted for its betas,
+        // not counted as skipped) and never writes it as plain TCP.
+        let surge = generate(.surge, transport: "grpc", path: "tower.Telemetry")
+        XCTAssertEqual(surge.supportedNodeCount, 0, "Surge 正式版不应降级 gRPC")
+        XCTAssertFalse(surge.content.contains("= vless,"))
 
         for target in [ClientTarget.clash, .clashMi, .karing, .shadowrocket, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "grpc", path: "tower.Telemetry")
