@@ -8,6 +8,14 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## 1.0.31（77）TestFlight 与 Mac 分发（2026-11-14）
+
+- 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。修复用户反馈：订阅全是 VLESS 时导出到 Surge Mac 显示「暂时无法导出」、按钮全灰，测试版也导不进去。现在 `GeneratedConfiguration.surgeBetaNodeCount` 记录 Surge 测试版专属节点，全是这类节点时标题为「仅 Surge 测试版可用」，一键导入 / 复制订阅可用（按 UA 返回测试版那一份），分享文件 / 复制文本仍禁用。发布前全量 TowerTests 1,404 项（8 跳过）及 106 项 Swift Testing 零失败；ACL4SSR 已是上游最新（`e2f2573`）。
+- 本机 M4 用 asc 归档两端，核对 `com.jzb.tower` 1.0.31（77），Mac 为 arm64 / x86_64。asc 上传两端，处理为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.31-77/`。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.31-77](https://github.com/pengchujin/tower/releases/tag/v1.0.31-77)（tag 指向 `885b28c`）已公开并设为 Latest，回下载 SHA-256 一致：`bc24324e55742592fdfdecaa850fc44b4088e87b8a874bb01ca470948f61c0d7`。
+- README 下载入口改为 v1.0.31-77；Homebrew cask 更新为 1.0.31,77，`brew style` / `brew audit` 通过。本机 `brew upgrade --cask` 后为 1.0.31（77），严格签名、Gatekeeper 通过，保留隔离标记，可启动。
+- 待真机：全 VLESS 订阅下 Surge Mac 测试版（12820+）/ iOS 测试版（4024+）一键导入或复制订阅后能拿到并连上节点。
+
 ## 1.0.31（76）TestFlight 与 Mac 分发（2026-11-14）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。纳入 Surge 测试版 VLESS Encryption / XHTTP（按 UA 构建号分两档：iOS 4024 / 4025、Mac 12820 只拿普通 VLESS；iOS ≥ 4026、Mac ≥ 12840 再加 Encryption / XHTTP，见 `SurgeClientCapabilities.Tier`），以及上游更新检查读取不提交的本地渠道。发布前全量 TowerTests 1,403 项（8 跳过）及 106 项 Swift Testing 零失败。
