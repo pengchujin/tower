@@ -1,0 +1,12 @@
+domain_suffix_set:
+  - "smtp"
+domain_keyword_set:
+  - "aria2"
+url_regex_set:
+  - "(Subject|HELO|SMTP)"
+  - "(api|ps|sv|offnavi|newvector|ulog.imap|newloc)(.map|).(baidu|n.shifen).com"
+  - "(.+.|^)(360|so|qihoo|360safe|qhimg|360totalsecurity|yunpan).(cn|com)"
+  - "(.+.)?(torrent|announce.php?passkey=|tracker|BitTorrent|bt_key|ed2k|find_node|get_peers|info_hash|magnet:|peer_id=|xunlei)(..+)?"
+  - "(.?)(xunlei|sandai|Thunder|XLLiveUD)(.)"
+  - "(.+\\.|^)(360|so)\\.(cn|com)"
+  - "assets\\d+\\.xboxlive\\.(com|cn)"
