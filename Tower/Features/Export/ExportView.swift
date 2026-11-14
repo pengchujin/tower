@@ -369,7 +369,10 @@ struct ExportView: View {
             isImporting = true
             defer { isImporting = false }
             do {
-                let url = try await directImportService.prepareNodeSubscriptionURL(configuration)
+                let url = try await directImportService.prepareNodeSubscriptionURL(
+                    configuration,
+                    surgeVLESSVariant: await model.surgeVLESSVariant(for: configuration)
+                )
                 UIPasteboard.general.string = url.absoluteString
                 model.showToast(String(localized: "订阅链接已复制"), symbol: "doc.on.doc.fill")
             } catch {

@@ -789,7 +789,8 @@ struct ConfigurationGenerator {
         nodes: [ProxyNode],
         target: ClientTarget,
         excludedKinds: Set<ProxyKind> = [],
-        profileName: String = TowerBrand.localizedName
+        profileName: String = TowerBrand.localizedName,
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         guard target.supportsNodesOnlyExport else {
             return GeneratedConfiguration(
@@ -806,7 +807,7 @@ struct ConfigurationGenerator {
         }
 
         var supported = uniquedNames(
-            nodes.filter { writes($0, to: target, excluding: excludedKinds) },
+            nodes.filter { writes($0, to: target, excluding: excludedKinds, supportedKindsOverride: supportedKindsOverride) },
             reservedNames: target.copiesAggregatedSubscription(mode: .nodesOnly)
                 ? ["DIRECT", "REJECT", "direct", "reject"] : []
         )
@@ -906,7 +907,9 @@ struct ConfigurationGenerator {
             supported = []
         }
 
-        return GeneratedConfiguration(
+        // Surge's policy-path list is fetched by Surge itself, so a beta build
+        // gets VLESS through the same User-Agent switch as full profiles.
+        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
             target: target,
             content: content,
             supportedNodeCount: supported.count,
@@ -916,9 +919,11 @@ struct ConfigurationGenerator {
             contentMode: .nodesOnly,
             fileExtensionOverride: fileExtension,
             diagnostics: anywhereNotes,
-            skippedNodes: skippedDetails(nodes: nodes, exported: supported, target: target, excludedKinds: excludedKinds, nodesOnly: true),
+            skippedNodes: skippedDetails(nodes: nodes, exported: supported, target: target, excludedKinds: excludedKinds,
+                                         supportedKindsOverride: supportedKindsOverride, nodesOnly: true),
             anywhereAJSON: anywhereAJSON
-        )
+        ), nodes: nodes, remoteSourceIDs: [], excludedKinds: excludedKinds,
+           supportedKindsOverride: supportedKindsOverride)
     }
 
     private func skippedDetails(

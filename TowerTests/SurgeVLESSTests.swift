@@ -260,15 +260,21 @@ final class SurgeVLESSTests: XCTestCase {
     // MARK: - Serving by User-Agent
 
     func testLANSubscriptionServesVLESSProfileOnlyToNewSurgeIOS() {
-        func respond(userAgent: String, target: String = "auto") -> String {
+        func respond(userAgent: String, target: String = "auto", content: String? = nil) -> String {
+            let query = "target=\(target)" + (content.map { "&content=\($0)" } ?? "")
             let response = LANSubscriptionHTTPRouter.response(
-                request: "GET /sub/t?target=\(target) HTTP/1.1\r\nUser-Agent: \(userAgent)\r\n\r\n",
+                request: "GET /sub/t?\(query) HTTP/1.1\r\nUser-Agent: \(userAgent)\r\n\r\n",
                 token: "t",
                 exactClientConfiguration: { client in
                     GeneratedConfiguration(target: client, content: "exact", supportedNodeCount: 0, skippedNodeCount: 0, ruleCount: 0)
                 },
-                surgeVLESSConfiguration: { client in
-                    GeneratedConfiguration(target: client, content: "vless-\(client.rawValue)", supportedNodeCount: 1, skippedNodeCount: 0, ruleCount: 0)
+                nodeConfiguration: { client in
+                    GeneratedConfiguration(target: client, content: "nodes-\(client.rawValue)", supportedNodeCount: 0,
+                                           skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
+                },
+                surgeVLESSConfiguration: { client, mode in
+                    GeneratedConfiguration(target: client, content: "vless-\(mode.rawValue)-\(client.rawValue)", supportedNodeCount: 1,
+                                           skippedNodeCount: 0, ruleCount: 0, contentMode: mode)
                 },
                 formatConfiguration: { format in
                     GeneratedConfiguration(target: format.generationTarget, content: "baseline",
@@ -277,14 +283,40 @@ final class SurgeVLESSTests: XCTestCase {
             )
             return String(decoding: response.body, as: UTF8.self)
         }
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000"), "vless-surge")
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000", target: "surge"), "vless-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000"), "vless-fullConfiguration-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000", target: "surge"), "vless-fullConfiguration-surge")
         XCTAssertEqual(respond(userAgent: "Surge iOS/4022 SurgeCore/6011000"), "baseline")
-        XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000"), "vless-surge")
-        XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000", target: "surge-mac"), "vless-surge-mac")
+        XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000"), "vless-fullConfiguration-surge")
+        XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000", target: "surge-mac"), "vless-fullConfiguration-surge-mac")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12800 SurgeCore/6011000", target: "surge-mac"), "exact")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12800 SurgeCore/6011000"), "baseline")
         XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "surfboard"), "baseline")
+
+        // Node-only policy-path lists switch the same way.
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "surge", content: "nodesOnly"), "vless-nodesOnly-surge")
+        XCTAssertEqual(respond(userAgent: "Surge Mac/12820", target: "surge-mac", content: "nodesOnly"), "vless-nodesOnly-surge-mac")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4022", target: "surge", content: "nodesOnly"), "nodes-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "clash", content: "nodesOnly"), "nodes-clash")
+    }
+
+    func testNodeOnlySurgeListWritesVLESSForBetasAndNotesItOtherwise() throws {
+        let vless = try node("security=reality&flow=xtls-rprx-vision&pbk=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4"
+            + "&sid=0123456789abcdef&sni=www.microsoft.com", name: "V-REALITY")
+        let xhttp = try node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
+        for target in [ClientTarget.surge, .surgeMac] {
+            let beta = ConfigurationGenerator().generateNodeSubscription(
+                nodes: [vless, xhttp], target: target, supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+            XCTAssertTrue(beta.content.hasPrefix("V-REALITY = vless, edge.example.com, 443,"), beta.content)
+            XCTAssertTrue(beta.content.contains("reality-public-key="))
+            XCTAssertEqual(beta.supportedNodeCount, 1)
+            XCTAssertEqual(beta.skippedNodes.map(\.name), ["V-XHTTP"])
+
+            let baseline = ConfigurationGenerator().generateNodeSubscription(nodes: [vless, xhttp], target: target)
+            XCTAssertFalse(baseline.content.contains("= vless,"))
+            XCTAssertEqual(baseline.contentMode, .nodesOnly)
+            XCTAssertEqual(baseline.skippedNodes.map(\.name), ["V-XHTTP"])
+            XCTAssertEqual(baseline.diagnostics.count(where: { $0.contains("VLESS") }), 1)
+        }
     }
 
     func testOneTapImportServesVLESSProfileOnlyToNewSurgeIOS() {

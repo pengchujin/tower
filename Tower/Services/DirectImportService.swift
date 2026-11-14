@@ -210,11 +210,14 @@ final class DirectImportService {
 
     /// Manual node subscription import uses the same bounded loopback handoff as a scheme
     /// import. Unlike LAN sharing, this exposes only a loopback resource.
-    func prepareNodeSubscriptionURL(_ configuration: GeneratedConfiguration) async throws -> URL {
+    func prepareNodeSubscriptionURL(
+        _ configuration: GeneratedConfiguration,
+        surgeVLESSVariant: GeneratedConfiguration? = nil
+    ) async throws -> URL {
         guard configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
-        return try await prepareLocalResource(configuration)
+        return try await prepareLocalResource(configuration, surgeVLESSVariant: surgeVLESSVariant)
     }
 
     private func prepareLocalResource(
