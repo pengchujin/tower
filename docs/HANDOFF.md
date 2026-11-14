@@ -1,5 +1,13 @@
 # 当前交接
 
+## GitHub Release 正文写法（2026-11-14 起）
+
+- 用户反馈 1.0.31 的 Release 写得太长。原因是同一版本号连发构建时，每个 Release 都把前面构建的说明用「以下为 1.0.31（xx）已包含：」整段带上，到 75 已累积到 72 的三倍多，底部支持说明也重复了一行。
+- 以后每个构建的 Release 正文**只写这个构建新增的改动**，末尾一句链接到同版本的前几个构建和 `docs/releases/<版本>.md`，再写一次「支持 iOS 17 及以上；Mac 安装包为 Apple silicon / Intel 通用版本。」。
+- 每条一句话，写用户能感知到的变化。客户端构建号门槛、协议组合、字段名这类细节留在 `docs/releases/<版本>.md`、本文件和 CLIENT-COMPATIBILITY 里，不进 Release 正文。
+- `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
+- v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
+
 ## 1.0.31（75）TestFlight 与 Mac 分发（2026-11-14）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。补上 Surge「仅节点」的 VLESS 按 UA 分发（本机复制链接 `prepareNodeSubscriptionURL` 与局域网 `content=nodesOnly`）。发布前全量 TowerTests 1,400 项（8 跳过）零失败；ACL4SSR 已是上游最新（`bdc102f`）。更新日志见 [1.0.31](releases/1.0.31.md)。
