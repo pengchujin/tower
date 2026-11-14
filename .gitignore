@@ -41,4 +41,7 @@ ExportOptions.plist
 # LOCAL_RELEASE.md was previously held back only by .git/info/exclude, which is
 # local to one clone and silently absent in every other.
 Config/release.local.sh
+
+# Personal upstream channels for Scripts/check_upstream_updates.py.
+Scripts/upstream_sources.local.json
 LOCAL_RELEASE.md

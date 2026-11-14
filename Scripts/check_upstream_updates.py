@@ -2,7 +2,10 @@
 """Check Tower's upstream clients, cores and protocols for new releases.
 
 The source list lives in ``Scripts/upstream_sources.json`` (see
-``docs/UPSTREAM_SOURCES.md``). Each source has watch entries of these types:
+``docs/UPSTREAM_SOURCES.md``). Channels you would rather not publish go in
+``Scripts/upstream_sources.local.json`` (same format, ignored by git): a source
+with an existing id adds its watch entries and links to that source, a new id
+is appended. Each source has watch entries of these types:
 
 - ``appstore``: iTunes lookup API (version, release date, release notes)
 - ``github``: GitHub Releases (latest stable and latest prerelease); with
@@ -41,6 +44,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = PROJECT_ROOT / "Scripts" / "upstream_sources.json"
+LOCAL_MANIFEST = PROJECT_ROOT / "Scripts" / "upstream_sources.local.json"
 STATE = PROJECT_ROOT / ".artifacts" / "upstream-state.json"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) TowerUpstreamCheck/1.0"
 TIMEOUT = 20
@@ -297,6 +301,23 @@ def changed(watch: dict[str, Any], old: dict[str, Any] | None, new: dict[str, An
     return old.get("version") != new.get("version")
 
 
+def merge_local(manifest: dict[str, Any], local: dict[str, Any]) -> dict[str, Any]:
+    """Add the git-ignored local sources to the public manifest."""
+    sources = [dict(s, watch=list(s.get("watch", [])), links=dict(s.get("links", {}))) for s in manifest["sources"]]
+    by_id = {s["id"]: s for s in sources}
+    for extra in local.get("sources", []):
+        base = by_id.get(extra["id"])
+        if base is None:
+            extra = dict(extra, watch=list(extra.get("watch", [])), links=dict(extra.get("links", {})))
+            sources.append(extra)
+            by_id[extra["id"]] = extra
+            continue
+        known = {watch_key(base, w) for w in base["watch"]}
+        base["watch"] += [w for w in extra.get("watch", []) if watch_key(base, w) not in known]
+        base["links"].update(extra.get("links", {}))
+    return {**manifest, "sources": sources}
+
+
 def compact(watch: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     """Keep the state file small: Telegram only needs the newest id."""
     if watch["type"] == "telegram":
@@ -307,6 +328,7 @@ def compact(watch: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
+    parser.add_argument("--local", type=Path, default=LOCAL_MANIFEST, help="git-ignored extra sources; skipped if missing")
     parser.add_argument("--state", type=Path, default=STATE)
     parser.add_argument("--only", action="append", default=[], help="source id or kind (client/core/protocol/converter); repeatable")
     parser.add_argument("--type", action="append", default=[], help="watch type to run (appstore/github/appcast/telegram/testflight/page); repeatable")
@@ -317,6 +339,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     manifest = json.loads(args.manifest.read_text())
+    if args.local.exists():
+        manifest = merge_local(manifest, json.loads(args.local.read_text()))
     state = json.loads(args.state.read_text()) if args.state.exists() else {}
     first_run = not state
     token = github_token()

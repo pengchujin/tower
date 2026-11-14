@@ -12,6 +12,7 @@ python3 Scripts/check_upstream_updates.py
 - `--all` 列出全部当前值；`--only <id 或 client/core/protocol/converter>`、`--type <appstore/github/appcast/telegram/testflight/page>` 缩小范围；`--report <文件>` 另存报告；`--dry-run` 不更新基线。
 - GitHub 匿名每小时 60 次，脚本会自动用 `gh auth token` 或 `GITHUB_TOKEN`。
 - 只读公开页面，不发送任何订阅、节点或配置。
+- 不想公开的渠道写进 `Scripts/upstream_sources.local.json`（格式同主清单，已被 `.gitignore` 忽略，不提交）：`id` 与主清单相同的条目把 `watch` 和 `links` 追加到该来源，新 `id` 作为新来源。`--local <文件>` 可换路径，文件不存在时跳过。本文不列出本地渠道。
 - 测试：`python3 Scripts/tests/check_upstream_updates_test.py`（含「每个 `ClientTarget` 都有来源」的校验，新增客户端时会提醒补清单）。
 
 ## 维护流程

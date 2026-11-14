@@ -119,6 +119,25 @@ class CheckUpstreamUpdatesTests(unittest.TestCase):
                 if url:
                     self.assertTrue(url.startswith("https://"), url)
 
+    def test_local_sources_extend_matching_ids_and_append_new_ones(self) -> None:
+        manifest = {"version": 1, "sources": [
+            {"id": "a", "name": "A", "kind": "converter", "watch": [{"type": "github", "repo": "o/a"}], "links": {"docs": "https://a"}},
+        ]}
+        local = {"sources": [
+            {"id": "a", "watch": [{"type": "github", "repo": "o/a"}, {"type": "telegram", "channel": "chan"}], "links": {"x": "https://x"}},
+            {"id": "b", "name": "B", "kind": "client", "watch": [{"type": "appstore", "id": "1"}]},
+        ]}
+        merged = upstream.merge_local(manifest, local)
+        a, b = merged["sources"]
+        self.assertEqual([w["type"] for w in a["watch"]], ["github", "telegram"])
+        self.assertEqual(a["links"], {"docs": "https://a", "x": "https://x"})
+        self.assertEqual(b["id"], "b")
+        self.assertEqual(len(manifest["sources"][0]["watch"]), 1, "public manifest must not be mutated")
+
+    def test_local_manifest_is_ignored_by_git(self) -> None:
+        gitignore = (Path(__file__).resolve().parents[2] / ".gitignore").read_text().splitlines()
+        self.assertIn("Scripts/upstream_sources.local.json", gitignore)
+
     def test_every_client_target_is_covered(self) -> None:
         manifest = json.loads(MANIFEST_PATH.read_text())
         covered = {t for s in manifest["sources"] for t in s.get("targets", [])}
