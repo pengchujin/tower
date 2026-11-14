@@ -323,6 +323,7 @@ final class AppModel {
         let target: ClientTarget
         let mode: ExportContentMode
         let supportedKinds: Set<ProxyKind>?
+        let surgeTier: SurgeClientCapabilities.Tier?
     }
     @ObservationIgnored private var requestInputs: RequestInputs?
     @ObservationIgnored private var requestCache: [RequestVariant: ConfigurationRequest] = [:]
@@ -3385,9 +3386,11 @@ final class AppModel {
     func configuration(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeTier: SurgeClientCapabilities.Tier? = nil
     ) -> GeneratedConfiguration {
-        let request = configurationRequest(target: target, contentMode: contentMode, supportedKindsOverride: supportedKindsOverride)
+        let request = configurationRequest(target: target, contentMode: contentMode,
+                                           supportedKindsOverride: supportedKindsOverride, surgeTier: surgeTier)
         if let cached = generationCache[request.key] { return cached.named(request.name) }
         configurationGenerationCount += 1
         let result = request.generate()
@@ -3435,7 +3438,8 @@ final class AppModel {
     func configurationRequest(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeTier: SurgeClientCapabilities.Tier? = nil
     ) -> ConfigurationRequest {
         let inputs = RequestInputs(nodes: nodes, sources: subscriptions, excludedNodes: excludedNodeIDs,
             nameFilter: nodeExportNameFilter,
@@ -3451,11 +3455,12 @@ final class AppModel {
             requestCache.removeAll(keepingCapacity: true)
         }
         let variant = RequestVariant(target: target ?? selectedTarget,
-            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride)
+            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride,
+            surgeTier: surgeTier)
         if let cached = requestCache[variant] { return cached }
         configurationRequestPreparationCount += 1
         let request = prepareConfigurationRequest(target: variant.target, contentMode: variant.mode,
-                                                   supportedKindsOverride: supportedKindsOverride)
+                                                   supportedKindsOverride: supportedKindsOverride, surgeTier: surgeTier)
         // Only the latest supported-kinds variant per client/mode is retained.
         requestCache = requestCache.filter { $0.key.target != variant.target || $0.key.mode != variant.mode }
         requestCache[variant] = request
@@ -3463,8 +3468,13 @@ final class AppModel {
     }
 
     private func prepareConfigurationRequest(
-        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?
+        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?,
+        surgeTier: SurgeClientCapabilities.Tier? = nil
     ) -> ConfigurationRequest {
+        // A Surge beta build reads VLESS; the higher tier also reads VLESS
+        // Encryption and XHTTP (`SurgeClientCapabilities.Tier`).
+        let supportedKindsOverride = surgeTier != nil ? SurgeClientCapabilities.vlessKinds : supportedKindsOverride
+        let surgeVLESSExtensions = surgeTier == .vlessExtensions
         let ruleRepository = self.ruleRepository
         let schemeRepository = self.schemeRepository
         let configurationName = self.configurationName
@@ -3480,7 +3490,7 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue ?? 0
         let excludedHash = excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
-            ^ supportedKindsHash
+            ^ supportedKindsHash ^ (surgeVLESSExtensions ? 0x5EC7 : 0)
 
         // A node subscription is nodes only: no rules, no policy groups, so
         // none of the scheme materialization below applies to it. Producing the
@@ -3497,7 +3507,7 @@ final class AppModel {
                 contentMode: .nodesOnly
             )
             return ConfigurationRequest(key: key, name: configurationName) {
-                ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
+                ConfigurationGenerator(rules: ruleRepository, surgeVLESSExtensions: surgeVLESSExtensions).generateNodeSubscription(
                     nodes: currentNodes, target: resolvedTarget, excludedKinds: excluded,
                     profileName: configurationName, supportedKindsOverride: supportedKindsOverride
                 )
@@ -3536,7 +3546,7 @@ final class AppModel {
             contentMode: .fullConfiguration
         )
         return ConfigurationRequest(key: key, name: configurationName) {
-            let generator = ConfigurationGenerator(rules: ruleRepository)
+            let generator = ConfigurationGenerator(rules: ruleRepository, surgeVLESSExtensions: surgeVLESSExtensions)
             let generated: GeneratedConfiguration
             if let scheme {
                 generated = generator.generate(
@@ -3565,17 +3575,28 @@ final class AppModel {
         }
     }
 
-    /// The Surge profile with VLESS nodes added, served by a one-tap import
-    /// only when the requesting Surge build has VLESS. Nil when it would not
-    /// differ from the App Store baseline.
-    func surgeVLESSVariant(for configuration: GeneratedConfiguration) async -> GeneratedConfiguration? {
+    /// The Surge profiles with VLESS nodes added, one per beta tier, served
+    /// by a one-tap import only to a Surge build that reads that tier
+    /// (`SurgeClientCapabilities.tier`). A tier is left out when it would
+    /// not differ from the tier below it (or from the App Store baseline).
+    func surgeVLESSVariants(
+        for configuration: GeneratedConfiguration
+    ) async -> [SurgeClientCapabilities.Tier: GeneratedConfiguration] {
         guard [.surge, .surgeMac].contains(configuration.target),
               enabledNodes.contains(where: { $0.kind == .vless || $0.trustTunnel?.clientRandomAuthKey != nil })
-        else { return nil }
-        let request = configurationRequest(target: configuration.target, contentMode: configuration.contentMode,
-                                           supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
-        let variant = await self.configuration(for: request)
-        return variant.supportedNodeCount > configuration.supportedNodeCount ? variant : nil
+        else { return [:] }
+        var variants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
+        var previous = configuration
+        for tier in SurgeClientCapabilities.Tier.allCases.sorted() {
+            let request = configurationRequest(target: configuration.target, contentMode: configuration.contentMode,
+                                               surgeTier: tier)
+            let variant = await self.configuration(for: request)
+            if variant.supportedNodeCount > previous.supportedNodeCount {
+                variants[tier] = variant
+                previous = variant
+            }
+        }
+        return variants
     }
 
     var isLANSharingActive: Bool { lanSharingURL != nil }
@@ -3612,9 +3633,8 @@ final class AppModel {
                     ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0,
                         skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
             },
-            surgeVLESSConfiguration: { [weak self] target, mode in
-                self?.configuration(target: target, contentMode: mode,
-                                    supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+            surgeVLESSConfiguration: { [weak self] target, mode, tier in
+                self?.configuration(target: target, contentMode: mode, surgeTier: tier)
                     ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0, skippedNodeCount: 0,
                                               ruleCount: 0, contentMode: mode)
             }

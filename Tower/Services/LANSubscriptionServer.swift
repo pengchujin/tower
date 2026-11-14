@@ -249,7 +249,7 @@ enum LANSubscriptionHTTPRouter {
         token: String,
         exactClientConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
         nodeConfiguration: ((ClientTarget) -> GeneratedConfiguration)? = nil,
-        surgeVLESSConfiguration: ((ClientTarget, ExportContentMode) -> GeneratedConfiguration)? = nil,
+        surgeVLESSConfiguration: ((ClientTarget, ExportContentMode, SurgeClientCapabilities.Tier) -> GeneratedConfiguration)? = nil,
         formatConfiguration: (LANSubscriptionFormat) -> GeneratedConfiguration
     ) -> LANSubscriptionHTTPResponse {
         let lines = request.components(separatedBy: "\r\n")
@@ -314,17 +314,17 @@ enum LANSubscriptionHTTPRouter {
             // A Surge policy-path list is refreshed by Surge itself; a beta
             // build gets VLESS just like a full profile.
             if [.surge, .surgeMac].contains(exactClient), let surgeVLESSConfiguration,
-               SurgeClientCapabilities.supportsVLESS(userAgent: headers["user-agent"]) {
-                generated = surgeVLESSConfiguration(exactClient, .nodesOnly)
+               let tier = SurgeClientCapabilities.tier(userAgent: headers["user-agent"]) {
+                generated = surgeVLESSConfiguration(exactClient, .nodesOnly, tier)
             } else {
                 generated = nodeConfiguration(exactClient)
             }
         } else if format == .surge, let surgeVLESSConfiguration,
-                  SurgeClientCapabilities.supportsVLESS(userAgent: headers["user-agent"]) {
+                  let tier = SurgeClientCapabilities.tier(userAgent: headers["user-agent"]) {
             // Each refresh re-reads the header, so a device that moves back
             // to an App Store build gets the baseline again. A copied Surge
             // Mac link keeps its exact dialect.
-            generated = surgeVLESSConfiguration(exactClient == .surgeMac ? .surgeMac : .surge, .fullConfiguration)
+            generated = surgeVLESSConfiguration(exactClient == .surgeMac ? .surgeMac : .surge, .fullConfiguration, tier)
         } else if let exactClient, [.surgeMac, .clashMac].contains(exactClient), let exactClientConfiguration {
             generated = exactClientConfiguration(exactClient)
         } else {
@@ -475,7 +475,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
     private let configurationProvider: ConfigurationProvider
     private let exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
     private let nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)?
-    private let surgeVLESSConfiguration: (@MainActor (ClientTarget, ExportContentMode) -> GeneratedConfiguration)?
+    private let surgeVLESSConfiguration: (@MainActor (ClientTarget, ExportContentMode, SurgeClientCapabilities.Tier) -> GeneratedConfiguration)?
     private let listenerEnvironment: LANSubscriptionListenerEnvironment
     private var listener: NWListener?
     private var didCompleteStart = false
@@ -485,7 +485,7 @@ final class LANSubscriptionServer: @unchecked Sendable {
         listenerEnvironment: LANSubscriptionListenerEnvironment = .wifi,
         exactClientConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
         nodeConfiguration: (@MainActor (ClientTarget) -> GeneratedConfiguration)? = nil,
-        surgeVLESSConfiguration: (@MainActor (ClientTarget, ExportContentMode) -> GeneratedConfiguration)? = nil,
+        surgeVLESSConfiguration: (@MainActor (ClientTarget, ExportContentMode, SurgeClientCapabilities.Tier) -> GeneratedConfiguration)? = nil,
         configurationProvider: @escaping ConfigurationProvider
     ) {
         self.token = token

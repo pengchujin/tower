@@ -99,11 +99,17 @@ final class TransportGenerationTests: XCTestCase {
         for target in [ClientTarget.clashApple, .clashMi, .karing, .shadowrocket] {
             XCTAssertEqual(generate(target, transport: "xhttp", path: "/split").supportedNodeCount, 1)
         }
-        for target in [ClientTarget.clash, .surge, .loon, .quanx, .hiddify, .egern, .singBox] {
+        for target in [ClientTarget.clash, .loon, .quanx, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "xhttp", path: "/split")
             XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不应吞掉 XHTTP 参数")
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
+        // App Store Surge leaves it out; the betas (4026+ / 12840+) have
+        // `xhttp=true`, so it is a note, not a skip.
+        let surge = generate(.surge, transport: "xhttp", path: "/split")
+        XCTAssertEqual(surge.supportedNodeCount, 0)
+        XCTAssertFalse(surge.content.contains("= vless,"))
+        XCTAssertTrue(surge.diagnostics.contains { $0.contains("Encryption / XHTTP") && $0.contains("TestFlight 4026") })
     }
 
     func testShadowrocketWritesXHTTPAsStructuredTransport() {

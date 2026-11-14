@@ -31,9 +31,14 @@ struct ConfigurationGenerator {
     ]
 
     private let rules: RuleRepository
+    /// For a Surge beta request (`supportedKindsOverride` with VLESS): whether
+    /// the build also reads VLESS Encryption and XHTTP
+    /// (`SurgeClientCapabilities.Tier.vlessExtensions`).
+    private let surgeVLESSExtensions: Bool
 
-    init(rules: RuleRepository = RuleRepository()) {
+    init(rules: RuleRepository = RuleRepository(), surgeVLESSExtensions: Bool = false) {
         self.rules = rules
+        self.surgeVLESSExtensions = surgeVLESSExtensions
     }
 
     func generate(
@@ -485,18 +490,20 @@ struct ConfigurationGenerator {
               !SurgeClientCapabilities.isBetaRequest(target: configuration.target, supportedKindsOverride: supportedKindsOverride)
         else { return configuration }
         let local = nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }
-        let vless = excludedKinds.contains(.vless) ? [] : local.filter {
-            $0.kind == .vless && $0.exportableUUID != nil && Self.surgeAcceptsVLESS($0)
+        let betaVLESS = excludedKinds.contains(.vless) ? [] : local.filter {
+            $0.kind == .vless && $0.exportableUUID != nil && Self.surgeAcceptsVLESS($0, withExtensions: true)
         }
+        let vless = betaVLESS.filter { Self.surgeAcceptsVLESS($0, withExtensions: false) }
+        let extendedVLESS = betaVLESS.filter { !Self.surgeAcceptsVLESS($0, withExtensions: false) }
         let trustTunnel = excludedKinds.contains(.trustTunnel) ? [] : local.filter {
             $0.trustTunnel?.clientRandomAuthKey != nil && Self.surgeAcceptsTrustTunnelAuthKey($0)
                 && writes($0, to: configuration.target, excluding: excludedKinds,
                           supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
         }
-        guard !vless.isEmpty || !trustTunnel.isEmpty else { return configuration }
+        guard !betaVLESS.isEmpty || !trustTunnel.isEmpty else { return configuration }
         // Names are not unique, so remove one skipped entry per node.
         var remaining = configuration.skippedNodes
-        for node in vless + trustTunnel {
+        for node in betaVLESS + trustTunnel {
             if let index = remaining.firstIndex(where: { $0.kind == node.kind && $0.name == node.name }) {
                 remaining.remove(at: index)
             }
@@ -509,6 +516,12 @@ struct ConfigurationGenerator {
                 ? String(localized: "\(count) 个 VLESS 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
                 : String(localized: "\(count) 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
         }
+        if !extendedVLESS.isEmpty {
+            let count = extendedVLESS.count
+            notes.append(isMac
+                ? String(localized: "\(count) 个 VLESS Encryption / XHTTP 节点需要 Surge Mac 6.12.0 Beta（12840）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
+                : String(localized: "\(count) 个 VLESS Encryption / XHTTP 节点需要 Surge iOS TestFlight 4026 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
+        }
         if !trustTunnel.isEmpty {
             let count = trustTunnel.count
             notes.append(isMac
@@ -519,7 +532,7 @@ struct ConfigurationGenerator {
             target: configuration.target,
             content: configuration.content,
             supportedNodeCount: configuration.supportedNodeCount,
-            skippedNodeCount: max(0, configuration.skippedNodeCount - vless.count - trustTunnel.count),
+            skippedNodeCount: max(0, configuration.skippedNodeCount - betaVLESS.count - trustTunnel.count),
             ruleCount: configuration.ruleCount,
             profileName: configuration.profileName,
             contentMode: configuration.contentMode,
@@ -996,7 +1009,9 @@ struct ConfigurationGenerator {
         // Reached only when a Surge build that has VLESS asked for this
         // profile (`SurgeClientCapabilities`); the baseline stops at
         // `supportsKind` above.
-        if node.kind == .vless, [.surge, .surgeMac].contains(target) { return Self.surgeAcceptsVLESS(node) }
+        if node.kind == .vless, [.surge, .surgeMac].contains(target) {
+            return Self.surgeAcceptsVLESS(node, withExtensions: surgeVLESSExtensions)
+        }
         // Tower implements TUIC v5. Both parts of its credential are required;
         // a v4 token or half-filled v5 entry may import, but can never
         // authenticate. Skip and count it instead of poisoning the profile.
@@ -1210,25 +1225,55 @@ struct ConfigurationGenerator {
 
     /// Whether Surge's `vless` policy can carry this node unchanged, per
     /// manual.nssurge.com/policies/vless.html: RAW with none, TLS or REALITY;
-    /// WebSocket with none or TLS; gRPC with TLS or REALITY; Vision only on
-    /// RAW with TLS or REALITY. XHTTP, HTTPUpgrade, mKCP and VLESS Encryption
-    /// are unsupported, and a profile line Surge cannot parse breaks the whole
-    /// profile, so anything else is skipped and counted.
-    static func surgeAcceptsVLESS(_ node: ProxyNode) -> Bool {
-        guard node.kind == .vless, node.vlessEncryption == nil else { return false }
+    /// WebSocket with none or TLS; gRPC with TLS or REALITY; XHTTP with none,
+    /// TLS or REALITY. VLESS Encryption can be added to any of them. Vision
+    /// needs RAW with TLS or REALITY, or VLESS Encryption on RAW, WebSocket
+    /// or XHTTP; never gRPC. HTTPUpgrade and mKCP are unsupported, and a
+    /// profile line Surge cannot parse breaks the whole profile, so anything
+    /// else is skipped and counted.
+    ///
+    /// Encryption and XHTTP need `withExtensions` (iOS 4026+ / Mac 12840+);
+    /// the first VLESS betas (4024 / 4025 / 12820) reject the parameters.
+    static func surgeAcceptsVLESS(_ node: ProxyNode, withExtensions: Bool) -> Bool {
+        guard node.kind == .vless else { return false }
+        let encrypted = node.vlessEncryption != nil
+        if !withExtensions, encrypted || node.transport?.lowercased() == "xhttp" { return false }
+        if let encryption = node.vlessEncryption, !surgeAcceptsVLESSEncryption(encryption) { return false }
         let transport = node.transport?.lowercased() ?? "tcp"
         let isRaw = ["", "tcp", "raw"].contains(transport)
         let secured = node.tls || node.usesReality
         if node.usesReality {
-            guard isRaw || transport == "grpc" else { return false }
+            guard isRaw || ["grpc", "xhttp"].contains(transport) else { return false }
             let shortID = node.realityShortID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard shortID.count <= 16, shortID.allSatisfy(\.isHexDigit) else { return false }
         }
         if let flow = node.flow?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !flow.isEmpty {
-            guard ["xtls-rprx-vision", "xtls-rprx-vision-udp443"].contains(flow), isRaw, secured else { return false }
+            guard ["xtls-rprx-vision", "xtls-rprx-vision-udp443"].contains(flow) else { return false }
+            let visionCarrier = (isRaw && secured) || (encrypted && (isRaw || ["ws", "xhttp"].contains(transport)))
+            guard visionCarrier else { return false }
+        }
+        if transport == "xhttp" {
+            let mode = node.transportMode?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+            return ["", "auto", "packet-up", "stream-up", "stream-one"].contains(mode)
         }
         if isRaw || transport == "ws" { return true }
         return transport == "grpc" && secured
+    }
+
+    /// Surge's `encryption` value is the client string `xray vlessenc`
+    /// prints: `mlkem768x25519plus.<native|xorpub|random>.<1rtt|0rtt>`, an
+    /// optional padding segment, then one or more URL-safe Base64 keys.
+    /// Anything else (a future method, a stray comma) would break the line.
+    static func surgeAcceptsVLESSEncryption(_ value: String) -> Bool {
+        let parts = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 4, parts[0].lowercased() == "mlkem768x25519plus",
+              ["native", "xorpub", "random"].contains(parts[1].lowercased()),
+              ["1rtt", "0rtt"].contains(parts[2].lowercased()) else { return false }
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=")
+        return parts.dropFirst(3).allSatisfy { part in
+            !part.isEmpty && part.unicodeScalars.allSatisfy(allowed.contains)
+        }
     }
 
     /// Surge's `client-random-auth-key` (iOS 6.0.0+ / Mac 6.12.0+): hex,
@@ -1259,7 +1304,7 @@ struct ConfigurationGenerator {
         case .surge, .surgeMac:
             // VLESS only gets here for a Surge build that has it; which
             // security each transport allows is `surgeAcceptsVLESS`.
-            if node.kind == .vless { return ["ws", "grpc"].contains(transport) }
+            if node.kind == .vless { return ["ws", "grpc", "xhttp"].contains(transport) }
             return transport == "ws" && [.vmess, .trojan].contains(node.kind)
         case .shadowrocket:
             return ["ws", "http", "h2", "grpc", "httpupgrade", "xhttp"].contains(transport)
@@ -3309,10 +3354,15 @@ struct ConfigurationGenerator {
     /// Only nodes `surgeAcceptsVLESS` passed reach here. REALITY implies TLS,
     /// and Surge ignores skip-cert-verify under it, so neither is written;
     /// `fp` has no field because Surge sends its own ClientHello. UDP is
-    /// always XUDP and needs no switch.
+    /// always XUDP and needs no switch. XHTTP picks its HTTP version from the
+    /// TLS settings and `alpn`, exactly as Xray does, so `alpn` is passed on
+    /// unchanged.
     private func appendSurgeVLESS(_ node: ProxyNode, to values: inout [String]) {
         if let flow = node.flow?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !flow.isEmpty {
             values.append("flow=\(flow)")
+        }
+        if let encryption = node.vlessEncryption?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            values.append("encryption=\(encryption)")
         }
         if node.usesReality {
             appendValue(node.sni, key: "sni", to: &values)
@@ -3336,6 +3386,12 @@ struct ConfigurationGenerator {
             // path and a bare name as `/<name>/Tun`.
             appendValue(node.path, key: "grpc-service-name", to: &values)
             appendValue(node.hostHeader, key: "grpc-authority", to: &values)
+        case "xhttp":
+            values.append("xhttp=true")
+            appendValue(node.exportablePath, key: "xhttp-path", to: &values)
+            appendValue(node.hostHeader, key: "xhttp-host", to: &values)
+            let mode = node.transportMode?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if let mode, mode != "auto" { appendValue(mode, key: "xhttp-mode", to: &values) }
         default:
             break
         }

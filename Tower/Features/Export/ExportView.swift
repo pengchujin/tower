@@ -371,7 +371,7 @@ struct ExportView: View {
             do {
                 let url = try await directImportService.prepareNodeSubscriptionURL(
                     configuration,
-                    surgeVLESSVariant: await model.surgeVLESSVariant(for: configuration)
+                    surgeVLESSVariants: await model.surgeVLESSVariants(for: configuration)
                 )
                 UIPasteboard.general.string = url.absoluteString
                 model.showToast(String(localized: "订阅链接已复制"), symbol: "doc.on.doc.fill")
@@ -400,7 +400,7 @@ struct ExportView: View {
         do {
             let schemeURL = try await directImportService.prepare(
                 configuration,
-                surgeVLESSVariant: await model.surgeVLESSVariant(for: configuration)
+                surgeVLESSVariants: await model.surgeVLESSVariants(for: configuration)
             )
             let didOpen = await withCheckedContinuation { continuation in
                 UIApplication.shared.open(schemeURL, options: [:]) { opened in

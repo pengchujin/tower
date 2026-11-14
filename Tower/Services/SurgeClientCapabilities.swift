@@ -11,6 +11,18 @@ import Foundation
 /// is the signal: iOS TestFlight 4024 reports `SurgeCore/6011000`, below the
 /// 6.12.0 the manual names, so the core version cannot be used.
 enum SurgeClientCapabilities {
+    /// What a Surge beta build can read. Every tier keeps the App Store
+    /// protocols; a higher tier is a superset of the one below it.
+    enum Tier: Int, Hashable, Comparable, CaseIterable, Sendable {
+        /// `vless` policies: RAW / WebSocket / gRPC with TLS or REALITY,
+        /// Vision; also TrustTunnel's `client-random-auth-key`.
+        case vless = 1
+        /// Adds VLESS `encryption=` and the `xhttp=true` transport.
+        case vlessExtensions = 2
+
+        static func < (lhs: Tier, rhs: Tier) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+
     /// Surge iOS 6.100.0 TestFlight build 4024 (2026-11-12) is the first with
     /// a `vless` policy (manual: iOS 6.0.0+); 4022 and every 5.x build
     /// (App Store 5.23.0, TestFlight 5.102.0 at 387x) predate it.
@@ -20,6 +32,12 @@ enum SurgeClientCapabilities {
     /// Captured 2026-11-13 as `Surge Mac/12820 SurgeCore/6012000`; the
     /// release before it is 6.11.0 (12800).
     static let firstMacBuildWithVLESS = 12820
+
+    /// iOS 4026 / Mac 12840 (both 2026-11-13) added VLESS Encryption and
+    /// XHTTP. An unknown parameter breaks the whole profile, so 4024 / 4025
+    /// / 12820 must get a profile without them, not lose VLESS altogether.
+    static let firstIOSBuildWithVLESSExtensions = 4026
+    static let firstMacBuildWithVLESSExtensions = 12840
 
     /// The build after `Surge <platform>/` in the User-Agent.
     static func build(userAgent: String?, platform: String) -> Int? {
@@ -34,10 +52,21 @@ enum SurgeClientCapabilities {
     static func iOSBuild(userAgent: String?) -> Int? { build(userAgent: userAgent, platform: "iOS") }
     static func macBuild(userAgent: String?) -> Int? { build(userAgent: userAgent, platform: "Mac") }
 
-    static func supportsVLESS(userAgent: String?) -> Bool {
-        (iOSBuild(userAgent: userAgent) ?? 0) >= firstIOSBuildWithVLESS
-            || (macBuild(userAgent: userAgent) ?? 0) >= firstMacBuildWithVLESS
+    /// The highest tier the requesting Surge build reads, nil for App Store
+    /// builds and every other client.
+    static func tier(userAgent: String?) -> Tier? {
+        if let build = iOSBuild(userAgent: userAgent) {
+            if build >= firstIOSBuildWithVLESSExtensions { return .vlessExtensions }
+            if build >= firstIOSBuildWithVLESS { return .vless }
+        }
+        if let build = macBuild(userAgent: userAgent) {
+            if build >= firstMacBuildWithVLESSExtensions { return .vlessExtensions }
+            if build >= firstMacBuildWithVLESS { return .vless }
+        }
+        return nil
     }
+
+    static func supportsVLESS(userAgent: String?) -> Bool { tier(userAgent: userAgent) != nil }
 
     /// Surge's App Store protocol set plus VLESS. Passing exactly this set
     /// as `supportedKindsOverride` also marks the request as coming from a

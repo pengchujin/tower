@@ -1,9 +1,10 @@
 import XCTest
 @testable import Tower
 
-/// Surge iOS 6 TestFlight (build 4024+) adds a `vless` policy. App Store
-/// Surge does not have it, so VLESS is written only for a request whose
-/// User-Agent names a build that does.
+/// Surge iOS 6 TestFlight adds a `vless` policy in build 4024 and VLESS
+/// Encryption / XHTTP in 4026 (Mac 12820 / 12840). App Store Surge has
+/// neither, so each is written only for a request whose User-Agent names a
+/// build that reads it.
 final class SurgeVLESSTests: XCTestCase {
     private let parser = SubscriptionParser()
     private let preset = RulePreset.builtIns[0]
@@ -13,8 +14,8 @@ final class SurgeVLESSTests: XCTestCase {
         try XCTUnwrap(parser.parseURI("vless://\(uuid)@edge.example.com:443?\(query)#\(name)"))
     }
 
-    private func surgeLine(for node: ProxyNode, vless: Bool = true) -> String? {
-        let output = ConfigurationGenerator().generate(
+    private func surgeLine(for node: ProxyNode, vless: Bool = true, extensions: Bool = true) -> String? {
+        let output = ConfigurationGenerator(surgeVLESSExtensions: extensions).generate(
             nodes: [node], preset: preset, target: .surge,
             supportedKindsOverride: vless ? SurgeClientCapabilities.vlessKinds : nil
         )
@@ -24,27 +25,31 @@ final class SurgeVLESSTests: XCTestCase {
 
     // MARK: - Version gate
 
-    func testOnlySurgeIOSBuild4024AndLaterGetVLESS() {
-        XCTAssertTrue(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge iOS/4024 SurgeCore/6011000"))
-        XCTAssertTrue(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge iOS/4025"))
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge iOS/4022 SurgeCore/6011000"))
+    func testSurgeBuildTiers() {
+        typealias Caps = SurgeClientCapabilities
+        // iOS: 4024 / 4025 plain VLESS, 4026+ also Encryption and XHTTP.
+        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4024 SurgeCore/6011000"), .vless)
+        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4025"), .vless)
+        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4026 SurgeCore/6012000"), .vlessExtensions)
+        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4030"), .vlessExtensions)
+        XCTAssertNil(Caps.tier(userAgent: "Surge iOS/4022 SurgeCore/6011000"))
         // App Store 5.x and its TestFlight builds are all below 4000.
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge iOS/3875"))
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge iOS/5.14"))
-        // Surge Mac 6.12.0 Beta, captured 2026-11-13; 6.11.0 is 12800.
-        XCTAssertTrue(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge Mac/12820 SurgeCore/6012000"))
-        XCTAssertTrue(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge Mac/12900"))
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge Mac/12800 SurgeCore/6011000"))
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Surge Mac/10661"))
-        // An iOS build number is far below the Mac threshold, and vice versa
-        // a Mac build never reads as an iOS one.
-        XCTAssertNil(SurgeClientCapabilities.iOSBuild(userAgent: "Surge Mac/12820"))
-        XCTAssertEqual(SurgeClientCapabilities.macBuild(userAgent: "Surge Mac/12820 SurgeCore/6012000"), 12820)
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: "Stash/3.1.0"))
-        XCTAssertFalse(SurgeClientCapabilities.supportsVLESS(userAgent: nil))
-        XCTAssertNil(SurgeClientCapabilities.supportedKinds(userAgent: "Surge iOS/4022"))
-        XCTAssertEqual(SurgeClientCapabilities.supportedKinds(userAgent: "Surge iOS/4024"),
-                       SurgeClientCapabilities.vlessKinds)
+        XCTAssertNil(Caps.tier(userAgent: "Surge iOS/3875"))
+        XCTAssertNil(Caps.tier(userAgent: "Surge iOS/5.14"))
+        // Mac: 12820 plain VLESS, 12840+ the rest; 6.11.0 is 12800.
+        XCTAssertEqual(Caps.tier(userAgent: "Surge Mac/12820 SurgeCore/6012000"), .vless)
+        XCTAssertEqual(Caps.tier(userAgent: "Surge Mac/12840 SurgeCore/6012000"), .vlessExtensions)
+        XCTAssertNil(Caps.tier(userAgent: "Surge Mac/12800 SurgeCore/6011000"))
+        XCTAssertNil(Caps.tier(userAgent: "Surge Mac/10661"))
+        // An iOS build number is far below the Mac thresholds, and a Mac
+        // build never reads as an iOS one.
+        XCTAssertNil(Caps.iOSBuild(userAgent: "Surge Mac/12820"))
+        XCTAssertEqual(Caps.macBuild(userAgent: "Surge Mac/12820 SurgeCore/6012000"), 12820)
+        XCTAssertNil(Caps.tier(userAgent: "Stash/3.1.0"))
+        XCTAssertNil(Caps.tier(userAgent: nil))
+        XCTAssertTrue(Caps.supportsVLESS(userAgent: "Surge iOS/4024"))
+        XCTAssertNil(Caps.supportedKinds(userAgent: "Surge iOS/4022"))
+        XCTAssertEqual(Caps.supportedKinds(userAgent: "Surge iOS/4024"), Caps.vlessKinds)
     }
 
     func testVLESSKindsKeepEverySurgeBaselineProtocol() {
@@ -64,11 +69,20 @@ final class SurgeVLESSTests: XCTestCase {
         XCTAssertEqual(output.diagnostics.count(where: { $0.contains("TestFlight 4024") }), 1)
 
         // A VLESS node Surge cannot carry at all is still skipped.
-        let xhttp = try self.node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
-        let mixed = ConfigurationGenerator().generate(nodes: [node, xhttp], preset: preset, target: .surge)
+        let upgrade = try self.node("security=tls&type=httpupgrade&path=%2Fx", name: "V-HUP")
+        let mixed = ConfigurationGenerator().generate(nodes: [node, upgrade], preset: preset, target: .surge)
         XCTAssertEqual(mixed.skippedNodeCount, 1)
-        XCTAssertEqual(mixed.skippedNodes.map(\.name), ["V-XHTTP"])
+        XCTAssertEqual(mixed.skippedNodes.map(\.name), ["V-HUP"])
         XCTAssertTrue(mixed.diagnostics.contains { $0.hasPrefix("1 ") && $0.contains("TestFlight 4024") })
+        // Encryption / XHTTP nodes get their own note naming the later build.
+        let xhttp = try self.node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
+        let both = ConfigurationGenerator().generate(nodes: [node, xhttp], preset: preset, target: .surge)
+        XCTAssertEqual(both.skippedNodeCount, 0)
+        XCTAssertTrue(both.diagnostics.contains { $0.hasPrefix("1 ") && $0.contains("VLESS 节点") && $0.contains("TestFlight 4024") })
+        XCTAssertTrue(both.diagnostics.contains { $0.hasPrefix("1 ") && $0.contains("Encryption / XHTTP") && $0.contains("TestFlight 4026") })
+        let bothMac = ConfigurationGenerator().generate(nodes: [node, xhttp], preset: preset, target: .surgeMac)
+        XCTAssertTrue(bothMac.diagnostics.contains { $0.contains("Encryption / XHTTP") && $0.contains("12840") })
+        XCTAssertTrue(bothMac.diagnostics.contains { $0.contains("VLESS 节点") && $0.contains("12820") })
         // Surge Mac gets its own note naming the Mac beta.
         let mac = ConfigurationGenerator().generate(nodes: [node], preset: preset, target: .surgeMac)
         XCTAssertEqual(mac.skippedNodeCount, 0)
@@ -136,13 +150,92 @@ final class SurgeVLESSTests: XCTestCase {
         XCTAssertNotNil(surgeLine(for: reality))
     }
 
+    private let encryption = "mlkem768x25519plus.native.0rtt.vbS7cJA-Lc9lQ_abc.QzR4m1="
+
+    func testEncryptionLines() throws {
+        var raw = try node("flow=xtls-rprx-vision", name: "V-ENC")
+        raw.vlessEncryption = encryption
+        XCTAssertEqual(
+            surgeLine(for: raw),
+            "V-ENC = vless, edge.example.com, 443, username=\(uuid), flow=xtls-rprx-vision, encryption=\(encryption)"
+        )
+        // With Encryption, Vision needs no TLS and runs over WebSocket too.
+        var ws = try node("type=ws&path=%2Fvless&flow=xtls-rprx-vision", name: "V-ENC-WS")
+        ws.vlessEncryption = "mlkem768x25519plus.random.1rtt.100-111-1111.75-0-111.key1.key2"
+        let line = try XCTUnwrap(surgeLine(for: ws))
+        XCTAssertTrue(line.contains("flow=xtls-rprx-vision, encryption=mlkem768x25519plus.random.1rtt.100-111-1111.75-0-111.key1.key2"), line)
+        XCTAssertTrue(line.contains("ws=true, ws-path=/vless"))
+        // Encryption on top of REALITY keeps both.
+        var reality = try node("security=reality&pbk=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4&sni=www.microsoft.com",
+                               name: "V-ENC-R")
+        reality.vlessEncryption = encryption
+        let realityLine = try XCTUnwrap(surgeLine(for: reality))
+        XCTAssertTrue(realityLine.contains("encryption=\(encryption)"))
+        XCTAssertTrue(realityLine.contains("reality-public-key="))
+        // The App Store baseline never writes it.
+        XCTAssertNil(surgeLine(for: raw, vless: false))
+    }
+
+    func testXHTTPLines() throws {
+        let reality = try node(
+            "security=reality&type=xhttp&path=%2Fxhttp&mode=stream-one&pbk=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4"
+                + "&sni=www.microsoft.com",
+            name: "V-XHTTP"
+        )
+        XCTAssertEqual(
+            surgeLine(for: reality),
+            "V-XHTTP = vless, edge.example.com, 443, username=\(uuid), sni=www.microsoft.com, "
+                + "reality-public-key=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4, xhttp=true, xhttp-path=/xhttp, xhttp-mode=stream-one"
+        )
+        let cdn = try node("security=tls&type=xhttp&path=%2Fxhttp%3Fed%3D1&host=cdn.example.com&mode=packet-up"
+                               + "&sni=cdn.example.com&alpn=h3",
+                           name: "V-XHTTP-CDN")
+        XCTAssertEqual(
+            surgeLine(for: cdn),
+            "V-XHTTP-CDN = vless, edge.example.com, 443, username=\(uuid), tls=true, sni=cdn.example.com, alpn=h3, "
+                + "xhttp=true, xhttp-path=/xhttp?ed=1, xhttp-host=cdn.example.com, xhttp-mode=packet-up"
+        )
+        // `auto` is Surge's default and is left out; plain XHTTP has no TLS.
+        let plain = try node("type=xhttp&mode=auto", name: "V-XHTTP-PLAIN")
+        XCTAssertEqual(surgeLine(for: plain), "V-XHTTP-PLAIN = vless, edge.example.com, 443, username=\(uuid), xhttp=true")
+        // Vision over XHTTP needs Encryption.
+        var vision = try node("security=tls&type=xhttp&path=%2Fx&flow=xtls-rprx-vision&sni=edge.example.com", name: "V-XHTTP-ENC")
+        vision.vlessEncryption = encryption
+        XCTAssertNotNil(surgeLine(for: vision))
+        XCTAssertNil(surgeLine(for: reality, vless: false))
+    }
+
+    func testFirstVLESSBetasGetPlainVLESSWithoutEncryptionOrXHTTP() throws {
+        let plain = try node("security=tls&sni=edge.example.com", name: "V-TLS")
+        let xhttp = try node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
+        var encrypted = try node("flow=xtls-rprx-vision", name: "V-ENC")
+        encrypted.vlessEncryption = encryption
+        XCTAssertNotNil(surgeLine(for: plain, extensions: false))
+        XCTAssertNil(surgeLine(for: xhttp, extensions: false))
+        XCTAssertNil(surgeLine(for: encrypted, extensions: false))
+        let output = ConfigurationGenerator(surgeVLESSExtensions: false).generate(
+            nodes: [plain, xhttp, encrypted], preset: preset, target: .surge,
+            supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+        XCTAssertFalse(output.content.contains("encryption="))
+        XCTAssertFalse(output.content.contains("xhttp=true"))
+        XCTAssertEqual(output.supportedNodeCount, 1)
+        XCTAssertEqual(Set(output.skippedNodes.map(\.name)), ["V-XHTTP", "V-ENC"])
+    }
+
     func testCombinationsSurgeCannotCarryAreSkipped() throws {
         let pbk = "pbk=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4&sni=www.microsoft.com"
-        var encrypted = try node("security=tls&sni=edge.example.com", name: "Encrypted")
-        encrypted.vlessEncryption = "mlkem768x25519plus.native.0rtt.key"
+        var badEncryption = try node("security=tls&sni=edge.example.com", name: "BadEncryption")
+        badEncryption.vlessEncryption = "mlkem768x25519plus.native.2rtt.key"
+        var unknownMethod = try node("security=tls&sni=edge.example.com", name: "UnknownMethod")
+        unknownMethod.vlessEncryption = "futurekem.native.0rtt.key"
+        var noKey = try node("security=tls&sni=edge.example.com", name: "NoKey")
+        noKey.vlessEncryption = "mlkem768x25519plus.native.0rtt"
+        var encryptedGRPCVision = try node("security=tls&type=grpc&serviceName=g&flow=xtls-rprx-vision", name: "EncGRPCVision")
+        encryptedGRPCVision.vlessEncryption = encryption
         let cases: [ProxyNode] = [
-            try node("security=tls&type=xhttp&path=%2Fx", name: "XHTTP"),
             try node("security=tls&type=httpupgrade&path=%2Fx", name: "HTTPUpgrade"),
+            try node("security=tls&type=xhttp&path=%2Fx&mode=stream-two", name: "XHTTPUnknownMode"),
+            try node("security=tls&type=xhttp&path=%2Fx&flow=xtls-rprx-vision", name: "XHTTPVision"),
             try node("type=grpc&serviceName=mygrpc", name: "PlainGRPC"),
             try node("security=reality&type=ws&path=%2Fx&\(pbk)", name: "WSReality"),
             try node("security=tls&type=ws&path=%2Fx&flow=xtls-rprx-vision", name: "WSVision"),
@@ -150,9 +243,9 @@ final class SurgeVLESSTests: XCTestCase {
             try node("flow=xtls-rprx-vision", name: "PlainVision"),
             try node("security=tls&flow=xtls-rprx-direct", name: "LegacyFlow"),
             try node("security=reality&\(pbk)&sid=0123456789abcdef01", name: "LongShortID"),
-            encrypted
+            badEncryption, unknownMethod, noKey, encryptedGRPCVision
         ]
-        let output = ConfigurationGenerator().generate(
+        let output = ConfigurationGenerator(surgeVLESSExtensions: true).generate(
             nodes: cases, preset: preset, target: .surge,
             supportedKindsOverride: SurgeClientCapabilities.vlessKinds
         )
@@ -272,9 +365,9 @@ final class SurgeVLESSTests: XCTestCase {
                     GeneratedConfiguration(target: client, content: "nodes-\(client.rawValue)", supportedNodeCount: 0,
                                            skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
                 },
-                surgeVLESSConfiguration: { client, mode in
-                    GeneratedConfiguration(target: client, content: "vless-\(mode.rawValue)-\(client.rawValue)", supportedNodeCount: 1,
-                                           skippedNodeCount: 0, ruleCount: 0, contentMode: mode)
+                surgeVLESSConfiguration: { client, mode, tier in
+                    GeneratedConfiguration(target: client, content: "\(tier)-\(mode.rawValue)-\(client.rawValue)",
+                                           supportedNodeCount: 1, skippedNodeCount: 0, ruleCount: 0, contentMode: mode)
                 },
                 formatConfiguration: { format in
                     GeneratedConfiguration(target: format.generationTarget, content: "baseline",
@@ -284,59 +377,76 @@ final class SurgeVLESSTests: XCTestCase {
             return String(decoding: response.body, as: UTF8.self)
         }
         XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000"), "vless-fullConfiguration-surge")
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024 SurgeCore/6011000", target: "surge"), "vless-fullConfiguration-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4026 SurgeCore/6012000", target: "surge"), "vlessExtensions-fullConfiguration-surge")
         XCTAssertEqual(respond(userAgent: "Surge iOS/4022 SurgeCore/6011000"), "baseline")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000"), "vless-fullConfiguration-surge")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12820 SurgeCore/6012000", target: "surge-mac"), "vless-fullConfiguration-surge-mac")
+        XCTAssertEqual(respond(userAgent: "Surge Mac/12840", target: "surge-mac"), "vlessExtensions-fullConfiguration-surge-mac")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12800 SurgeCore/6011000", target: "surge-mac"), "exact")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12800 SurgeCore/6011000"), "baseline")
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "surfboard"), "baseline")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4026", target: "surfboard"), "baseline")
 
         // Node-only policy-path lists switch the same way.
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "surge", content: "nodesOnly"), "vless-nodesOnly-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4025", target: "surge", content: "nodesOnly"), "vless-nodesOnly-surge")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4026", target: "surge", content: "nodesOnly"), "vlessExtensions-nodesOnly-surge")
         XCTAssertEqual(respond(userAgent: "Surge Mac/12820", target: "surge-mac", content: "nodesOnly"), "vless-nodesOnly-surge-mac")
         XCTAssertEqual(respond(userAgent: "Surge iOS/4022", target: "surge", content: "nodesOnly"), "nodes-surge")
-        XCTAssertEqual(respond(userAgent: "Surge iOS/4024", target: "clash", content: "nodesOnly"), "nodes-clash")
+        XCTAssertEqual(respond(userAgent: "Surge iOS/4026", target: "clash", content: "nodesOnly"), "nodes-clash")
     }
 
     func testNodeOnlySurgeListWritesVLESSForBetasAndNotesItOtherwise() throws {
         let vless = try node("security=reality&flow=xtls-rprx-vision&pbk=dwrjY6KiAMPxKdlF7T4AWFXXBtsxeHCXtBQYeCOdZV4"
             + "&sid=0123456789abcdef&sni=www.microsoft.com", name: "V-REALITY")
-        let xhttp = try node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
+        let upgrade = try node("security=tls&type=httpupgrade&path=%2Fx", name: "V-HUP")
         for target in [ClientTarget.surge, .surgeMac] {
             let beta = ConfigurationGenerator().generateNodeSubscription(
-                nodes: [vless, xhttp], target: target, supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+                nodes: [vless, upgrade], target: target, supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
             XCTAssertTrue(beta.content.hasPrefix("V-REALITY = vless, edge.example.com, 443,"), beta.content)
             XCTAssertTrue(beta.content.contains("reality-public-key="))
             XCTAssertEqual(beta.supportedNodeCount, 1)
-            XCTAssertEqual(beta.skippedNodes.map(\.name), ["V-XHTTP"])
+            XCTAssertEqual(beta.skippedNodes.map(\.name), ["V-HUP"])
 
-            let baseline = ConfigurationGenerator().generateNodeSubscription(nodes: [vless, xhttp], target: target)
+            let baseline = ConfigurationGenerator().generateNodeSubscription(nodes: [vless, upgrade], target: target)
             XCTAssertFalse(baseline.content.contains("= vless,"))
             XCTAssertEqual(baseline.contentMode, .nodesOnly)
-            XCTAssertEqual(baseline.skippedNodes.map(\.name), ["V-XHTTP"])
+            XCTAssertEqual(baseline.skippedNodes.map(\.name), ["V-HUP"])
             XCTAssertEqual(baseline.diagnostics.count(where: { $0.contains("VLESS") }), 1)
         }
     }
 
-    func testOneTapImportServesVLESSProfileOnlyToNewSurgeIOS() {
-        let baseline = GeneratedConfiguration(target: .surge, content: "baseline", supportedNodeCount: 0, skippedNodeCount: 1, ruleCount: 0)
-        let variant = GeneratedConfiguration(target: .surge, content: "vless", supportedNodeCount: 1, skippedNodeCount: 0, ruleCount: 0)
-        let server = LocalConfigurationServer(configuration: baseline, surgeVLESSVariant: variant, token: "test-token-0123456789abcdef")
-        func body(_ headers: String) -> String {
+    func testOneTapImportServesEachSurgeBetaItsTier() {
+        let baseline = GeneratedConfiguration(target: .surge, content: "baseline", supportedNodeCount: 0, skippedNodeCount: 2, ruleCount: 0)
+        let vless = GeneratedConfiguration(target: .surge, content: "vless", supportedNodeCount: 1, skippedNodeCount: 1, ruleCount: 0)
+        let extended = GeneratedConfiguration(target: .surge, content: "extended", supportedNodeCount: 2, skippedNodeCount: 0, ruleCount: 0)
+        let server = LocalConfigurationServer(configuration: baseline,
+                                              surgeVLESSVariants: [.vless: vless, .vlessExtensions: extended],
+                                              token: "test-token-0123456789abcdef")
+        func body(_ server: LocalConfigurationServer, _ headers: String) -> String {
             String(decoding: server.response(forRequestHeaders: "GET /x HTTP/1.1\r\n\(headers)\r\n").body, as: UTF8.self)
         }
-        XCTAssertEqual(body("User-Agent: Surge iOS/4024 SurgeCore/6011000\r\nX-Surge-Unlocked-Features: x\r\n"), "vless")
-        XCTAssertEqual(body("user-agent: Surge iOS/4025\r\n"), "vless")
-        XCTAssertEqual(body("User-Agent: Surge iOS/3875\r\n"), "baseline")
-        XCTAssertEqual(body("User-Agent: Surge Mac/12820 SurgeCore/6012000\r\n"), "vless")
-        XCTAssertEqual(body("User-Agent: Surge Mac/12800 SurgeCore/6011000\r\n"), "baseline")
-        XCTAssertEqual(body(""), "baseline")
+        XCTAssertEqual(body(server, "User-Agent: Surge iOS/4024 SurgeCore/6011000\r\nX-Surge-Unlocked-Features: x\r\n"), "vless")
+        XCTAssertEqual(body(server, "user-agent: Surge iOS/4025\r\n"), "vless")
+        XCTAssertEqual(body(server, "User-Agent: Surge iOS/4026\r\n"), "extended")
+        XCTAssertEqual(body(server, "User-Agent: Surge iOS/3875\r\n"), "baseline")
+        XCTAssertEqual(body(server, "User-Agent: Surge Mac/12820 SurgeCore/6012000\r\n"), "vless")
+        XCTAssertEqual(body(server, "User-Agent: Surge Mac/12840 SurgeCore/6012000\r\n"), "extended")
+        XCTAssertEqual(body(server, "User-Agent: Surge Mac/12800 SurgeCore/6011000\r\n"), "baseline")
+        XCTAssertEqual(body(server, ""), "baseline")
         // A Surge iOS UA in the body, not the headers, does not count.
-        XCTAssertEqual(body("Accept: */*\r\n\r\nUser-Agent: Surge iOS/4024\r\n"), "baseline")
+        XCTAssertEqual(body(server, "Accept: */*\r\n\r\nUser-Agent: Surge iOS/4026\r\n"), "baseline")
+
+        // No Encryption / XHTTP nodes: the higher tier is absent and a 4026
+        // build falls back to the plain VLESS profile, not the baseline.
+        let plainOnly = LocalConfigurationServer(configuration: baseline, surgeVLESSVariants: [.vless: vless],
+                                                 token: "test-token-0123456789abcdef")
+        XCTAssertEqual(body(plainOnly, "User-Agent: Surge iOS/4026\r\n"), "vless")
+        // Only Encryption / XHTTP nodes: the first betas keep the baseline.
+        let extendedOnly = LocalConfigurationServer(configuration: baseline, surgeVLESSVariants: [.vlessExtensions: extended],
+                                                    token: "test-token-0123456789abcdef")
+        XCTAssertEqual(body(extendedOnly, "User-Agent: Surge iOS/4024\r\n"), "baseline")
+        XCTAssertEqual(body(extendedOnly, "User-Agent: Surge iOS/4026\r\n"), "extended")
 
         let plain = LocalConfigurationServer(configuration: baseline, token: "test-token-0123456789abcdef")
-        XCTAssertEqual(String(decoding: plain.response(forRequestHeaders: "GET /x HTTP/1.1\r\nUser-Agent: Surge iOS/4024\r\n\r\n").body,
-                              as: UTF8.self), "baseline")
+        XCTAssertEqual(body(plain, "User-Agent: Surge iOS/4026\r\n"), "baseline")
     }
 }

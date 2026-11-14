@@ -111712,6 +111712,100 @@
         }
       }
     },
+    "%lld 个 VLESS Encryption / XHTTP 节点需要 Surge iOS TestFlight 4026 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد VLESS Encryption / XHTTP إلى Surge iOS TestFlight 4026 أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP-Knoten benötigen Surge iOS TestFlight 4026 oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP nodes need Surge iOS TestFlight 4026 or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos VLESS Encryption / XHTTP requieren Surge iOS TestFlight 4026 o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds VLESS Encryption / XHTTP nécessitent Surge iOS TestFlight 4026 ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node VLESS Encryption / XHTTP memerlukan Surge iOS TestFlight 4026 atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個の VLESS Encryption / XHTTP ノードには Surge iOS TestFlight 4026 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VLESS Encryption / XHTTP 노드 %lld개는 Surge iOS TestFlight 4026 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós VLESS Encryption / XHTTP exigem o Surge iOS TestFlight 4026 ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов VLESS Encryption / XHTTP нужен Surge iOS TestFlight 4026 или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด VLESS Encryption / XHTTP %lld รายการต้องใช้ Surge iOS TestFlight 4026 ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP düğümü Surge iOS TestFlight 4026 veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút VLESS Encryption / XHTTP cần Surge iOS TestFlight 4026 trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个 VLESS Encryption / XHTTP 节点需要 Surge iOS TestFlight 4026 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個 VLESS Encryption / XHTTP 節點需要 Surge iOS TestFlight 4026 及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
+    },
     "%lld 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
       "localizations": {
         "ar": {
@@ -111802,6 +111896,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 個 VLESS 節點需要 Surge iOS TestFlight 4024 及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
+          }
+        }
+      }
+    },
+    "%lld 个 VLESS Encryption / XHTTP 节点需要 Surge Mac 6.12.0 Beta（12840）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحتاج %lld من عقد VLESS Encryption / XHTTP إلى Surge Mac 6.12.0 Beta (12840) أو أحدث: يضيفها الاستيراد بنقرة واحدة واشتراك الشبكة المحلية تلقائيًا. لا تُحتسب ضمن عدد العقد المتوافقة، ولا تتضمنها الملفات المصدَّرة والإعدادات المنسوخة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP-Knoten benötigen Surge Mac 6.12.0 Beta (12840) oder neuer: Import mit einem Tippen und LAN-Abonnement fügen sie automatisch hinzu. Sie sind nicht in der Zahl kompatibler Knoten enthalten, und exportierte Dateien sowie kopierte Konfigurationen enthalten sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP nodes need Surge Mac 6.12.0 Beta (12840) or later: one-tap import and the LAN subscription add them automatically. They are not in the compatible node count, and exported files and copied profiles leave them out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nodos VLESS Encryption / XHTTP requieren Surge Mac 6.12.0 Beta (12840) o posterior: la importación con un toque y la suscripción LAN los añaden automáticamente. No se incluyen en el recuento de nodos compatibles, y los archivos exportados y las configuraciones copiadas no los contienen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nœuds VLESS Encryption / XHTTP nécessitent Surge Mac 6.12.0 Beta (12840) ou ultérieur : l’import en un geste et l’abonnement réseau local les ajoutent automatiquement. Ils ne sont pas comptés parmi les nœuds compatibles, et les fichiers exportés et configurations copiées ne les contiennent pas."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld node VLESS Encryption / XHTTP memerlukan Surge Mac 6.12.0 Beta (12840) atau lebih baru: impor sekali ketuk dan langganan LAN menambahkannya secara otomatis. Node ini tidak dihitung sebagai node kompatibel, dan tidak ada di file ekspor maupun konfigurasi yang disalin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個の VLESS Encryption / XHTTP ノードには Surge Mac 6.12.0 Beta (12840) 以降が必要です。ワンタップ読み込みまたは LAN サブスクリプションでは自動的に追加されますが、互換ノード数には含まれず、書き出したファイルやコピーした構成には含まれません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VLESS Encryption / XHTTP 노드 %lld개는 Surge Mac 6.12.0 Beta (12840) 이상이 필요합니다. 원탭 가져오기나 LAN 구독에서는 자동으로 추가되지만 호환 노드 수에는 포함되지 않으며, 내보낸 파일과 복사한 구성에는 들어가지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nós VLESS Encryption / XHTTP exigem o Surge Mac 6.12.0 Beta (12840) ou posterior: a importação com um toque e a assinatura na rede local os adicionam automaticamente. Eles não entram na contagem de nós compatíveis, e arquivos exportados e configurações copiadas não os incluem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %lld узлов VLESS Encryption / XHTTP нужен Surge Mac 6.12.0 Beta (12840) или новее: импорт в одно касание и подписка в локальной сети добавляют их автоматически. Они не входят в число совместимых узлов, а в экспортированных файлах и скопированных конфигурациях их нет."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนด VLESS Encryption / XHTTP %lld รายการต้องใช้ Surge Mac 6.12.0 Beta (12840) ขึ้นไป การนำเข้าด้วยการแตะครั้งเดียวและการสมัครรับข้อมูลใน LAN จะเพิ่มโหนดเหล่านี้โดยอัตโนมัติ แต่จะไม่นับรวมในจำนวนโหนดที่เข้ากันได้ และไม่มีอยู่ในไฟล์ที่ส่งออกหรือการตั้งค่าที่คัดลอก"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld VLESS Encryption / XHTTP düğümü Surge Mac 6.12.0 Beta (12840) veya sonrasını gerektirir: tek dokunuşla içe aktarma ve yerel ağ aboneliği bunları otomatik olarak ekler. Uyumlu düğüm sayısına dahil edilmezler; dışa aktarılan dosyalarda ve kopyalanan yapılandırmalarda yer almazlar."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nút VLESS Encryption / XHTTP cần Surge Mac 6.12.0 Beta (12840) trở lên: nhập bằng một chạm và gói đăng ký mạng LAN sẽ tự động thêm chúng. Chúng không được tính vào số nút tương thích, và tệp xuất ra cũng như cấu hình sao chép không chứa chúng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个 VLESS Encryption / XHTTP 节点需要 Surge Mac 6.12.0 Beta（12840）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個 VLESS Encryption / XHTTP 節點需要 Surge Mac 6.12.0 Beta（12840）及以上：使用一鍵匯入或區域網路訂閱時會自動加入，未計入相容節點數；匯出檔案和複製的設定裡沒有它們。"
           }
         }
       }
