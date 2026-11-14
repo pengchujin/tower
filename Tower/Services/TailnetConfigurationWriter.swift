@@ -304,7 +304,9 @@ extension GeneratedConfiguration {
             remoteSourceCount: remoteSourceCount,
             diagnostics: diagnostics + extra,
             hasInvalidPolicyReferences: hasInvalidPolicyReferences,
-            skippedNodes: skippedNodes
+            skippedNodes: skippedNodes,
+            anywhereAJSON: anywhereAJSON,
+            surgeBetaNodeCount: surgeBetaNodeCount
         )
     }
 }

@@ -541,7 +541,8 @@ struct ConfigurationGenerator {
             diagnostics: configuration.diagnostics + notes,
             hasInvalidPolicyReferences: configuration.hasInvalidPolicyReferences,
             skippedNodes: remaining,
-            anywhereAJSON: configuration.anywhereAJSON
+            anywhereAJSON: configuration.anywhereAJSON,
+            surgeBetaNodeCount: betaVLESS.count + trustTunnel.count
         )
     }
 

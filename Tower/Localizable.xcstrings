@@ -1,6 +1,100 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "仅 Surge 测试版可用": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متاح فقط لإصدار Surge التجريبي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur für Surge-Betaversionen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surge beta only"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo para la beta de Surge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bêta de Surge uniquement"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya untuk Surge beta"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surge ベータ版のみ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surge 베타 전용"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Somente para o Surge beta"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Только для бета-версии Surge"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้ได้เฉพาะ Surge เบต้า"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca Surge beta"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ dành cho Surge beta"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅 Surge 测试版可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅 Surge 測試版可用"
+          }
+        }
+      }
+    },
     "正在加载备份…": {
       "localizations": {
         "ar": {
@@ -91,6 +185,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在載入備份…"
+          }
+        }
+      }
+    },
+    "这些节点只有 Surge 测试版能用。一键导入或复制订阅时，Surge 测试版会拿到它们，正式版 Surge 拿到的配置里没有节点；分享配置文件和复制配置文本暂不可用。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا تعمل هذه العقد إلا في إصدار Surge التجريبي. عند الاستيراد بنقرة واحدة أو نسخ الاشتراك، يحصل إصدار Surge التجريبي عليها، بينما لا يحتوي الإعداد الذي يحصل عليه الإصدار الرسمي على أي عقد؛ مشاركة ملف الإعداد ونسخ نصه غير متاحين حاليًا."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Knoten funktionieren nur in Surge-Betaversionen. Beim Import mit einem Tippen oder beim Kopieren des Abonnements erhält eine Surge-Beta sie; die reguläre Surge-Version erhält eine Konfiguration ohne Knoten. Konfigurationsdatei teilen und Konfigurationstext kopieren sind vorerst nicht verfügbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only Surge betas can use these nodes. With one-tap import or a copied subscription, a Surge beta gets them; the App Store Surge gets a profile with no nodes. Sharing the profile file and copying its text are unavailable for now."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo las versiones beta de Surge pueden usar estos nodos. Con la importación con un toque o la suscripción copiada, la beta de Surge los recibe; la versión oficial de Surge recibe una configuración sin nodos. Compartir el archivo y copiar el texto de la configuración no están disponibles por ahora."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seules les versions bêta de Surge peuvent utiliser ces nœuds. Avec l’import en un geste ou l’abonnement copié, une bêta de Surge les reçoit ; la version officielle de Surge reçoit une configuration sans nœud. Le partage du fichier et la copie du texte de configuration sont indisponibles pour l’instant."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hanya Surge beta yang dapat memakai node ini. Dengan impor sekali ketuk atau langganan yang disalin, Surge beta mendapatkannya; Surge versi resmi mendapatkan konfigurasi tanpa node. Berbagi file konfigurasi dan menyalin teks konfigurasi untuk sementara tidak tersedia."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらのノードは Surge ベータ版でのみ使えます。ワンタップ読み込みまたはサブスクリプションのコピーでは Surge ベータ版がこれらを受け取り、正式版の Surge が受け取る構成にはノードが含まれません。構成ファイルの共有と構成テキストのコピーは現在利用できません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 노드는 Surge 베타에서만 사용할 수 있습니다. 원탭 가져오기나 구독 복사 시 Surge 베타는 이 노드를 받고, 정식 Surge가 받는 구성에는 노드가 없습니다. 구성 파일 공유와 구성 텍스트 복사는 현재 사용할 수 없습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Somente versões beta do Surge podem usar estes nós. Com a importação com um toque ou a assinatura copiada, o Surge beta os recebe; o Surge oficial recebe uma configuração sem nós. Compartilhar o arquivo e copiar o texto da configuração não estão disponíveis por enquanto."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эти узлы работают только в бета-версиях Surge. При импорте одним касанием или через скопированную подписку бета-версия Surge получит их, а официальная версия Surge получит конфигурацию без узлов. Отправка файла конфигурации и копирование её текста пока недоступны."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหนดเหล่านี้ใช้ได้เฉพาะ Surge เบต้า เมื่อนำเข้าด้วยการแตะครั้งเดียวหรือคัดลอกการสมัครรับ Surge เบต้าจะได้รับโหนดเหล่านี้ ส่วน Surge รุ่นทางการจะได้การกำหนดค่าที่ไม่มีโหนด การแชร์ไฟล์และการคัดลอกข้อความการกำหนดค่ายังใช้ไม่ได้ในขณะนี้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu düğümleri yalnızca Surge beta sürümleri kullanabilir. Tek dokunuşla içe aktarma veya kopyalanan abonelikle Surge beta bunları alır; resmi Surge düğüm içermeyen bir yapılandırma alır. Yapılandırma dosyasını paylaşma ve metnini kopyalama şimdilik kullanılamaz."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ Surge beta mới dùng được các nút này. Khi nhập bằng một chạm hoặc sao chép gói đăng ký, Surge beta sẽ nhận được chúng; bản Surge chính thức nhận cấu hình không có nút nào. Tạm thời không thể chia sẻ tệp cấu hình và sao chép văn bản cấu hình."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些节点只有 Surge 测试版能用。一键导入或复制订阅时，Surge 测试版会拿到它们，正式版 Surge 拿到的配置里没有节点；分享配置文件和复制配置文本暂不可用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些節點只有 Surge 測試版能用。一鍵匯入或複製訂閱時，Surge 測試版會拿到它們，正式版 Surge 拿到的設定裡沒有節點；分享設定檔和複製設定文字暫不可用。"
           }
         }
       }

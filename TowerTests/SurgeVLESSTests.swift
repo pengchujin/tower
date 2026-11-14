@@ -100,6 +100,43 @@ final class SurgeVLESSTests: XCTestCase {
         XCTAssertFalse(filtered.diagnostics.contains { $0.contains("TestFlight") })
     }
 
+    /// A subscription of only VLESS nodes leaves the App Store profile empty,
+    /// but a beta Surge still gets every node, so import and subscription
+    /// must stay available (user report, 2026-11-14).
+    func testOnlyBetaNodesKeepImportAvailable() throws {
+        let tls = try node("security=tls&sni=edge.example.com", name: "V-TLS")
+        let xhttp = try node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
+        let generator = ConfigurationGenerator()
+        for target in [ClientTarget.surge, .surgeMac] {
+            let full = generator.generate(nodes: [tls, xhttp], preset: preset, target: target)
+            XCTAssertEqual(full.supportedNodeCount, 0)
+            XCTAssertFalse(full.hasExportableProxies)
+            XCTAssertEqual(full.surgeBetaNodeCount, 2)
+            XCTAssertTrue(full.isSurgeBetaOnly)
+            XCTAssertTrue(full.canImportOrSubscribe)
+            let nodesOnly = generator.generateNodeSubscription(nodes: [tls], target: target)
+            XCTAssertTrue(nodesOnly.isSurgeBetaOnly)
+            // The beta variant itself has nodes and is ordinarily exportable.
+            let beta = generator.generate(nodes: [tls], preset: preset, target: target,
+                                          supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+            XCTAssertTrue(beta.hasExportableProxies)
+            XCTAssertFalse(beta.isSurgeBetaOnly)
+        }
+        // With one App Store node the profile is exportable as before.
+        let ss = try XCTUnwrap(parser.parseURI("ss://YWVzLTEyOC1nY206cGFzcw@ss.example.com:8388#SS"))
+        let mixed = generator.generate(nodes: [tls, ss], preset: preset, target: .surge)
+        XCTAssertTrue(mixed.hasExportableProxies)
+        XCTAssertFalse(mixed.isSurgeBetaOnly)
+        XCTAssertEqual(mixed.surgeBetaNodeCount, 1)
+        // Excluded by the protocol filter, or a node no Surge can carry: nothing to import.
+        let filtered = generator.generate(nodes: [tls], preset: preset, target: .surge, excludedKinds: [.vless])
+        XCTAssertFalse(filtered.canImportOrSubscribe)
+        let upgrade = try node("security=tls&type=httpupgrade&path=%2Fx", name: "V-HUP")
+        XCTAssertFalse(generator.generate(nodes: [upgrade], preset: preset, target: .surge).canImportOrSubscribe)
+        // Other clients never count Surge beta nodes.
+        XCTAssertEqual(generator.generate(nodes: [tls], preset: preset, target: .loon).surgeBetaNodeCount, 0)
+    }
+
     // MARK: - Proxy lines (manual.nssurge.com/policies/vless.html)
 
     func testRealityVisionLine() throws {

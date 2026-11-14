@@ -2223,6 +2223,15 @@ struct GeneratedConfiguration {
     /// Remote node counts are unknown until the target client refreshes.
     let remoteSourceCount: Int
     var hasExportableProxies: Bool { !hasInvalidPolicyReferences && (supportedNodeCount > 0 || remoteSourceCount > 0) }
+    /// Surge / Surge Mac nodes left out of this App Store profile that a beta
+    /// build gets through one-tap import or a subscription
+    /// (`SurgeClientCapabilities`); not part of `supportedNodeCount`.
+    let surgeBetaNodeCount: Int
+    /// Every node is beta-only: the file and copied text would be empty, but
+    /// one-tap import and the subscription still serve a beta Surge its
+    /// nodes, so those stay available.
+    var isSurgeBetaOnly: Bool { !hasExportableProxies && !hasInvalidPolicyReferences && surgeBetaNodeCount > 0 }
+    var canImportOrSubscribe: Bool { hasExportableProxies || isSurgeBetaOnly }
     let ruleCount: Int
     let profileName: String
     let contentMode: ExportContentMode
@@ -2244,9 +2253,11 @@ struct GeneratedConfiguration {
         diagnostics: [String] = [],
         hasInvalidPolicyReferences: Bool = false,
         skippedNodes: [SkippedExportNode] = [],
-        anywhereAJSON: String? = nil
+        anywhereAJSON: String? = nil,
+        surgeBetaNodeCount: Int = 0
     ) {
         self.anywhereAJSON = anywhereAJSON
+        self.surgeBetaNodeCount = surgeBetaNodeCount
         self.diagnostics = diagnostics
         self.hasInvalidPolicyReferences = hasInvalidPolicyReferences
         self.target = target
@@ -2281,7 +2292,8 @@ struct GeneratedConfiguration {
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: hasInvalidPolicyReferences,
             skippedNodes: skippedNodes,
-            anywhereAJSON: anywhereAJSON
+            anywhereAJSON: anywhereAJSON,
+            surgeBetaNodeCount: surgeBetaNodeCount
         )
     }
 }
