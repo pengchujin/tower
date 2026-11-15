@@ -8,6 +8,14 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## 1.0.31（78）TestFlight 与 Mac 分发（2026-11-15）
+
+- 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。纳入下方「Surge 测试版 HTTPUpgrade」（iOS 4027 已由用户截图确认）。发布前全量 TowerTests 1,411 项（8 跳过）零失败；ACL4SSR 已是上游最新（`e2f2573`）。
+- 本机 M4 用 asc 归档两端，核对 `com.jzb.tower` 1.0.31（78），Mac 为 arm64 / x86_64。asc 上传两端，处理为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.31-78/`。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.31-78](https://github.com/pengchujin/tower/releases/tag/v1.0.31-78)（tag 指向 `0346b3b`）已公开并设为 Latest，回下载 SHA-256 一致：`29e01f5454e39fb92d7110e4ce2218dce4a1e3f83d9fa5f1a52e3f43d18f8954`。
+- README 下载入口改为 v1.0.31-78；Homebrew cask 更新为 1.0.31,78，`brew style` / `brew audit` 通过。本机 `brew upgrade --cask` 后为 1.0.31（78），严格签名、Gatekeeper 通过，保留隔离标记，可启动。
+- 待真机：Surge Mac 12860+ 一键导入 HTTPUpgrade 节点（Xray 服务端）。
+
 ## Surge 测试版 HTTPUpgrade（2026-11-15，纳入 1.0.31（78））
 
 - 来源：上游检查发现 Surge iOS TestFlight（@SurgeTestFlightFeed/456）和 Surge Mac 6.12.0 Beta 12860 新增 `ws-http-upgrade=true`（配 `ws=true`），VMess、Trojan、VLESS 都能用 HTTPUpgrade；手册标注 iOS 6.0.0+ / Mac 6.12.0+。
