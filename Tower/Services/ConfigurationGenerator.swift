@@ -31,14 +31,22 @@ struct ConfigurationGenerator {
     ]
 
     private let rules: RuleRepository
-    /// For a Surge beta request (`supportedKindsOverride` with VLESS): whether
-    /// the build also reads VLESS Encryption and XHTTP
-    /// (`SurgeClientCapabilities.Tier.vlessExtensions`).
-    private let surgeVLESSExtensions: Bool
+    /// For a Surge beta request (`supportedKindsOverride` with VLESS): what
+    /// the requesting build reads beyond plain VLESS
+    /// (`SurgeClientCapabilities.Tier`). Ignored for every other request.
+    private let surgeTier: SurgeClientCapabilities.Tier
+    /// VLESS Encryption and XHTTP (`Tier.vlessExtensions`).
+    private var surgeVLESSExtensions: Bool { surgeTier >= .vlessExtensions }
+    /// `ws-http-upgrade=true` (`Tier.httpUpgrade`).
+    private var surgeHTTPUpgrade: Bool { surgeTier >= .httpUpgrade }
 
-    init(rules: RuleRepository = RuleRepository(), surgeVLESSExtensions: Bool = false) {
+    init(rules: RuleRepository = RuleRepository(), surgeTier: SurgeClientCapabilities.Tier = .vless) {
         self.rules = rules
-        self.surgeVLESSExtensions = surgeVLESSExtensions
+        self.surgeTier = surgeTier
+    }
+
+    init(rules: RuleRepository = RuleRepository(), surgeVLESSExtensions: Bool) {
+        self.init(rules: rules, surgeTier: surgeVLESSExtensions ? .vlessExtensions : .vless)
     }
 
     func generate(
@@ -491,7 +499,8 @@ struct ConfigurationGenerator {
         else { return configuration }
         let local = nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }
         let betaVLESS = excludedKinds.contains(.vless) ? [] : local.filter {
-            $0.kind == .vless && $0.exportableUUID != nil && Self.surgeAcceptsVLESS($0, withExtensions: true)
+            $0.kind == .vless && $0.exportableUUID != nil && $0.transport?.lowercased() != "httpupgrade"
+                && Self.surgeAcceptsVLESS($0, withExtensions: true)
         }
         let vless = betaVLESS.filter { Self.surgeAcceptsVLESS($0, withExtensions: false) }
         let extendedVLESS = betaVLESS.filter { !Self.surgeAcceptsVLESS($0, withExtensions: false) }
@@ -500,10 +509,18 @@ struct ConfigurationGenerator {
                 && writes($0, to: configuration.target, excluding: excludedKinds,
                           supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
         }
-        guard !betaVLESS.isEmpty || !trustTunnel.isEmpty else { return configuration }
+        // VMess, Trojan and VLESS over HTTPUpgrade: only the newest betas.
+        let newest = ConfigurationGenerator(rules: rules, surgeTier: .httpUpgrade)
+        let httpUpgrade = local.filter {
+            [.vmess, .trojan, .vless].contains($0.kind) && $0.transport?.lowercased() == "httpupgrade"
+                && newest.writes($0, to: configuration.target, excluding: excludedKinds,
+                                 supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
+        }
+        let betaOnly = betaVLESS + trustTunnel + httpUpgrade
+        guard !betaOnly.isEmpty else { return configuration }
         // Names are not unique, so remove one skipped entry per node.
         var remaining = configuration.skippedNodes
-        for node in betaVLESS + trustTunnel {
+        for node in betaOnly {
             if let index = remaining.firstIndex(where: { $0.kind == node.kind && $0.name == node.name }) {
                 remaining.remove(at: index)
             }
@@ -528,11 +545,17 @@ struct ConfigurationGenerator {
                 ? String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
                 : String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
         }
+        if !httpUpgrade.isEmpty {
+            let count = httpUpgrade.count
+            notes.append(isMac
+                ? String(localized: "\(count) 个 HTTPUpgrade 节点需要 Surge Mac 6.12.0 Beta（12860）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
+                : String(localized: "\(count) 个 HTTPUpgrade 节点需要 Surge iOS TestFlight 4027 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
+        }
         return GeneratedConfiguration(
             target: configuration.target,
             content: configuration.content,
             supportedNodeCount: configuration.supportedNodeCount,
-            skippedNodeCount: max(0, configuration.skippedNodeCount - betaVLESS.count - trustTunnel.count),
+            skippedNodeCount: max(0, configuration.skippedNodeCount - betaOnly.count),
             ruleCount: configuration.ruleCount,
             profileName: configuration.profileName,
             contentMode: configuration.contentMode,
@@ -542,7 +565,7 @@ struct ConfigurationGenerator {
             hasInvalidPolicyReferences: configuration.hasInvalidPolicyReferences,
             skippedNodes: remaining,
             anywhereAJSON: configuration.anywhereAJSON,
-            surgeBetaNodeCount: betaVLESS.count + trustTunnel.count
+            surgeBetaNodeCount: betaOnly.count
         )
     }
 
@@ -963,7 +986,7 @@ struct ConfigurationGenerator {
                 reason = String(localized: "仅节点格式无法保留完整参数，请使用完整配置。")
             } else if target == .anywhere, let anywhere = AnywhereExport.unsupportedReason(node) {
                 reason = anywhere
-            } else if !canExpressTransport(of: node, on: target) {
+            } else if !canExpressTransport(of: node, on: target, supportedKindsOverride: supportedKindsOverride) {
                 reason = String(localized: "当前客户端不支持此节点的传输方式。")
             } else {
                 reason = String(localized: "此节点的协议参数无法在当前客户端完整保留。")
@@ -1011,7 +1034,7 @@ struct ConfigurationGenerator {
         // profile (`SurgeClientCapabilities`); the baseline stops at
         // `supportsKind` above.
         if node.kind == .vless, [.surge, .surgeMac].contains(target) {
-            return Self.surgeAcceptsVLESS(node, withExtensions: surgeVLESSExtensions)
+            return Self.surgeAcceptsVLESS(node, withExtensions: surgeVLESSExtensions, withHTTPUpgrade: surgeHTTPUpgrade)
         }
         // Tower implements TUIC v5. Both parts of its credential are required;
         // a v4 token or half-filled v5 entry may import, but can never
@@ -1174,7 +1197,7 @@ struct ConfigurationGenerator {
             guard node.transport == "ws",
                   [.clash, .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi, .karing, .shadowrocket, .quanx, .hiddify, .singBox].contains(target) else { return false }
         }
-        if !canExpressTransport(of: node, on: target) { return false }
+        if !canExpressTransport(of: node, on: target, supportedKindsOverride: supportedKindsOverride) { return false }
         return true
     }
 
@@ -1229,16 +1252,19 @@ struct ConfigurationGenerator {
     /// WebSocket with none or TLS; gRPC with TLS or REALITY; XHTTP with none,
     /// TLS or REALITY. VLESS Encryption can be added to any of them. Vision
     /// needs RAW with TLS or REALITY, or VLESS Encryption on RAW, WebSocket
-    /// or XHTTP; never gRPC. HTTPUpgrade and mKCP are unsupported, and a
-    /// profile line Surge cannot parse breaks the whole profile, so anything
-    /// else is skipped and counted.
+    /// or XHTTP; never gRPC. HTTPUpgrade (`ws=true, ws-http-upgrade=true`)
+    /// takes none or TLS, like WebSocket. mKCP is unsupported, and a profile
+    /// line Surge cannot parse breaks the whole profile, so anything else is
+    /// skipped and counted.
     ///
     /// Encryption and XHTTP need `withExtensions` (iOS 4026+ / Mac 12840+);
     /// the first VLESS betas (4024 / 4025 / 12820) reject the parameters.
-    static func surgeAcceptsVLESS(_ node: ProxyNode, withExtensions: Bool) -> Bool {
+    /// HTTPUpgrade needs `withHTTPUpgrade` (iOS 4027+ / Mac 12860+).
+    static func surgeAcceptsVLESS(_ node: ProxyNode, withExtensions: Bool, withHTTPUpgrade: Bool = false) -> Bool {
         guard node.kind == .vless else { return false }
         let encrypted = node.vlessEncryption != nil
         if !withExtensions, encrypted || node.transport?.lowercased() == "xhttp" { return false }
+        if !withHTTPUpgrade, node.transport?.lowercased() == "httpupgrade" { return false }
         if let encryption = node.vlessEncryption, !surgeAcceptsVLESSEncryption(encryption) { return false }
         let transport = node.transport?.lowercased() ?? "tcp"
         let isRaw = ["", "tcp", "raw"].contains(transport)
@@ -1250,14 +1276,14 @@ struct ConfigurationGenerator {
         }
         if let flow = node.flow?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !flow.isEmpty {
             guard ["xtls-rprx-vision", "xtls-rprx-vision-udp443"].contains(flow) else { return false }
-            let visionCarrier = (isRaw && secured) || (encrypted && (isRaw || ["ws", "xhttp"].contains(transport)))
+            let visionCarrier = (isRaw && secured) || (encrypted && (isRaw || ["ws", "httpupgrade", "xhttp"].contains(transport)))
             guard visionCarrier else { return false }
         }
         if transport == "xhttp" {
             let mode = node.transportMode?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
             return ["", "auto", "packet-up", "stream-up", "stream-one"].contains(mode)
         }
-        if isRaw || transport == "ws" { return true }
+        if isRaw || ["ws", "httpupgrade"].contains(transport) { return true }
         return transport == "grpc" && secured
     }
 
@@ -1285,7 +1311,9 @@ struct ConfigurationGenerator {
         return TrustTunnelOptions.isValidClientRandomAuthKey(key) && node.sendsTrustTunnelSNI
     }
 
-    private func canExpressTransport(of node: ProxyNode, on target: ClientTarget) -> Bool {
+    private func canExpressTransport(
+        of node: ProxyNode, on target: ClientTarget, supportedKindsOverride: Set<ProxyKind>? = nil
+    ) -> Bool {
         guard [.vmess, .vless, .trojan].contains(node.kind) else { return true }
         let transport = node.transport?.lowercased() ?? "tcp"
         if transport == "tcp" || transport.isEmpty { return true }
@@ -1305,6 +1333,11 @@ struct ConfigurationGenerator {
         case .surge, .surgeMac:
             // VLESS only gets here for a Surge build that has it; which
             // security each transport allows is `surgeAcceptsVLESS`.
+            // HTTPUpgrade is `ws=true, ws-http-upgrade=true`, read only by
+            // the newest betas (`SurgeClientCapabilities.Tier.httpUpgrade`).
+            let httpUpgrade = surgeHTTPUpgrade
+                && SurgeClientCapabilities.isBetaRequest(target: target, supportedKindsOverride: supportedKindsOverride)
+            if transport == "httpupgrade" { return httpUpgrade }
             if node.kind == .vless { return ["ws", "grpc", "xhttp"].contains(transport) }
             return transport == "ws" && [.vmess, .trojan].contains(node.kind)
         case .shadowrocket:
@@ -3332,8 +3365,14 @@ struct ConfigurationGenerator {
         to values: inout [String]
     ) {
         appendSurgeTLS(node, includeTLSFlag: includeTLSFlag, to: &values)
-        if node.transport == "ws" {
+        // Surge writes HTTPUpgrade as WebSocket plus `ws-http-upgrade=true`
+        // (manual.nssurge.com/policies/vmess.html, iOS 6.0.0+ / Mac 6.12.0+);
+        // `canExpressTransport` lets it through only for builds that read it.
+        // Shadowrocket keeps its own `obfs=httpupgrade` below.
+        let httpUpgrade = !shadowrocket && node.transport == "httpupgrade"
+        if node.transport == "ws" || httpUpgrade {
             values.append("ws=true")
+            if httpUpgrade { values.append("ws-http-upgrade=true") }
             appendValue(node.exportablePathWithoutEarlyData ?? "/", key: "ws-path", to: &values)
             if let host = node.exportableTransportHost {
                 values.append("ws-headers=Host:\(confValue(host))")
@@ -3375,8 +3414,9 @@ struct ConfigurationGenerator {
             appendSurgeTLS(node, includeTLSFlag: true, to: &values)
         }
         switch node.transport?.lowercased() {
-        case "ws":
+        case "ws", "httpupgrade":
             values.append("ws=true")
+            if node.transport?.lowercased() == "httpupgrade" { values.append("ws-http-upgrade=true") }
             appendValue(node.exportablePathWithoutEarlyData ?? "/", key: "ws-path", to: &values)
             if let host = node.exportableTransportHost {
                 values.append("ws-headers=Host:\(confValue(host))")

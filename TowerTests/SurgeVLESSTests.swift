@@ -31,7 +31,8 @@ final class SurgeVLESSTests: XCTestCase {
         XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4024 SurgeCore/6011000"), .vless)
         XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4025"), .vless)
         XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4026 SurgeCore/6012000"), .vlessExtensions)
-        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4030"), .vlessExtensions)
+        // 4027+ / 12860+ also read `ws-http-upgrade` (SurgeHTTPUpgradeTests).
+        XCTAssertEqual(Caps.tier(userAgent: "Surge iOS/4030"), .httpUpgrade)
         XCTAssertNil(Caps.tier(userAgent: "Surge iOS/4022 SurgeCore/6011000"))
         // App Store 5.x and its TestFlight builds are all below 4000.
         XCTAssertNil(Caps.tier(userAgent: "Surge iOS/3875"))
@@ -69,10 +70,10 @@ final class SurgeVLESSTests: XCTestCase {
         XCTAssertEqual(output.diagnostics.count(where: { $0.contains("TestFlight 4024") }), 1)
 
         // A VLESS node Surge cannot carry at all is still skipped.
-        let upgrade = try self.node("security=tls&type=httpupgrade&path=%2Fx", name: "V-HUP")
-        let mixed = ConfigurationGenerator().generate(nodes: [node, upgrade], preset: preset, target: .surge)
+        let plainGRPC = try self.node("type=grpc&serviceName=g", name: "V-GRPC")
+        let mixed = ConfigurationGenerator().generate(nodes: [node, plainGRPC], preset: preset, target: .surge)
         XCTAssertEqual(mixed.skippedNodeCount, 1)
-        XCTAssertEqual(mixed.skippedNodes.map(\.name), ["V-HUP"])
+        XCTAssertEqual(mixed.skippedNodes.map(\.name), ["V-GRPC"])
         XCTAssertTrue(mixed.diagnostics.contains { $0.hasPrefix("1 ") && $0.contains("TestFlight 4024") })
         // Encryption / XHTTP nodes get their own note naming the later build.
         let xhttp = try self.node("security=tls&type=xhttp&path=%2Fx", name: "V-XHTTP")
@@ -131,8 +132,8 @@ final class SurgeVLESSTests: XCTestCase {
         // Excluded by the protocol filter, or a node no Surge can carry: nothing to import.
         let filtered = generator.generate(nodes: [tls], preset: preset, target: .surge, excludedKinds: [.vless])
         XCTAssertFalse(filtered.canImportOrSubscribe)
-        let upgrade = try node("security=tls&type=httpupgrade&path=%2Fx", name: "V-HUP")
-        XCTAssertFalse(generator.generate(nodes: [upgrade], preset: preset, target: .surge).canImportOrSubscribe)
+        let plainGRPC = try node("type=grpc&serviceName=g", name: "V-GRPC")
+        XCTAssertFalse(generator.generate(nodes: [plainGRPC], preset: preset, target: .surge).canImportOrSubscribe)
         // Other clients never count Surge beta nodes.
         XCTAssertEqual(generator.generate(nodes: [tls], preset: preset, target: .loon).surgeBetaNodeCount, 0)
     }
@@ -446,8 +447,11 @@ final class SurgeVLESSTests: XCTestCase {
             let baseline = ConfigurationGenerator().generateNodeSubscription(nodes: [vless, upgrade], target: target)
             XCTAssertFalse(baseline.content.contains("= vless,"))
             XCTAssertEqual(baseline.contentMode, .nodesOnly)
-            XCTAssertEqual(baseline.skippedNodes.map(\.name), ["V-HUP"])
+            // HTTPUpgrade is written for the newest betas, so it is a note
+            // here rather than a skipped node.
+            XCTAssertEqual(baseline.skippedNodes.map(\.name), [])
             XCTAssertEqual(baseline.diagnostics.count(where: { $0.contains("VLESS") }), 1)
+            XCTAssertEqual(baseline.diagnostics.count(where: { $0.contains("HTTPUpgrade") }), 1)
         }
     }
 

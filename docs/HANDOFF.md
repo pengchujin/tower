@@ -8,6 +8,14 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## Surge 测试版 HTTPUpgrade（2026-11-15，纳入 1.0.31（78））
+
+- 来源：上游检查发现 Surge iOS TestFlight（@SurgeTestFlightFeed/456）和 Surge Mac 6.12.0 Beta 12860 新增 `ws-http-upgrade=true`（配 `ws=true`），VMess、Trojan、VLESS 都能用 HTTPUpgrade；手册标注 iOS 6.0.0+ / Mac 6.12.0+。
+- 做法：`SurgeClientCapabilities.Tier` 加第三档 `.httpUpgrade`（iOS ≥ 4027、Mac ≥ 12860）。`ConfigurationGenerator` 改为持有档位（`surgeTier`，旧的 `surgeVLESSExtensions:` 初始化保留给测试），只在 Surge 测试版请求且档位够时让 httpupgrade 通过 `canExpressTransport`，写成 `ws=true, ws-http-upgrade=true, ws-path, ws-headers=Host:`；Shadowrocket 仍是自己的 `obfs=httpupgrade`。VLESS HTTPUpgrade 的安全层规则同 WS。正式版 / 导出文件不变；这类节点在正式版导出页算作「需要测试版」的兼容性提示，计入 `surgeBetaNodeCount`。一键导入 / 局域网订阅 / 仅节点照旧按 UA 选档。
+- 新增两条提示文案的 15 种语言照抄 Encryption / XHTTP 那两条的译文，只换协议名和构建号（未走机翻）。
+- 真机（2026-11-15，iOS）：Xray 服务端的 VMess / VLESS HTTPUpgrade + TLS 连通；sing-box 服务端全部被拒（Surge 请求带 `Sec-WebSocket-Key`，sing-box 回 404），属于 Surge 与 sing-box 的兼容问题，详见 TODO。
+- iOS 门槛 4027 已由用户 TestFlight 截图确认（6.100.0 Build 4027 的测试内容即 `ws-http-upgrade`）。验证：SurgeHTTPUpgradeTests（新）、SurgeVLESSTests、VLESSWebSocketHostTests、SurgeConfigurationImportTests、ConfigurationGeneratorTests、TransportGenerationTests、NodeExportParityTests、DirectImportServiceTests、LANSubscriptionServerTests、ExportPresentationTests、CertificatePinExportTests、LocalizationTests 通过；`check_localization.sh` PASS。
+
 ## 1.0.31（77）TestFlight 与 Mac 分发（2026-11-14）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。修复用户反馈：订阅全是 VLESS 时导出到 Surge Mac 显示「暂时无法导出」、按钮全灰，测试版也导不进去。现在 `GeneratedConfiguration.surgeBetaNodeCount` 记录 Surge 测试版专属节点，全是这类节点时标题为「仅 Surge 测试版可用」，一键导入 / 复制订阅可用（按 UA 返回测试版那一份），分享文件 / 复制文本仍禁用。发布前全量 TowerTests 1,404 项（8 跳过）及 106 项 Swift Testing 零失败；ACL4SSR 已是上游最新（`e2f2573`）。

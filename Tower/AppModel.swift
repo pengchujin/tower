@@ -3471,10 +3471,10 @@ final class AppModel {
         target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?,
         surgeTier: SurgeClientCapabilities.Tier? = nil
     ) -> ConfigurationRequest {
-        // A Surge beta build reads VLESS; the higher tier also reads VLESS
-        // Encryption and XHTTP (`SurgeClientCapabilities.Tier`).
+        // A Surge beta build reads VLESS; higher tiers also read VLESS
+        // Encryption, XHTTP and HTTPUpgrade (`SurgeClientCapabilities.Tier`).
         let supportedKindsOverride = surgeTier != nil ? SurgeClientCapabilities.vlessKinds : supportedKindsOverride
-        let surgeVLESSExtensions = surgeTier == .vlessExtensions
+        let generatorTier = surgeTier ?? .vless
         let ruleRepository = self.ruleRepository
         let schemeRepository = self.schemeRepository
         let configurationName = self.configurationName
@@ -3490,7 +3490,7 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue ?? 0
         let excludedHash = excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
-            ^ supportedKindsHash ^ (surgeVLESSExtensions ? 0x5EC7 : 0)
+            ^ supportedKindsHash ^ (generatorTier.rawValue &* 0x5EC7)
 
         // A node subscription is nodes only: no rules, no policy groups, so
         // none of the scheme materialization below applies to it. Producing the
@@ -3507,7 +3507,7 @@ final class AppModel {
                 contentMode: .nodesOnly
             )
             return ConfigurationRequest(key: key, name: configurationName) {
-                ConfigurationGenerator(rules: ruleRepository, surgeVLESSExtensions: surgeVLESSExtensions).generateNodeSubscription(
+                ConfigurationGenerator(rules: ruleRepository, surgeTier: generatorTier).generateNodeSubscription(
                     nodes: currentNodes, target: resolvedTarget, excludedKinds: excluded,
                     profileName: configurationName, supportedKindsOverride: supportedKindsOverride
                 )
@@ -3546,7 +3546,7 @@ final class AppModel {
             contentMode: .fullConfiguration
         )
         return ConfigurationRequest(key: key, name: configurationName) {
-            let generator = ConfigurationGenerator(rules: ruleRepository, surgeVLESSExtensions: surgeVLESSExtensions)
+            let generator = ConfigurationGenerator(rules: ruleRepository, surgeTier: generatorTier)
             let generated: GeneratedConfiguration
             if let scheme {
                 generated = generator.generate(
@@ -3583,7 +3583,10 @@ final class AppModel {
         for configuration: GeneratedConfiguration
     ) async -> [SurgeClientCapabilities.Tier: GeneratedConfiguration] {
         guard [.surge, .surgeMac].contains(configuration.target),
-              enabledNodes.contains(where: { $0.kind == .vless || $0.trustTunnel?.clientRandomAuthKey != nil })
+              enabledNodes.contains(where: {
+                  $0.kind == .vless || $0.trustTunnel?.clientRandomAuthKey != nil
+                      || $0.transport?.lowercased() == "httpupgrade"
+              })
         else { return [:] }
         var variants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
         var previous = configuration

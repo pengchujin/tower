@@ -19,6 +19,9 @@ enum SurgeClientCapabilities {
         case vless = 1
         /// Adds VLESS `encryption=` and the `xhttp=true` transport.
         case vlessExtensions = 2
+        /// Adds `ws-http-upgrade=true` (HTTPUpgrade) for VMess, Trojan and
+        /// VLESS.
+        case httpUpgrade = 3
 
         static func < (lhs: Tier, rhs: Tier) -> Bool { lhs.rawValue < rhs.rawValue }
     }
@@ -39,6 +42,14 @@ enum SurgeClientCapabilities {
     static let firstIOSBuildWithVLESSExtensions = 4026
     static let firstMacBuildWithVLESSExtensions = 12840
 
+    /// `ws-http-upgrade=true` (manual: VMess / Trojan / VLESS, iOS 6.0.0+ /
+    /// Mac 6.12.0+). Mac: Beta appcast 12860 (2026-11-14) is the first whose
+    /// notes list it; 12840 does not. iOS: @SurgeTestFlightFeed/456
+    /// (2026-11-14) announced it; TestFlight shows it as 6.100.0 Build
+    /// 4027 (confirmed 2026-11-15), the first build after 4026.
+    static let firstIOSBuildWithHTTPUpgrade = 4027
+    static let firstMacBuildWithHTTPUpgrade = 12860
+
     /// The build after `Surge <platform>/` in the User-Agent.
     static func build(userAgent: String?, platform: String) -> Int? {
         guard let userAgent,
@@ -56,10 +67,12 @@ enum SurgeClientCapabilities {
     /// builds and every other client.
     static func tier(userAgent: String?) -> Tier? {
         if let build = iOSBuild(userAgent: userAgent) {
+            if build >= firstIOSBuildWithHTTPUpgrade { return .httpUpgrade }
             if build >= firstIOSBuildWithVLESSExtensions { return .vlessExtensions }
             if build >= firstIOSBuildWithVLESS { return .vless }
         }
         if let build = macBuild(userAgent: userAgent) {
+            if build >= firstMacBuildWithHTTPUpgrade { return .httpUpgrade }
             if build >= firstMacBuildWithVLESSExtensions { return .vlessExtensions }
             if build >= firstMacBuildWithVLESS { return .vless }
         }
