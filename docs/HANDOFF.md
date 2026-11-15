@@ -8,6 +8,13 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## 1.0.31（78）提交 App Store 正式审核（2026-11-15）
+
+- 用户要求用最新 TestFlight 构建提交正式版，商店更新日志写 1.0.30 → 1.0.31 的全部改动。未重新归档，直接用已在外部测试的 1.0.31（78）两端构建（均为 VALID）。
+- `asc release stage` 为 iOS / Mac 各建 1.0.31 版本，从 1.0.30 复制商店资料（除更新日志）并绑定 78；截图、描述、审核资料沿用。商店只有 zh-Hans 一个语言，更新日志按 `docs/releases/1.0.31.md`（72–78）与 1.0.30 之后的提交合写，另补上了 Changelog 里漏掉的 Anywhere 一键导入保留跳过证书验证节点（#51）；用 `asc localizations update` 写入两端，回读一致。
+- `asc validate` 两端零阻塞：仍是版权文本缺年份的非阻塞提醒，以及 App Privacy 无法经 API 验证的说明（和以往相同）。发布方式沿用 AFTER_APPROVAL，分阶段发布设置不变。
+- `asc review submit` 两端提交成功，回读 iOS / Mac 均为 WAITING_FOR_REVIEW。审核通过后自动上架；上架后再发新版本须先递增 MARKETING_VERSION。
+
 ## 1.0.31（78）TestFlight 与 Mac 分发（2026-11-15）
 
 - 1.0.31 仍在 TestFlight（App Store 为 1.0.30），用户要求只递增构建号并更新 GitHub 版本。纳入下方「Surge 测试版 HTTPUpgrade」（iOS 4027 已由用户截图确认）。发布前全量 TowerTests 1,411 项（8 跳过）零失败；ACL4SSR 已是上游最新（`e2f2573`）。

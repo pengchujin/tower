@@ -8,6 +8,7 @@
 
 - [ ] **Hiddify 5.5**（正式）：内核换成 hiddify 的 sing-box 1.15 fork，塔台注释和文档仍按 1.13。用 hiddify-sing-box `check` 复验整份导出，再逐项决定：放开 VLESS XHTTP、Snell、TrustTunnel；规则集下载从已弃用的 `download_detour` 改为 `http_clients`；评估接上 `SingBoxDNSPolicy`。
 - [ ] **Stash iOS 3.6.5**（正式）：Snell v4/v5、Trojan/VMess REALITY、VLESS REALITY + ws/h2、XHTTP、VLESS Encryption、SSH host-key、MASQUE 复测。**Stash Mac 正式版仍是 4.2**，`.clash` 同时覆盖两端，放开前要么等 Mac 4.3，要么加版本偏好。
+  - 2026-11-15：Stash iOS 正式版跳到 **5.0.0**（App Store 2026-11-14），新增 VLESS / Trojan 的 gRPC（gun）、VLESS splithttp、XHTTP padding / XMUX、规则 pre-matching 拦截、Tailscale 状态管理；MTProto 是 Stash 本机的 MTProto 代理服务器（给 Telegram 客户端连），不是出站节点，和导出无关。stash.wiki macOS 发布说明仍停在 **4.2.0**，wiki 标注 XHTTP 需 macOS 4.3+，所以 `.clash` 白名单仍不能放开；Mac 4.3 出来或做版本偏好时把 5.0 的这几项一并复测。
 - [ ] **「Clash」App 策略组图标**（1.0.7+ 正式）：2026-11-09 已按更新说明加入 `PolicyGroupIconSupport.drawsIcons`，组名不再带 Emoji（地区组保留国旗）。**待真机确认**图标确实显示；不显示就撤回。
 - [ ] **mihomo 系 `dns.ipv6`**：clash.md 写明默认 false；开 IPv6 时应同时写 `dns: ipv6: true`。
 - [ ] **Stash Tailscale Auth Key 可选**（3.4+ 支持 Web 登录）：改动涉及 CLAUDE.md 第 24 条，先确认。
@@ -18,6 +19,7 @@
 - [ ] sing-box 1.15 稳定且 sing-box MT 跟进后：把 `ClientTarget.singBoxSupportsMASQUE` 改为 true；TUN 不再写 `stack`；`certificate_sha256` 放开带证书指纹的节点；实测 HTTP 出站默认 HTTP/2 的回退。
 - [ ] Snell v6 `mode`：现在拒绝非默认值。需要时给 `ProxyNode` 建模并写给 Surge（`mode=`），Clash App / Stash 也有 v6 字段。
 - [ ] **mihomo 系 Snell v6**（mihomo 1.19.34，2026-11-11，`version: 6` + 可选 `mode: default/unshaped/unsafe-raw`，v6 不能配 `obfs-opts` 的 http/tls）：2026-11-14 用户决定等客户端跟进。1.19.33 及更早遇到 `version: 6` 报 `snell version error`，mihomo 一个节点解析失败整份配置都加载不了，所以只能按客户端逐个放开（`ConfigurationGenerator` 里 mihomo 系的 `(1...5)` 白名单）。11-14 状态：「Clash」App 内核快照 v1.19.34-clash.1 已出、App 是否带上未确认；Verge 2.5.10、FlClash 0.9.3、Clash Party 2.0.4、ClashMac 27.1.8、Clash Mi 1.0.32 都早于 1.19.34。放开时一并拒绝 v6 + obfs。
+  - 2026-11-15：FlClash 0.9.4-pre.1 已把内核换成 mihomo 1.19.34（仅预发布，正式版出来再放开 FlClash）。mihomo Alpha 新增 Snell v6 可选 `userkey`（[#3460](https://github.com/MetaCubeX/mihomo/pull/3460)，作为 ClientID 发送，v6 以前拒绝），塔台还没有这个字段；进正式版后评估是否建模，带 `userkey` 的节点在不支持的客户端要跳过计数。
 - [ ] Surge 写 Snell v6 时，节点带 `obfs` 仍会写出 `obfs=`（手册：v6 不支持 obfs），应改为跳过并计数。
 - [ ] Egern 2.21 的 SRC-IP 规则和 Tailscale 代理：等官方文档公开 YAML 字段；Tailscale 按 CLAUDE.md 第 24 条评估。
 - [ ] Karing 1.2.26（目前只在 GitHub 预发布）：上 App Store 后测 mihomo 写法的 Tailscale 和 MASQUE 方言。
