@@ -8,6 +8,14 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## 未发布：Mac 上 iPhone 版 dead10cc 崩溃定位与修复（2026-11-16）
+
+- TestFlight 里 1.0.22（60）到 1.0.30（71）的 11 份 Mac 崩溃全是 `RUNNINGBOARD 0xdead10cc`，都是 iPhone 版跑在 Apple 芯片 Mac 上（不是 Developer ID 的 Mac Catalyst 版）。在本机装 TestFlight 1.0.31（78）iPhone 版复现：关窗口约 40 秒后系统挂起进程，挂起时做锁检查；打开过二维码后再关窗口，runningboardd 日志写明持有 `$DARWIN_USER_CACHE_DIR/com.jzb.tower/com.apple.metal/archiveUsage.db/lock.mdb`，并以 dead10cc 终止。只允许在 `tmp`、`Library/Caches` 下持锁。隐藏窗口不会挂起，⌘Q 是正常退出。
+- 11 份崩溃日志全部加载了 `CIBarcode`（二维码生成）。塔台唯一的 Core Image 用法是 `SharePayloadSheet` 的二维码。实测在「Designed for iPad」测试进程里：只要创建 `CIContext`（软件渲染也一样），Metal 就打开该数据库并一直持锁，释放上下文后也不放。首页地图的 `drawingGroup` 不会打开它。
+- 修复：新增 `Tower/Services/QRCodeEncoder.swift`（字节模式、纠错 M、按标准罚分选掩码），`QRCodeRenderer` 改用 CoreGraphics 绘制，保持原来 1 模块白边、每模块 12 像素。新增测试：系统 `CIDetector` 回读 1–2300 字节（含中文和 Emoji）与容量上限；在 Mac 上 iPhone 版测试进程里断言生成二维码后不打开 `archiveUsage.db`，并用 `CIContext` 作对照确认检查有效。三项测试在「Designed for iPad」目标通过，已装到实体 iPhone。iPhone 上二维码分享仍需人工确认可扫描。
+- 「Designed for iPad」目标跑测试时，DerivedData 不能放在含中文的仓库路径下（Xcode 本地安装服务报 `.XCInstall did not exist`），用 `~/Library/Developer/Xcode/DerivedData/` 下的 ASCII 路径。
+- 11-11 iPhone 12 Pro 那条「经常崩溃」没有崩溃日志，与本问题无关联证据，未处理。
+
 ## 1.0.31（78）提交 App Store 正式审核（2026-11-15）
 
 - 用户要求用最新 TestFlight 构建提交正式版，商店更新日志写 1.0.30 → 1.0.31 的全部改动。未重新归档，直接用已在外部测试的 1.0.31（78）两端构建（均为 VALID）。

@@ -1,5 +1,3 @@
-import CoreImage
-import CoreImage.CIFilterBuiltins
 import SwiftUI
 import UIKit
 
@@ -192,18 +190,34 @@ enum QRCodeShareArtifactBuilder {
     }
 }
 
-private enum QRCodeRenderer {
-    private static let context = CIContext()
+enum QRCodeRenderer {
+    /// Matches what `CIQRCodeGenerator` produced before: one quiet module on
+    /// each side, 12 pixels per module. Drawn with CoreGraphics only; see
+    /// `QRCodeEncoder` for why Core Image must not be used here.
+    static let pixelsPerModule = 12
+    static let quietModules = 1
 
     static func render(_ value: String) -> (image: UIImage, pngData: Data)? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(value.utf8)
-        filter.correctionLevel = "M"
-        guard let output = filter.outputImage else { return nil }
-
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        let image = UIImage(cgImage: cgImage)
+        guard let symbol = QRCodeEncoder.encode(Data(value.utf8)) else { return nil }
+        let side = (symbol.size + quietModules * 2) * pixelsPerModule
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: side, height: side))
+            UIColor.black.setFill()
+            for (y, row) in symbol.modules.enumerated() {
+                for (x, dark) in row.enumerated() where dark {
+                    context.fill(CGRect(
+                        x: (x + quietModules) * pixelsPerModule,
+                        y: (y + quietModules) * pixelsPerModule,
+                        width: pixelsPerModule,
+                        height: pixelsPerModule
+                    ))
+                }
+            }
+        }
         guard let pngData = image.pngData() else { return nil }
         return (image, pngData)
     }

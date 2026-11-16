@@ -1,4 +1,5 @@
 import XCTest
+import CoreImage
 @testable import Tower
 
 private struct EditingSubscriptionFetcher: SubscriptionFetching {
@@ -356,6 +357,58 @@ final class SubscriptionInteractionTests: XCTestCase {
             (try Data(contentsOf: artifact.fileURL)).count,
             100
         )
+    }
+
+    /// Tower's own encoder must produce codes a real decoder reads back, at
+    /// every length a node link or subscription can plausibly reach.
+    func testQRCodeEncoderRoundTripsThroughSystemDetector() throws {
+        let detector = try XCTUnwrap(CIDetector(ofType: CIDetectorTypeQRCode, context: nil,
+                                                options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
+        let unit = "vless://5d1c3d8f-77b7-45c7@香港-01.example.com:443?security=tls&sni=例子#🇭🇰 节点|"
+        for length in [1, 7, 14, 30, 60, 120, 250, 400, 700, 1000, 1400, 1800, 2300] {
+            var value = String(repeating: unit, count: length / unit.utf8.count + 1)
+            while value.utf8.count > length { value.removeLast() }
+            let rendered = try XCTUnwrap(QRCodeRenderer.render(value), "length \(length)")
+            let image = try XCTUnwrap(CIImage(image: rendered.image))
+            let decoded = detector.features(in: image).compactMap { ($0 as? CIQRCodeFeature)?.messageString }
+            XCTAssertEqual(decoded, [value], "length \(value.utf8.count)")
+        }
+        XCTAssertNil(QRCodeEncoder.encode(Data(repeating: 0x41, count: 2332)))
+        XCTAssertEqual(QRCodeEncoder.encode(Data(repeating: 0x41, count: 2331))?.size, 177)
+    }
+
+    /// The iPhone build on an Apple silicon Mac is killed with 0xdead10cc when
+    /// it is suspended holding Metal's `archiveUsage.db/lock.mdb`; creating any
+    /// Core Image context opens it and never lets go (reproduced 2026-11-16).
+    /// Only meaningful where Metal keeps that cache, so run this on the
+    /// "Designed for iPad" Mac destination; elsewhere the control check skips.
+    func testQRCodeRenderingDoesNotOpenMetalShaderArchiveLock() async throws {
+        func openMetalArchiveFiles() -> [String] {
+            var paths: [String] = []
+            var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            for fd in 0..<getdtablesize() where fcntl(fd, F_GETPATH, &buffer) != -1 {
+                let path = String(cString: buffer)
+                if path.contains("archiveUsage.db") { paths.append(path) }
+            }
+            return paths
+        }
+        guard openMetalArchiveFiles().isEmpty else {
+            throw XCTSkip("An earlier test in this process already opened the Metal archive")
+        }
+
+        let artifact = await QRCodeShareArtifactBuilder.make(value: "ss://example-share-link", id: UUID())
+        if let artifact { try? FileManager.default.removeItem(at: artifact.fileURL) }
+        XCTAssertNotNil(artifact)
+        XCTAssertEqual(openMetalArchiveFiles(), [])
+
+        // Control: a GPU context in the same process does open it, so the
+        // check above is looking at the right thing.
+        let gpu = CIContext()
+        let filter = CIFilter(name: "CIQRCodeGenerator", parameters: ["inputMessage": Data("x".utf8)])!
+        _ = gpu.createCGImage(filter.outputImage!, from: filter.outputImage!.extent)
+        guard !openMetalArchiveFiles().isEmpty else {
+            throw XCTSkip("This platform does not keep a Metal shader archive; the control cannot show anything")
+        }
     }
 
     func testMapOffersTopTrailingLatencyButtonAndLongPressModePicker() throws {
