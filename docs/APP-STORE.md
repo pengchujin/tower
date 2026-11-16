@@ -26,6 +26,8 @@ App Store 站内搜索只读名称、副标题、关键词（另有开发者名�
 
 描述不参与 App Store 站内搜索，但 Google 会收录商店页面，所以第一段要说清用途。不写具体的协议或客户端数量，以免随版本过时。
 
+iOS 和 Mac 是两个平台版本，描述、关键词、宣传文本各填一份（名称、副标题两端共用）。下面是 iOS 版；Mac 版把首句的平台换成「Mac」（英文 “your Mac”），其余照抄。
+
 ### 简体中文
 
 塔台是在 iPhone 和 iPad 本机运行的订阅与配置转换工具。它管理你已有的订阅、自有节点和分流规则，生成其他客户端能直接导入的配置文件。
@@ -119,7 +121,7 @@ Info.plist 的 NSAllowsArbitraryLoads 用于用户自行提供的 HTTP 订阅地
 | 支持 URL | https://pengchujin.github.io/tower/support.html |
 | 隐私政策 URL | https://pengchujin.github.io/tower/privacy.html |
 | 营销 URL | 可留空 |
-| 设备 | iPhone、iPad；Mac 版通过 GitHub Releases 和 Homebrew 分发 |
+| 设备 | iPhone、iPad、Mac（Mac App Store 上架，同时通过 GitHub Releases 和 Homebrew 分发） |
 | 截图 | iPhone 6.9″ 与 iPad 13″ 各 5 张，Mac 4 张；拍摄方法见 [DEVELOPMENT](DEVELOPMENT.md#app-store-截图) |
 | 隐私问卷 | 按实际无开发者数据收集行为填写，并与隐私政策、PrivacyInfo.xcprivacy 核对 |
 | 出口合规 | 当前工程 ITSAppUsesNonExemptEncryption = NO；引入新的加密实现时重新评估 |

@@ -1,5 +1,15 @@
 # 待办与待验证
 
+## App Store 搜索元数据（2026-11-16）
+
+成稿在 [APP-STORE](APP-STORE.md#搜索字段)。2026-11-16 iOS / Mac 1.0.31 都在等审核，只能改宣传文本：已把 1.0.30 和 1.0.31 两端的简体宣传文本换成新稿，回读一致。用户决定其余字段等审核结束再改。
+
+- [ ] 下一个版本（1.0.32）建好、处于可编辑状态后，用 asc 一并写入并回读：
+  - 名称、副标题（app-info，两端共用）：简体、繁体、英文三套。
+  - 关键词、描述（iOS / Mac 版本各一份；Mac 描述首句平台换成 Mac）。
+  - 新建 `zh-Hant`、`en-US` 两个语言，宣传文本一起填；截图沿用简体的。
+  - 改完后用 iTunes lookup（`country=us` / `hk` / `tw`）确认商店页已更新。
+
 ## 上游更新待处理（2026-11-09）
 
 来自 `Scripts/check_upstream_updates.py` 的对照，流程见 [UPSTREAM_SOURCES](UPSTREAM_SOURCES.md#维护流程)。已修的见 HANDOFF「按上游更新修正导出」。
