@@ -48,6 +48,10 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
     case singBox = "sing-box"
     case hiddify
     case egern
+    /// Base64 list of standard share links (`vmess://`, `vless://`…), the
+    /// subscription body v2rayNG, v2rayN and V2Box read. They cannot parse a
+    /// Clash or sing-box profile: v2rayNG imported zero nodes from one.
+    case v2ray
 
     var id: String { rawValue }
 
@@ -67,7 +71,14 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .singBox: .singBox
         case .hiddify: .hiddify
         case .egern: .egern
+        case .v2ray: .v2box
         }
+    }
+
+    /// Share-link clients have no rules or groups, so their LAN body is the
+    /// generator's node list, the same as the V2Box export.
+    var generationContentMode: ExportContentMode {
+        self == .v2ray ? .nodesOnly : .fullConfiguration
     }
 
     var displayName: String {
@@ -82,6 +93,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .singBox: "Sing-box"
         case .hiddify: "Hiddify"
         case .egern: "Egern"
+        case .v2ray: "V2Box / v2rayNG / v2rayN"
         }
     }
 
@@ -100,6 +112,7 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .singBox: "ClientSingBox"
         case .hiddify: "ClientHiddify"
         case .egern: "ClientEgern"
+        case .v2ray: "ClientV2Box"
         }
     }
 
@@ -127,7 +140,8 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         case .hiddify: self = .hiddify
         case .singBox: self = .singBox
         case .egern: self = .egern
-        case .v2box, .anywhere: return nil
+        case .v2box: self = .v2ray
+        case .anywhere: return nil
         }
     }
 }
@@ -160,6 +174,8 @@ enum LANSubscriptionTargetResolver {
         if agent.contains("surge") { return .surge }
         if agent.contains("loon") { return .loon }
         if agent.contains("egern") { return .egern }
+        // "v2rayN/7.x" on Windows, "v2rayNG/2.3.15" on Android (seen on device).
+        if agent.contains("v2rayn") || agent.contains("v2box") { return .v2ray }
         throw LANSubscriptionRoutingError.unknownUserAgent
     }
 
@@ -196,7 +212,11 @@ enum LANSubscriptionTargetResolver {
         "hiddify": .hiddify,
         "sing-box": .singBox,
         "singbox": .singBox,
-        "egern": .egern
+        "egern": .egern,
+        "v2ray": .v2ray,
+        "v2rayng": .v2ray,
+        "v2rayn": .v2ray,
+        "v2box": .v2ray
     ]
 
     private static func normalized(_ value: String?) -> String? {

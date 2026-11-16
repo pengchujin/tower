@@ -8,6 +8,13 @@
 - `docs/releases/<版本>.md` 仍是整个版本的完整更新日志，按构建分段累积，不受上面影响。
 - v1.0.31-75 的正文已按此用 `gh release edit` 更新（用户确认，2026-11-14），附件、Latest 不变；72–74 保持原样。
 
+## 未发布：安卓扫局域网二维码排查与 v2rayNG 支持（2026-11-16）
+
+- 用户反馈安卓（如 FlClash）扫塔台局域网二维码无法添加。小米 17 Pro（Android 17）实测：二维码本身没问题（zbar 独立解码、FlClash 都能识别），原因是 Android 17 的「本地网络」权限 `ACCESS_LOCAL_NETWORK`。targetSdk 37 的客户端（FlClash 0.9.3、sing-box SFA 1.14.4、v2rayNG 2.3.15）默认未授予，局域网请求被系统丢弃：FlClash 20 秒后 `receiveTimeout`，SFA 卡在「创建」，塔台收不到任何连接。授权后都能从同一张码导入。FlClash 只在「从手机发送」和启动服务时申请这项权限，用链接 / 扫码添加配置时不申请。targetSdk 35 的 Clash Meta for Android、Clash Mi 由系统自动授予，不受影响。塔台侧无法绕过；用户的解决办法是系统设置 → 应用 → 该客户端 → 权限管理 → **附近设备** → 允许（小米系统里局域网权限归在这一项）。
+- NekoBox 1.4.2 的 UA 是 `NekoBox/Android/1.4.2 (Prefer ClashMeta Format)`，原本就走 Clash 格式，实测 5 类节点全部导入，不用改。
+- v2rayNG（UA `v2rayNG/2.3.15`）原来拿到 400。实测它读不了 Clash YAML（0 个节点），能读 Base64 分享链接。新增局域网格式 `LANSubscriptionFormat.v2ray`（「V2Box / v2rayNG / v2rayN」，用 V2Box 图标）：生成目标 `.v2box`、`generationContentMode` 为仅节点，与现有 V2Box 导出同一套协议 / 传输白名单；UA 含 `v2rayn` 或 `v2box` 时自动识别，也接受 `target=v2ray` / `v2rayng` / `v2rayn` / `v2box`。`LANSubscriptionFormat(target: .v2box)` 现在映射到它。局域网格式菜单因此多一项。
+- 真机验收：模拟器里跑真实 AppModel 局域网服务，v2rayNG 从相册扫「自动识别」二维码，SS / VMess / VLESS Reality / Trojan / Hysteria2 全部导入；FlClash、NekoBox、SFA 的 UA 路由不变。400 错误提示里的 target 列表未加 `v2ray`（改文案要重做 15 种语言）。验证：LANSubscriptionServerTests、LANSharingBackgroundTests。
+
 ## 未发布：Mac 上 iPhone 版 dead10cc 崩溃定位与修复（2026-11-16）
 
 - TestFlight 里 1.0.22（60）到 1.0.30（71）的 11 份 Mac 崩溃全是 `RUNNINGBOARD 0xdead10cc`，都是 iPhone 版跑在 Apple 芯片 Mac 上（不是 Developer ID 的 Mac Catalyst 版）。在本机装 TestFlight 1.0.31（78）iPhone 版复现：关窗口约 40 秒后系统挂起进程，挂起时做锁检查；打开过二维码后再关窗口，runningboardd 日志写明持有 `$DARWIN_USER_CACHE_DIR/com.jzb.tower/com.apple.metal/archiveUsage.db/lock.mdb`，并以 dead10cc 终止。只允许在 `tmp`、`Library/Caches` 下持锁。隐藏窗口不会挂起，⌘Q 是正常退出。

@@ -172,7 +172,11 @@ final class LANSubscriptionServerTests: XCTestCase {
             "quantumult-x": .quanx,
             "sing-box": .singBox,
             "hiddify": .hiddify,
-            "egern": .egern
+            "egern": .egern,
+            "v2ray": .v2box,
+            "v2rayng": .v2box,
+            "v2rayn": .v2box,
+            "v2box": .v2box
         ]
 
         for (value, target) in expected {
@@ -231,7 +235,11 @@ final class LANSubscriptionServerTests: XCTestCase {
             ("Loon/925 CFNetwork", .loon),
             ("Quantumult%20X/1.5", .quanx),
             ("HiddifyNext/2.5 sing-box", .hiddify),
-            ("Egern/1.22", .egern)
+            ("Egern/1.22", .egern),
+            ("v2rayNG/2.3.15", .v2box),
+            ("v2rayN/7.13.8", .v2box),
+            ("V2Box/2.6", .v2box),
+            ("NekoBox/Android/1.4.2 (Prefer ClashMeta Format)", .clashMi)
         ]
 
         for (userAgent, target) in expected {
@@ -357,6 +365,59 @@ final class LANSubscriptionServerTests: XCTestCase {
         XCTAssertEqual(response.headers["X-Tower-Target"], "sing-box")
         XCTAssertEqual(response.headers["Content-Type"], "application/json; charset=utf-8")
         XCTAssertNoThrow(try JSONSerialization.jsonObject(with: response.body))
+    }
+
+    /// v2rayNG 2.3.15 imported zero nodes from a Clash profile and every
+    /// node from a Base64 share-link list (device test, 2026-11-16).
+    @MainActor
+    func testV2RayNGGetsShareLinkListInsteadOfBadRequest() async throws {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("tower-v2ray-sub-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let store = PersistenceStore(fileURL: fileURL)
+        let source = SubscriptionSource(name: "One", urlString: "https://one.example/sub")
+        let nodes = [
+            ProxyNode(sourceID: source.id, kind: .shadowsocks, name: "SS", server: "ss.example", port: 8388,
+                      cipher: "aes-128-gcm", password: "test", rawURI: "ss://test"),
+            ProxyNode(sourceID: source.id, kind: .trojan, name: "Trojan", server: "trojan.example", port: 443,
+                      password: "test", rawURI: "trojan://test@trojan.example:443"),
+            ProxyNode(sourceID: source.id, kind: .snell, name: "Snell", server: "snell.example", port: 443,
+                      password: "test", rawURI: "")
+        ]
+        try store.save(AppSnapshot(subscriptions: [source], nodes: nodes,
+            selectedPresetID: AppModel.defaultRuleSchemeID, selectedTarget: .surge))
+        let model = AppModel(persistence: store, arguments: [])
+        await model.startLANSharing(listenerEnvironment: .loopback)
+        defer { model.stopLANSharing() }
+
+        let automaticURL = try XCTUnwrap(model.lanSubscriptionURL(format: nil))
+        XCTAssertEqual(model.lanSubscriptionURL(format: .v2ray)?.query, "target=v2ray")
+        for (url, userAgent) in [(automaticURL, "v2rayNG/2.3.15"),
+                                 (try XCTUnwrap(model.lanSubscriptionURL(format: .v2ray)), "Mozilla/5.0")] {
+            var request = URLRequest(url: url)
+            request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let http = try XCTUnwrap(response as? HTTPURLResponse)
+            XCTAssertEqual(http.statusCode, 200, userAgent)
+            XCTAssertEqual(http.value(forHTTPHeaderField: "X-Tower-Target"), "v2ray")
+            XCTAssertEqual(http.value(forHTTPHeaderField: "Content-Type"), "text/plain; charset=utf-8")
+            let decoded = try XCTUnwrap(Data(base64Encoded: data).map { String(decoding: $0, as: UTF8.self) })
+            let links = decoded.split(separator: "\n").map(String.init)
+            XCTAssertEqual(links.count, 2, decoded)
+            XCTAssertTrue(links.contains { $0.hasPrefix("ss://") && $0.contains("ss.example") })
+            XCTAssertTrue(links.contains { $0.hasPrefix("trojan://") && $0.contains("trojan.example") })
+            XCTAssertFalse(decoded.contains("snell"), "V2Box / Xray cannot express Snell")
+            XCTAssertFalse(decoded.contains("proxies:"))
+        }
+    }
+
+    func testV2RayLANFormatMapsToTheV2BoxShareLinkExport() {
+        XCTAssertEqual(LANSubscriptionFormat.v2ray.generationTarget, .v2box)
+        XCTAssertEqual(LANSubscriptionFormat.v2ray.generationContentMode, .nodesOnly)
+        XCTAssertEqual(LANSubscriptionFormat(target: .v2box), .v2ray)
+        XCTAssertNil(LANSubscriptionFormat(target: .anywhere))
+        for format in LANSubscriptionFormat.allCases where format != .v2ray {
+            XCTAssertEqual(format.generationContentMode, .fullConfiguration, format.rawValue)
+        }
     }
 
     func testOfficialSingBoxCapabilitiesExcludeSSRButIncludeSnell() {

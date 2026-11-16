@@ -3653,7 +3653,7 @@ final class AppModel {
             }
             return self.configuration(
                 target: format.generationTarget,
-                contentMode: .fullConfiguration,
+                contentMode: format.generationContentMode,
                 supportedKindsOverride: format.supportedKindsOverride
             )
         }
