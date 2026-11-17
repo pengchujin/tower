@@ -702,6 +702,10 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     var isSubscriptionMetadata: Bool?
     /// User-selected region. Optional for existing snapshots; never changes credentials.
     var countryOverride: String? = nil
+    /// The server name a Clash profile's `hosts:` remapped to `server`.
+    /// Refresh matching keys on it, so a rotated entry address does not drop
+    /// the user's exclusions.
+    var hostsSourceServer: String? = nil
 
     init(
         id: UUID = UUID(),

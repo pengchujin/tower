@@ -4724,7 +4724,7 @@ final class AppModel {
     nonisolated private static func nodeRefreshIdentity(_ node: ProxyNode) -> String {
         [
             node.kind.rawValue,
-            node.server.lowercased(),
+            (node.hostsSourceServer ?? node.server).lowercased(),
             String(node.port),
             node.name,
             node.rawURI,
@@ -4740,7 +4740,7 @@ final class AppModel {
     nonisolated static func nodeStableIdentity(_ node: ProxyNode) -> String {
         [
             node.kind.rawValue,
-            node.server.lowercased(),
+            (node.hostsSourceServer ?? node.server).lowercased(),
             String(node.port),
             node.password ?? "",
             node.uuid ?? "",

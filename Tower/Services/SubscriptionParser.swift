@@ -1903,10 +1903,18 @@ struct SubscriptionParser {
         flushBlock()
         if !current.isEmpty { dictionaries.append(current) }
 
+        let hosts = clashHosts(lines)
         var nodes: [ProxyNode] = []
         var rejected = 0
         for rawDictionary in dictionaries {
-            let dictionary = flattenedClashProxy(rawDictionary)
+            var dictionary = flattenedClashProxy(rawDictionary)
+            let hostsSource = applyClashHosts(hosts, to: &dictionary)
+            let countBefore = nodes.count
+            defer {
+                if let hostsSource, nodes.count > countBefore {
+                    nodes[nodes.count - 1].hostsSourceServer = hostsSource
+                }
+            }
             if dictionary["type"]?.lowercased() == "masque" {
                 if let node = parseMASQUEClash(dictionary, sourceID: sourceID) { nodes.append(node) }
                 else { rejected += 1 }
@@ -2125,6 +2133,99 @@ struct SubscriptionParser {
             nodes: nodes,
             rejectedLineCount: dictionaries.isEmpty ? 1 : rejected
         )
+    }
+
+    /// The profile's top-level `hosts:` table, for the node servers it remaps.
+    ///
+    /// Airports rotate entry domains this way: every node keeps `server:
+    /// old.example` and `hosts` points that name at the new entry. Mihomo
+    /// consults `hosts` before resolving a node server, so their own profile
+    /// connects; reading only `proxies:` left every node dialling the dead
+    /// name. Only plain hostnames and IP addresses are accepted as targets,
+    /// and a list keeps its first entry.
+    private func clashHosts(_ lines: [String]) -> [String: String] {
+        guard let start = lines.firstIndex(where: {
+            !$0.hasPrefix(" ") && !$0.hasPrefix("\t")
+                && $0.trimmingCharacters(in: .whitespacesAndNewlines) == "hosts:"
+        }) else { return [:] }
+        var table: [String: String] = [:]
+        var pendingKey: String?
+        for rawLine in lines.dropFirst(start + 1) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
+            if !rawLine.hasPrefix(" ") && !rawLine.hasPrefix("\t") { break }
+            if trimmed.hasPrefix("-") {
+                guard let key = pendingKey, table[key] == nil,
+                      let target = hostsTarget(String(trimmed.dropFirst())) else { continue }
+                table[key] = target
+                continue
+            }
+            guard let pair = parseYAMLPair(trimmed) else { pendingKey = nil; continue }
+            let key = pair.0.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if pair.1.isEmpty {
+                pendingKey = key
+            } else {
+                pendingKey = nil
+                if let target = hostsTarget(pair.1) { table[key] = target }
+            }
+        }
+        return table
+    }
+
+    private func hostsTarget(_ raw: String) -> String? {
+        guard let value = clashYAMLScalar(yamlScalar(raw.trimmingCharacters(in: .whitespaces)))?
+            .lowercased() else { return nil }
+        let host = normalizedHost(value)
+        if IPv4Address(host) != nil || IPv6Address(host) != nil { return host }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789.-")
+        guard host.count <= 253, host.contains("."), !host.hasPrefix("."), !host.hasPrefix("-"),
+              host.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+        return host
+    }
+
+    /// Mihomo's domain-trie lookup: exact name, then `+.` (the name and every
+    /// subdomain), `.` (subdomains only) and `*.` (exactly one more label).
+    private func hostsLookup(_ name: String, in table: [String: String]) -> String? {
+        if let exact = table[name] { return exact }
+        let labels = name.split(separator: ".").map(String.init)
+        if let plus = table["+." + name] { return plus }
+        for index in 1..<max(labels.count, 1) {
+            let parent = labels[index...].joined(separator: ".")
+            if index == 1, let star = table["*." + parent] { return star }
+            if let plus = table["+." + parent] { return plus }
+            if let dot = table["." + parent] { return dot }
+        }
+        return nil
+    }
+
+    /// Points a proxy at the address `hosts` gives its server name and returns
+    /// the original name. The TLS server name and HTTP Host default to that
+    /// original name in mihomo, which keeps dialling the remapped address
+    /// with them, so both are pinned before the server is replaced.
+    private func applyClashHosts(_ table: [String: String], to dictionary: inout [String: String]) -> String? {
+        guard !table.isEmpty, let raw = dictionary["server"] else { return nil }
+        let original = normalizedHost(raw).lowercased()
+        guard IPv4Address(original) == nil, IPv6Address(original) == nil else { return nil }
+        var target = original
+        var seen: Set<String> = [original]
+        // A target may itself be remapped; mihomo follows that chain.
+        while let next = hostsLookup(target, in: table), seen.insert(next).inserted {
+            target = next
+        }
+        guard target != original else { return nil }
+
+        let kind = dictionary["type"].flatMap { clashKind($0.lowercased()) }
+        let usesTLS = boolString(dictionary["tls"])
+            || [.trojan, .trustTunnel, .hysteria, .hysteria2, .tuic, .anytls, .masque].contains(kind)
+        if usesTLS, (dictionary["servername"] ?? "").isEmpty, (dictionary["sni"] ?? "").isEmpty {
+            dictionary["sni"] = original
+        }
+        if ["ws", "httpupgrade", "h2", "http", "xhttp"].contains(normalizedTransport(dictionary["network"]) ?? ""),
+           (dictionary["host"] ?? "").isEmpty, (dictionary["authority"] ?? "").isEmpty {
+            dictionary["host"] = original
+        }
+        dictionary["server"] = IPv6Address(target) != nil ? "[\(target)]" : target
+        return original
     }
 
     /// Clash producers occasionally encode a single REALITY short id as a

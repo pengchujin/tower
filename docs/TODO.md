@@ -10,6 +10,10 @@
   - 新建 `zh-Hant`、`en-US` 两个语言，宣传文本一起填；截图沿用简体的。
   - 改完后用 iTunes lookup（`country=us` / `hk` / `tw`）确认商店页已更新。
 
+## Clash 订阅顶层 hosts（2026-11-17）
+
+- [ ] 付费用户反馈：AnyTLS 机场的 Clash 订阅经塔台导出后，Stash / FlClash 全部节点超时。原因是机场在顶层 `hosts:` 里把节点 `server` 的旧入口域名映射到新入口，塔台只读 `proxies:`。已改为解析时按 `hosts`（精确、`+.`、`.`、`*.`，可链式映射，只接受合法域名 / IP，列表取第一项）改写 `server`，原域名补成缺省的 `sni` 和 ws / h2 / http / xhttp 的 Host，并记入 `ProxyNode.hostsSourceServer`，刷新排除的匹配键改用它。机场自定义的 `fake-ip-filter` 不影响节点拨号（mihomo 用 `proxy-server-nameserver` 解析节点），没有带过去。2026-11-17 实测：自造「旧入口 + hosts」订阅（本机 sing-box AnyTLS + VPS Trojan / VLESS WS），mihomo 1.19.31 加载原版去掉 hosts 后 0/4，塔台导出的 FlClash / Verge / Party 完整配置 4/4；Stash iOS 真机家中 Wi-Fi 4/4，5G 下 VPS 节点通（香港节点指向内网，预期不通）。另发现 mihomo 拨节点时只认 hosts 指向 IP 的映射，指向域名时连机场原版也连不上，塔台改写后反而能连。待办：请反馈用户更新后确认；如能拿到脱敏的 `hosts:` 段，核对是否指向 IP。
+
 ## 上游更新待处理（2026-11-09）
 
 来自 `Scripts/check_upstream_updates.py` 的对照，流程见 [UPSTREAM_SOURCES](UPSTREAM_SOURCES.md#维护流程)。已修的见 HANDOFF「按上游更新修正导出」。
