@@ -149,6 +149,46 @@ final class SnellTests: XCTestCase {
         }
     }
 
+    /// The Clash App ships mihomo 1.19.34 from 1.0.18 and clash.md documents
+    /// v6; every other mihomo client still runs an older core that refuses
+    /// `version: 6` and with it the whole file.
+    func testOnlyTheClashAppTakesSnellV6() {
+        let v6 = ProxyNode(kind: .snell, name: "V6", server: "198.51.100.6", port: 443,
+                           password: "twelve-bytes-psk", version: 6, rawURI: "")
+        let generator = ConfigurationGenerator()
+
+        let clash = generator.generate(nodes: [v6], preset: RulePreset.builtIns[0], target: .clashApple)
+        XCTAssertEqual(clash.supportedNodeCount, 1)
+        XCTAssertEqual(clash.skippedNodeCount, 0)
+        for fragment in ["type: snell", "version: 6", "udp: true"] {
+            XCTAssertTrue(clash.content.contains(fragment), "Clash 缺少 \(fragment)")
+        }
+        XCTAssertFalse(clash.content.contains("obfs-opts"))
+
+        for target in [ClientTarget.clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi] {
+            let result = generator.generate(nodes: [v6], preset: RulePreset.builtIns[0], target: target)
+            XCTAssertEqual(result.supportedNodeCount, 0, target.name)
+            XCTAssertEqual(result.skippedNodeCount, 1, target.name)
+            XCTAssertFalse(result.content.contains("198.51.100.6"), target.name)
+        }
+    }
+
+    /// clash.md: v6 drops HTTP/TLS obfs and needs a 12–255 byte PSK. Writing
+    /// either would make the Clash App reject the profile, so skip and count.
+    func testClashAppSkipsSnellV6ItCannotLoad() {
+        let obfuscated = ProxyNode(kind: .snell, name: "Obfs", server: "198.51.100.7", port: 443,
+                                   password: "twelve-bytes-psk", obfs: "http", version: 6, rawURI: "")
+        let shortKey = ProxyNode(kind: .snell, name: "Short", server: "198.51.100.8", port: 443,
+                                 password: "abc", version: 6, rawURI: "")
+        let result = ConfigurationGenerator().generate(
+            nodes: [obfuscated, shortKey], preset: RulePreset.builtIns[0], target: .clashApple
+        )
+        XCTAssertEqual(result.supportedNodeCount, 0)
+        XCTAssertEqual(result.skippedNodeCount, 2)
+        XCTAssertFalse(result.content.contains("198.51.100.7"))
+        XCTAssertFalse(result.content.contains("198.51.100.8"))
+    }
+
     // MARK: - Generation
 
     func testSurgeAndShadowrocketPreserveEverySnellField() throws {

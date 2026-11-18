@@ -1,5 +1,12 @@
 # 当前交接
 
+## 未发布：上游分拣后的两处导出修正（2026-11-18）
+
+- 2026-11-18 跑 `check_upstream_updates.py --dry-run` 并逐条分拣，结论见 TODO「上游更新待处理」。上游基线没有推进。
+- **节点名 `//`**：Sub-Store 2.44.16 去掉了 Surge 节点名里的注释符。Surge 手册写明 `//` 在行首、或前面带空格时是注释；塔台的 `confName` 原本只换 `#`、`;`，节点名 `HK // Backup` 会让节点行和策略组成员列表从 ` //` 处被截断。现在 `confName` 把 `//` 换成 `／／`，Tailscale 的 `policyName` 同步处理。Shadowrocket 走带引号的 YAML，不受影响。测试：`ConfigurationCredentialTests.testDoubleSlashInNodeNameCannotStartAComment`（Surge / Surge Mac / Loon / QuanX）。
+- **「Clash」App 放开 Snell v6**：1.0.18 正式版（App Store 2026-11-16）内核为 mihomo 1.19.34，clash.md 写明支持 v1–v6。`.clashApple` 白名单改为 `1...6`；v6 带 HTTP/TLS obfs 或 PSK 不在 12–255 字节的节点跳过计数。用官方 mihomo v1.19.34 `-t` 复验：塔台生成的 v6 配置通过；短 PSK、v6 + `obfs-opts` 分别报错；本机 1.19.31 对同一份配置报 `snell version error: 6`，所以其他 mihomo 客户端继续跳过 v6。测试：`SnellTests.testOnlyTheClashAppTakesSnellV6`、`testClashAppSkipsSnellV6ItCannotLoad`。
+- 相关 106 项测试通过（Snell、ConfigurationCredential、PolicyGroupGenerator、Tailnet、ProtocolAudit、ProxyShareService）。待真机：「Clash」App 1.0.18 一键导入一台 Snell v6 节点并确认能连。
+
 ## GitHub Release 正文写法（2026-11-14 起）
 
 - 用户反馈 1.0.31 的 Release 写得太长。原因是同一版本号连发构建时，每个 Release 都把前面构建的说明用「以下为 1.0.31（xx）已包含：」整段带上，到 75 已累积到 72 的三倍多，底部支持说明也重复了一行。

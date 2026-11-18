@@ -1119,8 +1119,20 @@ struct ConfigurationGenerator {
         // baseline. Never rewrite the version: it must match the server.
         // Omitted YAML version defaults to v1 in Stash.
         if node.kind == .snell, target == .clash, !(1...3).contains(node.version ?? 1) { return false }
-        // Mihomo has its own version support, independent of Stash.
-        if node.kind == .snell, [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target), !(1...5).contains(node.version ?? 4) { return false }
+        // Mihomo has its own version support, independent of Stash. v6 needs
+        // mihomo 1.19.34: older cores refuse `version: 6`, and one bad proxy
+        // fails the whole file, so v6 opens one client at a time. The Clash
+        // App ships 1.19.34 from 1.0.18 (App Store notes, 2026-11-16).
+        if node.kind == .snell, [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target) {
+            let newest = target == .clashApple ? 6 : 5
+            guard (1...newest).contains(node.version ?? 4) else { return false }
+            if node.version == 6 {
+                // clash.md/zh/guide/config/outbound/snell: v6 has no HTTP/TLS
+                // obfs (its `mode` replaces it) and takes a 12–255 byte PSK.
+                if let obfs = node.obfs, !obfs.isEmpty, obfs.lowercased() != "none" { return false }
+                guard (12...255).contains(node.password?.utf8.count ?? 0) else { return false }
+            }
+        }
         // Egern has no native ordinary SS-over-TLS transport. Never strip it.
         if target == .egern, node.kind == .shadowsocks, node.tls { return false }
         // sing-box 1.14 represents non-QUIC Snell v5 with version 4.
@@ -4398,6 +4410,11 @@ struct ConfigurationGenerator {
             .replacingOccurrences(of: ",", with: "，")
             .replacingOccurrences(of: "#", with: "＃")
             .replacingOccurrences(of: ";", with: "；")
+            // `//` is Surge's third comment marker: a whole comment line at
+            // the start, an inline comment after a space
+            // (manual.nssurge.com/profile/format.md). "HK // Backup" cut the
+            // proxy line and every policy group member list at " //".
+            .replacingOccurrences(of: "//", with: "／／")
             // Square brackets open a section in every INI-style config. A node
             // called "[BETA-1] 🇭🇰 HongKong" started one mid-file and orphaned
             // every proxy after it — Shadowrocket showed the five nodes above

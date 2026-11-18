@@ -74,6 +74,7 @@ struct TailnetConnection: Codable, Identifiable, Hashable, Sendable {
             .replacingOccurrences(of: ",", with: "，")
             .replacingOccurrences(of: "#", with: "＃")
             .replacingOccurrences(of: ";", with: "；")
+            .replacingOccurrences(of: "//", with: "／／")
             .replacingOccurrences(of: "[", with: "［")
             .replacingOccurrences(of: "]", with: "］")
             .replacingOccurrences(of: "\"", with: "＂")

@@ -393,6 +393,44 @@ extension ConfigurationCredentialTests {
         }
     }
 
+    /// Surge reads `//` as a comment at the start of a line and after a space
+    /// (manual.nssurge.com/profile/format.md), so "HK // Backup" cut both the
+    /// proxy line and the group member list that names it.
+    func testDoubleSlashInNodeNameCannotStartAComment() {
+        let nodes = [
+            ProxyNode(kind: .shadowsocks, name: "HK // Backup", server: "a.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x"),
+            ProxyNode(kind: .shadowsocks, name: "// JP", server: "b.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x"),
+            ProxyNode(kind: .shadowsocks, name: "US 03", server: "c.example.com",
+                      port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")
+        ]
+
+        // Shadowrocket's export is quoted YAML, where "//" is plain text.
+        for target in [ClientTarget.surge, .surgeMac, .loon, .quanx] {
+            let content = ConfigurationGenerator()
+                .generate(nodes: nodes, preset: RulePreset.builtIns[0], target: target).content
+            let lines = content.split(separator: "\n").map(String.init)
+
+            // Rule-set URLs keep their "https://"; only a comment marker matters.
+            for line in lines {
+                XCTAssertFalse(line.hasPrefix("//") || line.contains(" //"),
+                               "\(target.name) 这一行会被当成注释：\(line.prefix(60))")
+            }
+            for host in ["a.example.com", "b.example.com", "c.example.com"] {
+                XCTAssertTrue(content.contains(host), "\(target.name) 丢了 \(host)")
+            }
+            if target == .quanx { continue }
+            // The renamed nodes must still be referenced by a group line.
+            for name in ["HK ／／ Backup", "／／ JP"] {
+                XCTAssertTrue(lines.contains { $0.hasPrefix(name + " = ") || $0.hasPrefix(name + "=") },
+                              "\(target.name) 没有 \(name) 的节点行")
+                XCTAssertTrue(lines.contains { $0.contains(", \(name)") || $0.contains(",\(name)") },
+                              "\(target.name) 策略组没有引用 \(name)")
+            }
+        }
+    }
+
     func testBracketsSurviveAsReadableTextInTheName() {
         let node = ProxyNode(kind: .shadowsocks, name: "[BETA] HK", server: "a.example.com",
                              port: 8388, cipher: "aes-256-gcm", password: "pw", rawURI: "ss://x")

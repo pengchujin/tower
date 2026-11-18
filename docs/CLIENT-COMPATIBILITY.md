@@ -112,6 +112,8 @@ Karing 验收结论（2026-09-18）：官方示例虽有 ShadowTLS 字段，但�
 - **Loon `tls-profile`**：只写官方列出的值，`chrome` 原样，`safari` / `ios` 写成 `safari-ios18`，Firefox、Edge 等不写（用 Loon 默认）。
 - **Loon `DOMAIN-WILDCARD`**（3.5.3，build 1008+）：`*.x` 仍改写成「后缀 x 且不是 x」的逻辑规则，旧版 Loon 也能读；其他 `*` / `?` 通配原样写 `DOMAIN-WILDCARD`，不再丢弃。
 - **Snell v6 `mode`**：Surge 手册要求和服务端一致。塔台不保存 mode，`default`（或不写）照常导入；`unshaped`、`unsafe-raw` 拒绝导入并计入跳过数。
+- **mihomo 系 Snell v6**：只给「Clash」App（1.0.18 起内核 mihomo 1.19.34，[clash.md Snell](https://clash.md/zh/guide/config/outbound/snell)）写 `version: 6`；v6 节点带 HTTP/TLS obfs，或 PSK 不在 12–255 字节内，跳过并计数（mihomo 1.19.34 `-t` 对这两种都报错）。Verge、ClashMac、FlClash、Clash Party、Clash Mi 的内核仍早于 1.19.34，遇到 `version: 6` 整份配置都加载不了，继续跳过 v6。
+- **INI 系节点名里的 `//`**：Surge 把行首的 `//` 和前面带空格的 ` //` 当作注释（[profile/format](https://manual.nssurge.com/profile/format.md)），`confName` 把 `//` 换成全角 `／／`，和 `#`、`;` 的处理一致。
 - **VLESS XHTTP 的额外设置**：分享链接里非空的 `extra`、Clash YAML `xhttp-opts` 里 path / host / mode / Host 头以外的字段（`download-settings`、`xmux`、填充等）表达不了，拒绝导入并计数。
 - **Egern SSR**（2.21.0）：按 Sub-Store Egern producer 写 `type: shadowsocksr`、`method` / `protocol` / `protocol_param` / `obfs` / `obfs_param`。只放行流加密和它列出的协议 / 混淆插件，其余跳过。Egern 官方文档还没写 SSR。
 
