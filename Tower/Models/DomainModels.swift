@@ -273,6 +273,11 @@ struct SubscriptionUsage: Codable, Hashable, Sendable {
             default: break
             }
         }
+        // Online subconverter instances answer `upload=0; download=1; total=1`
+        // whenever the airport's own header did not reach them. A one-byte plan
+        // is never real, and treating it as one shows the plan as used up while
+        // also stopping the quota probe that would find the true numbers.
+        if usage.totalBytes == 1, usage.expiresAt == nil { return nil }
         return matched ? usage : nil
     }
 

@@ -75,7 +75,34 @@ struct SubscriptionService: SubscriptionFetching {
 
     /// The same subscription asked for in Clash's dialect, purely to read the
     /// quota header. `nil` when the caller already pinned a flag themselves.
-    private static func quotaProbe(for url: URL) -> URL? {
+    ///
+    /// A subconverter link (`…/sub?target=clash&url=<airport>`) is probed at
+    /// the airport link it wraps: the converter ignores `flag`, and whether it
+    /// passes the airport's header along varies from request to request. Only
+    /// the header is read, so the node list still comes from the link the
+    /// user pasted.
+    static func quotaProbe(for url: URL) -> URL? {
+        if let wrapped = convertedSubscriptionURL(in: url) {
+            return clashFlagged(wrapped) ?? wrapped
+        }
+        return clashFlagged(url)
+    }
+
+    /// The airport link inside a subconverter request, when there is exactly one.
+    static func convertedSubscriptionURL(in url: URL) -> URL? {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              items.contains(where: { $0.name.lowercased() == "target" }),
+              let value = items.first(where: { $0.name.lowercased() == "url" })?.value?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.contains("|"),
+              let wrapped = URL(string: value),
+              let scheme = wrapped.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              wrapped.host != nil else { return nil }
+        return wrapped
+    }
+
+    private static func clashFlagged(_ url: URL) -> URL? {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return nil
         }
