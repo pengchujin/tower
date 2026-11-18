@@ -1,5 +1,12 @@
 # 当前交接
 
+## 1.0.32（79）TestFlight 与 App Store 提审（2026-11-18）
+
+- 发布提交 `1030cb2`（版本 1.0.32、构建 79，更新日志 `docs/releases/1.0.32.md`）已推送。完整 TowerTests 1427 项通过（跳过 9）；ACL4SSR 为上游最新 `e2f257307bf0`，207 个远程产物校验通过。
+- 本机 asc 归档两端，核对 `com.jzb.tower` 1.0.32（79），Mac 为 arm64 / x86_64。`asc publish testflight` 两端上传，Apple 处理均为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.32-79/`。
+- App Store：1.0.32 两端版本此前已建好并写入三语搜索元数据（见 TODO「App Store 搜索元数据」）；这次写入简体 / 繁体 / 英文更新日志（两端相同），绑定构建 79，`asc review submit` 两端提交，回读均为 WAITING_FOR_REVIEW。新语言截图沿用简体。`asc validate` 另报版权字段不以年份开头（警告，不阻塞，1.0.31 同样）。
+- 未做：GitHub Release、Mac DMG 公证与 Homebrew 更新。
+
 ## 未发布：上游分拣后的两处导出修正（2026-11-18）
 
 - 2026-11-18 跑 `check_upstream_updates.py --dry-run` 并逐条分拣，结论见 TODO「上游更新待处理」。上游基线没有推进。
