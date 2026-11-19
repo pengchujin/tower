@@ -5,7 +5,8 @@
 - 发布提交 `1030cb2`（版本 1.0.32、构建 79，更新日志 `docs/releases/1.0.32.md`）已推送。完整 TowerTests 1427 项通过（跳过 9）；ACL4SSR 为上游最新 `e2f257307bf0`，207 个远程产物校验通过。
 - 本机 asc 归档两端，核对 `com.jzb.tower` 1.0.32（79），Mac 为 arm64 / x86_64。`asc publish testflight` 两端上传，Apple 处理均为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.32-79/`。
 - App Store：1.0.32 两端版本此前已建好并写入三语搜索元数据（见 TODO「App Store 搜索元数据」）；这次写入简体 / 繁体 / 英文更新日志（两端相同），绑定构建 79，`asc review submit` 两端提交，回读均为 WAITING_FOR_REVIEW。新语言截图沿用简体。`asc validate` 另报版权字段不以年份开头（警告，不阻塞，1.0.31 同样）。
-- 未做：GitHub Release、Mac DMG 公证与 Homebrew 更新。
+- Mac 直接分发（2026-11-19）：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.32-79](https://github.com/pengchujin/tower/releases/tag/v1.0.32-79)（tag 指向 `1030cb2`）已公开并设为 Latest，回下载 SHA-256 一致：`6d5dbab8a9a78a03789f39ffa5d74dd7efcd970a26ed21d2d97317b2343075c0`。
+- README 下载入口改为 v1.0.32-79；Homebrew cask 更新为 1.0.32,79，`brew style` / `brew audit` 通过。本机 `/Applications/塔台.app` 原已不在（brew 记录仍在），改用 `brew reinstall --cask` 验证：1.0.32（79），严格签名、Gatekeeper 通过，保留隔离标记，进程启动；主界面可交互尚未人工确认。
 
 ## 未发布：上游分拣后的两处导出修正（2026-11-18）
 
