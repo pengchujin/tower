@@ -1,11 +1,14 @@
 # 当前交接
 
-## 1.0.33（80）发布准备（2026-11-20）
+## 1.0.33（80）TestFlight、App Store 提审与 Mac 分发（2026-11-20）
 
 - 内容：Surge 6 正式版放开 VLESS（见下一节），更新日志 `docs/releases/1.0.33.md`。
 - ACL4SSR 固定到上游 `a77a123f5df3`：32 份规则和全部 MRS / SRS 内容与上一快照一致，只有提交号和 NOTICE 变化。产物独立发布于 `ac4a71b`，清单绑定该提交（本机 mihomo 1.19.31 / sing-box 1.14.2）。
 - 完整 TowerTests 1524 项通过（跳过 9），发布脚本测试通过。
-- App Store：用户决定撤回审核中的 1.0.32（79），改提 1.0.33（80）。
+- 发布提交 `7b24f37`。本机 asc 归档两端，核对 `com.jzb.tower` 1.0.33（80），Mac 为 arm64 / x86_64。`asc publish testflight` 两端上传，Apple 处理均为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.33-80/`。
+- App Store：用户决定撤回审核中的 1.0.32（79）、改提 1.0.33（80）。执行时 iOS 1.0.32 已通过审核并上架，因此 iOS 新建 1.0.33（从 1.0.32 复制元数据）；Mac 1.0.32 撤回（DEVELOPER_REJECTED）后把同一版本改名为 1.0.33。两端写入简体 / 繁体 / 英文更新日志、绑定构建 80。等旧 Mac 审核从 CANCELING 变为 COMPLETE 后再提交，回读两端均为 WAITING_FOR_REVIEW。第一次 Mac 提交失败时留下一个空的草稿提交 `9908db20`（READY_FOR_REVIEW、没有任何条目），API 不能取消未提交的草稿，无害，保留。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.33-80](https://github.com/pengchujin/tower/releases/tag/v1.0.33-80)（tag 指向 `7b24f37`）已公开并设为 Latest，回下载 SHA-256 一致：`ead0aacf956c8389a8b81160c691c0dbaea4d2d3eeab9953b46f3f6881213715`。
+- README 下载入口改为 v1.0.33-80；Homebrew cask 更新为 1.0.33,80（tap `08eb70b`），`brew style` / `brew audit` 通过，`brew reinstall --cask` 后 1.0.33（80）严格签名、Gatekeeper 通过、保留隔离标记；从 Finder 打开、主界面可交互尚未人工确认。
 
 ## 未发布：Surge 6 正式版放开 VLESS（2026-11-20）
 
