@@ -6,7 +6,7 @@
 - `ClientTarget.supports` 给 `.surge` / `.surgeMac` 加上 `.vless`，`ConfigurationGenerator.surgeAcceptsVLESS` 不再分档；HTTPUpgrade 和 TrustTunnel 密钥对 Surge 直接写。
 - 删掉测试期的按 User-Agent 构建号分发：`SurgeClientCapabilities`、`AppModel.surgeVLESSVariants`、一键导入 / 局域网订阅的 Surge 变体、导出页「仅 Surge 测试版可用」状态和「需要 Surge 测试版」兼容提示、`GeneratedConfiguration.surgeBetaNodeCount`。导出文件、复制文本、一键导入和订阅现在给出同一份配置。
 - 代价：仍在 Surge iOS 5.x / Mac 6.11 及更早的用户，订阅里有这些节点时整份配置会解析失败，需升级 Surge。界面没有加提示。本地化目录里那几条旧提示会变成 stale，按约定保留不删。
-- 测试：完整 TowerTests 通过；改写了 SurgeVLESS、SurgeHTTPUpgrade、VLESSWebSocketHost、TransportGeneration、ConfigurationGenerator、ProtocolFilter、ProtocolAudit、Reality 里原先断言「Surge 不导出 VLESS」的用例。待真机：Surge iOS 6.0.1 正式版用导出文件 / 一键导入各连一台 REALITY、XHTTP、HTTPUpgrade 节点。
+- 测试：完整 TowerTests 通过；改写了 SurgeVLESS、SurgeHTTPUpgrade、VLESSWebSocketHost、TransportGeneration、ConfigurationGenerator、ProtocolFilter、ProtocolAudit、Reality 里原先断言「Surge 不导出 VLESS」的用例。真机（2026-11-20，Surge iOS 6.0.1）：审计服务器 10 个节点的订阅导入后，VMess / VLESS HTTPUpgrade（sing-box 服务端）、VLESS REALITY gRPC、REALITY XHTTP、Encryption、WS 无 TLS、gRPC TLS 7 个全部测速通过；Trojan gRPC、VLESS H2、Trojan REALITY 3 个按预期没有写进配置。待真机：Surge Mac 6.12.0。
 
 ## 1.0.32（79）TestFlight 与 App Store 提审（2026-11-18）
 
