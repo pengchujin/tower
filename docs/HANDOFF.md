@@ -1,5 +1,12 @@
 # 当前交接
 
+## 1.0.33（80）发布准备（2026-11-20）
+
+- 内容：Surge 6 正式版放开 VLESS（见下一节），更新日志 `docs/releases/1.0.33.md`。
+- ACL4SSR 固定到上游 `a77a123f5df3`：32 份规则和全部 MRS / SRS 内容与上一快照一致，只有提交号和 NOTICE 变化。产物独立发布于 `ac4a71b`，清单绑定该提交（本机 mihomo 1.19.31 / sing-box 1.14.2）。
+- 完整 TowerTests 1524 项通过（跳过 9），发布脚本测试通过。
+- App Store：用户决定撤回审核中的 1.0.32（79），改提 1.0.33（80）。
+
 ## 未发布：Surge 6 正式版放开 VLESS（2026-11-20）
 
 - 上游检查：Surge iOS 6.0.1（App Store 2026-11-19）和 Surge Mac 6.12.0（Sparkle 12900，2026-11-17）都已是正式版。[发布说明](https://nssurge.com/surge-ios-6/release-notes)确认 VLESS（RAW / WS / HTTPUpgrade / gRPC / XHTTP、TLS / REALITY、Vision、Encryption）、VMess / Trojan HTTPUpgrade、TrustTunnel `client-random-auth-key` 都在正式版里。
