@@ -1,0 +1,17 @@
+host-keyword, openai, proxy
+host-suffix, auth0.com, proxy
+host-suffix, challenges.cloudflare.com, proxy
+host-suffix, chatgpt.com, proxy
+host-suffix, client-api.arkoselabs.com, proxy
+host-suffix, events.statsigapi.net, proxy
+host-suffix, featuregates.org, proxy
+host-suffix, identrust.com, proxy
+host-suffix, intercom.io, proxy
+host-suffix, intercomcdn.com, proxy
+host-suffix, oaistatic.com, proxy
+host-suffix, oaiusercontent.com, proxy
+host-suffix, openai.com, proxy
+host-suffix, openaiapi-site.azureedge.net, proxy
+host-suffix, sentry.io, proxy
+host-suffix, stripe.com, proxy
+host-suffix, sora.com, proxy
