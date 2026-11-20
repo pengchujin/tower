@@ -305,8 +305,7 @@ extension GeneratedConfiguration {
             diagnostics: diagnostics + extra,
             hasInvalidPolicyReferences: hasInvalidPolicyReferences,
             skippedNodes: skippedNodes,
-            anywhereAJSON: anywhereAJSON,
-            surgeBetaNodeCount: surgeBetaNodeCount
+            anywhereAJSON: anywhereAJSON
         )
     }
 }

@@ -160,9 +160,14 @@ final class ProtocolFilterTests: XCTestCase {
             ProxyNode(kind: .vless, name: "VLESS", server: "d.example.com", port: 443, uuid: "u", rawURI: "vless://d")
         )
 
-        // Surge cannot express VLESS at all, so it is not a choice there.
-        XCTAssertFalse(model.filterableKinds(for: .surge).contains { $0.kind == .vless })
-        XCTAssertTrue(model.filterableKinds(for: .clash).contains { $0.kind == .vless })
+        // Quantumult X has no Hysteria 2, so it is not a choice there.
+        model.nodes.append(
+            ProxyNode(kind: .hysteria2, name: "HY2", server: "h.example.com", port: 443, password: "p", rawURI: "hysteria2://h")
+        )
+        XCTAssertFalse(model.filterableKinds(for: .quanx).contains { $0.kind == .hysteria2 })
+        XCTAssertTrue(model.filterableKinds(for: .clash).contains { $0.kind == .hysteria2 })
+        // Surge iOS 6.0 / Mac 6.12 write VLESS, so it is a choice there.
+        XCTAssertTrue(model.filterableKinds(for: .surge).contains { $0.kind == .vless })
     }
 
     // MARK: - Persistence

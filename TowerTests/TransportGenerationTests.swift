@@ -83,11 +83,10 @@ final class TransportGenerationTests: XCTestCase {
             XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不应降级 gRPC")
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
-        // App Store Surge leaves the VLESS node out (noted for its betas,
-        // not counted as skipped) and never writes it as plain TCP.
+        // Surge 6 writes VLESS gRPC + TLS as `grpc=true`, never plain TCP.
         let surge = generate(.surge, transport: "grpc", path: "tower.Telemetry")
-        XCTAssertEqual(surge.supportedNodeCount, 0, "Surge 正式版不应降级 gRPC")
-        XCTAssertFalse(surge.content.contains("= vless,"))
+        XCTAssertEqual(surge.supportedNodeCount, 1)
+        XCTAssertTrue(surge.content.contains("grpc=true, grpc-service-name=tower.Telemetry"), surge.content)
 
         for target in [ClientTarget.clash, .clashMi, .karing, .shadowrocket, .hiddify, .egern, .singBox] {
             let result = generate(target, transport: "grpc", path: "tower.Telemetry")
@@ -104,12 +103,10 @@ final class TransportGenerationTests: XCTestCase {
             XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不应吞掉 XHTTP 参数")
             XCTAssertEqual(result.skippedNodeCount, 1)
         }
-        // App Store Surge leaves it out; the betas (4026+ / 12840+) have
-        // `xhttp=true`, so it is a note, not a skip.
+        // Surge iOS 6.0 / Mac 6.12 write `xhttp=true`.
         let surge = generate(.surge, transport: "xhttp", path: "/split")
-        XCTAssertEqual(surge.supportedNodeCount, 0)
-        XCTAssertFalse(surge.content.contains("= vless,"))
-        XCTAssertTrue(surge.diagnostics.contains { $0.contains("Encryption / XHTTP") && $0.contains("TestFlight 4026") })
+        XCTAssertEqual(surge.supportedNodeCount, 1)
+        XCTAssertTrue(surge.content.contains("xhttp=true, xhttp-path=/split"), surge.content)
     }
 
     func testShadowrocketWritesXHTTPAsStructuredTransport() {

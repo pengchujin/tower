@@ -1494,9 +1494,8 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
 
     /// Whether the client has fields for REALITY's public key and short id.
     ///
-    /// Only Surge's App Store releases do not. Surge iOS 6 TestFlight adds
-    /// REALITY on its `vless` policy alone; that path is enabled per request
-    /// by `SurgeClientCapabilities` and checked by
+    /// Only Surge lacks them in general: Surge iOS 6.0 / Mac 6.12 carry
+    /// REALITY on the `vless` policy alone, checked by
     /// `ConfigurationGenerator.surgeAcceptsVLESS`, never through this flag.
     /// Everything else carries it, Shadowrocket included.
     var expressesReality: Bool {
@@ -1610,7 +1609,10 @@ enum ClientTarget: String, CaseIterable, Identifiable, Codable {
             // TUIC but no Hysteria 1: Surge writes `tuic-v5` and has never
             // shipped a Hysteria 1 server type.
             // SSH and Trust Tunnel are documented policy types in the manual.
-            [.shadowsocks, .vmess, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http,
+            // VLESS shipped in Surge iOS 6.0 / Mac 6.12 (2026-11-17/19,
+            // manual.nssurge.com/policies/vless.html); the transports and
+            // security it takes are `ConfigurationGenerator.surgeAcceptsVLESS`.
+            [.shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http,
              .ssh, .trustTunnel].contains(kind)
         case .shadowrocket:
             kind != .unknown
@@ -2232,15 +2234,6 @@ struct GeneratedConfiguration {
     /// Remote node counts are unknown until the target client refreshes.
     let remoteSourceCount: Int
     var hasExportableProxies: Bool { !hasInvalidPolicyReferences && (supportedNodeCount > 0 || remoteSourceCount > 0) }
-    /// Surge / Surge Mac nodes left out of this App Store profile that a beta
-    /// build gets through one-tap import or a subscription
-    /// (`SurgeClientCapabilities`); not part of `supportedNodeCount`.
-    let surgeBetaNodeCount: Int
-    /// Every node is beta-only: the file and copied text would be empty, but
-    /// one-tap import and the subscription still serve a beta Surge its
-    /// nodes, so those stay available.
-    var isSurgeBetaOnly: Bool { !hasExportableProxies && !hasInvalidPolicyReferences && surgeBetaNodeCount > 0 }
-    var canImportOrSubscribe: Bool { hasExportableProxies || isSurgeBetaOnly }
     let ruleCount: Int
     let profileName: String
     let contentMode: ExportContentMode
@@ -2262,11 +2255,9 @@ struct GeneratedConfiguration {
         diagnostics: [String] = [],
         hasInvalidPolicyReferences: Bool = false,
         skippedNodes: [SkippedExportNode] = [],
-        anywhereAJSON: String? = nil,
-        surgeBetaNodeCount: Int = 0
+        anywhereAJSON: String? = nil
     ) {
         self.anywhereAJSON = anywhereAJSON
-        self.surgeBetaNodeCount = surgeBetaNodeCount
         self.diagnostics = diagnostics
         self.hasInvalidPolicyReferences = hasInvalidPolicyReferences
         self.target = target
@@ -2301,8 +2292,7 @@ struct GeneratedConfiguration {
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: hasInvalidPolicyReferences,
             skippedNodes: skippedNodes,
-            anywhereAJSON: anywhereAJSON,
-            surgeBetaNodeCount: surgeBetaNodeCount
+            anywhereAJSON: anywhereAJSON
         )
     }
 }

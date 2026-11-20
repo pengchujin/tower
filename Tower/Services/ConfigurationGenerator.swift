@@ -31,22 +31,9 @@ struct ConfigurationGenerator {
     ]
 
     private let rules: RuleRepository
-    /// For a Surge beta request (`supportedKindsOverride` with VLESS): what
-    /// the requesting build reads beyond plain VLESS
-    /// (`SurgeClientCapabilities.Tier`). Ignored for every other request.
-    private let surgeTier: SurgeClientCapabilities.Tier
-    /// VLESS Encryption and XHTTP (`Tier.vlessExtensions`).
-    private var surgeVLESSExtensions: Bool { surgeTier >= .vlessExtensions }
-    /// `ws-http-upgrade=true` (`Tier.httpUpgrade`).
-    private var surgeHTTPUpgrade: Bool { surgeTier >= .httpUpgrade }
 
-    init(rules: RuleRepository = RuleRepository(), surgeTier: SurgeClientCapabilities.Tier = .vless) {
+    init(rules: RuleRepository = RuleRepository()) {
         self.rules = rules
-        self.surgeTier = surgeTier
-    }
-
-    init(rules: RuleRepository = RuleRepository(), surgeVLESSExtensions: Bool) {
-        self.init(rules: rules, surgeTier: surgeVLESSExtensions ? .vlessExtensions : .vless)
     }
 
     func generate(
@@ -141,7 +128,7 @@ struct ConfigurationGenerator {
             content = ""
         }
 
-        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
+        return GeneratedConfiguration(
             target: target,
             content: content,
             supportedNodeCount: inlineNodes.count,
@@ -150,8 +137,7 @@ struct ConfigurationGenerator {
             fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
             remoteSourceCount: remoteEntries.count,
             skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
-        ), nodes: nodes, remoteSourceIDs: remoteSourceIDs, excludedKinds: excludedKinds,
-           supportedKindsOverride: supportedKindsOverride)
+        )
     }
 
     // MARK: - Imported schemes
@@ -466,7 +452,7 @@ struct ConfigurationGenerator {
             content = ""
         }
 
-        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
+        return GeneratedConfiguration(
             target: target,
             content: unknownPolicies.isEmpty && !capabilityBlocked ? content : "",
             supportedNodeCount: inlineNodes.count,
@@ -477,95 +463,6 @@ struct ConfigurationGenerator {
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: !unknownPolicies.isEmpty || capabilityBlocked,
             skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
-        ), nodes: nodes, remoteSourceIDs: remoteSourceIDs, excludedKinds: excludedKinds,
-           supportedKindsOverride: supportedKindsOverride)
-    }
-
-    /// The App Store Surge profile leaves out VLESS and TrustTunnel nodes with
-    /// a client-random auth key, but a one-tap import or LAN subscription
-    /// from Surge iOS TestFlight 4024+ or Surge Mac 6.12.0 Beta (12820+) gets
-    /// them (`SurgeClientCapabilities`). Calling those nodes "skipped" or
-    /// "unsupported" would be wrong for exactly the people who have that
-    /// build, so they move from the skipped list to one compatibility note.
-    private func movingSurgeTestFlightNodesToNotes(
-        _ configuration: GeneratedConfiguration,
-        nodes: [ProxyNode],
-        remoteSourceIDs: Set<UUID>,
-        excludedKinds: Set<ProxyKind>,
-        supportedKindsOverride: Set<ProxyKind>?
-    ) -> GeneratedConfiguration {
-        guard [.surge, .surgeMac].contains(configuration.target),
-              !SurgeClientCapabilities.isBetaRequest(target: configuration.target, supportedKindsOverride: supportedKindsOverride)
-        else { return configuration }
-        let local = nodes.filter { $0.sourceID.map(remoteSourceIDs.contains) != true }
-        let betaVLESS = excludedKinds.contains(.vless) ? [] : local.filter {
-            $0.kind == .vless && $0.exportableUUID != nil && $0.transport?.lowercased() != "httpupgrade"
-                && Self.surgeAcceptsVLESS($0, withExtensions: true)
-        }
-        let vless = betaVLESS.filter { Self.surgeAcceptsVLESS($0, withExtensions: false) }
-        let extendedVLESS = betaVLESS.filter { !Self.surgeAcceptsVLESS($0, withExtensions: false) }
-        let trustTunnel = excludedKinds.contains(.trustTunnel) ? [] : local.filter {
-            $0.trustTunnel?.clientRandomAuthKey != nil && Self.surgeAcceptsTrustTunnelAuthKey($0)
-                && writes($0, to: configuration.target, excluding: excludedKinds,
-                          supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
-        }
-        // VMess, Trojan and VLESS over HTTPUpgrade: only the newest betas.
-        let newest = ConfigurationGenerator(rules: rules, surgeTier: .httpUpgrade)
-        let httpUpgrade = local.filter {
-            [.vmess, .trojan, .vless].contains($0.kind) && $0.transport?.lowercased() == "httpupgrade"
-                && newest.writes($0, to: configuration.target, excluding: excludedKinds,
-                                 supportedKindsOverride: SurgeClientCapabilities.vlessKinds)
-        }
-        let betaOnly = betaVLESS + trustTunnel + httpUpgrade
-        guard !betaOnly.isEmpty else { return configuration }
-        // Names are not unique, so remove one skipped entry per node.
-        var remaining = configuration.skippedNodes
-        for node in betaOnly {
-            if let index = remaining.firstIndex(where: { $0.kind == node.kind && $0.name == node.name }) {
-                remaining.remove(at: index)
-            }
-        }
-        let isMac = configuration.target == .surgeMac
-        var notes: [String] = []
-        if !vless.isEmpty {
-            let count = vless.count
-            notes.append(isMac
-                ? String(localized: "\(count) 个 VLESS 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
-                : String(localized: "\(count) 个 VLESS 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
-        }
-        if !extendedVLESS.isEmpty {
-            let count = extendedVLESS.count
-            notes.append(isMac
-                ? String(localized: "\(count) 个 VLESS Encryption / XHTTP 节点需要 Surge Mac 6.12.0 Beta（12840）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
-                : String(localized: "\(count) 个 VLESS Encryption / XHTTP 节点需要 Surge iOS TestFlight 4026 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
-        }
-        if !trustTunnel.isEmpty {
-            let count = trustTunnel.count
-            notes.append(isMac
-                ? String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge Mac 6.12.0 Beta（12820）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
-                : String(localized: "\(count) 个带客户端随机数认证密钥的 TrustTunnel 节点需要 Surge iOS TestFlight 4024 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
-        }
-        if !httpUpgrade.isEmpty {
-            let count = httpUpgrade.count
-            notes.append(isMac
-                ? String(localized: "\(count) 个 HTTPUpgrade 节点需要 Surge Mac 6.12.0 Beta（12860）及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。")
-                : String(localized: "\(count) 个 HTTPUpgrade 节点需要 Surge iOS TestFlight 4027 及以上：用一键导入或局域网订阅时会自动加入，未计入兼容节点数；导出文件和复制的配置里没有它们。"))
-        }
-        return GeneratedConfiguration(
-            target: configuration.target,
-            content: configuration.content,
-            supportedNodeCount: configuration.supportedNodeCount,
-            skippedNodeCount: max(0, configuration.skippedNodeCount - betaOnly.count),
-            ruleCount: configuration.ruleCount,
-            profileName: configuration.profileName,
-            contentMode: configuration.contentMode,
-            fileExtensionOverride: configuration.fileExtensionOverride,
-            remoteSourceCount: configuration.remoteSourceCount,
-            diagnostics: configuration.diagnostics + notes,
-            hasInvalidPolicyReferences: configuration.hasInvalidPolicyReferences,
-            skippedNodes: remaining,
-            anywhereAJSON: configuration.anywhereAJSON,
-            surgeBetaNodeCount: betaOnly.count
         )
     }
 
@@ -944,9 +841,7 @@ struct ConfigurationGenerator {
             supported = []
         }
 
-        // Surge's policy-path list is fetched by Surge itself, so a beta build
-        // gets VLESS through the same User-Agent switch as full profiles.
-        return movingSurgeTestFlightNodesToNotes(GeneratedConfiguration(
+        return GeneratedConfiguration(
             target: target,
             content: content,
             supportedNodeCount: supported.count,
@@ -959,8 +854,7 @@ struct ConfigurationGenerator {
             skippedNodes: skippedDetails(nodes: nodes, exported: supported, target: target, excludedKinds: excludedKinds,
                                          supportedKindsOverride: supportedKindsOverride, nodesOnly: true),
             anywhereAJSON: anywhereAJSON
-        ), nodes: nodes, remoteSourceIDs: [], excludedKinds: excludedKinds,
-           supportedKindsOverride: supportedKindsOverride)
+        )
     }
 
     private func skippedDetails(
@@ -1030,11 +924,12 @@ struct ConfigurationGenerator {
         // has no faithful form; writing it blank would look fine and never
         // connect.
         if [.vmess, .vless].contains(node.kind), node.exportableUUID == nil { return false }
-        // Reached only when a Surge build that has VLESS asked for this
-        // profile (`SurgeClientCapabilities`); the baseline stops at
-        // `supportsKind` above.
+        // Surge iOS 6.0 / Mac 6.12 (App Store and Sparkle, 2026-11-17/19):
+        // https://nssurge.com/surge-ios-6/release-notes and
+        // manual.nssurge.com/policies/vless.html. REALITY lives only on the
+        // `vless` policy, so this returns before the `expressesReality` check.
         if node.kind == .vless, [.surge, .surgeMac].contains(target) {
-            return Self.surgeAcceptsVLESS(node, withExtensions: surgeVLESSExtensions, withHTTPUpgrade: surgeHTTPUpgrade)
+            return Self.surgeAcceptsVLESS(node)
         }
         // Tower implements TUIC v5. Both parts of its credential are required;
         // a v4 token or half-filled v5 entry may import, but can never
@@ -1104,9 +999,10 @@ struct ConfigurationGenerator {
         // Shadowrocket and Clash Mi all connected.
         if node.kind == .trustTunnel, target == .clash, node.trustTunnel?.quic != true { return false }
         // Without its client-random auth key the server refuses the client,
-        // so the node goes only where the key can be written: Surge betas.
+        // so the node goes only where the key can be written: Surge iOS 6.0+
+        // / Mac 6.12+ (`client-random-auth-key`).
         if node.kind == .trustTunnel, node.trustTunnel?.clientRandomAuthKey != nil {
-            guard SurgeClientCapabilities.isBetaRequest(target: target, supportedKindsOverride: supportedKindsOverride),
+            guard [.surge, .surgeMac].contains(target),
                   Self.surgeAcceptsTrustTunnelAuthKey(node) else { return false }
         }
         if !supportsShadowsocksCipher(node, on: target) { return false }
@@ -1267,16 +1163,10 @@ struct ConfigurationGenerator {
     /// or XHTTP; never gRPC. HTTPUpgrade (`ws=true, ws-http-upgrade=true`)
     /// takes none or TLS, like WebSocket. mKCP is unsupported, and a profile
     /// line Surge cannot parse breaks the whole profile, so anything else is
-    /// skipped and counted.
-    ///
-    /// Encryption and XHTTP need `withExtensions` (iOS 4026+ / Mac 12840+);
-    /// the first VLESS betas (4024 / 4025 / 12820) reject the parameters.
-    /// HTTPUpgrade needs `withHTTPUpgrade` (iOS 4027+ / Mac 12860+).
-    static func surgeAcceptsVLESS(_ node: ProxyNode, withExtensions: Bool, withHTTPUpgrade: Bool = false) -> Bool {
+    /// skipped and counted. All of it shipped in Surge iOS 6.0 / Mac 6.12.
+    static func surgeAcceptsVLESS(_ node: ProxyNode) -> Bool {
         guard node.kind == .vless else { return false }
         let encrypted = node.vlessEncryption != nil
-        if !withExtensions, encrypted || node.transport?.lowercased() == "xhttp" { return false }
-        if !withHTTPUpgrade, node.transport?.lowercased() == "httpupgrade" { return false }
         if let encryption = node.vlessEncryption, !surgeAcceptsVLESSEncryption(encryption) { return false }
         let transport = node.transport?.lowercased() ?? "tcp"
         let isRaw = ["", "tcp", "raw"].contains(transport)
@@ -1343,13 +1233,11 @@ struct ConfigurationGenerator {
             if transport == "xhttp" { return node.kind == .vless }
             return ["ws", "http", "grpc"].contains(transport)
         case .surge, .surgeMac:
-            // VLESS only gets here for a Surge build that has it; which
-            // security each transport allows is `surgeAcceptsVLESS`.
-            // HTTPUpgrade is `ws=true, ws-http-upgrade=true`, read only by
-            // the newest betas (`SurgeClientCapabilities.Tier.httpUpgrade`).
-            let httpUpgrade = surgeHTTPUpgrade
-                && SurgeClientCapabilities.isBetaRequest(target: target, supportedKindsOverride: supportedKindsOverride)
-            if transport == "httpupgrade" { return httpUpgrade }
+            // Which security each VLESS transport allows is
+            // `surgeAcceptsVLESS`. HTTPUpgrade is `ws=true,
+            // ws-http-upgrade=true` for VMess, Trojan and VLESS (iOS 6.0 /
+            // Mac 6.12, manual.nssurge.com/policies/vmess.html).
+            if transport == "httpupgrade" { return true }
             if node.kind == .vless { return ["ws", "grpc", "xhttp"].contains(transport) }
             return transport == "ws" && [.vmess, .trojan].contains(node.kind)
         case .shadowrocket:

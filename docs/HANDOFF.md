@@ -1,5 +1,13 @@
 # 当前交接
 
+## 未发布：Surge 6 正式版放开 VLESS（2026-11-20）
+
+- 上游检查：Surge iOS 6.0.1（App Store 2026-11-19）和 Surge Mac 6.12.0（Sparkle 12900，2026-11-17）都已是正式版。[发布说明](https://nssurge.com/surge-ios-6/release-notes)确认 VLESS（RAW / WS / HTTPUpgrade / gRPC / XHTTP、TLS / REALITY、Vision、Encryption）、VMess / Trojan HTTPUpgrade、TrustTunnel `client-random-auth-key` 都在正式版里。
+- `ClientTarget.supports` 给 `.surge` / `.surgeMac` 加上 `.vless`，`ConfigurationGenerator.surgeAcceptsVLESS` 不再分档；HTTPUpgrade 和 TrustTunnel 密钥对 Surge 直接写。
+- 删掉测试期的按 User-Agent 构建号分发：`SurgeClientCapabilities`、`AppModel.surgeVLESSVariants`、一键导入 / 局域网订阅的 Surge 变体、导出页「仅 Surge 测试版可用」状态和「需要 Surge 测试版」兼容提示、`GeneratedConfiguration.surgeBetaNodeCount`。导出文件、复制文本、一键导入和订阅现在给出同一份配置。
+- 代价：仍在 Surge iOS 5.x / Mac 6.11 及更早的用户，订阅里有这些节点时整份配置会解析失败，需升级 Surge。界面没有加提示。本地化目录里那几条旧提示会变成 stale，按约定保留不删。
+- 测试：完整 TowerTests 通过；改写了 SurgeVLESS、SurgeHTTPUpgrade、VLESSWebSocketHost、TransportGeneration、ConfigurationGenerator、ProtocolFilter、ProtocolAudit、Reality 里原先断言「Surge 不导出 VLESS」的用例。待真机：Surge iOS 6.0.1 正式版用导出文件 / 一键导入各连一台 REALITY、XHTTP、HTTPUpgrade 节点。
+
 ## 1.0.32（79）TestFlight 与 App Store 提审（2026-11-18）
 
 - 发布提交 `1030cb2`（版本 1.0.32、构建 79，更新日志 `docs/releases/1.0.32.md`）已推送。完整 TowerTests 1427 项通过（跳过 9）；ACL4SSR 为上游最新 `e2f257307bf0`，207 个远程产物校验通过。

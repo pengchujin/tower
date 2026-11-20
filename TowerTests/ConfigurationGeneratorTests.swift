@@ -110,10 +110,9 @@ final class ConfigurationGeneratorTests: XCTestCase {
         }
     }
 
-    /// App Store Surge has no VLESS, so the file leaves it out; Surge iOS
-    /// TestFlight 4024+ gets it by one-tap import, so it is reported as a
-    /// compatibility note rather than a skipped node.
-    func testSurgeLeavesVLESSOutOfFileAndNotesTestFlight() {
+    /// Surge iOS 6.0 / Mac 6.12 have a `vless` policy, so exported files
+    /// carry it like any other node.
+    func testSurgeWritesVLESSIntoTheFile() {
         let vless = ProxyNode(
             kind: .vless,
             name: "VLESS",
@@ -129,10 +128,10 @@ final class ConfigurationGeneratorTests: XCTestCase {
             target: .surge
         )
 
-        XCTAssertEqual(result.supportedNodeCount, 2)
+        XCTAssertEqual(result.supportedNodeCount, 3)
         XCTAssertEqual(result.skippedNodeCount, 0)
-        XCTAssertTrue(result.diagnostics.contains { $0.contains("TestFlight 4024") })
-        XCTAssertFalse(result.content.contains("vless.example.com"))
+        XCTAssertFalse(result.diagnostics.contains { $0.contains("TestFlight") })
+        XCTAssertTrue(result.content.contains("VLESS = vless, vless.example.com, 443,"), result.content)
     }
 
     func testLegacySelfConfigurationPresetDoesNotShipRulePayloads() {
@@ -647,15 +646,13 @@ final class ConfigurationGeneratorTests: XCTestCase {
         let snell = ProxyNode(kind: .snell, name: "Private", server: "snell.example", port: 443,
             password: "psk", version: 4, rawURI: "snell://test")
         let unsupported = ProxyNode(kind: .vless, name: "VLESS", server: "vless.example", port: 443,
-            uuid: "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e", rawURI: "vless://test")
+            uuid: "5d1c3d8f-77b7-45c7-98c7-6fa54d37766e", transport: "grpc", rawURI: "vless://test")
         for target in [ClientTarget.surge, .surgeMac] {
             let result = ConfigurationGenerator().generateNodeSubscription(
                 nodes: nodes + [snell, unsupported], target: target, excludedKinds: [.vmess])
             XCTAssertEqual(result.supportedNodeCount, 2)
-            // VMess is filtered out; VLESS is left out of the App Store list
-            // but noted for Surge betas instead of counted as skipped.
-            XCTAssertEqual(result.skippedNodeCount, 1)
-            XCTAssertTrue(result.diagnostics.contains { $0.contains("VLESS") })
+            // VMess is filtered out; VLESS gRPC without TLS has no Surge form.
+            XCTAssertEqual(result.skippedNodeCount, 2)
             XCTAssertEqual(result.ruleCount, 0)
             XCTAssertTrue(result.content.contains("Hong Kong = ss, hk.example.com, 8388"))
             XCTAssertTrue(result.content.contains("Private = snell, snell.example, 443, psk=psk, version=4"))

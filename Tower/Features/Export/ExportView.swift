@@ -63,8 +63,7 @@ struct ExportView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             Group {
                                 HStack(alignment: .center, spacing: 12) {
-                                    Text(headerConfiguration == nil ? "正在转换…" : headerConfiguration!.hasExportableProxies ? "转换已就绪"
-                                         : headerConfiguration!.isSurgeBetaOnly ? "仅 Surge 测试版可用" : "暂时无法导出")
+                                    Text(headerConfiguration == nil ? "正在转换…" : headerConfiguration!.hasExportableProxies ? "转换已就绪" : "暂时无法导出")
                                         .font(.headline)
                                         .fixedSize(horizontal: false, vertical: true)
                                         .contentTransition(.opacity)
@@ -220,9 +219,7 @@ struct ExportView: View {
                         target: model.selectedTarget,
                         contentMode: model.exportContentMode(for: model.selectedTarget),
                         isImporting: isImporting,
-                        isDisabled: configuration?.canImportOrSubscribe != true,
-                        // The file and copied text are the App Store profile;
-                        // with only beta nodes they would carry none.
+                        isDisabled: configuration?.hasExportableProxies != true,
                         isMenuDisabled: configuration?.hasExportableProxies != true,
                         importAction: {
                             guard let configuration else { return }
@@ -373,10 +370,7 @@ struct ExportView: View {
             isImporting = true
             defer { isImporting = false }
             do {
-                let url = try await directImportService.prepareNodeSubscriptionURL(
-                    configuration,
-                    surgeVLESSVariants: await model.surgeVLESSVariants(for: configuration)
-                )
+                let url = try await directImportService.prepareNodeSubscriptionURL(configuration)
                 UIPasteboard.general.string = url.absoluteString
                 model.showToast(String(localized: "订阅链接已复制"), symbol: "doc.on.doc.fill")
             } catch {
@@ -402,10 +396,7 @@ struct ExportView: View {
         defer { isImporting = false }
 
         do {
-            let schemeURL = try await directImportService.prepare(
-                configuration,
-                surgeVLESSVariants: await model.surgeVLESSVariants(for: configuration)
-            )
+            let schemeURL = try await directImportService.prepare(configuration)
             let didOpen = await withCheckedContinuation { continuation in
                 UIApplication.shared.open(schemeURL, options: [:]) { opened in
                     continuation.resume(returning: opened)
@@ -1371,10 +1362,6 @@ private struct ConversionSummary: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
-            if configuration.isSurgeBetaOnly {
-                Text("这些节点只有 Surge 测试版能用。一键导入或复制订阅时，Surge 测试版会拿到它们，正式版 Surge 拿到的配置里没有节点；分享配置文件和复制配置文本暂不可用。")
-                    .font(.subheadline)
-            }
             if !configuration.hasExportableProxies {
                 if !model.hasExportableSources {
                     Text("请先添加或启用订阅和节点，再生成配置。")

@@ -323,7 +323,6 @@ final class AppModel {
         let target: ClientTarget
         let mode: ExportContentMode
         let supportedKinds: Set<ProxyKind>?
-        let surgeTier: SurgeClientCapabilities.Tier?
     }
     @ObservationIgnored private var requestInputs: RequestInputs?
     @ObservationIgnored private var requestCache: [RequestVariant: ConfigurationRequest] = [:]
@@ -3386,11 +3385,10 @@ final class AppModel {
     func configuration(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil,
-        surgeTier: SurgeClientCapabilities.Tier? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> GeneratedConfiguration {
         let request = configurationRequest(target: target, contentMode: contentMode,
-                                           supportedKindsOverride: supportedKindsOverride, surgeTier: surgeTier)
+                                           supportedKindsOverride: supportedKindsOverride)
         if let cached = generationCache[request.key] { return cached.named(request.name) }
         configurationGenerationCount += 1
         let result = request.generate()
@@ -3438,8 +3436,7 @@ final class AppModel {
     func configurationRequest(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil,
-        surgeTier: SurgeClientCapabilities.Tier? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil
     ) -> ConfigurationRequest {
         let inputs = RequestInputs(nodes: nodes, sources: subscriptions, excludedNodes: excludedNodeIDs,
             nameFilter: nodeExportNameFilter,
@@ -3455,12 +3452,11 @@ final class AppModel {
             requestCache.removeAll(keepingCapacity: true)
         }
         let variant = RequestVariant(target: target ?? selectedTarget,
-            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride,
-            surgeTier: surgeTier)
+            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride)
         if let cached = requestCache[variant] { return cached }
         configurationRequestPreparationCount += 1
         let request = prepareConfigurationRequest(target: variant.target, contentMode: variant.mode,
-                                                   supportedKindsOverride: supportedKindsOverride, surgeTier: surgeTier)
+                                                   supportedKindsOverride: supportedKindsOverride)
         // Only the latest supported-kinds variant per client/mode is retained.
         requestCache = requestCache.filter { $0.key.target != variant.target || $0.key.mode != variant.mode }
         requestCache[variant] = request
@@ -3468,13 +3464,8 @@ final class AppModel {
     }
 
     private func prepareConfigurationRequest(
-        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?,
-        surgeTier: SurgeClientCapabilities.Tier? = nil
+        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?
     ) -> ConfigurationRequest {
-        // A Surge beta build reads VLESS; higher tiers also read VLESS
-        // Encryption, XHTTP and HTTPUpgrade (`SurgeClientCapabilities.Tier`).
-        let supportedKindsOverride = surgeTier != nil ? SurgeClientCapabilities.vlessKinds : supportedKindsOverride
-        let generatorTier = surgeTier ?? .vless
         let ruleRepository = self.ruleRepository
         let schemeRepository = self.schemeRepository
         let configurationName = self.configurationName
@@ -3490,7 +3481,7 @@ final class AppModel {
             .joined(separator: "|")
             .hashValue ?? 0
         let excludedHash = excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
-            ^ supportedKindsHash ^ (generatorTier.rawValue &* 0x5EC7)
+            ^ supportedKindsHash
 
         // A node subscription is nodes only: no rules, no policy groups, so
         // none of the scheme materialization below applies to it. Producing the
@@ -3507,7 +3498,7 @@ final class AppModel {
                 contentMode: .nodesOnly
             )
             return ConfigurationRequest(key: key, name: configurationName) {
-                ConfigurationGenerator(rules: ruleRepository, surgeTier: generatorTier).generateNodeSubscription(
+                ConfigurationGenerator(rules: ruleRepository).generateNodeSubscription(
                     nodes: currentNodes, target: resolvedTarget, excludedKinds: excluded,
                     profileName: configurationName, supportedKindsOverride: supportedKindsOverride
                 )
@@ -3546,7 +3537,7 @@ final class AppModel {
             contentMode: .fullConfiguration
         )
         return ConfigurationRequest(key: key, name: configurationName) {
-            let generator = ConfigurationGenerator(rules: ruleRepository, surgeTier: generatorTier)
+            let generator = ConfigurationGenerator(rules: ruleRepository)
             let generated: GeneratedConfiguration
             if let scheme {
                 generated = generator.generate(
@@ -3573,33 +3564,6 @@ final class AppModel {
             }
             return TailnetConfigurationWriter().apply(tailnetExports, to: generated)
         }
-    }
-
-    /// The Surge profiles with VLESS nodes added, one per beta tier, served
-    /// by a one-tap import only to a Surge build that reads that tier
-    /// (`SurgeClientCapabilities.tier`). A tier is left out when it would
-    /// not differ from the tier below it (or from the App Store baseline).
-    func surgeVLESSVariants(
-        for configuration: GeneratedConfiguration
-    ) async -> [SurgeClientCapabilities.Tier: GeneratedConfiguration] {
-        guard [.surge, .surgeMac].contains(configuration.target),
-              enabledNodes.contains(where: {
-                  $0.kind == .vless || $0.trustTunnel?.clientRandomAuthKey != nil
-                      || $0.transport?.lowercased() == "httpupgrade"
-              })
-        else { return [:] }
-        var variants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
-        var previous = configuration
-        for tier in SurgeClientCapabilities.Tier.allCases.sorted() {
-            let request = configurationRequest(target: configuration.target, contentMode: configuration.contentMode,
-                                               surgeTier: tier)
-            let variant = await self.configuration(for: request)
-            if variant.supportedNodeCount > previous.supportedNodeCount {
-                variants[tier] = variant
-                previous = variant
-            }
-        }
-        return variants
     }
 
     var isLANSharingActive: Bool { lanSharingURL != nil }
@@ -3635,11 +3599,6 @@ final class AppModel {
                 self?.configuration(target: target, contentMode: .nodesOnly)
                     ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0,
                         skippedNodeCount: 0, ruleCount: 0, contentMode: .nodesOnly)
-            },
-            surgeVLESSConfiguration: { [weak self] target, mode, tier in
-                self?.configuration(target: target, contentMode: mode, surgeTier: tier)
-                    ?? GeneratedConfiguration(target: target, content: "", supportedNodeCount: 0, skippedNodeCount: 0,
-                                              ruleCount: 0, contentMode: mode)
             }
         ) { [weak self] format in
             guard let self else {

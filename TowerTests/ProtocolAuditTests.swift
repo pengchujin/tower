@@ -417,7 +417,9 @@ final class ProtocolAuditTests: XCTestCase {
         XCTAssertNil(parser.parseURI("vless://\(uuid)@v.example.com:443?encryption=none#Plain")?.vlessEncryption)
 
         XCTAssertTrue(content([node], .clashApple).contains("encryption: \"\(key)\""))
-        for target in [ClientTarget.surge, .loon, .quanx, .singBox, .shadowrocket, .egern] {
+        // Surge iOS 6.0 / Mac 6.12 have their own `encryption=` field.
+        XCTAssertTrue(content([node], .surge).contains("encryption=\(key)"))
+        for target in [ClientTarget.loon, .quanx, .singBox, .shadowrocket, .egern] {
             XCTAssertFalse(content([node], target).contains("v.example.com"), target.name)
         }
         let link = ProxyNodeShareLinkGenerator().canonicalLink(for: node)

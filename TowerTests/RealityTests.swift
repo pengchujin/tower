@@ -138,16 +138,16 @@ final class RealityTests: XCTestCase {
         XCTAssertFalse(loon.contains("xtls="))
     }
 
-    /// Surge is the one client that genuinely cannot: its producer raises
-    /// "reality is unsupported", and it takes no VLESS at all.
-    func testSurgeIsTheOnlyTargetThatSkipsReality() throws {
+    /// Surge iOS 6.0 / Mac 6.12 carry REALITY on the `vless` policy, so no
+    /// full-configuration client skips a VLESS REALITY node any more.
+    func testNoTargetSkipsVLESSReality() throws {
         let node = try node()
         let skipping = ClientTarget.allCases.filter { target in
             guard target.supportsFullConfigurationExport else { return false }
             return generator.generate(nodes: [node], preset: preset, target: target).supportedNodeCount == 0
         }
 
-        XCTAssertEqual(skipping, [.surge, .surgeMac])
+        XCTAssertEqual(skipping, [])
     }
 
     func testNoTargetEverWritesARealityNodeWithoutItsPublicKey() throws {

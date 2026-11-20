@@ -185,16 +185,11 @@ final class DirectImportService {
     private var expirationTask: Task<Void, Never>?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    /// A `surgeVLESSVariants` entry is served instead of `configuration` only
-    /// to a Surge build that reads its tier (see `SurgeClientCapabilities`).
-    func prepare(
-        _ configuration: GeneratedConfiguration,
-        surgeVLESSVariants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
-    ) async throws -> URL {
+    func prepare(_ configuration: GeneratedConfiguration) async throws -> URL {
         guard configuration.target.supportsDirectImport(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
-        let localURL = try await prepareLocalResource(configuration, surgeVLESSVariants: surgeVLESSVariants)
+        let localURL = try await prepareLocalResource(configuration)
         do {
             return try ClientImportURLBuilder.make(
                 target: configuration.target,
@@ -210,26 +205,20 @@ final class DirectImportService {
 
     /// Manual node subscription import uses the same bounded loopback handoff as a scheme
     /// import. Unlike LAN sharing, this exposes only a loopback resource.
-    func prepareNodeSubscriptionURL(
-        _ configuration: GeneratedConfiguration,
-        surgeVLESSVariants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
-    ) async throws -> URL {
+    func prepareNodeSubscriptionURL(_ configuration: GeneratedConfiguration) async throws -> URL {
         guard configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode) else {
             throw DirectImportError.unsupportedTarget(configuration.target)
         }
-        return try await prepareLocalResource(configuration, surgeVLESSVariants: surgeVLESSVariants)
+        return try await prepareLocalResource(configuration)
     }
 
-    private func prepareLocalResource(
-        _ configuration: GeneratedConfiguration,
-        surgeVLESSVariants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:]
-    ) async throws -> URL {
+    private func prepareLocalResource(_ configuration: GeneratedConfiguration) async throws -> URL {
         let previousServer = server
         server = nil
         stop()
         await previousServer?.stopAndWait()
 
-        let server = LocalConfigurationServer(configuration: configuration, surgeVLESSVariants: surgeVLESSVariants)
+        let server = LocalConfigurationServer(configuration: configuration)
         let localURL = try await server.start()
         self.server = server
         beginBackgroundExecution()
@@ -276,9 +265,6 @@ final class LocalConfigurationServer: @unchecked Sendable {
     private let body: Data
     /// Anywhere's AJSON form, for requests that carry `X-Anywhere-Format`.
     private let ajsonBody: Data?
-    /// Surge's profiles with VLESS, per beta tier, for a Surge build that
-    /// reads that tier.
-    private let surgeVLESSBodies: [SurgeClientCapabilities.Tier: Data]
     private let fileName: String
     private let contentType: String
     private let profileName: String
@@ -308,17 +294,10 @@ final class LocalConfigurationServer: @unchecked Sendable {
 
     init(
         configuration: GeneratedConfiguration,
-        surgeVLESSVariants: [SurgeClientCapabilities.Tier: GeneratedConfiguration] = [:],
         token: String = DirectImportAccessTokenStore.loadOrCreate()
     ) {
         body = Data(configuration.content.utf8)
         ajsonBody = configuration.anywhereAJSON.map { Data($0.utf8) }
-        // Only a variant that actually adds nodes is worth a second body.
-        surgeVLESSBodies = [.surge, .surgeMac].contains(configuration.target)
-            ? surgeVLESSVariants.compactMapValues { variant in
-                variant.content != configuration.content ? Data(variant.content.utf8) : nil
-            }
-            : [:]
         nodeSubscriptionTarget = configuration.target.copiesAggregatedSubscription(mode: configuration.contentMode)
             ? configuration.target : nil
         self.token = token
@@ -441,13 +420,6 @@ final class LocalConfigurationServer: @unchecked Sendable {
     /// The AJSON document goes only to an Anywhere release that says it reads
     /// it; every other request gets the share-link list.
     func response(forRequestHeaders request: String) -> (body: Data, contentType: String) {
-        // The highest tier this build reads; a tier left out because it
-        // matched the one below falls through to that one.
-        if let tier = SurgeClientCapabilities.tier(userAgent: Self.header("user-agent", in: request)),
-           let surgeBody = SurgeClientCapabilities.Tier.allCases.sorted(by: >)
-               .filter({ $0 <= tier }).compactMap({ surgeVLESSBodies[$0] }).first {
-            return (surgeBody, contentType)
-        }
         guard let ajsonBody else { return (body, contentType) }
         let formatHeader = Self.header(AnywhereExport.ajsonFormatHeader, in: request)
         guard AnywhereExport.acceptsAJSON(formatHeader: formatHeader) else { return (body, contentType) }
