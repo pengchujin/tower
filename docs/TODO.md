@@ -36,6 +36,7 @@
 - [ ] **mihomo 系 Snell v6**（mihomo 1.19.34，2026-11-11，`version: 6` + 可选 `mode: default/unshaped/unsafe-raw`，v6 不能配 `obfs-opts` 的 http/tls）：2026-11-14 用户决定等客户端跟进。1.19.33 及更早遇到 `version: 6` 报 `snell version error`，mihomo 一个节点解析失败整份配置都加载不了，所以只能按客户端逐个放开（`ConfigurationGenerator` 里 mihomo 系的 `(1...5)` 白名单）。11-14 状态：「Clash」App 内核快照 v1.19.34-clash.1 已出、App 是否带上未确认；Verge 2.5.10、FlClash 0.9.3、Clash Party 2.0.4、ClashMac 27.1.8、Clash Mi 1.0.32 都早于 1.19.34。放开时一并拒绝 v6 + obfs。
   - 2026-11-15：FlClash 0.9.4-pre.1 已把内核换成 mihomo 1.19.34（仅预发布，正式版出来再放开 FlClash）。mihomo Alpha 新增 Snell v6 可选 `userkey`（[#3460](https://github.com/MetaCubeX/mihomo/pull/3460)，作为 ClientID 发送，v6 以前拒绝），塔台还没有这个字段；进正式版后评估是否建模，带 `userkey` 的节点在不支持的客户端要跳过计数。
   - 2026-11-18：「Clash」App **1.0.18 正式版**（App Store 2026-11-16）更新说明写明「Core updated to mihomo v1.19.34」，已对 `.clashApple` 放开（白名单 `1...6`；v6 带 HTTP/TLS obfs 或 PSK 不在 12–255 字节时跳过计数，mihomo 1.19.34 `-t` 复验，见 HANDOFF）。其余 mihomo 系客户端仍早于 1.19.34，正式版跟进后逐个加。待真机：Clash 1.0.18 连一台 v6 节点。
+  - 2026-11-21：**FlClash 0.9.4 正式版**（发布说明写明 mihomo v1.19.34）和 **Clash Party 2.0.5**（打包脚本拉 mihomo 最新正式版 = 1.19.34，推断）已放开，mihomo 1.19.34 `-t` 复验通过，见 HANDOFF。剩 Verge、ClashMac（27.1.9 未提内核）、Clash Mi（1.0.33 仍是预发布）。待真机：FlClash、Clash Party 各连一台 v6 节点。
 - [ ] Surge 写 Snell v6 时，节点带 `obfs` 仍会写出 `obfs=`（手册：v6 不支持 obfs），应改为跳过并计数。
 - [ ] Egern 2.21 的 SRC-IP 规则和 Tailscale 代理：等官方文档公开 YAML 字段；Tailscale 按 CLAUDE.md 第 24 条评估。
 - [ ] Karing 1.2.26（目前只在 GitHub 预发布）：上 App Store 后测 mihomo 写法的 Tailscale 和 MASQUE 方言。
@@ -55,6 +56,8 @@
 - [ ] Surge 策略组 `category`（5.23 / Mac 6.10 正式）：会改变面板分组展示，和第 26 条的 `groupOrder` 一起评估，先问用户。
 - [ ] 新协议（mieru、sudoku、EasyTier、AmneziaWG 等）：目前解析时跳过，属于新功能。
 - 2026-11-18 分拣，确认与导出无关或属于误报、不用做的：QuanX `url-scheme.md` / `sample.conf` 和 sing-box changelog 的哈希变化重抓后与基线一致（GitHub 上两份 QuanX 文件最后一次提交分别是 2022-07 和 2026-04），属于抓取误报；Snell 发布说明页只是侧栏多了一条 FAQ，下载仍是 v6.0.0；Surge 的 profile validation service 是在线服务，按 CLAUDE.md 第 1 条不能拿用户配置去校验；Surge Mac 12900 的 `policy-path` 只读 `[Proxy]`、Tailscale Split DNS、脚本 trailers 都与导出无关。Shadowrocket TF 2.2.94、QuanX TF 1.9.0、Karing 1.2.26.2933（VLESS `extra=null` 兼容只涉及分享链接）、Clash Mi 1.0.33 预发布、hiddify-core 5.9.11、FlClash 0.9.4-pre 只修 bug 或尚未正式发布。Karing TestFlight 页面这次抓取超时。
+
+- 2026-11-21 分拣（除上面的 Snell v6 外都不用改代码）：等正式版的有 QuanX TF 1.9.0 (965+) 支持 Hysteria 2 出站；Surge iOS TF 4041 / Mac 6.13.0 Beta 新增 TLS `client-fingerprint`；Loon TF 3.5.4 Tailscale 入站 / 出口节点；Clash Mi 1.0.33、Hiddify 5.9.15 GitHub 预发布。Sub-Store 2.44.20 给 Surge 加 `client-fingerprint` / `ech-config`、给 Loon 加 Snell v4/v5 和 XHTTP——Loon 正式版仍是 3.5.3，官方文档未写，不跟。TrustTunnel v1.3.1 新增深链 tag `0x0E`（订阅地址）、`0x10`（`tls_profile`），等做 `tt://` 导入时一并处理。Snell 发布说明页仍只是侧栏变化（v6.0.0）。Karing 2934、mihomo Alpha、Hiddify App Store 5.6.0、ClashMac 27.1.9 只修 bug 或界面。
 
 ### 只需写进兼容文档
 

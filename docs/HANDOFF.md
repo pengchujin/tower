@@ -10,6 +10,13 @@
 - Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.33-80](https://github.com/pengchujin/tower/releases/tag/v1.0.33-80)（tag 指向 `7b24f37`）已公开并设为 Latest，回下载 SHA-256 一致：`ead0aacf956c8389a8b81160c691c0dbaea4d2d3eeab9953b46f3f6881213715`。
 - README 下载入口改为 v1.0.33-80；Homebrew cask 更新为 1.0.33,80（tap `08eb70b`），`brew style` / `brew audit` 通过，`brew reinstall --cask` 后 1.0.33（80）严格签名、Gatekeeper 通过、保留隔离标记；从 Finder 打开、主界面可交互尚未人工确认。
 
+## 未发布：FlClash、Clash Party 放开 Snell v6（2026-11-21）
+
+- 2026-11-21 跑 `check_upstream_updates.py --dry-run` 分拣，结论见 TODO「上游更新待处理」。上游基线没有推进。
+- FlClash 0.9.4 正式版（GitHub 2026-11-19）发布说明写明「Update the core to mihomo v1.19.34」。Clash Party 2.0.5（2026-11-20）发布说明只写「更新依赖」，但它的 `scripts/prepare.mjs` 打包时拉 mihomo `releases/latest`，当时就是 v1.19.34，**这是推断，不是官方声明**。`ConfigurationGenerator` 里 mihomo 系 Snell 白名单对 `.flClash`、`.mihomoParty` 放到 `1...6`，v6 带 HTTP/TLS obfs 或 PSK 不在 12–255 字节时同样跳过计数。Verge、ClashMac、Clash Mi 仍只到 v5。
+- 用官方 mihomo v1.19.34 `-t` 复验塔台生成的 FlClash / Clash Party / Clash 配置（v6 + v4 obfs 各一台）：都通过；本机 1.19.31 对三份都报错，所以老版本 FlClash / Clash Party 用户遇到 v6 节点时整份配置加载不了，需升级。
+- 测试：`SnellTests.testOnlyClientsOnMihomo1_19_34TakeSnellV6`、`testMihomoClientsSkipSnellV6TheyCannotLoad`（由原来两个只测 Clash App 的用例改名扩展）；Snell、ProtocolAudit、ConfigurationGenerator、ProxyShareService 共 77 项通过。待真机：FlClash 0.9.4、Clash Party 2.0.5 各连一台 Snell v6 节点，Clash Party 顺带确认内核版本。
+
 ## 未发布：Surge 6 正式版放开 VLESS（2026-11-20）
 
 - 上游检查：Surge iOS 6.0.1（App Store 2026-11-19）和 Surge Mac 6.12.0（Sparkle 12900，2026-11-17）都已是正式版。[发布说明](https://nssurge.com/surge-ios-6/release-notes)确认 VLESS（RAW / WS / HTTPUpgrade / gRPC / XHTTP、TLS / REALITY、Vision、Encryption）、VMess / Trojan HTTPUpgrade、TrustTunnel `client-random-auth-key` 都在正式版里。

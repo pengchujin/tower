@@ -1018,9 +1018,12 @@ struct ConfigurationGenerator {
         // Mihomo has its own version support, independent of Stash. v6 needs
         // mihomo 1.19.34: older cores refuse `version: 6`, and one bad proxy
         // fails the whole file, so v6 opens one client at a time. The Clash
-        // App ships 1.19.34 from 1.0.18 (App Store notes, 2026-11-16).
+        // App ships 1.19.34 from 1.0.18 (App Store notes, 2026-11-16);
+        // FlClash from 0.9.4 (GitHub release notes, 2026-11-19); Clash Party
+        // 2.0.5 (2026-11-20) bundles mihomo's latest stable, 1.19.34, per its
+        // scripts/prepare.mjs.
         if node.kind == .snell, [.clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi].contains(target) {
-            let newest = target == .clashApple ? 6 : 5
+            let newest = [.clashApple, .flClash, .mihomoParty].contains(target) ? 6 : 5
             guard (1...newest).contains(node.version ?? 4) else { return false }
             if node.version == 6 {
                 // clash.md/zh/guide/config/outbound/snell: v6 has no HTTP/TLS
