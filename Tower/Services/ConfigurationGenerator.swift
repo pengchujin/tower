@@ -1,5 +1,13 @@
 import Foundation
 
+/// Which reader of Surge's profile format a `.surge` export is for. Surfboard
+/// takes the same dialect (the LAN `target=surfboard` alias) but documents a
+/// narrower proxy matrix, `ConfigurationGenerator.surfboardAccepts`.
+enum SurgeDialect: Hashable, Sendable {
+    case surge
+    case surfboard
+}
+
 struct ConfigurationGenerator {
     private static let manualGroupName = "手动切换"
     private static let nestedSelectGroupName = "🚀 节点选择"
@@ -43,7 +51,8 @@ struct ConfigurationGenerator {
         countryCodes: [UUID: String] = [:],
         excludedKinds: Set<ProxyKind> = [],
         remoteSubscriptions: [RemoteSubscriptionLink] = [],
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeDialect: SurgeDialect = .surge
     ) -> GeneratedConfiguration {
         let supported = uniquedNames(
             nodes.filter {
@@ -51,7 +60,8 @@ struct ConfigurationGenerator {
                     $0,
                     to: target,
                     excluding: excludedKinds,
-                    supportedKindsOverride: supportedKindsOverride
+                    supportedKindsOverride: supportedKindsOverride,
+                    surgeDialect: surgeDialect
                 )
             },
             reservedNames: reservedProxyNames(for: preset)
@@ -136,7 +146,7 @@ struct ConfigurationGenerator {
             ruleCount: rules.count(for: preset),
             fileExtensionOverride: target == .shadowrocket ? "yaml" : nil,
             remoteSourceCount: remoteEntries.count,
-            skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
+            skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride, surgeDialect: surgeDialect)
         )
     }
 
@@ -153,7 +163,8 @@ struct ConfigurationGenerator {
         preferRuleSets: Bool = true,
         remoteSubscriptions: [RemoteSubscriptionLink] = [],
         sourceURLHashes: [UUID: String] = [:],
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeDialect: SurgeDialect = .surge
     ) -> GeneratedConfiguration {
         // Adapt a copy for this export; the saved source remains Smart so switching
         // back to a native client restores its original algorithm and options.
@@ -230,7 +241,8 @@ struct ConfigurationGenerator {
                     $0,
                     to: target,
                     excluding: excludedKinds,
-                    supportedKindsOverride: supportedKindsOverride
+                    supportedKindsOverride: supportedKindsOverride,
+                    surgeDialect: surgeDialect
                 )
             },
             reservedNames: Set(scheme.groups.map(\.name) + ["DIRECT", "REJECT", "direct", "reject"])
@@ -462,7 +474,7 @@ struct ConfigurationGenerator {
             remoteSourceCount: remoteEntries.count,
             diagnostics: diagnostics,
             hasInvalidPolicyReferences: !unknownPolicies.isEmpty || capabilityBlocked,
-            skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride)
+            skippedNodes: skippedDetails(nodes: nodes, exported: inlineNodes, remoteSourceIDs: remoteSourceIDs, target: target, excludedKinds: excludedKinds, supportedKindsOverride: supportedKindsOverride, surgeDialect: surgeDialect)
         )
     }
 
@@ -860,7 +872,8 @@ struct ConfigurationGenerator {
     private func skippedDetails(
         nodes: [ProxyNode], exported: [ProxyNode], remoteSourceIDs: Set<UUID> = [],
         target: ClientTarget, excludedKinds: Set<ProxyKind>,
-        supportedKindsOverride: Set<ProxyKind>? = nil, nodesOnly: Bool = false
+        supportedKindsOverride: Set<ProxyKind>? = nil, nodesOnly: Bool = false,
+        surgeDialect: SurgeDialect = .surge
     ) -> [SkippedExportNode] {
         let exportedIDs = Set(exported.map(\.id))
         return nodes.compactMap { node in
@@ -880,7 +893,9 @@ struct ConfigurationGenerator {
                 reason = String(localized: "仅节点格式无法保留完整参数，请使用完整配置。")
             } else if target == .anywhere, let anywhere = AnywhereExport.unsupportedReason(node) {
                 reason = anywhere
-            } else if !canExpressTransport(of: node, on: target, supportedKindsOverride: supportedKindsOverride) {
+            } else if !canExpressTransport(of: node, on: target, supportedKindsOverride: supportedKindsOverride)
+                || (surgeDialect == .surfboard && [.vmess, .trojan].contains(node.kind)
+                    && node.transport?.lowercased() == "httpupgrade") {
                 reason = String(localized: "当前客户端不支持此节点的传输方式。")
             } else {
                 reason = String(localized: "此节点的协议参数无法在当前客户端完整保留。")
@@ -897,7 +912,8 @@ struct ConfigurationGenerator {
         to target: ClientTarget,
         excluding excludedKinds: Set<ProxyKind>,
         supportedKindsOverride: Set<ProxyKind>? = nil,
-        anywhereAllowsInsecure: Bool = false
+        anywhereAllowsInsecure: Bool = false,
+        surgeDialect: SurgeDialect = .surge
     ) -> Bool {
         if node.kind == .masque {
             guard node.hasSupportedMASQUEFields else { return false }
@@ -916,6 +932,9 @@ struct ConfigurationGenerator {
         if target == .egern, node.kind == .shadowsocksR, !Self.egernAcceptsShadowsocksR(node) { return false }
         let supportsKind = supportedKindsOverride?.contains(node.kind) ?? target.supports(node.kind)
         guard supportsKind, !excludedKinds.contains(node.kind) else { return false }
+        // Everything Surge needs still applies; Surfboard only narrows it.
+        if surgeDialect == .surfboard, [.surge, .surgeMac].contains(target),
+           !Self.surfboardAccepts(node) { return false }
         if target == .anywhere, !AnywhereExport.supports(node, allowingInsecure: anywhereAllowsInsecure) { return false }
         // sing-box supports SPKI/public-key hashes, not leaf-certificate hashes.
         // Never silently discard a pin or relabel it as a public-key digest.
@@ -1190,6 +1209,59 @@ struct ConfigurationGenerator {
         }
         if isRaw || ["ws", "httpupgrade"].contains(transport) { return true }
         return transport == "grpc" && secured
+    }
+
+    /// Protocols the Surfboard manual lists under `[Proxy]`
+    /// (getsurfboard.com/docs/profile-format/proxy, checked 2026-11-22 against
+    /// mobile-2.36.0, the first release with VLESS). No SSH, TrustTunnel or
+    /// MASQUE, which Surge has.
+    static let surfboardKinds: Set<ProxyKind> = [
+        .shadowsocks, .vmess, .vless, .trojan, .hysteria2, .tuic, .wireguard, .anytls, .snell, .socks5, .http
+    ]
+
+    /// `encrypt method` in Surfboard's Shadowsocks page, plus `none`: the page
+    /// omits it, but Surfboard 2.36.0 connected to an Xray `method: none`
+    /// server on device (2026-11-22).
+    private static let surfboardShadowsocksCiphers: Set<String> = [
+        "none",
+        "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "aes-128-gcm", "aes-192-gcm", "aes-256-gcm",
+        "chacha20-ietf-poly1305", "xchacha20-ietf-poly1305", "rc4", "rc4-md5", "aes-128-cfb", "aes-192-cfb",
+        "aes-256-cfb", "aes-128-ctr", "aes-192-ctr", "aes-256-ctr", "bf-cfb", "camellia-128-cfb",
+        "camellia-192-cfb", "camellia-256-cfb", "salsa20", "chacha20", "chacha20-ietf"
+    ]
+
+    /// Surfboard reads Tower's Surge profile (the LAN `target=surfboard`
+    /// alias), but its manual documents less than Surge does. A node already
+    /// accepted for Surge also has to fit these, or it is skipped and counted
+    /// rather than handed over in a form Surfboard never documented:
+    /// - VMess and Trojan: WebSocket only. `ws-http-upgrade` appears only on
+    ///   the VLESS page, and on device (2.36.0, 2026-11-22) a VMess node with
+    ///   it spoke WebSocket to an Xray HTTPUpgrade server and failed, while
+    ///   VLESS HTTPUpgrade connected. VLESS takes everything Surge's does.
+    /// - Shadowsocks: no ShadowTLS. Unknown proxy types (SSH, TrustTunnel)
+    ///   make Surfboard reject the whole profile on import.
+    /// - Snell: versions 1–4, with 5 read as 4; v6 is not documented.
+    /// - WireGuard: `dns-server` and `mtu` are mandatory, and Surge's
+    ///   `client-id` (reserved bytes) has no field.
+    static func surfboardAccepts(_ node: ProxyNode) -> Bool {
+        guard surfboardKinds.contains(node.kind) else { return false }
+        switch node.kind {
+        case .vmess, .trojan:
+            return node.transport?.lowercased() != "httpupgrade"
+        case .shadowsocks:
+            guard node.shadowTLS == nil, node.plugin != "shadow-tls" else { return false }
+            let cipher = (node.cipher ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return cipher.isEmpty || surfboardShadowsocksCiphers.contains(cipher)
+        case .snell:
+            return (1...5).contains(node.version ?? 1)
+        case .wireguard:
+            let reserved = (node.wireGuardReserved ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n\"'"))
+            return reserved.isEmpty
+                && !(node.wireGuardDNS ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && node.wireGuardMTU != nil
+        default:
+            return true
+        }
     }
 
     /// Surge's `encryption` value is the client string `xray vlessenc`

@@ -10,6 +10,18 @@
 - Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.33-80](https://github.com/pengchujin/tower/releases/tag/v1.0.33-80)（tag 指向 `7b24f37`）已公开并设为 Latest，回下载 SHA-256 一致：`ead0aacf956c8389a8b81160c691c0dbaea4d2d3eeab9953b46f3f6881213715`。
 - README 下载入口改为 v1.0.33-80；Homebrew cask 更新为 1.0.33,80（tap `08eb70b`），`brew style` / `brew audit` 通过，`brew reinstall --cask` 后 1.0.33（80）严格签名、Gatekeeper 通过、保留隔离标记；从 Finder 打开、主界面可交互尚未人工确认。
 
+## 未发布：局域网订阅 Surfboard 按手册过滤节点（2026-11-22）
+
+- 来源：2026-11-22 上游检查，Sub-Store 2.44.23「Surfboard 支持 VLESS」。局域网 `target=surfboard`（或 UA 含 surfboard）原来整份复用 Surge 配置，11-20 Surge 放开 VLESS、HTTPUpgrade、TrustTunnel 后，这些都会原样给 Surfboard。
+- 依据 [Surfboard 手册](https://getsurfboard.com/docs/profile-format/proxy)（Android mobile-2.36.0 起有 VLESS，手册 2026-11-17 更新）：新增 `SurgeDialect`，`LANSubscriptionFormat.surfboard` 带 `.surfboard` 方言和 `ConfigurationGenerator.surfboardKinds`（去掉 SSH、TrustTunnel、MASQUE）。`ConfigurationGenerator.surfboardAccepts` 在 Surge 规则之上再收窄：VMess / Trojan 不写 HTTPUpgrade（手册只在 VLESS 页有 `ws-http-upgrade`），SS 不写 ShadowTLS（`none` 加密手册没写，但真机能连，放行），Snell 只到 v5（手册：v5 按 v4 处理），WireGuard 必须有 `dns-server` 和 `mtu`，且不能带 reserved（`client-id` 没有字段）。VLESS 与 Surge 规则相同。不符合的跳过并计数，Surge 本身的导出不变；`AppModel` 的请求和生成缓存把 Surfboard 与 Surge 分开。
+- 真机（2026-11-22，Android 17 手机，Surfboard mobile-2.36.0 Build 293，官方 GitHub Release，SHA-256 与附件一致）：用 `surge:///install-config?url=` 经 adb reverse 导入。
+  - 过滤后的配置导入成功，11 个代理与生成器一致。未过滤的 Surge 配置**整份导入失败**：`decode proxy failed: TrustTunnel, proxy type trust-tunnel is not supported`；单独加回 SSH 同样整份失败。所以不认识的代理类型会让整份配置不可用，过滤是必要的。
+  - 单独加回 VMess / Trojan HTTPUpgrade、Snell v6、SS `none`、WireGuard 缺 `mtu`、WireGuard 带 `client-id`，都能导入（只校验语法）。
+  - 本机 Xray 26.3.27 起无 TLS 服务端，经 adb reverse 测速：VMess WS、VLESS HTTPUpgrade、SS `none`、SS aes-256-gcm 都通；**VMess HTTPUpgrade 失败**，服务端报 `proxy/vmess/encoding: failed to read request header`，即 Surfboard 的 VMess 忽略 `ws-http-upgrade`、按 WebSocket 发数据。据此 SS `none` 放行，VMess / Trojan HTTPUpgrade 继续跳过（Trojan 未单独测，推断同一路径）。
+  - 未实测：Snell v6（没有服务端）、WireGuard 缺 MTU / 带 reserved（adb reverse 只转 TCP），仍按手册跳过。
+- 没有处理的：2.36.0 以前的 Surfboard 仍会拿到 VLESS 行（无法按版本区分，旧版遇到会整份失败）；Hysteria 2 / AnyTLS 的 `alpn` 等手册没列的参数照写；规则和策略组部分仍是 Surge 写法，没有按 Surfboard 文档逐项核对（本次导入的内置预设能加载）。
+- 测试：新增 `SurfboardExportTests`（4 项）；SurfboardExport、LANSubscriptionServer、SurgeHTTPUpgrade、SurgeVLESS、ConfigurationGenerator、AuditScale 共通过。待真机：从塔台 App 的局域网订阅实际拉一次（本次是本机生成的同一份配置，没经过 App 的 HTTP 服务）。
+
 ## 未发布：FlClash、Clash Party 放开 Snell v6（2026-11-21）
 
 - 2026-11-21 跑 `check_upstream_updates.py --dry-run` 分拣，结论见 TODO「上游更新待处理」。上游基线没有推进。

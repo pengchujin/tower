@@ -323,6 +323,7 @@ final class AppModel {
         let target: ClientTarget
         let mode: ExportContentMode
         let supportedKinds: Set<ProxyKind>?
+        let surgeDialect: SurgeDialect
     }
     @ObservationIgnored private var requestInputs: RequestInputs?
     @ObservationIgnored private var requestCache: [RequestVariant: ConfigurationRequest] = [:]
@@ -3385,10 +3386,12 @@ final class AppModel {
     func configuration(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeDialect: SurgeDialect = .surge
     ) -> GeneratedConfiguration {
         let request = configurationRequest(target: target, contentMode: contentMode,
-                                           supportedKindsOverride: supportedKindsOverride)
+                                           supportedKindsOverride: supportedKindsOverride,
+                                           surgeDialect: surgeDialect)
         if let cached = generationCache[request.key] { return cached.named(request.name) }
         configurationGenerationCount += 1
         let result = request.generate()
@@ -3436,7 +3439,8 @@ final class AppModel {
     func configurationRequest(
         target: ClientTarget? = nil,
         contentMode: ExportContentMode? = nil,
-        supportedKindsOverride: Set<ProxyKind>? = nil
+        supportedKindsOverride: Set<ProxyKind>? = nil,
+        surgeDialect: SurgeDialect = .surge
     ) -> ConfigurationRequest {
         let inputs = RequestInputs(nodes: nodes, sources: subscriptions, excludedNodes: excludedNodeIDs,
             nameFilter: nodeExportNameFilter,
@@ -3452,11 +3456,13 @@ final class AppModel {
             requestCache.removeAll(keepingCapacity: true)
         }
         let variant = RequestVariant(target: target ?? selectedTarget,
-            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride)
+            mode: contentMode ?? exportContentMode(for: target ?? selectedTarget), supportedKinds: supportedKindsOverride,
+            surgeDialect: surgeDialect)
         if let cached = requestCache[variant] { return cached }
         configurationRequestPreparationCount += 1
         let request = prepareConfigurationRequest(target: variant.target, contentMode: variant.mode,
-                                                   supportedKindsOverride: supportedKindsOverride)
+                                                   supportedKindsOverride: supportedKindsOverride,
+                                                   surgeDialect: surgeDialect)
         // Only the latest supported-kinds variant per client/mode is retained.
         requestCache = requestCache.filter { $0.key.target != variant.target || $0.key.mode != variant.mode }
         requestCache[variant] = request
@@ -3464,7 +3470,8 @@ final class AppModel {
     }
 
     private func prepareConfigurationRequest(
-        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?
+        target: ClientTarget, contentMode: ExportContentMode, supportedKindsOverride: Set<ProxyKind>?,
+        surgeDialect: SurgeDialect
     ) -> ConfigurationRequest {
         let ruleRepository = self.ruleRepository
         let schemeRepository = self.schemeRepository
@@ -3480,8 +3487,11 @@ final class AppModel {
             .sorted()
             .joined(separator: "|")
             .hashValue ?? 0
+        // The Surfboard alias filters nodes the Surge export keeps, so the two
+        // must not share a cache entry.
         let excludedHash = excluded.map(\.rawValue).sorted().joined(separator: "|").hashValue
             ^ supportedKindsHash
+            ^ (surgeDialect == .surfboard ? "surfboard".hashValue : 0)
 
         // A node subscription is nodes only: no rules, no policy groups, so
         // none of the scheme materialization below applies to it. Producing the
@@ -3549,7 +3559,8 @@ final class AppModel {
                     preferRuleSets: preferRuleSets,
                     remoteSubscriptions: remoteSubscriptions,
                     sourceURLHashes: sourceURLHashes,
-                    supportedKindsOverride: supportedKindsOverride
+                    supportedKindsOverride: supportedKindsOverride,
+                    surgeDialect: surgeDialect
                 )
             } else {
                 generated = generator.generate(
@@ -3559,7 +3570,8 @@ final class AppModel {
                     countryCodes: currentCountryCodes,
                     excludedKinds: excluded,
                     remoteSubscriptions: remoteSubscriptions,
-                    supportedKindsOverride: supportedKindsOverride
+                    supportedKindsOverride: supportedKindsOverride,
+                    surgeDialect: surgeDialect
                 )
             }
             return TailnetConfigurationWriter().apply(tailnetExports, to: generated)
@@ -3613,7 +3625,8 @@ final class AppModel {
             return self.configuration(
                 target: format.generationTarget,
                 contentMode: format.generationContentMode,
-                supportedKindsOverride: format.supportedKindsOverride
+                supportedKindsOverride: format.supportedKindsOverride,
+                surgeDialect: format.surgeDialect
             )
         }
         lanSubscriptionServer = server

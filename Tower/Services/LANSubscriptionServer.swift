@@ -124,9 +124,17 @@ enum LANSubscriptionFormat: String, CaseIterable, Identifiable, Equatable {
         switch self {
         case .singBox:
             Set(ProxyKind.allCases).subtracting([.unknown, .shadowsocksR])
+        case .surfboard:
+            ConfigurationGenerator.surfboardKinds.filter { ClientTarget.surge.supports($0) }
         default:
             nil
         }
+    }
+
+    /// Surfboard reads the Surge profile but documents fewer proxy options;
+    /// the generator skips and counts what its manual does not list.
+    var surgeDialect: SurgeDialect {
+        self == .surfboard ? .surfboard : .surge
     }
 
     init?(target: ClientTarget) {
