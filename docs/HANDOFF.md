@@ -5,6 +5,9 @@
 - iOS 1.0.33 已上架（READY_FOR_DISTRIBUTION），因此递增到 1.0.34、构建 81，让 TestFlight 用户拿到 80 之后的四项改动：Snell 行的 ShadowTLS、REALITY `support-x25519mlkem768`（#57）、Surfboard 局域网配置过滤、FlClash / Clash Party 的 Snell v6。核对 TestFlight 时 75–80 两端外部组均为 IN_BETA_TESTING，没有漏发的构建。更新日志 `docs/releases/1.0.34.md`。
 - ACL4SSR 更新到上游 `a7bdd9c97c3c`，产物独立发布于 `d6b1097`，清单绑定该提交（mihomo v1.19.31 / sing-box 1.14.2，官方 GitHub Release 下载并核对 SHA-256；`--mihomo-version` 要带 `v` 前缀，与 `-v` 输出一致）。第二次生成产物无变化。
 - 完整 TowerTests：XCTest 1430 项（跳过 9）、Swift Testing 106 项全部通过，发布脚本测试通过。
+- 发布提交 `cd520ca`。本机 asc 归档两端，核对 `com.jzb.tower` 1.0.34（81），Mac 为 arm64 / x86_64。`asc publish testflight` 两端上传，Apple 处理均为 VALID，已加入外部组「测试」并提交 Beta 审核。本机没有 `TOWER_DEVELOPMENT_TEAM` 时按 RELEASING 从描述文件取唯一团队。私有归档与日志在 `~/Builds/Tower-1.0.34-81/`。这次没有提交 App Store 审核。
+- Mac 直接分发：Developer ID 导出并公证，`stapler validate`、严格签名、Gatekeeper（Notarized Developer ID）、双架构与 DMG 挂载复核通过。GitHub [v1.0.34-81](https://github.com/pengchujin/tower/releases/tag/v1.0.34-81)（tag 指向 `cd520ca`）已公开并设为 Latest，回下载 SHA-256 一致：`ac305e723a8c26dd8626cd12275a5576e6d605d3b2a89cd275ee8dca724357cc`。
+- README 下载入口改为 v1.0.34-81；Homebrew cask 更新为 1.0.34,81（tap `56decf5`），`brew style` / `brew audit` 通过，本机升级后 1.0.34（81）严格签名、Gatekeeper 通过、保留隔离标记；从 Finder 打开、主界面可交互尚未人工确认。
 
 ## 1.0.33（80）TestFlight、App Store 提审与 Mac 分发（2026-11-20）
 
