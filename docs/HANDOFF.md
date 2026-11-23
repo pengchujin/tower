@@ -1,5 +1,11 @@
 # 当前交接
 
+## 1.0.34（81）TestFlight 与 Mac 分发（2026-11-23）
+
+- iOS 1.0.33 已上架（READY_FOR_DISTRIBUTION），因此递增到 1.0.34、构建 81，让 TestFlight 用户拿到 80 之后的四项改动：Snell 行的 ShadowTLS、REALITY `support-x25519mlkem768`（#57）、Surfboard 局域网配置过滤、FlClash / Clash Party 的 Snell v6。核对 TestFlight 时 75–80 两端外部组均为 IN_BETA_TESTING，没有漏发的构建。更新日志 `docs/releases/1.0.34.md`。
+- ACL4SSR 更新到上游 `a7bdd9c97c3c`，产物独立发布于 `d6b1097`，清单绑定该提交（mihomo v1.19.31 / sing-box 1.14.2，官方 GitHub Release 下载并核对 SHA-256；`--mihomo-version` 要带 `v` 前缀，与 `-v` 输出一致）。第二次生成产物无变化。
+- 完整 TowerTests：XCTest 1430 项（跳过 9）、Swift Testing 106 项全部通过，发布脚本测试通过。
+
 ## 1.0.33（80）TestFlight、App Store 提审与 Mac 分发（2026-11-20）
 
 - 内容：Surge 6 正式版放开 VLESS（见下一节），更新日志 `docs/releases/1.0.33.md`。

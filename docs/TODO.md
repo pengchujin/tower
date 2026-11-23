@@ -61,6 +61,8 @@
 
 - 2026-11-21 分拣（除上面的 Snell v6 外都不用改代码）：等正式版的有 QuanX TF 1.9.0 (965+) 支持 Hysteria 2 出站；Surge iOS TF 4041 / Mac 6.13.0 Beta 新增 TLS `client-fingerprint`；Loon TF 3.5.4 Tailscale 入站 / 出口节点；Clash Mi 1.0.33、Hiddify 5.9.15 GitHub 预发布。Sub-Store 2.44.20 给 Surge 加 `client-fingerprint` / `ech-config`、给 Loon 加 Snell v4/v5 和 XHTTP——Loon 正式版仍是 3.5.3，官方文档未写，不跟。TrustTunnel v1.3.1 新增深链 tag `0x0E`（订阅地址）、`0x10`（`tls_profile`），等做 `tt://` 导入时一并处理。Snell 发布说明页仍只是侧栏变化（v6.0.0）。Karing 2934、mihomo Alpha、Hiddify App Store 5.6.0、ClashMac 27.1.9 只修 bug 或界面。
 
+- 2026-11-23 分拣（都不用改代码）：等正式版的有 QuanX TF 1.9.0 build 968 支持 mieru 出站（TCP / TLS / REALITY，@QuanXNews/451）、build 969 支持 Hysteria 2 的 Gecko 混淆（Salamander + 分片，@QuanXNews/452），mieru 归上面「新协议」一项；Clash Mi 1.0.33.1905 GitHub 已转正式，但 App Store 仍是 1.0.32（2026-11-14），更新说明未提内核，Snell v6 继续等商店版并确认 mihomo ≥ 1.19.34；FlClash 0.9.5-pre.1 只是预发布。Sub-Store 2.44.24–2.44.26 给 QuanX 加 mieru / Gecko、解析 Shadowrocket 非标 mieru URI，属第三方实现，等 QuanX 正式版和官方文档。Hiddify 5.9.15（GitHub 正式，App Store 仍是 5.6.0）的 Keep top、Psiphon、WARP、OpenVPN 导入，「Clash」App TF 1.0.19 (222–224) 的内存停止提示和模块内联脚本，都与导出无关。
+
 ### 只需写进兼容文档
 
 - [ ] Clash Verge / FlClash 的 TUN 以客户端设置为准；Verge / Clash Party 的「DNS 覆写保护」会先弹确认，可能挡掉塔台写的 DNS 段。
