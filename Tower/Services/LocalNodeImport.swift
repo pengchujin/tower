@@ -117,6 +117,8 @@ struct ManualNodeDraft: Equatable {
     var alpn = ""
     var realityPublicKey = ""
     var realityShortID = ""
+    /// Mihomo's `support-x25519mlkem768` (issue #57); off keeps its default.
+    var realitySupportsX25519MLKEM768 = false
     var certificateFingerprint = ""
     var fingerprint = "chrome"
     var flow = ""
@@ -164,6 +166,7 @@ struct ManualNodeDraft: Equatable {
         alpn: String = "",
         realityPublicKey: String = "",
         realityShortID: String = "",
+        realitySupportsX25519MLKEM768: Bool = false,
         certificateFingerprint: String = "",
         fingerprint: String = "chrome",
         flow: String = "",
@@ -209,6 +212,7 @@ struct ManualNodeDraft: Equatable {
         self.alpn = alpn
         self.realityPublicKey = realityPublicKey
         self.realityShortID = realityShortID
+        self.realitySupportsX25519MLKEM768 = realitySupportsX25519MLKEM768
         self.certificateFingerprint = certificateFingerprint
         self.fingerprint = fingerprint
         self.flow = flow
@@ -264,6 +268,7 @@ struct ManualNodeDraft: Equatable {
         alpn = node.alpn ?? ""
         realityPublicKey = node.realityPublicKey ?? ""
         realityShortID = node.realityShortID ?? ""
+        realitySupportsX25519MLKEM768 = node.realitySupportsX25519MLKEM768 == true
         certificateFingerprint = node.certificateFingerprint ?? ""
         fingerprint = node.fingerprint ?? "chrome"
         flow = node.flow ?? ""
@@ -550,6 +555,7 @@ struct ManualNodeDraft: Equatable {
             wireGuardPersistentKeepalive: kind == .wireguard ? Int(wireGuardPersistentKeepalive) : nil,
             wireGuardDNS: kind == .wireguard ? wireGuardDNS.nilIfBlank : nil,
             rawURI: "",
+            realitySupportsX25519MLKEM768: usesReality && realitySupportsX25519MLKEM768 ? true : nil,
             ssh: kind == .ssh ? SSHOptions(
                 privateKey: normalizedSSHKey.isEmpty ? nil : normalizedSSHKey + "\n",
                 hostKeys: normalizedSSHHostKey.isEmpty ? [] : [normalizedSSHHostKey]

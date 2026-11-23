@@ -113027,6 +113027,194 @@
           }
         }
       }
+    },
+    "服务端支持 X25519MLKEM768": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخادم يدعم X25519MLKEM768"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server unterstützt X25519MLKEM768"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server supports X25519MLKEM768"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El servidor admite X25519MLKEM768"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur prend en charge X25519MLKEM768"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server mendukung X25519MLKEM768"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーが X25519MLKEM768 に対応"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 X25519MLKEM768 지원"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servidor compatível com X25519MLKEM768"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сервер поддерживает X25519MLKEM768"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เซิร์ฟเวอร์รองรับ X25519MLKEM768"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu X25519MLKEM768 destekliyor"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ hỗ trợ X25519MLKEM768"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务端支持 X25519MLKEM768"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器支援 X25519MLKEM768"
+          }
+        }
+      }
+    },
+    "Mihomo 默认不发送 X25519MLKEM768；新版 Xray 服务端报「REALITY authentication failed」时再打开，只写入 Mihomo 系配置。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يرسل Mihomo المفتاح X25519MLKEM768 افتراضيًا. فعّل هذا الخيار إذا أبلغ خادم Xray حديث عن «REALITY authentication failed». يُكتب فقط في الإعدادات المبنية على Mihomo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo sendet X25519MLKEM768 standardmäßig nicht. Aktiviere dies, wenn ein neuer Xray-Server „REALITY authentication failed“ meldet. Wird nur in Mihomo-basierte Konfigurationen geschrieben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo doesn't send X25519MLKEM768 by default. Turn this on if a newer Xray server reports “REALITY authentication failed”. Only written to Mihomo-based configurations."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo no envía X25519MLKEM768 de forma predeterminada. Actívalo si un servidor Xray reciente indica “REALITY authentication failed”. Solo se escribe en configuraciones basadas en Mihomo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo n’envoie pas X25519MLKEM768 par défaut. Activez cette option si un serveur Xray récent signale « REALITY authentication failed ». Écrit uniquement dans les configurations basées sur Mihomo."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secara default Mihomo tidak mengirim X25519MLKEM768. Aktifkan jika server Xray versi baru melaporkan “REALITY authentication failed”. Hanya ditulis ke konfigurasi berbasis Mihomo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo は既定で X25519MLKEM768 を送信しません。新しい Xray サーバーで「REALITY authentication failed」と表示される場合にオンにしてください。Mihomo 系の設定にのみ書き込まれます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo는 기본적으로 X25519MLKEM768을 보내지 않습니다. 최신 Xray 서버에서 “REALITY authentication failed” 오류가 나면 켜세요. Mihomo 계열 구성에만 기록됩니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por padrão, o Mihomo não envia X25519MLKEM768. Ative se um servidor Xray recente informar “REALITY authentication failed”. Só é gravado em configurações baseadas no Mihomo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию Mihomo не отправляет X25519MLKEM768. Включите, если новый сервер Xray сообщает «REALITY authentication failed». Записывается только в конфигурации на базе Mihomo."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โดยค่าเริ่มต้น Mihomo จะไม่ส่ง X25519MLKEM768 ให้เปิดตัวเลือกนี้เมื่อเซิร์ฟเวอร์ Xray รุ่นใหม่แจ้งว่า “REALITY authentication failed” จะเขียนลงในการตั้งค่าที่ใช้ Mihomo เท่านั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo varsayılan olarak X25519MLKEM768 göndermez. Yeni bir Xray sunucusu “REALITY authentication failed” bildirirse bunu açın. Yalnızca Mihomo tabanlı yapılandırmalara yazılır."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theo mặc định, Mihomo không gửi X25519MLKEM768. Hãy bật khi máy chủ Xray mới báo “REALITY authentication failed”. Chỉ được ghi vào cấu hình dựa trên Mihomo."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo 默认不发送 X25519MLKEM768；新版 Xray 服务端报「REALITY authentication failed」时再打开，只写入 Mihomo 系配置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mihomo 預設不傳送 X25519MLKEM768；新版 Xray 伺服器回報「REALITY authentication failed」時再開啟，只寫入 Mihomo 系設定。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -181,4 +181,86 @@ extension RealityTests {
 
         XCTAssertEqual(node.name, "HK Premium 01")
     }
+
+    // MARK: - X25519MLKEM768 (issue #57)
+
+    /// Xray 26 的 REALITY 服务端要求握手带 X25519MLKEM768，Mihomo 默认会剥掉，
+    /// 只有 `support-x25519mlkem768: true` 才保留。塔台以前导入时丢掉、导出时不写。
+    private var mlkemYAML: String { """
+    proxies:
+      - name: Inline
+        type: vless
+        server: a.example.com
+        port: 443
+        uuid: 11111111-1111-1111-1111-111111111111
+        tls: true
+        servername: cover.example.com
+        client-fingerprint: chrome
+        reality-opts: {public-key: TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, short-id: 0123456789abcdef, support-x25519mlkem768: true}
+      - name: Block
+        type: vless
+        server: b.example.com
+        port: 443
+        uuid: 11111111-1111-1111-1111-111111111111
+        tls: true
+        servername: cover.example.com
+        reality-opts:
+          public-key: TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          support-x25519mlkem768: true
+      - name: Off
+        type: vless
+        server: c.example.com
+        port: 443
+        uuid: 11111111-1111-1111-1111-111111111111
+        tls: true
+        servername: cover.example.com
+        reality-opts:
+          public-key: TestPublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          support-x25519mlkem768: false
+    """ }
+
+    func testClashImportKeepsX25519MLKEM768Support() {
+        let nodes = parser.parse(data: Data(mlkemYAML.utf8)).nodes
+        XCTAssertEqual(nodes.map(\.name), ["Inline", "Block", "Off"])
+        XCTAssertEqual(nodes.map(\.realitySupportsX25519MLKEM768), [true, true, nil])
+        XCTAssertTrue(nodes.allSatisfy(\.usesReality))
+    }
+
+    func testOnlyMihomoTargetsWriteX25519MLKEM768Support() throws {
+        let nodes = parser.parse(data: Data(mlkemYAML.utf8)).nodes
+        let flag = "      support-x25519mlkem768: true"
+
+        for target in RoutingRuleCapabilities.mihomoTargets where target != .karing {
+            let content = generator.generate(nodes: nodes, preset: preset, target: target).content
+            XCTAssertEqual(content.components(separatedBy: flag).count - 1, 2, "\(target.name) 应只给开启的两个节点写")
+            // 重新导入后仍保留，不会在二次转换时丢掉。
+            let reparsed = parser.parse(data: Data(content.utf8)).nodes
+            XCTAssertEqual(reparsed.filter { $0.realitySupportsX25519MLKEM768 == true }.count, 2, target.name)
+        }
+        for target in [ClientTarget.clash, .shadowrocket, .karing] {
+            let content = generator.generate(nodes: nodes, preset: preset, target: target).content
+            XCTAssertTrue(content.contains("reality-opts:"), target.name)
+            XCTAssertFalse(content.contains("support-x25519mlkem768"), "\(target.name) 没有这个字段的文档")
+        }
+        // 默认节点不写，避免旧服务端回归。
+        let plain = generator.generate(nodes: [try node()], preset: preset, target: .clashVerge).content
+        XCTAssertFalse(plain.contains("support-x25519mlkem768"))
+    }
+
+    func testManualDraftCarriesX25519MLKEM768Support() throws {
+        var draft = ManualNodeDraft(
+            kind: .vless, name: "Manual", server: "edge.example.com", port: "443",
+            secret: "de305d54-75b4-431b-adb2-eb6b9e546014", tls: true, sni: "cover.example.com",
+            realityPublicKey: "server-public-key", fingerprint: "chrome", security: "reality"
+        )
+        XCTAssertNil(try draft.makeNode().realitySupportsX25519MLKEM768)
+
+        draft.realitySupportsX25519MLKEM768 = true
+        let node = try draft.makeNode()
+        XCTAssertEqual(node.realitySupportsX25519MLKEM768, true)
+        XCTAssertTrue(ManualNodeDraft(node: node).realitySupportsX25519MLKEM768)
+
+        draft.security = "tls"
+        XCTAssertNil(try draft.makeNode().realitySupportsX25519MLKEM768, "非 REALITY 节点不保留")
+    }
 }

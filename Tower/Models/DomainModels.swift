@@ -645,6 +645,12 @@ struct ProxyNode: Identifiable, Codable, Hashable {
     /// SNI, which looks fine and never connects.
     var realityPublicKey: String?
     var realityShortID: String?
+    /// Mihomo's `reality-opts.support-x25519mlkem768`. Mihomo strips the
+    /// X25519MLKEM768 key share by default for old REALITY servers; newer Xray
+    /// servers that require it then fail authentication (issue #57). Only
+    /// `true` is meaningful, and it is never inferred: forcing it everywhere
+    /// would break the old servers the default exists for.
+    var realitySupportsX25519MLKEM768: Bool?
     /// SHA-256 fingerprint of the server certificate. This is deliberately
     /// separate from `fingerprint`, which is the browser-style uTLS ClientHello
     /// name (`chrome`, `safari`, ...). Mihomo and Shadowrocket accept both and
@@ -768,6 +774,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         rawURI: String,
         isSubscriptionMetadata: Bool? = nil,
         vlessEncryption: String? = nil,
+        realitySupportsX25519MLKEM768: Bool? = nil,
         ssh: SSHOptions? = nil,
         trustTunnel: TrustTunnelOptions? = nil
     ) {
@@ -826,6 +833,7 @@ struct ProxyNode: Identifiable, Codable, Hashable {
         self.rawURI = rawURI
         self.isSubscriptionMetadata = isSubscriptionMetadata
         self.vlessEncryption = vlessEncryption
+        self.realitySupportsX25519MLKEM768 = realitySupportsX25519MLKEM768
         self.ssh = ssh
         self.trustTunnel = trustTunnel
     }

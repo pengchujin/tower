@@ -670,12 +670,16 @@ struct AddSourceSheet: View {
                         Text("无").tag("")
                         Text("XTLS Vision").tag("xtls-rprx-vision")
                     }
+                    Toggle("服务端支持 X25519MLKEM768", isOn: $manualDraft.realitySupportsX25519MLKEM768)
                 }
             } header: {
                 Text("传输安全")
             } footer: {
                 if manualDraft.security == "reality" {
-                    Text("REALITY 公钥必须与服务器一致；当前仅支持 TCP 或 gRPC 传输。")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("REALITY 公钥必须与服务器一致；当前仅支持 TCP 或 gRPC 传输。")
+                        Text("Mihomo 默认不发送 X25519MLKEM768；新版 Xray 服务端报「REALITY authentication failed」时再打开，只写入 Mihomo 系配置。")
+                    }
                 }
             }
         }

@@ -2651,7 +2651,7 @@ struct ConfigurationGenerator {
             appendClashCertificateFingerprint(node, target: target, to: &values)
             if [.shadowrocket, .karing].contains(target) {
                 values.append("    tls: true")
-                appendClashReality(node, to: &values)
+                appendClashReality(node, target: target, to: &values)
             }
             appendClashClientFingerprint(node, to: &values)
         case .snell:
@@ -2675,7 +2675,7 @@ struct ConfigurationGenerator {
                 values.append("    skip-cert-verify: \(node.skipCertificateVerification)")
                 appendClashALPN(node, to: &values)
                 appendClashCertificateFingerprint(node, target: target, to: &values)
-                if [.shadowrocket, .karing].contains(target) { appendClashReality(node, to: &values) }
+                if [.shadowrocket, .karing].contains(target) { appendClashReality(node, target: target, to: &values) }
                 appendClashClientFingerprint(node, to: &values)
             }
         case .masque:
@@ -2744,12 +2744,20 @@ struct ConfigurationGenerator {
 
     /// REALITY needs the server's public key and short id; without them the
     /// node is plain TLS to a borrowed SNI and cannot connect.
-    private func appendClashReality(_ node: ProxyNode, to values: inout [String]) {
+    private func appendClashReality(_ node: ProxyNode, target: ClientTarget, to values: inout [String]) {
         guard node.usesReality else { return }
         values.append("    reality-opts:")
         values.append("      public-key: \(yaml(node.realityPublicKey ?? ""))")
         if let shortID = node.realityShortID, !shortID.isEmpty {
             values.append("      short-id: \(yaml(shortID))")
+        }
+        // Mihomo strips the X25519MLKEM768 key share unless told the server
+        // supports it (component/tls/reality.go, since v1.19.9); a newer Xray
+        // server then rejects the handshake (issue #57). Karing runs its own
+        // core and documents no such field, so only mihomo clients get it.
+        if node.realitySupportsX25519MLKEM768 == true,
+           RoutingRuleCapabilities.mihomoTargets.contains(target), target != .karing {
+            values.append("      support-x25519mlkem768: true")
         }
         // Clash Meta defaults the fingerprint when REALITY is on but it is
         // absent, so send whatever the airport specified.
@@ -2798,7 +2806,7 @@ struct ConfigurationGenerator {
         }
         if node.kind == .trojan { appendClashALPN(node, to: &values) }
         appendClashCertificateFingerprint(node, target: target, to: &values)
-        appendClashReality(node, to: &values)
+        appendClashReality(node, target: target, to: &values)
         if node.kind == .vless, let flow = node.flow, !flow.isEmpty {
             values.append("    flow: \(yaml(flow))")
         }

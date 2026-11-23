@@ -2169,6 +2169,10 @@ struct SubscriptionParser {
                     : nil,
                 rawURI: "clash://local/\(UUID().uuidString)",
                 vlessEncryption: kind == .vless ? vlessEncryption(dictionary["encryption"]) : nil,
+                // issue #57: dropping it made Mihomo strip the key share a
+                // new Xray REALITY server requires. Only `true` is kept.
+                realitySupportsX25519MLKEM768: hasRealityOptions
+                    && boolString(dictionary["support-x25519mlkem768"]) ? true : nil,
                 ssh: kind == .ssh ? SSHOptions(
                     privateKey: dictionary["private-key"].flatMap { $0.isEmpty ? nil : $0 },
                     privateKeyPassphrase: dictionary["private-key-passphrase"].flatMap { $0.isEmpty ? nil : $0 },
@@ -2358,6 +2362,9 @@ struct SubscriptionParser {
             let reality = parseInlineYAMLMap(rawReality)
             if result["public-key"] == nil { result["public-key"] = reality["public-key"] }
             if result["short-id"] == nil { result["short-id"] = reality["short-id"] }
+            if result["support-x25519mlkem768"] == nil {
+                result["support-x25519mlkem768"] = reality["support-x25519mlkem768"]
+            }
         }
 
         let transportOptionKeys = [
