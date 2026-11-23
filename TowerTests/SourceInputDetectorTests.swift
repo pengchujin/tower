@@ -62,6 +62,25 @@ final class SourceInputDetectorTests: XCTestCase {
         )
     }
 
+    func testDetectsBareHTTPSProxyWithExplicitPortAsNode() {
+        let detector = SourceInputDetector()
+        XCTAssertEqual(detector.detect("https://proxy.example.com:8443"), .node(.http))
+        XCTAssertEqual(detector.detect("https://203.0.113.7:443"), .node(.http))
+        XCTAssertEqual(
+            detector.detect("https://one.example.com:8443\nhttps://two.example.com:8443"),
+            .nodeBatch(count: 2)
+        )
+        XCTAssertTrue(detector.subscriptionURLs("https://proxy.example.com:8443").isEmpty)
+    }
+
+    func testKeepsHTTPSURLsWithAPathOrQueryAsSubscriptions() {
+        let detector = SourceInputDetector()
+        XCTAssertEqual(detector.detect("https://sub.example.com:2096?token=secret"), .subscription)
+        XCTAssertEqual(detector.detect("https://sub.example.com:8443/"), .subscription)
+        XCTAssertEqual(detector.detect("https://sub.example.com/link/abc"), .subscription)
+        XCTAssertEqual(detector.detect("https://sub.example.com"), .subscription)
+    }
+
     func testDetectsHTTPSProxyWithImplicitDefaultPort() {
         XCTAssertEqual(
             SourceInputDetector().detect("https://alice:secret@proxy.example.com#Office"),

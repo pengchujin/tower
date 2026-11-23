@@ -87,11 +87,17 @@ struct SourceInputDetector {
     /// HTTP(S) proxy links and subscription URLs share a scheme. The single
     /// and multi-line paths must classify them identically, otherwise two
     /// `http://host:8080` proxies pasted together import as subscriptions.
+    ///
+    /// A bare `https://host:port` is a proxy too: a subscription always carries
+    /// a token in its path or query, while fetching the proxy endpoint as a
+    /// subscription fails with "server with the specified hostname could not
+    /// be found" (TestFlight feedback). An HTTPS URL with a query but no path
+    /// (`https://host:2096?token=…`) stays a subscription.
     private func httpProxyNode(_ value: String, components: URLComponents, scheme: String) -> ProxyNode? {
         let looksLikeProxy = components.user != nil
             || (components.port != nil
                 && components.path.isEmpty
-                && (scheme == "http" || components.fragment != nil))
+                && (scheme == "http" || components.fragment != nil || components.query == nil))
         guard let node = parser.parseURI(value),
               looksLikeProxy || isEncodedHTTPProxy(node, originalHost: components.host) else {
             return nil
