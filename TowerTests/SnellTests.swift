@@ -239,6 +239,63 @@ final class SnellTests: XCTestCase {
         XCTAssertTrue(newLine.contains("udp-relay=true"))
     }
 
+    // MARK: - ShadowTLS
+
+    /// TestFlight 反馈（1.0.33 (80)）：Snell + ShadowTLS 转 Surge 后丢了
+    /// shadow-tls 的密码和版本，导出成连不上的普通 Snell。
+    private let shadowTLSLine = "JP STLS = snell, 203.0.113.20, 443, psk=pwd1, version=4, shadow-tls-password=p%25w;d2, shadow-tls-sni=cover.example.com, shadow-tls-version=3"
+
+    func testSnellLineKeepsShadowTLS() throws {
+        let node = try XCTUnwrap(parser.parseURI(shadowTLSLine))
+
+        XCTAssertEqual(node.password, "pwd1")
+        XCTAssertEqual(node.plugin, "shadow-tls")
+        XCTAssertEqual(node.shadowTLS, ShadowTLSOptions(version: 3, host: "cover.example.com", password: "p%w;d2"))
+        XCTAssertNil(node.udpRelayEnabled)
+    }
+
+    func testSnellShadowTLSWithUnknownOrIncompleteFieldsIsRejected() {
+        let base = "JP = snell, 203.0.113.20, 443, psk=pwd1, version=4"
+        XCTAssertNil(parser.parseURI(base + ", shadow-tls-password=x, shadow-tls-sni=a.example, shadow-tls-foo=1"))
+        XCTAssertNil(parser.parseURI(base + ", shadow-tls-password=x, shadow-tls-version=3"), "缺 SNI 不能静默导入")
+        XCTAssertNil(parser.parseURI(base + ", shadow-tls-sni=a.example, shadow-tls-version=3"), "缺密码不能静默导入")
+    }
+
+    func testSurgeWritesSnellShadowTLSAndRoundTrips() throws {
+        let node = try XCTUnwrap(parser.parseURI(shadowTLSLine))
+
+        for target in [ClientTarget.surge, .surgeMac] {
+            let result = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
+            XCTAssertEqual(result.supportedNodeCount, 1, target.name)
+            for fragment in ["snell, 203.0.113.20, 443", "psk=pwd1", "version=4",
+                             "shadow-tls-password=p%25w;d2", "shadow-tls-sni=cover.example.com", "shadow-tls-version=3"] {
+                XCTAssertTrue(result.content.contains(fragment), "\(target.name) 缺少 \(fragment)")
+            }
+            // ShadowTLS 只包 TCP，来源没写 udp-relay 就不替它打开。
+            XCTAssertFalse(result.content.contains("udp-relay=true"))
+        }
+
+        let exported = ConfigurationGenerator().snellShareLine(node)
+        XCTAssertEqual(parser.parseURI(exported)?.shadowTLS, node.shadowTLS)
+    }
+
+    func testSnellShadowTLSKeepsExplicitUDPRelay() throws {
+        let node = try XCTUnwrap(parser.parseURI(shadowTLSLine + ", udp-relay=true"))
+        let content = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: .surge).content
+        XCTAssertTrue(content.contains("udp-relay=true"))
+    }
+
+    func testOtherClientsSkipSnellShadowTLSInsteadOfDroppingIt() throws {
+        let node = try XCTUnwrap(parser.parseURI(shadowTLSLine))
+
+        for target in ClientTarget.allCases where ![.surge, .surgeMac].contains(target) {
+            let result = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: target)
+            XCTAssertEqual(result.supportedNodeCount, 0, "\(target.name) 不能把 Snell + ShadowTLS 写成普通 Snell")
+            XCTAssertFalse(result.content.contains("203.0.113.20"), target.name)
+        }
+        XCTAssertFalse(ConfigurationGenerator.surfboardAccepts(node))
+    }
+
     // MARK: - Sharing
 
     func testSharingGivesBackTheProxyLine() throws {

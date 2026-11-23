@@ -1076,10 +1076,15 @@ struct ConfigurationGenerator {
         if node.kind == .hysteria2, target == .loon, let obfs = hysteria2Obfs(node),
            obfs.password.rangeOfCharacter(from: Self.loonBareFieldDelimiters) != nil { return false }
         if node.shadowTLS != nil || node.plugin == "shadow-tls" {
-            guard node.kind == .shadowsocks, node.plugin == "shadow-tls",
+            guard [.shadowsocks, .snell].contains(node.kind), node.plugin == "shadow-tls",
                   let options = node.shadowTLS, options.isValid,
-                  node.obfs == nil, node.transport == nil, !node.tls,
+                  node.obfs == nil || node.kind == .snell && ["", "none"].contains(node.obfs!.lowercased()),
+                  node.transport == nil, !node.tls,
                   certificatePin(node) == nil else { return false }
+            // Snell + ShadowTLS is documented only by Surge
+            // (manual.nssurge.com/policies/tls.html); everywhere else the
+            // wrapped node is skipped rather than exported as plain Snell.
+            if node.kind == .snell, ![.surge, .surgeMac].contains(target) { return false }
             switch target {
             case .clashApple, .clashVerge, .clashMac, .flClash, .mihomoParty, .clashMi:
                 // Mihomo's ShadowTLS client does not offer skip-cert-verify.
@@ -1253,6 +1258,7 @@ struct ConfigurationGenerator {
             let cipher = (node.cipher ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return cipher.isEmpty || surfboardShadowsocksCiphers.contains(cipher)
         case .snell:
+            guard node.shadowTLS == nil, node.plugin != "shadow-tls" else { return false }
             return (1...5).contains(node.version ?? 1)
         case .wireguard:
             let reserved = (node.wireGuardReserved ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n\"'"))
@@ -3182,7 +3188,12 @@ struct ConfigurationGenerator {
                 components.append("obfs=\(mode)")
                 appendValue(node.obfsParam, key: "obfs-host", to: &components)
             }
-            if (node.version ?? 4) >= 3 { components.append("udp-relay=true") }
+            if let shadowTLS = node.shadowTLS {
+                components.append("shadow-tls-password=\(confValue(shadowTLS.password.replacingOccurrences(of: "%", with: "%25")))")
+                components.append("shadow-tls-sni=\(confValue(shadowTLS.host))")
+                components.append("shadow-tls-version=\(shadowTLS.version)")
+                if node.udpRelayEnabled == true, (node.version ?? 4) >= 3 { components.append("udp-relay=true") }
+            } else if (node.version ?? 4) >= 3 { components.append("udp-relay=true") }
         case .socks5:
             components = [node.tls ? "socks5-tls" : "socks5", node.server, "\(node.port)"]
             components += surgeCredentialPair(node)

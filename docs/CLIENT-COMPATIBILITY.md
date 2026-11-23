@@ -87,6 +87,10 @@ SS 插件支持 simple-obfs、WebSocket 模式 v2ray-plugin，以及下述 Shado
 | Hiddify 仅节点 | 包含 ShadowTLS 时使用仅含 outbounds 的 JSON，以 §hide§ 隐藏辅助通道；普通列表沿用 URI |
 | 其他目标 | 未验证表达方式，明确跳过，不降级为普通 SS |
 
+### Snell + ShadowTLS
+
+Surge 的 Snell 行可带同一组 `shadow-tls-password` / `shadow-tls-sni` / `shadow-tls-version`（[Surge 手册](https://manual.nssurge.com/policies/tls.html) 的示例即为 Snell）。导入时与 SS 行同样校验：未知 `shadow-tls-*` 键、缺 SNI 或密码的行拒绝并计入跳过；密码按 Surge 百分号解码。只有 Surge / Surge Mac 写出这三项，`udp-relay` 只在来源显式开启时保留；其他客户端（含 Surfboard）都没有文档化的 Snell + ShadowTLS 写法，一律跳过，不导出成连不上的普通 Snell。2026-11-22 起，依据 TestFlight 反馈（1.0.33 (80) 转 Surge 丢失 ShadowTLS 密码与版本）。Snell 行上的 `reuse`、`tfo` 等其他选项仍未保留。
+
 ShadowTLS 包装 TCP，不意味着支持 UDP。Mihomo、Stash、Surge 保留来源声明的普通 SS UDP 参数；sing-box detour 当前仅输出 TCP，源明确要求 UDP 的此类节点跳过。本轮不新增 UDP-over-TCP，来源显式启用该模式时拒绝导入。自定义 TLS 指纹与跳过证书校验仅在对应导出能保真时保留，否则跳过。已有证书 pin、复合传输等无法完整表达的组合仍跳过。
 
 依据：[Mihomo SS 插件](https://wiki.metacubex.one/en/config/proxies/ss/)、[Stash 协议说明](https://stash.wiki/en/proxy-protocols/proxy-types)、[Surge ShadowTLS](https://manual.nssurge.com/policies/tls.html)、[Surge SS2022](https://manual.nssurge.com/policies/shadowsocks.html)、[sing-box ShadowTLS](https://sing-box.sagernet.org/configuration/outbound/shadowtls/)。客户端实际接收和连通仍需按版本验收，不能将内核检查等同于每个客户端真机验证。

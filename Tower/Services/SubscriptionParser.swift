@@ -1221,6 +1221,23 @@ struct SubscriptionParser {
         guard let psk = options["psk"], !psk.isEmpty,
               Self.snellModeIsDefault(options["mode"]) else { return nil }
 
+        // Surge wraps Snell in ShadowTLS with the same `shadow-tls-*` fields
+        // as SS (manual.nssurge.com/policies/tls.html). Dropping them left a
+        // plain Snell node that cannot reach a ShadowTLS server.
+        var shadowTLS: ShadowTLSOptions?
+        let shadowTLSKeys = Set(options.keys.filter { $0.hasPrefix("shadow-tls-") })
+        if !shadowTLSKeys.isEmpty {
+            guard shadowTLSKeys.isSubset(of: ["shadow-tls-version", "shadow-tls-sni", "shadow-tls-password"]) else { return nil }
+            // Surge percent-decodes these values, matching the SS line reader.
+            func decoded(_ key: String) -> String? { options[key].map { $0.removingPercentEncoding ?? $0 } }
+            guard let parsed = shadowTLSOptions([
+                "version": decoded("shadow-tls-version") ?? "2",
+                "host": decoded("shadow-tls-sni") ?? "",
+                "password": decoded("shadow-tls-password") ?? ""
+            ]) else { return nil }
+            shadowTLS = parsed
+        }
+
         return ProxyNode(
             sourceID: sourceID,
             kind: .snell,
@@ -1228,10 +1245,15 @@ struct SubscriptionParser {
             server: server,
             port: port,
             password: psk,
+            plugin: shadowTLS == nil ? nil : "shadow-tls",
+            shadowTLS: shadowTLS,
             hostHeader: options["obfs-host"],
             obfs: options["obfs"],
             obfsParam: options["obfs-host"],
             version: Int(options["version"] ?? ""),
+            // Only kept for wrapped nodes: ShadowTLS carries TCP, so UDP is
+            // exported only where the source line asked for it.
+            udpRelayEnabled: shadowTLS == nil ? nil : options["udp-relay"].map { boolString($0) },
             rawURI: raw
         )
     }
