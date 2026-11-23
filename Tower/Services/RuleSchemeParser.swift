@@ -721,6 +721,8 @@ struct RuleSchemeParser {
         var encryptedDNSServers: [String] = []
         var remoteDNSServers: [String] = []
         var proxyTestURLString: String?
+        var skipProxyHosts: [String] = []
+        var tunExcludedRoutes: [String] = []
         var inGeneral = false
         var inClashDNS = false
         var clashDNSList: String?
@@ -765,6 +767,12 @@ struct RuleSchemeParser {
                       let value = assignmentValue(for: "proxy-test-url", in: line)
                         ?? assignmentValue(for: "server_check_url", in: line) {
                 proxyTestURLString = value
+            } else if inGeneral, let value = assignmentValue(for: "skip-proxy", in: line) {
+                skipProxyHosts += commaSeparatedValues(value)
+            } else if inGeneral,
+                      let value = assignmentValue(for: "tun-excluded-routes", in: line)
+                        ?? assignmentValue(for: "bypass-tun", in: line) {
+                tunExcludedRoutes += commaSeparatedValues(value)
             }
 
             guard inClashDNS else { continue }
@@ -808,7 +816,13 @@ struct RuleSchemeParser {
             )),
             encryptedDNSServers: unique(encryptedDNSServers),
             remoteDNSServers: unique(remoteDNSServers),
-            proxyTestURLString: proxyTestURLString
+            proxyTestURLString: proxyTestURLString,
+            skipProxyHosts: unique(skipProxyHosts.compactMap(
+                RuleSchemeNetworkSettings.normalizedSkipProxyHost
+            )),
+            tunExcludedRoutes: unique(tunExcludedRoutes.compactMap(
+                RuleSchemeNetworkSettings.normalizedExcludedRoute
+            ))
         )
         return settings.isEmpty ? nil : settings
     }

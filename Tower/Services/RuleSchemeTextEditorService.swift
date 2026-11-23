@@ -233,6 +233,12 @@ struct RuleSchemeTextEditorService {
                 )
             }
             if let url = settings.proxyTestURLString { lines.append("proxy-test-url = \(url)") }
+            if !settings.skipProxyHosts.isEmpty {
+                lines.append("skip-proxy = \(settings.skipProxyHosts.joined(separator: ", "))")
+            }
+            if !settings.tunExcludedRoutes.isEmpty {
+                lines.append("tun-excluded-routes = \(settings.tunExcludedRoutes.joined(separator: ", "))")
+            }
             lines.append("")
         }
         lines.append("[custom]")

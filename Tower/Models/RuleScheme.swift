@@ -314,7 +314,16 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             validPolicies: validPolicies.subtracting(removedGroupNames)
         ) + mergedRulesets + finalRulesets
         if groupCustomization?.overridesNetworkSettings == true {
-            result.networkSettings = groupCustomization?.networkSettingsOverride
+            var settings = groupCustomization?.networkSettingsOverride
+            // The DNS panel (and "restore Tower DNS") edits DNS only; the
+            // source's skip-proxy / excluded routes are not on it and stay.
+            if let source = result.networkSettings, source.carriesBypassLists {
+                var merged = settings ?? RuleSchemeNetworkSettings()
+                merged.skipProxyHosts = source.skipProxyHosts
+                merged.tunExcludedRoutes = source.tunExcludedRoutes
+                settings = merged
+            }
+            result.networkSettings = settings
         }
 
         // Nil means the untouched default: reproduce every group exactly as
@@ -737,6 +746,13 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
     var remoteDNSServers: [String]
     var proxyTestURLString: String?
     var dnsProtectionMode: RuleSchemeDNSProtectionMode
+    /// Surge / Loon / Shadowrocket `skip-proxy` host list from the imported
+    /// source. Written only to clients whose manual documents the key.
+    var skipProxyHosts: [String]
+    /// IPv4/IPv6 CIDRs from Surge `tun-excluded-routes` or Loon /
+    /// Shadowrocket `bypass-tun`; domain entries of `bypass-tun` are dropped
+    /// because Surge accepts CIDRs only.
+    var tunExcludedRoutes: [String]
 
     init(
         ipv6Enabled: Bool? = nil,
@@ -744,7 +760,9 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
         encryptedDNSServers: [String] = [],
         remoteDNSServers: [String] = [],
         proxyTestURLString: String? = nil,
-        dnsProtectionMode: RuleSchemeDNSProtectionMode = .standard
+        dnsProtectionMode: RuleSchemeDNSProtectionMode = .standard,
+        skipProxyHosts: [String] = [],
+        tunExcludedRoutes: [String] = []
     ) {
         self.ipv6Enabled = ipv6Enabled
         self.dnsServers = dnsServers
@@ -752,15 +770,56 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
         self.remoteDNSServers = remoteDNSServers
         self.proxyTestURLString = proxyTestURLString
         self.dnsProtectionMode = dnsProtectionMode
+        self.skipProxyHosts = skipProxyHosts
+        self.tunExcludedRoutes = tunExcludedRoutes
     }
 
     var isEmpty: Bool {
-        ipv6Enabled == nil
-            && dnsServers.isEmpty
-            && encryptedDNSServers.isEmpty
-            && remoteDNSServers.isEmpty
-            && proxyTestURLString == nil
-            && dnsProtectionMode == .standard
+        !carriesDNSSettings && !carriesBypassLists
+    }
+
+    /// False when the source set only bypass lists: DNS then keeps every
+    /// exporter's built-in default, exactly as with no settings at all.
+    var carriesDNSSettings: Bool {
+        ipv6Enabled != nil
+            || !dnsServers.isEmpty
+            || !encryptedDNSServers.isEmpty
+            || !remoteDNSServers.isEmpty
+            || proxyTestURLString != nil
+            || dnsProtectionMode != .standard
+    }
+
+    var carriesBypassLists: Bool {
+        !skipProxyHosts.isEmpty || !tunExcludedRoutes.isEmpty
+    }
+
+    /// A Surge host-list entry: domain, `*` wildcard, IP, `192.168.2.*` or
+    /// CIDR. Anything else (spaces, `=`, control characters) is dropped so a
+    /// source line can never break out of its `[General]` key.
+    static func normalizedSkipProxyHost(_ value: String) -> String? {
+        let candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty, candidate.count <= 253,
+              candidate.unicodeScalars.contains(where: { CharacterSet.alphanumerics.contains($0) }) else {
+            return nil
+        }
+        let allowed = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_*:/")
+        guard candidate.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+        return candidate
+    }
+
+    /// An IPv4 or IPv6 CIDR with a prefix in range, as `tun-excluded-routes`
+    /// and `bypass-tun` both accept.
+    static func normalizedExcludedRoute(_ value: String) -> String? {
+        let candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = candidate.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 2, let prefix = Int(parts[1]), String(prefix) == parts[1] else { return nil }
+        let address = String(parts[0])
+        var ipv4 = in_addr()
+        if inet_pton(AF_INET, address, &ipv4) == 1 { return (0...32).contains(prefix) ? candidate : nil }
+        var ipv6 = in6_addr()
+        if inet_pton(AF_INET6, address, &ipv6) == 1 { return (0...128).contains(prefix) ? candidate : nil }
+        return nil
     }
 
     /// Plain DNS fields are emitted into every supported client without a URL
@@ -786,6 +845,8 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
         case remoteDNSServers
         case proxyTestURLString
         case dnsProtectionMode
+        case skipProxyHosts
+        case tunExcludedRoutes
     }
 
     init(from decoder: Decoder) throws {
@@ -804,6 +865,8 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
         let modeValue = try container.decodeIfPresent(String.self, forKey: .dnsProtectionMode)
         dnsProtectionMode = modeValue.flatMap(RuleSchemeDNSProtectionMode.init(rawValue:))
             ?? .standard
+        skipProxyHosts = try container.decodeIfPresent([String].self, forKey: .skipProxyHosts) ?? []
+        tunExcludedRoutes = try container.decodeIfPresent([String].self, forKey: .tunExcludedRoutes) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -814,6 +877,8 @@ struct RuleSchemeNetworkSettings: Codable, Hashable {
         if !remoteDNSServers.isEmpty { try container.encode(remoteDNSServers, forKey: .remoteDNSServers) }
         try container.encodeIfPresent(proxyTestURLString, forKey: .proxyTestURLString)
         try container.encode(dnsProtectionMode.rawValue, forKey: .dnsProtectionMode)
+        if !skipProxyHosts.isEmpty { try container.encode(skipProxyHosts, forKey: .skipProxyHosts) }
+        if !tunExcludedRoutes.isEmpty { try container.encode(tunExcludedRoutes, forKey: .tunExcludedRoutes) }
     }
 
     static let towerDefault = RuleSchemeNetworkSettings(

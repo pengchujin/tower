@@ -252,6 +252,85 @@ final class DNSDefaultsTests: XCTestCase {
         XCTAssertFalse(quanX.lowercased().contains("no-resolve"), quanX)
     }
 
+    func testImportedSkipProxyAndExcludedRoutesReachSurgeAndLoon() throws {
+        let source = """
+        [General]
+        skip-proxy = 192.168.0.0/16, 10.0.0.0/8, localhost, *.local, bad host, a=b
+        tun-excluded-routes = 192.168.0.0/16, fd00::/8, 10.0.0.0/33, example.com
+
+        [Proxy Group]
+        Proxy = select, DIRECT
+
+        [Rule]
+        FINAL,Proxy
+        """
+        let scheme = try RuleSchemeParser().parse(text: source, id: "bypass", name: "Bypass", summary: "Bypass")
+        XCTAssertEqual(scheme.networkSettings?.skipProxyHosts,
+                       ["192.168.0.0/16", "10.0.0.0/8", "localhost", "*.local"])
+        XCTAssertEqual(scheme.networkSettings?.tunExcludedRoutes, ["192.168.0.0/16", "fd00::/8"])
+        XCTAssertEqual(scheme.networkSettings?.carriesDNSSettings, false)
+
+        for target in [ClientTarget.surge, .surgeMac] {
+            let surge = generatedScheme(scheme, target: target)
+            XCTAssertTrue(surge.contains("skip-proxy = 192.168.0.0/16, 10.0.0.0/8, localhost, *.local\n"), surge)
+            XCTAssertTrue(surge.contains("tun-excluded-routes = 192.168.0.0/16, fd00::/8\n"), surge)
+        }
+        let node = SubscriptionParser().parseURI("trojan://pw@a.example.com:443?sni=c.example.com#T")!
+        let surfboard = ConfigurationGenerator()
+            .generate(nodes: [node], scheme: scheme, target: .surge, surgeDialect: .surfboard).content
+        XCTAssertTrue(surfboard.contains("skip-proxy = 192.168.0.0/16"), surfboard)
+        XCTAssertFalse(surfboard.contains("tun-excluded-routes"), surfboard)
+        let loon = generatedScheme(scheme, target: .loon)
+        XCTAssertTrue(loon.contains("skip-proxy = 192.168.0.0/16, 10.0.0.0/8, localhost, *.local\n"), loon)
+        XCTAssertTrue(loon.contains("bypass-tun = 192.168.0.0/16, fd00::/8\n"), loon)
+
+        // Bypass lists alone must not switch sing-box to the imported-DNS path.
+        var plain = scheme
+        plain.networkSettings = nil
+        XCTAssertEqual(generatedScheme(scheme, target: .singBox), generatedScheme(plain, target: .singBox))
+    }
+
+    func testLoonBypassTunDomainsAreDroppedAndSurgeKeepsDefaultSkipProxy() throws {
+        let source = """
+        [General]
+        bypass-tun = 172.16.0.0/12, localhost
+
+        [Proxy Group]
+        Proxy = select, DIRECT
+
+        [Rule]
+        FINAL,Proxy
+        """
+        let scheme = try RuleSchemeParser().parse(text: source, id: "loon-bypass", name: "L", summary: "L")
+        XCTAssertEqual(scheme.networkSettings?.tunExcludedRoutes, ["172.16.0.0/12"])
+        let surge = generatedScheme(scheme, target: .surge)
+        XCTAssertTrue(surge.contains("skip-proxy = 127.0.0.1, localhost, *.local\n"), surge)
+        XCTAssertTrue(surge.contains("tun-excluded-routes = 172.16.0.0/12\n"), surge)
+        XCTAssertFalse(generatedScheme(makeScheme(dnsProtectionMode: .standard), target: .loon).contains("skip-proxy"))
+    }
+
+    func testDNSOverrideKeepsSourceBypassLists() {
+        var scheme = makeScheme(dnsProtectionMode: .standard)
+        scheme.networkSettings?.skipProxyHosts = ["*.corp.example"]
+        scheme.networkSettings?.tunExcludedRoutes = ["10.0.0.0/8"]
+        let override = RuleSchemeNetworkSettings(dnsServers: ["9.9.9.9"])
+
+        for settings in [override, nil] {
+            let result = scheme.customized(
+                enabledRuleGroupNames: nil,
+                customRuleFlows: [],
+                groupCustomization: RuleSchemeCustomization(
+                    schemeID: scheme.id,
+                    networkSettingsOverride: settings,
+                    overridesNetworkSettings: true
+                )
+            )
+            XCTAssertEqual(result.networkSettings?.skipProxyHosts, ["*.corp.example"])
+            XCTAssertEqual(result.networkSettings?.tunExcludedRoutes, ["10.0.0.0/8"])
+            XCTAssertEqual(result.networkSettings?.dnsServers, settings?.dnsServers ?? [])
+        }
+    }
+
     private func makeScheme(
         dnsProtectionMode: RuleSchemeDNSProtectionMode
     ) -> RuleScheme {

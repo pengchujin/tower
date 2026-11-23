@@ -419,7 +419,8 @@ struct ConfigurationGenerator {
                 inlineNodes: inlineNodes,
                 remoteSubscriptions: remoteEntries,
                 target: target,
-                rulePlan: rulePlan
+                rulePlan: rulePlan,
+                surgeDialect: surgeDialect
             )
         case .loon:
             content = loonScheme(
@@ -2097,7 +2098,8 @@ struct ConfigurationGenerator {
         inlineNodes: [ProxyNode],
         remoteSubscriptions: [RemoteSubscriptionEntry],
         target: ClientTarget,
-        rulePlan: RuleSetEmissionPlanner.Plan
+        rulePlan: RuleSetEmissionPlanner.Plan,
+        surgeDialect: SurgeDialect = .surge
     ) -> String {
         let remoteNodeNames = remoteNodeNameSet(nodes: nodes, subscriptions: remoteSubscriptions)
         let sourceGroupNames = remoteSubscriptions.map(\.displayName)
@@ -2115,7 +2117,15 @@ struct ConfigurationGenerator {
             output += "hijack-dns = *:53\n"
             output += "encrypted-dns-follow-outbound-mode = true\n"
         }
-        output += "skip-proxy = 127.0.0.1, localhost, *.local\n"
+        // manual.nssurge.com/profile/general.html: skip-proxy is a host
+        // list, tun-excluded-routes IPv4/IPv6 CIDRs only (both iOS and Mac).
+        let skipProxy = scheme.networkSettings?.skipProxyHosts ?? []
+        output += "skip-proxy = \((skipProxy.isEmpty ? ["127.0.0.1", "localhost", "*.local"] : skipProxy).joined(separator: ", "))\n"
+        // getsurfboard/manual documents skip-proxy but not tun-excluded-routes.
+        if surgeDialect != .surfboard,
+           let routes = scheme.networkSettings?.tunExcludedRoutes, !routes.isEmpty {
+            output += "tun-excluded-routes = \(routes.joined(separator: ", "))\n"
+        }
         output += "test-timeout = 5\n\n[Proxy]\n"
         output += "\n"
         for node in inlineNodes {
@@ -2228,8 +2238,15 @@ struct ConfigurationGenerator {
         )
         output += "[General]\n"
         output += "ipv6 = \(schemeIPv6(scheme))\n"
-        output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n\n"
-        output += "[Proxy]\n"
+        output += "dns-server = \(schemePlainDNS(scheme).joined(separator: ", "))\n"
+        // LoonManual docs/cn/general.md documents skip-proxy and bypass-tun.
+        if let hosts = scheme.networkSettings?.skipProxyHosts, !hosts.isEmpty {
+            output += "skip-proxy = \(hosts.joined(separator: ", "))\n"
+        }
+        if let routes = scheme.networkSettings?.tunExcludedRoutes, !routes.isEmpty {
+            output += "bypass-tun = \(routes.joined(separator: ", "))\n"
+        }
+        output += "\n[Proxy]\n"
         output += "\n"
         for node in inlineNodes { output += loonNode(node) + "\n" }
         output += loonRemoteProxySections(
@@ -4674,7 +4691,7 @@ extension ConfigurationGenerator {
     /// on the proxy itself. Literal bootstrap addresses resolve the encrypted
     /// resolver host; the direct encrypted resolver then bootstraps the proxy.
     private func singBoxDNS(for scheme: RuleScheme, remoteDetour: String?) -> [String: Any] {
-        guard scheme.networkSettings != nil else { return singBoxDNS(remoteDetour: remoteDetour) }
+        guard scheme.networkSettings?.carriesDNSSettings == true else { return singBoxDNS(remoteDetour: remoteDetour) }
         var servers: [[String: Any]] = schemePlainDNS(scheme).enumerated().map { index, address in
             ["type": "udp", "tag": index == 0 ? "bootstrap" : "bootstrap-\(index + 1)", "server": address]
         }
