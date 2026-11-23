@@ -37942,6 +37942,100 @@
         }
       }
     },
+    "已跳过 %lld 条进程规则（PROCESS-NAME 等）：%@ 不支持按进程分流。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم تخطي %1$lld من قواعد العمليات (PROCESS-NAME وما شابه): لا يدعم %2$@ التوجيه حسب العملية."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld Prozessregeln (PROCESS-NAME u. Ä.) wurden übersprungen: %2$@ unterstützt kein Routing nach Prozess."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped %1$lld process rules (PROCESS-NAME and similar): %2$@ does not support routing by process."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se omitieron %1$lld reglas de proceso (PROCESS-NAME y similares): %2$@ no admite el enrutamiento por proceso."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld règles de processus (PROCESS-NAME, etc.) ont été ignorées : %2$@ ne prend pas en charge le routage par processus."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld aturan proses (PROCESS-NAME dan sejenisnya) dilewati: %2$@ tidak mendukung perutean berdasarkan proses."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロセスルール（PROCESS-NAME など）%1$lld 件をスキップしました。%2$@ はプロセス単位の振り分けに対応していません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프로세스 규칙(PROCESS-NAME 등) %1$lld개를 건너뛰었습니다. %2$@은(는) 프로세스별 라우팅을 지원하지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld regras de processo (PROCESS-NAME e similares) foram ignoradas: o %2$@ não oferece roteamento por processo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пропущено правил процессов (PROCESS-NAME и др.): %1$lld. %2$@ не поддерживает маршрутизацию по процессам."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ข้ามกฎโปรเซส (PROCESS-NAME ฯลฯ) %1$lld รายการ: %2$@ ไม่รองรับการแยกเส้นทางตามโปรเซส"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld işlem kuralı (PROCESS-NAME vb.) atlandı: %2$@ işleme göre yönlendirmeyi desteklemiyor."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã bỏ qua %1$lld quy tắc tiến trình (PROCESS-NAME, v.v.): %2$@ không hỗ trợ định tuyến theo tiến trình."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已跳过 %1$lld 条进程规则（PROCESS-NAME 等）：%2$@ 不支持按进程分流。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已略過 %1$lld 條程序規則（PROCESS-NAME 等）：%2$@ 不支援依程序分流。"
+          }
+        }
+      }
+    },
     "已选": {
       "localizations": {
         "ar": {

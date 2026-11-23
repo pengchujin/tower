@@ -343,6 +343,7 @@ struct ConfigurationGenerator {
         // the export: those requests will not be blocked, and the notice at
         // the top of the list says so.
         var skippedRejectCount = 0
+        var skippedProcessRuleCount = 0
         for resource in rulePlan.unreadableResources {
             if resource.policyName.uppercased().hasPrefix("REJECT") { skippedRejectCount += 1 }
             let file = resource.url.lastPathComponent
@@ -360,8 +361,19 @@ struct ConfigurationGenerator {
             if !supportedRule {
                 unsupportedRuleCount += 1
                 if rule.policyName.uppercased().hasPrefix("REJECT") { skippedRejectCount += 1 }
-                diagnostics.append(String(localized: "无法转换规则：\(rule.line) → \(target.name)。"))
+                // Process rules come from lists written for desktop clients
+                // (Surge Mac, mihomo); one line per process name made a
+                // harmless skip look like a broken export.
+                let type = rule.line.prefix { $0 != "," }.trimmingCharacters(in: .whitespaces).uppercased()
+                if type.hasPrefix("PROCESS-") {
+                    skippedProcessRuleCount += 1
+                } else {
+                    diagnostics.append(String(localized: "无法转换规则：\(rule.line) → \(target.name)。"))
+                }
             }
+        }
+        if skippedProcessRuleCount > 0 {
+            diagnostics.append(String(localized: "已跳过 \(skippedProcessRuleCount) 条进程规则（PROCESS-NAME 等）：\(target.name) 不支持按进程分流。"))
         }
         if skippedRejectCount > 0 {
             diagnostics.insert(String(localized: "\(skippedRejectCount) 条拦截规则无法在 \(target.name) 中表达，已跳过：这些请求不会被拦截。"), at: 0)

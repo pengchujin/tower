@@ -164,6 +164,16 @@ final class RuleExportAuditFixTests: XCTestCase {
         }
     }
 
+    func testSkippedProcessRulesCollapseIntoOneNotice() throws {
+        let scheme = try surge(["PROCESS-NAME,apsd,OpenAI", "PROCESS-NAME,trustd,OpenAI", "PROCESS-NAME,fmfd,OpenAI",
+                                "SUBNET,TYPE:WIFI,OpenAI", "DOMAIN,keep.example,OpenAI", "FINAL,OpenAI"])
+        let diagnostics = output(scheme, .loon).diagnostics
+        XCTAssertFalse(diagnostics.contains { $0.contains("PROCESS-NAME,") }, "\(diagnostics)")
+        XCTAssertEqual(diagnostics.filter { $0.contains("3 条进程规则") }.count, 1, "\(diagnostics)")
+        // Other unsupported rules still get their own line.
+        XCTAssertTrue(diagnostics.contains { $0.contains("SUBNET,TYPE:WIFI") }, "\(diagnostics)")
+    }
+
     func testEgernUsesItsOwnRuleKeys() throws {
         let scheme = try surge([
             "IP-CIDR6,2001:db8::/32,OpenAI,no-resolve",
