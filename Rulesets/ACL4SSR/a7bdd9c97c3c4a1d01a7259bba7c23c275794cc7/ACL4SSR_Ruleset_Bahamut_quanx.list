@@ -1,0 +1,5 @@
+host, bahamut.akamaized.net, proxy
+host, gamer-cds.cdn.hinet.net, proxy
+host, gamer2-cds.cdn.hinet.net, proxy
+host-suffix, bahamut.com.tw, proxy
+host-suffix, gamer.com.tw, proxy

@@ -1,0 +1,16 @@
+host, csgo.wmsj.cn, proxy
+host, dl.steam.clngaa.com, proxy
+host, dl.steam.ksyna.com, proxy
+host, dota2.wmsj.cn, proxy
+host, st.dl.bscstorage.net, proxy
+host, st.dl.eccdnx.com, proxy
+host, st.dl.pinyuncloud.com, proxy
+host, steampipe.steamcontent.tnkjmec.com, proxy
+host, steampowered.com.8686c.com, proxy
+host, steamstatic.com.8686c.com, proxy
+host, wmsjsteam.com, proxy
+host, xz.pphimalayanrt.com, proxy
+host-suffix, cm.steampowered.com, proxy
+host-suffix, steamchina.com, proxy
+host-suffix, steamcontent.com, proxy
+host-suffix, steamusercontent.com, proxy
