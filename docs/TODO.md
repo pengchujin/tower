@@ -63,6 +63,8 @@
 
 - 2026-11-23 分拣（都不用改代码）：等正式版的有 QuanX TF 1.9.0 build 968 支持 mieru 出站（TCP / TLS / REALITY，@QuanXNews/451）、build 969 支持 Hysteria 2 的 Gecko 混淆（Salamander + 分片，@QuanXNews/452），mieru 归上面「新协议」一项；Clash Mi 1.0.33.1905 GitHub 已转正式，但 App Store 仍是 1.0.32（2026-11-14），更新说明未提内核，Snell v6 继续等商店版并确认 mihomo ≥ 1.19.34；FlClash 0.9.5-pre.1 只是预发布。Sub-Store 2.44.24–2.44.26 给 QuanX 加 mieru / Gecko、解析 Shadowrocket 非标 mieru URI，属第三方实现，等 QuanX 正式版和官方文档。Hiddify 5.9.15（GitHub 正式，App Store 仍是 5.6.0）的 Keep top、Psiphon、WARP、OpenVPN 导入，「Clash」App TF 1.0.19 (222–224) 的内存停止提示和模块内联脚本，都与导出无关。
 
+- 2026-11-24 分拣（都不用改代码）：等正式版的有 Surge Mac 6.13.0 Beta (12920) / iOS TestFlight 的 TLS `client-fingerprint`（`apple-26` / `chromium-155` / `auto` / `none`，与 11-21 那条同一项）、新增 `ech-config`（TLS / QUIC 节点的 ECHConfigList，不能配 REALITY）、`ecn` 也作用于 TCP 节点，正式版仍是 iOS 6.0.1 / Mac 6.12.0；Loon TF 3.5.4 (1018/1019) 的 XHTTP（HTTP/3、XMUX、独立下行）、VLESS Encryption（native / xorpub / random，1-RTT / 0-RTT）、mieru 节点、Vision `xtls-rprx-vision-udp443`、REALITY 默认指纹 Chrome-147，App Store 仍是 3.5.3（2026-10-30），mieru 归上面「新协议」一项。Sub-Store 2.44.27（Loon XHTTP / VLESS Encryption / mieru）、2.44.28（Surge ECN）属第三方实现，不跟。Snell 发布说明页新增「Security Technical Details」说明（无前向保密、无专门防重放），下载仍是 v6.0.0，协议未变。「Clash」App TF 1.0.19 (225–228) 只修界面；Loon TF 的 Tailscale UDP 分片 / 重连属客户端内部；FlClash v0.9.5-rs.1 换实验性 concord 内核并新增 smart 组，只是预发布；Hiddify TestFlight 名额由满变开放。
+
 ### 只需写进兼容文档
 
 - [ ] Clash Verge / FlClash 的 TUN 以客户端设置为准；Verge / Clash Party 的「DNS 覆写保护」会先弹确认，可能挡掉塔台写的 DNS 段。
