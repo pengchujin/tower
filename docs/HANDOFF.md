@@ -1,5 +1,11 @@
 # 当前交接
 
+## 1.0.34（82）TestFlight（2026-11-24）
+
+- 只递增构建号，修 81 的 TestFlight 反馈「ShadowTLS 的 Snell 节点，shadow 的 password 没有带上」：81 之前粘贴保存的本地 Snell 节点启动时按原始行补回 ShadowTLS；编辑节点（含 SS + ShadowTLS）不再丢掉 ShadowTLS；Clash 订阅 Snell 的 `plugin: shadow-tls` 被解析，其他插件跳过。修复提交 `839ec7e`，完整 TowerTests 1440 项通过。
+- 发布提交 `afcc4b0`，ACL4SSR 仍是上游最新 `a7bdd9c`。本机 asc 归档两端，核对 `com.jzb.tower` 1.0.34（82），Mac 为 arm64 / x86_64。两端上传后 Apple 处理为 VALID，已加入外部组「测试」并提交 Beta 审核。私有归档与日志在 `~/Builds/Tower-1.0.34-82/`。这次没有做 Mac 直接分发（DMG / GitHub Release / Homebrew 仍是 81），也没有提交 App Store 审核。
+- 已知未处理：完整 Surge 配置订阅的 `[Proxy]` 段只认 SS 和 MASQUE 行，Snell 行整条被拒绝。
+
 ## 1.0.34（81）TestFlight 与 Mac 分发（2026-11-23）
 
 - iOS 1.0.33 已上架（READY_FOR_DISTRIBUTION），因此递增到 1.0.34、构建 81，让 TestFlight 用户拿到 80 之后的四项改动：Snell 行的 ShadowTLS、REALITY `support-x25519mlkem768`（#57）、Surfboard 局域网配置过滤、FlClash / Clash Party 的 Snell v6。核对 TestFlight 时 75–80 两端外部组均为 IN_BETA_TESTING，没有漏发的构建。更新日志 `docs/releases/1.0.34.md`。
