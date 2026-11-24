@@ -71,6 +71,12 @@ struct ManualNodeDraft: Equatable {
 
     var masque: MASQUEOptions?
     private var masqueUDP: Bool?
+    /// The form has no ShadowTLS fields. Editing a wrapped SS / Snell node
+    /// must keep the wrapper as it was; dropping it saved a plain node that
+    /// exported without the ShadowTLS password and could not connect.
+    private var shadowTLS: ShadowTLSOptions?
+    private var shadowTLSUDPRelay: Bool?
+    private var shadowTLSFingerprint: String?
     var kind: ProxyKind = .shadowsocks
     var name = ""
     var server = ""
@@ -232,6 +238,11 @@ struct ManualNodeDraft: Equatable {
     init(node: ProxyNode) {
         masque = node.masque
         masqueUDP = node.udpRelayEnabled
+        if node.shadowTLS != nil {
+            shadowTLS = node.shadowTLS
+            shadowTLSUDPRelay = node.udpRelayEnabled
+            shadowTLSFingerprint = node.fingerprint
+        }
         sshPrivateKey = node.ssh?.privateKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         sshHostKey = node.ssh?.hostKeys.first ?? ""
         trustTunnelQUIC = node.trustTunnel?.quic ?? false
@@ -565,6 +576,12 @@ struct ManualNodeDraft: Equatable {
                 clientRandomAuthKey: normalizedTrustTunnelAuthKey.isEmpty ? nil : normalizedTrustTunnelAuthKey
             ) : nil
         )
+        if let shadowTLS, [.shadowsocks, .snell].contains(kind) {
+            node.plugin = "shadow-tls"
+            node.shadowTLS = shadowTLS
+            node.udpRelayEnabled = shadowTLSUDPRelay
+            node.fingerprint = shadowTLSFingerprint
+        }
         if kind == .trustTunnel, node.trustTunnel?.clientRandomAuthKey != nil, !node.sendsTrustTunnelSNI {
             throw ManualNodeValidationError.trustTunnelAuthKeyNeedsSNI
         }

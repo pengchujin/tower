@@ -1191,6 +1191,24 @@ struct SubscriptionParser {
         return mode.lowercased() == "default"
     }
 
+    /// Builds before 1.0.34 (81) ignored `shadow-tls-*` on Snell lines, so a
+    /// node pasted then is saved as plain Snell while its `rawURI` still holds
+    /// the wrapper. Local nodes are never re-parsed, so without this the
+    /// Surge export kept omitting the ShadowTLS password after the fix.
+    func restoringSnellShadowTLS(_ node: ProxyNode) -> ProxyNode {
+        guard node.kind == .snell, node.shadowTLS == nil,
+              node.rawURI.lowercased().contains("shadow-tls-"),
+              let reparsed = parseSnellLine(node.rawURI, sourceID: node.sourceID),
+              let shadowTLS = reparsed.shadowTLS,
+              reparsed.server == node.server, reparsed.port == node.port,
+              reparsed.password == node.password else { return node }
+        var node = node
+        node.plugin = reparsed.plugin
+        node.shadowTLS = shadowTLS
+        node.udpRelayEnabled = reparsed.udpRelayEnabled
+        return node
+    }
+
     /// A Surge proxy line: `名称 = snell, 主机, 端口, psk=…, version=4, obfs=http`.
     ///
     /// Positional fields come first, then `key=value` options in any order.
@@ -2045,6 +2063,21 @@ struct SubscriptionParser {
                     obfsHost = options["host"]
                 }
             }
+            // Sub-Store / Stash write Snell + ShadowTLS with the same
+            // `plugin: shadow-tls` object as SS. Ignoring it imported plain
+            // Snell, so the Surge export lost the ShadowTLS password.
+            if kind == .snell, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
+                var options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
+                for (key, value) in dictionary where key.hasPrefix("plugin-opts.") {
+                    options[String(key.dropFirst("plugin-opts.".count))] = value
+                }
+                guard plugin == "shadow-tls", let parsed = shadowTLSOptions(options) else {
+                    rejected += 1
+                    continue
+                }
+                sip003Plugin = "shadow-tls"
+                shadowTLS = parsed
+            }
             if kind == .shadowsocks, let plugin = dictionary["plugin"]?.lowercased(), !plugin.isEmpty {
                 var options = parseInlineYAMLMap(dictionary["plugin-opts"] ?? "")
                 for (key, value) in dictionary where key.hasPrefix("plugin-opts.") {
@@ -2140,7 +2173,7 @@ struct SubscriptionParser {
                 congestionControl: dictionary["congestion-controller"]
                     ?? dictionary["congestion_control"],
                 udpRelayMode: dictionary["udp-relay-mode"],
-                udpRelayEnabled: [.shadowsocks, .trustTunnel].contains(kind) ? dictionary["udp"].map { boolString($0) } : nil,
+                udpRelayEnabled: [.shadowsocks, .trustTunnel].contains(kind) || shadowTLS != nil ? dictionary["udp"].map { boolString($0) } : nil,
                 portHopping: dictionary["ports"]
                     ?? dictionary["mport"]
                     ?? dictionary["server-ports"]

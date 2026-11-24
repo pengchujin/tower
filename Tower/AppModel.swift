@@ -4273,7 +4273,8 @@ final class AppModel {
             if Self.isCancellationMessage(source.lastError) { source.lastError = nil }
             return source
         }
-        nodes = snapshot.nodes
+        let parser = SubscriptionParser()
+        nodes = snapshot.nodes.map(parser.restoringSnellShadowTLS)
         importedSchemes = (snapshot.importedSchemes ?? []).map {
             RuleSchemeParser().restoringLegacySmartGroups(in: $0)
         }

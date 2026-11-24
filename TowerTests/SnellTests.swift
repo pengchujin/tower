@@ -279,6 +279,66 @@ final class SnellTests: XCTestCase {
         XCTAssertEqual(parser.parseURI(exported)?.shadowTLS, node.shadowTLS)
     }
 
+    /// TestFlight 反馈（1.0.34 (81)）：Snell + ShadowTLS 导出后仍缺
+    /// shadow-tls-password。编辑表单没有 ShadowTLS 字段，保存后整段被丢掉。
+    func testEditingSnellShadowTLSNodeKeepsTheWrapper() throws {
+        var node = try XCTUnwrap(parser.parseURI(shadowTLSLine + ", udp-relay=true"))
+        node.sourceID = nil
+        var draft = ManualNodeDraft(node: node)
+        draft.name = "JP 改名"
+        let edited = try draft.makeNode(id: node.id)
+
+        XCTAssertEqual(edited.name, "JP 改名")
+        XCTAssertEqual(edited.plugin, "shadow-tls")
+        XCTAssertEqual(edited.shadowTLS, node.shadowTLS)
+        XCTAssertEqual(edited.udpRelayEnabled, true)
+        let content = ConfigurationGenerator().generate(nodes: [edited], preset: RulePreset.builtIns[0], target: .surge).content
+        XCTAssertTrue(content.contains("shadow-tls-password=p%25w;d2"))
+        XCTAssertEqual(parser.parseURI(edited.rawURI)?.shadowTLS, node.shadowTLS)
+    }
+
+    func testEditingShadowsocksShadowTLSNodeKeepsTheWrapper() throws {
+        let link = "ss://" + Data("aes-128-gcm:pwd1".utf8).base64EncodedString()
+            + "@203.0.113.20:443?plugin=shadow-tls%3Bhost%3Dcover.example.com%3Bpassword%3Dstls%3Bversion%3D3#JP"
+        let node = try XCTUnwrap(parser.parseURI(link))
+        XCTAssertNotNil(node.shadowTLS)
+        let edited = try ManualNodeDraft(node: node).makeNode(id: node.id)
+        XCTAssertEqual(edited.shadowTLS, node.shadowTLS)
+        XCTAssertEqual(edited.plugin, "shadow-tls")
+    }
+
+    /// 1.0.34 之前粘贴的节点存成了普通 Snell，rawURI 里还留着 shadow-tls-*。
+    func testStaleSnellNodeRestoresShadowTLSFromItsLine() throws {
+        var stale = try XCTUnwrap(parser.parseURI(shadowTLSLine))
+        let expected = stale.shadowTLS
+        stale.shadowTLS = nil
+        stale.plugin = nil
+
+        let restored = parser.restoringSnellShadowTLS(stale)
+        XCTAssertEqual(restored.id, stale.id)
+        XCTAssertEqual(restored.shadowTLS, expected)
+        XCTAssertEqual(restored.plugin, "shadow-tls")
+
+        let plain = try XCTUnwrap(parser.parseURI(line))
+        XCTAssertEqual(parser.restoringSnellShadowTLS(plain), plain)
+    }
+
+    func testClashSnellWithShadowTLSPluginKeepsIt() throws {
+        let yaml = """
+        proxies:
+          - {name: JP, type: snell, server: 203.0.113.20, port: 443, psk: pwd1, version: 4, plugin: shadow-tls, plugin-opts: {host: cover.example.com, password: stls, version: 3}}
+          - {name: KR, type: snell, server: 203.0.113.21, port: 443, psk: pwd1, version: 4, plugin: obfs, plugin-opts: {mode: tls}}
+        """
+        let result = parser.parse(data: Data(yaml.utf8))
+
+        XCTAssertEqual(result.nodes.map(\.name), ["JP"])
+        XCTAssertEqual(result.rejectedLineCount, 1, "不认识的插件不能导入成普通 Snell")
+        let node = try XCTUnwrap(result.nodes.first)
+        XCTAssertEqual(node.shadowTLS, ShadowTLSOptions(version: 3, host: "cover.example.com", password: "stls"))
+        let content = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: .surge).content
+        XCTAssertTrue(content.contains("shadow-tls-password=stls"))
+    }
+
     func testSnellShadowTLSKeepsExplicitUDPRelay() throws {
         let node = try XCTUnwrap(parser.parseURI(shadowTLSLine + ", udp-relay=true"))
         let content = ConfigurationGenerator().generate(nodes: [node], preset: RulePreset.builtIns[0], target: .surge).content
