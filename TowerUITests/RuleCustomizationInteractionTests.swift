@@ -409,6 +409,36 @@ final class RuleCustomizationInteractionTests: XCTestCase {
         XCTAssertTrue(app.buttons["删除关键词 hk"].waitForExistence(timeout: 5))
     }
 
+    /// TestFlight 反馈：详情页点「删除策略组」没反应，返回上一层才弹确认框。
+    func testDeletingGroupConfirmsOnTheDetailPage() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString
+        app.launchArguments = ["--tab=rules", "-hasSeenWelcome", "YES", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        let customize = app.buttons["编辑 ACL4SSR 默认"]
+        XCTAssertTrue(customize.waitForExistence(timeout: 15))
+        customize.tap()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap(); search.typeText("苹果")
+        openRouting(app, group: "🍎 苹果服务")
+        let delete = app.buttons["rule-group-delete"]
+        for _ in 0..<10 { if delete.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(delete.isHittable)
+
+        delete.tap()
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 3), "确认框必须在详情页直接弹出")
+        alert.buttons["取消"].tap()
+        XCTAssertTrue(app.textFields["rule-group-name-field"].exists, "取消后留在详情页")
+
+        delete.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 3))
+        alert.buttons["删除"].tap()
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "删除后回到规则定制列表")
+        XCTAssertFalse(app.buttons["rule-group-🍎 苹果服务"].waitForExistence(timeout: 2))
+    }
+
     func testNodeFilterDeletionPersistsWhenImmediatelyReopened() {
         let app = XCUIApplication()
         app.launchEnvironment["TOWER_UI_TEST_RUN"] = UUID().uuidString

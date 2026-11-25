@@ -54,6 +54,7 @@ struct RuleGroupDetailView: View {
     @State private var selectedKind: RuleSchemeGroup.Kind = .select
     @State private var selectedReferences: [String] = []
     @State private var nameError: String?
+    @State private var pendingDeletion: RuleSchemeGroup?
     @FocusState private var isEditingName: Bool
 
     private var group: RuleSchemeGroup? {
@@ -96,7 +97,7 @@ struct RuleGroupDetailView: View {
                     sourcesSection
                 }
                 Section {
-                    Button(role: .destructive) { onDelete(group) } label: {
+                    Button(role: .destructive) { pendingDeletion = group } label: {
                         Text("删除策略组")
                     }
                     .accessibilityIdentifier("rule-group-delete")
@@ -151,7 +152,34 @@ struct RuleGroupDetailView: View {
         } message: {
             Text(nameError ?? "")
         }
+        .alert(
+            pendingDeletion.map { String(localized: "删除“\($0.name)”？") } ?? String(localized: "确认删除"),
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            presenting: pendingDeletion
+        ) { group in
+            Button(String(localized: "删除"), role: .destructive) {
+                pendingDeletion = nil
+                onDelete(group)
+            }
+            Button("取消", role: .cancel) { pendingDeletion = nil }
+        } message: { group in
+            Text(deletionMessage(for: group))
+        }
         .accessibilityIdentifier("rule-group-detail")
+    }
+
+    /// Same wording as the list's swipe-to-delete confirmation.
+    private func deletionMessage(for group: RuleSchemeGroup) -> String {
+        let references = model.ruleGroupReferences(to: group.name, for: scheme)
+        if references.isEmpty {
+            return String(localized: "这会移除该分组以及指向它的规则，不会修改上游仓库。")
+        }
+        return String(
+            localized: "以下分组正在引用它：\(references.joined(separator: "、"))。继续删除后会同时移除这些引用；没有候选项的分组会回退到 DIRECT。"
+        )
     }
 
     private func showsRuleSections(_ group: RuleSchemeGroup) -> Bool {

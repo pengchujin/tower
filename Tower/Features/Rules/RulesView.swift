@@ -695,8 +695,12 @@ private struct RuleCustomizationSheet: View {
             .navigationDestination(for: RuleCustomizationRoute.self) { route in
                 switch route {
                 case .group(let name):
+                    // The detail page confirms on its own: an alert attached to
+                    // this list cannot appear while the page is pushed on top,
+                    // so the tap looked dead until the user went back.
                     RuleGroupDetailView(scheme: scheme, groupName: name) { group in
-                        requestDeletion(of: group)
+                        if path.last == .group(group.name) { path.removeLast() }
+                        model.deleteRuleGroup(named: group.name, for: scheme)
                     }
                 }
             }
