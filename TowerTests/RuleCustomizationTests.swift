@@ -1930,4 +1930,63 @@ final class RuleCustomizationTests: XCTestCase {
             ]
         )
     }
+
+    // MARK: - Imported profiles' own groups as candidates
+
+    /// TestFlight 反馈：自己起名的策略组（SHOP、GITHUB…）在编辑候选里选不到。
+    private func importedProfile() throws -> RuleScheme {
+        try RuleSchemeParser().parse(text: """
+        [Proxy Group]
+        PROXY = select, DIRECT
+        SHOP = select, PROXY, DIRECT
+        GITHUB = select, SHOP, DIRECT
+        WECHAT = select, DIRECT
+        [Rule]
+        DOMAIN-SUFFIX,shop.example,SHOP
+        DOMAIN-SUFFIX,github.com,GITHUB
+        DOMAIN-SUFFIX,qq.com,WECHAT
+        FINAL,PROXY
+        """, id: "own-groups", name: "Own", summary: "")
+    }
+
+    func testImportedProfileOffersItsOwnGroupsWithoutLoops() throws {
+        let scheme = try importedProfile()
+
+        XCTAssertEqual(Set(scheme.additionalReferenceCandidates(for: "WECHAT")), ["SHOP", "GITHUB"])
+        // GITHUB 已经引用 SHOP，再让 SHOP 引用 GITHUB 就成环。
+        XCTAssertEqual(scheme.additionalReferenceCandidates(for: "SHOP"), ["WECHAT"])
+        XCTAssertEqual(Set(scheme.additionalReferenceCandidates(for: "GITHUB")), ["SHOP", "WECHAT"])
+        // 间接引用也算：GITHUB → SHOP → PROXY。
+        XCTAssertEqual(RuleSchemePolicyValidator.groupsReferencing("PROXY", in: scheme.groups), ["SHOP", "GITHUB"])
+        XCTAssertFalse(scheme.additionalReferenceCandidates(for: "PROXY").contains("GITHUB"))
+    }
+
+    func testEveryOfferedOwnGroupKeepsTheGraphLoopFree() throws {
+        let scheme = try importedProfile()
+        for group in scheme.groups {
+            for candidate in scheme.additionalReferenceCandidates(for: group.name) {
+                var groups = scheme.groups
+                let index = try XCTUnwrap(groups.firstIndex { $0.name == group.name })
+                let original = groups[index]
+                groups[index] = RuleSchemeGroup(
+                    name: original.name, kind: original.kind,
+                    members: original.members + [.reference(candidate)],
+                    testURLString: original.testURLString, interval: original.interval,
+                    tolerance: original.tolerance, algorithm: original.algorithm,
+                    sourceType: original.sourceType, sourceFormat: original.sourceFormat,
+                    parameters: original.parameters
+                )
+                let issues = RuleSchemePolicyValidator.validate(
+                    groups: groups, ruleTargets: scheme.rulesets.map(\.groupName), nodeNames: []
+                )
+                XCTAssertFalse(issues.contains { $0.code == .cycle }, "\(group.name) → \(candidate)")
+            }
+        }
+    }
+
+    func testBundledSchemesKeepServiceGroupsOutOfCandidates() throws {
+        var scheme = try importedProfile()
+        scheme.isBundled = true
+        XCTAssertEqual(scheme.additionalReferenceCandidates(for: "WECHAT"), [])
+    }
 }

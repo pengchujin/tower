@@ -178,6 +178,29 @@ struct RuleScheme: Identifiable, Codable, Hashable {
             .filter { seen.insert($0).inserted }
     }
 
+    /// An imported profile's own groups (SHOP, GITHUB …) that `groupName` may
+    /// reference beyond the general-purpose targets above. Users nest these in
+    /// the Surge / Clash files they maintain, so hiding them left the editor
+    /// unable to express their own configuration. Groups that already reach
+    /// `groupName` are left out, so no choice here can create a loop. Bundled
+    /// schemes keep the narrower list: their service groups are destinations
+    /// for rules, not candidates for one another.
+    func additionalReferenceCandidates(
+        from candidateGroups: [RuleSchemeGroup]? = nil,
+        for groupName: String
+    ) -> [String] {
+        guard !isBundled else { return [] }
+        let candidateGroups = candidateGroups ?? groups
+        let primary = Set(routingTargetGroupNames(from: candidateGroups, excluding: groupName))
+        let loops = RuleSchemePolicyValidator.groupsReferencing(groupName, in: candidateGroups)
+        return candidateGroups.filter { group in
+            group.name != groupName
+                && !primary.contains(group.name)
+                && !loops.contains(group.name)
+                && ![.conditional, .relay, .unsupported].contains(group.kind)
+        }.map(\.name)
+    }
+
     /// Produces a valid, self-contained view of this scheme for generation.
     /// An explicit selection filters service rules, while the final policy and
     /// every transitively referenced helper group remain available.

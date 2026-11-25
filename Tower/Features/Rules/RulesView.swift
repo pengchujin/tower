@@ -1811,11 +1811,34 @@ struct OrderedPolicyCandidateSections: View {
     @Environment(AppModel.self) private var model
     @Binding var selected: [String]
     let options: [String]
+    /// An imported profile's own groups, kept apart so the general-purpose
+    /// targets stay at the top. Already filtered to choices without a loop.
+    var otherOptions: [String] = []
     let scheme: RuleScheme
     @State private var showsAddCandidate = false
 
     private var available: [String] {
         options.filter { !selected.contains($0) }
+    }
+
+    private var availableOthers: [String] {
+        otherOptions.filter { !selected.contains($0) && !options.contains($0) }
+    }
+
+    private func candidateRow(_ policy: String) -> some View {
+        Button {
+            selected.append(policy)
+            showsAddCandidate = false
+        } label: {
+            HStack(spacing: 12) {
+                policyEmoji(policy)
+                Text(policyTitle(policy))
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SelectionIndicatorButtonStyle())
     }
 
     var body: some View {
@@ -1852,20 +1875,20 @@ struct OrderedPolicyCandidateSections: View {
                     List {
                         Section {
                             ForEach(available, id: \.self) { policy in
-                                Button {
-                                    selected.append(policy)
-                                    showsAddCandidate = false
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        policyEmoji(policy)
-                                        Text(policyTitle(policy))
-                                            .foregroundStyle(.primary)
-                                        Spacer()
-                                    }
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(SelectionIndicatorButtonStyle())
+                                candidateRow(policy)
                             }
+                        }
+                        if !availableOthers.isEmpty {
+                            Section {
+                                ForEach(availableOthers, id: \.self) { policy in
+                                    candidateRow(policy)
+                                }
+                            } header: {
+                                Text("其他策略组")
+                            } footer: {
+                                Text("来自导入的配置。已经引用当前组的组不会列出，避免循环引用。")
+                            }
+                            .accessibilityIdentifier("policy-candidate-others")
                         }
                         Section {
                             NavigationLink {

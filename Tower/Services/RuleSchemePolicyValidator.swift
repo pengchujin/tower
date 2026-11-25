@@ -55,6 +55,27 @@ enum RuleSchemePolicyValidator {
         return targets.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
+    /// Every group that reaches `name` through members or conditional targets.
+    /// Adding any of them to `name` would close a loop.
+    static func groupsReferencing(_ name: String, in groups: [RuleSchemeGroup]) -> Set<String> {
+        var referrers: [String: [String]] = [:]
+        for group in groups {
+            var targets = Set(conditionalTargets(group))
+            for member in group.members {
+                if case .reference(let target) = member { targets.insert(target) }
+            }
+            for target in targets { referrers[target, default: []].append(group.name) }
+        }
+        var found = Set<String>()
+        var queue = [name]
+        while let next = queue.popLast() {
+            for owner in referrers[next] ?? [] where found.insert(owner).inserted {
+                queue.append(owner)
+            }
+        }
+        return found
+    }
+
     static func validate(
         groups: [RuleSchemeGroup],
         ruleTargets: [String],

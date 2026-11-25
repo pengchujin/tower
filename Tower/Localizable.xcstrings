@@ -95,6 +95,194 @@
         }
       }
     },
+    "其他策略组": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مجموعات أخرى"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weitere Gruppen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other Groups"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otros grupos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autres groupes"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grup lainnya"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "その他のポリシーグループ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기타 정책 그룹"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outros grupos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Другие группы"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กลุ่มอื่น ๆ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer gruplar"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm khác"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他策略组"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他策略組"
+          }
+        }
+      }
+    },
+    "来自导入的配置。已经引用当前组的组不会列出，避免循环引用。": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "من الملف الشخصي المستورد. لا تظهر المجموعات التي تستخدم هذه المجموعة بالفعل، لتجنب مرجع دائري."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus dem importierten Profil. Gruppen, die diese Gruppe bereits verwenden, werden nicht angezeigt, um einen Zirkelbezug zu vermeiden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From the imported profile. Groups that already use this group are not listed, to avoid a reference loop."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del perfil importado. Los grupos que ya usan este grupo no aparecen, para evitar una referencia circular."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Issus du profil importé. Les groupes qui utilisent déjà ce groupe ne sont pas listés, pour éviter une référence circulaire."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dari profil yang diimpor. Grup yang sudah menggunakan grup ini tidak ditampilkan untuk menghindari referensi melingkar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インポートした設定のグループです。このグループをすでに参照しているグループは、循環参照を避けるため表示されません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가져온 구성의 그룹입니다. 순환 참조를 피하기 위해 이미 이 그룹을 참조하는 그룹은 표시되지 않습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do perfil importado. Grupos que já usam este grupo não aparecem, para evitar uma referência circular."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Из импортированного профиля. Группы, которые уже используют эту группу, не показаны, чтобы избежать циклической ссылки."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "มาจากโปรไฟล์ที่นำเข้า กลุ่มที่อ้างอิงกลุ่มนี้อยู่แล้วจะไม่แสดง เพื่อหลีกเลี่ยงการอ้างอิงวนซ้ำ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İçe aktarılan profilden. Döngüsel başvuruyu önlemek için bu grubu zaten kullanan gruplar listelenmez."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Từ cấu hình đã nhập. Các nhóm đã dùng nhóm này sẽ không được liệt kê để tránh tham chiếu vòng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自导入的配置。已经引用当前组的组不会列出，避免循环引用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "來自匯入的設定。已經引用目前群組的群組不會列出，避免循環引用。"
+          }
+        }
+      }
+    },
     "正在加载备份…": {
       "localizations": {
         "ar": {

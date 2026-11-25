@@ -81,6 +81,10 @@ struct RuleGroupDetailView: View {
                             from: model.customizableRuleGroups(for: scheme),
                             excluding: group.name
                         ),
+                        otherOptions: scheme.additionalReferenceCandidates(
+                            from: model.customizableRuleGroups(for: scheme),
+                            for: group.name
+                        ),
                         scheme: scheme
                     )
                 } else {
