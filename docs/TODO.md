@@ -72,6 +72,12 @@
 - [ ] Surge：Snell v6 最低版本（iOS 5.20.0 / Mac 6.7.0，协议仍为 beta）、HTTP/2 CONNECT `udp-relay`、`server-cert-verify-name`。
 - [ ] ClashMac 的 Sparkle 源地址：从安装包 `Info.plist` 读 `SUFeedURL` 后补进清单。
 
+## 导入配置自带的策略组图标（2026-11-25，用户决定暂不做）
+
+- [ ] TestFlight 群反馈（ESCAPISM）：自己维护的 Surge 配置里写了图标集，导出后图标不认。现状：导出只读塔台按 Emoji 算出的 `tower-icon`（`ConfigurationGenerator.policyGroupIcon`），来源里的 Surge `icon-url`、Loon / QuanX `img-url`、Clash / Stash / Egern `icon` 都不会写出去；纯英文大写组名认不出 Emoji，就没有图标。
+- 方案（约半天）：导入时把三种字段统一存成一个参数（如 `tower-source-icon`），只收 HTTPS，QuanX 的 `xxx.system` 只在导出 QuanX 时保留；导出时来源图标优先，没有再走 Emoji 识别，字段名沿用各客户端现有写法。名字的 Emoji 处理不变；Surge 地区组用户自己写了 `icon-url` 就照写；QuanX 大图不替换。塔台不下载图片，只写地址，不碰隐私约束。做时同步把「来源图标 > Emoji 推断」写进 CLAUDE.md 第 6 条，测试覆盖全部写图标的客户端、非 HTTPS 丢弃、内置方案不变。
+- 以后再议：详情页让用户手动指定图标。
+
 ## 策略组图标（2026-10-19，未发布）
 
 - [x] 2026-10-19 国旗提交 `425b0a7` 已推送，清单已绑定，jsDelivr 回读 187 面一致。
