@@ -1,5 +1,10 @@
 # 当前交接
 
+## 1.0.34（83）TestFlight（2026-11-25）
+
+- 只递增构建号，带上两条 TestFlight 反馈修复：导入的 Surge / Clash 配置编辑策略组时可选配置自己命名的组（「其他策略组」，`d2208de`）；策略组详情页「删除策略组」在当前页弹确认（`8abf966`）。完整 TowerTests 1443 项通过（9 项跳过）。
+- 发布提交 `dfa4cc9`，ACL4SSR 仍是上游最新 `a7bdd9c`，`--verify-published` 通过。本机 asc 归档两端，核对 `com.jzb.tower` 1.0.34（83）与签名团队，Mac 为 arm64 / x86_64。两端上传后 Apple 处理为 VALID，已加入外部组「测试」并提交 Beta 审核（记录时 WAITING_FOR_REVIEW）。私有归档与日志在 `~/Builds/Tower-1.0.34-83/`。这次没有做 Mac 直接分发（DMG / GitHub Release / Homebrew 仍是 81），也没有提交 App Store 审核。
+
 ## 1.0.34（82）TestFlight（2026-11-24）
 
 - 只递增构建号，修 81 的 TestFlight 反馈「ShadowTLS 的 Snell 节点，shadow 的 password 没有带上」：81 之前粘贴保存的本地 Snell 节点启动时按原始行补回 ShadowTLS；编辑节点（含 SS + ShadowTLS）不再丢掉 ShadowTLS；Clash 订阅 Snell 的 `plugin: shadow-tls` 被解析，其他插件跳过。修复提交 `839ec7e`，完整 TowerTests 1440 项通过。
